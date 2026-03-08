@@ -1,0 +1,27 @@
+{
+  "policy_name": "Aletheia_Core_v1_Sovereign",
+  "version": "2026.03.07",
+  "enforcement_level": "HARD_VETO",
+  "restricted_actions": [
+    {
+      "id": "VETO_01_IDENTITY_ESCALATION",
+      "action": "Modify_Auth_Registry",
+      "scope": "Any modification to User Roles, API Scopes, or Auth Tokens.",
+      "rationale": "Prevents 'Sleeper Agents' from granting themselves permanent high-level access."
+    },
+    {
+      "id": "VETO_02_DATA_EXFILTRATION_PATHWAY",
+      "action": "Open_External_Socket",
+      "scope": "Initiating outbound connections to non-whitelisted domains or raw IP addresses.",
+      "rationale": "Prevents agents from 'phoning home' stolen data via hidden metadata commands."
+    },
+    {
+      "id": "VETO_03_DESTRUCTIVE_INFRASTRUCTURE",
+      "action": "Bulk_Delete_Resource",
+      "scope": "Dropping databases, deleting S3 buckets, or terminating production clusters.",
+      "rationale": "Prevents 'Kamikaze' injections designed to cause catastrophic business loss."
+    }
+  ],
+  "approval_protocol": "DUAL_KEY_REQUIRED",
+  "signatories": ["CEO_RELAY", "THE_JUDGE_AGENT"]
+}

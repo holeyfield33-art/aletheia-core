@@ -1,0 +1,3 @@
+# Aletheia Core Dependencies
+# Initialized March 2026
+python-dotenv==1.0.0
