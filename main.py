@@ -1,7 +1,6 @@
 from agents.judge_v1 import AletheiaJudge
 from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
-from agents.revenue_monitor import AletheiaRevenue
 from bridge.utils import normalize_shadow_text
 
 def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file_sig=None):
@@ -12,7 +11,6 @@ def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file
     scout = AletheiaScoutV2()
     nitpicker = AletheiaNitpickerV2()
     judge = AletheiaJudge()
-    revenue = AletheiaRevenue()
 
     # 0. BRIDGE: Homoglyph Normalization (Directive 30)
     user_payload = normalize_shadow_text(user_payload)
@@ -28,23 +26,16 @@ def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file
     # 3. JUDGE PHASE (V2.1: Semantic Distance Check)
     is_safe, veto_msg = judge.verify_action(action_type, payload=user_payload)
 
-    # 4. DECISION & REVENUE
+    # 4. DECISION
     veto_was_triggered = not is_safe or threat_score >= 5.0
     
     print("\n--- AUDIT RESULTS ---")
     if not veto_was_triggered:
         print(f"STATUS: ✅ PROCEED")
-        fee = revenue.calculate_audit_fee(threat_score, False, action_type)
     else:
         status = "🛑 BLOCKED BY SCOUT" if threat_score >= 5.0 else "🛑 BLOCKED BY JUDGE"
         print(f"STATUS: {status}")
         print(f"REASON: {scout_report if threat_score >= 5.0 else veto_msg}")
-        fee = revenue.calculate_audit_fee(threat_score, True, action_type)
-
-    print(f"\n[FINANCIALS] Value Generated for this Audit: ${fee}")
-    report = revenue.get_payout_report()
-    print(f"[FINANCIALS] CEO Payout: {report['ceo_relay_payout']}")
-    print(f"[FINANCIALS] AI Compute Fund: {report['ai_compute_reinvestment']}")
     print("="*40)
 
 if __name__ == "__main__":
