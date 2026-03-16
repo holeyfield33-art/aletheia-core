@@ -20,6 +20,24 @@
       "action": "Bulk_Delete_Resource",
       "scope": "Dropping databases, deleting S3 buckets, or terminating production clusters.",
       "rationale": "Prevents 'Kamikaze' injections designed to cause catastrophic business loss."
+    },
+    {
+      "id": "VETO_04_LOAN_DISBURSEMENT",
+      "action": "Approve_Loan_Disbursement",
+      "scope": "Any autonomous approval of loan disbursements without human sign-off.",
+      "rationale": "Prevents 'Credit Limit Smuggling' via poisoned employment verification documents."
+    },
+    {
+      "id": "VETO_05_FUND_TRANSFER",
+      "action": "Transfer_Funds",
+      "scope": "Any autonomous fund transfer exceeding policy thresholds.",
+      "rationale": "Prevents unauthorized financial movements triggered by instruction smuggling."
+    },
+    {
+      "id": "VETO_06_ACH_INITIATION",
+      "action": "Initiate_ACH",
+      "scope": "Any autonomous ACH transaction initiation.",
+      "rationale": "Prevents covert ACH disbursements embedded in metadata commands."
     }
   ],
   "approval_protocol": "DUAL_KEY_REQUIRED",

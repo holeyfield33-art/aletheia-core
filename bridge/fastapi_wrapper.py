@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from agents.scout_v2 import AletheiaScoutV2
 from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.judge_v1 import AletheiaJudge
+from bridge.config import AletheiaConfig
 import time
 
 app = FastAPI(title="Aletheia Core Production API")
@@ -27,23 +28,48 @@ async def secure_audit(req: AuditRequest):
     threat_score, report = scout.evaluate_threat_context(req.ip, req.payload)
     
     # 2. NITPICKER PHASE (Polymorphic Scrub)
-    # We pass the origin to trigger LINEAGE or SKEPTIC modes
     clean_content = nitpicker.sanitize_intent(req.payload, req.origin)
     
     # 3. JUDGE PHASE (Hard Veto)
     is_allowed, veto_msg = judge.verify_action(req.action)
     
-    # EMPIRE LOGIC: Total Block if Threat > 5.0 OR Judge Veto
-    is_blocked = (threat_score >= 5.0) or (not is_allowed)
+    # EMPIRE LOGIC: Total Block if Threat > threshold OR Judge Veto
+    is_blocked = (threat_score >= AletheiaConfig.THREAT_THRESHOLD) or (not is_allowed)
     
     latency = (time.time() - start_time) * 1000 # ms
     
+    if is_blocked:
+        if AletheiaConfig.SHADOW_MODE:
+            # LOG FOR THE CTO REPORT BUT DON'T KILL THE REQUEST
+            reason = report if threat_score >= AletheiaConfig.THREAT_THRESHOLD else veto_msg
+            print(f"⚠️ [SHADOW_BLOCK] Would have neutralized: {reason}")
+            return {
+                "decision": "PROCEED",
+                "shadow_verdict": "DENIED",
+                "reason": reason,
+                "metadata": {
+                    "threat_level": threat_score,
+                    "latency_ms": round(latency, 2),
+                    "client_id": AletheiaConfig.CLIENT_ID
+                }
+            }
+        else:
+            return {
+                "decision": "DENIED",
+                "reason": report if threat_score >= AletheiaConfig.THREAT_THRESHOLD else veto_msg,
+                "metadata": {
+                    "threat_level": threat_score,
+                    "latency_ms": round(latency, 2),
+                    "redacted_payload": "BLOCK_ACTIVE"
+                }
+            }
+    
     return {
-        "decision": "DENIED" if is_blocked else "PROCEED",
+        "decision": "PROCEED",
         "metadata": {
             "threat_level": threat_score,
             "latency_ms": round(latency, 2),
-            "redacted_payload": clean_content if not is_blocked else "BLOCK_ACTIVE"
+            "redacted_payload": clean_content
         },
-        "reasoning": report if threat_score >= 5.0 else veto_msg
+        "reasoning": veto_msg
     }
