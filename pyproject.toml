@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aletheia-core"
+version = "1.0.0"
+description = "A 2026-native, multi-agent security framework for protecting autonomous AI systems from instruction smuggling, noise-jamming, and meta-injections."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Ashura Joseph Holeyfield", email = "holeyfield33art@users.noreply.github.com"},
+]
+keywords = [
+    "ai-security",
+    "multi-agent",
+    "prompt-injection",
+    "instruction-smuggling",
+    "cyber-defense",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/holeyfield33-art/aletheia-core"
+Repository = "https://github.com/holeyfield33-art/aletheia-core"
+Issues = "https://github.com/holeyfield33-art/aletheia-core/issues"
+
+[project.scripts]
+aletheia-audit = "main:run_aletheia_audit"
+
+[tool.setuptools.packages.find]
+include = ["agents*", "bridge*", "simulations*", "manifest*"]
+
+[tool.setuptools.package-data]
+manifest = ["*.json"]
