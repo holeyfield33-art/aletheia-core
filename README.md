@@ -86,13 +86,13 @@ aletheia-core/
 pip install -r requirements.txt
 ```
 
-Run a local audit:
+Run a local audit (pure Python, no web server required):
 
 ```bash
 python main.py
 ```
 
-Start the API server:
+Start the API server (FastAPI wrapper for HTTP integrations):
 
 ```bash
 uvicorn bridge.fastapi_wrapper:app --reload
@@ -101,8 +101,10 @@ uvicorn bridge.fastapi_wrapper:app --reload
 Run adversarial simulations:
 
 ```bash
-python simulations/adversarial_loop.py
-python simulations/shadow_audit_01.py
+PYTHONPATH=. python simulations/adversarial_loop.py
+PYTHONPATH=. python simulations/shadow_audit_01.py
+PYTHONPATH=. python simulations/lunar_shadow_audit.py
+PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ```
 
 Configure veto rules — edit `manifest/security_policy.json`
@@ -161,6 +163,8 @@ Response:
 ```
 
 ---
+
+See `docs/LAUNCH_GUIDE.md` for a beginner-friendly launch and distribution playbook.
 
 ## 🔗 Links
 
