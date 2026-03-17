@@ -59,7 +59,7 @@ Incoming Request
 ## 📂 Project Structure
 
 ```
-aletheia-core/
+aletheia-cyber-core/
 ├── agents/
 │   ├── scout_v2.py        # Threat intelligence + swarm detection
 │   ├── nitpicker_v2.py    # Polymorphic intent sanitization

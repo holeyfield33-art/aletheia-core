@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aletheia-core"
+name = "aletheia-cyber-core"
 version = "1.0.0"
 description = "A 2026-native, multi-agent security framework for protecting autonomous AI systems from instruction smuggling, noise-jamming, and meta-injections."
 readme = "README.md"
