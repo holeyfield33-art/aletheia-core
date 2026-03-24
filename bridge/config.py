@@ -1,7 +1,11 @@
-# bridge/config.py
+# bridge/config.py — Legacy shim; delegates to core.config.settings
+from core.config import settings
+
+
 class AletheiaConfig:
-    # SHADOW_MODE: True = Log and Alert only | False = Active Blocking
-    SHADOW_MODE = True 
-    CLIENT_ID = "LUNAR_CREDIT_BETA"
-    REGULATORY_LOGGING = True # Enables compliance trails for EU AI Act Article 6
-    THREAT_THRESHOLD = 7.5    # Stricter threshold for Fintech-Class
+    """Backward-compatible config facade. Reads from core.config.settings."""
+
+    SHADOW_MODE: bool = settings.shadow_mode
+    CLIENT_ID: str = settings.client_id
+    REGULATORY_LOGGING: bool = True
+    THREAT_THRESHOLD: float = settings.policy_threshold

@@ -1,0 +1,108 @@
+"""Aletheia Core — Action sandbox validator.
+
+Security-critical: Inspects action declarations and payloads for dangerous
+syscall patterns (subprocess exec, raw socket open, eval/exec of code,
+file-system destruction).  This is a *policy-level* sandbox — it prevents
+declared intents that describe dangerous operations, complementing the
+Judge's semantic veto with explicit pattern matching.
+
+This module does NOT intercept runtime Python calls; it validates the
+*text* of proposed actions before they are dispatched.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Optional
+
+
+# ---------------------------------------------------------------------------
+# Dangerous-action pattern registry
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class _DangerPattern:
+    """A single dangerous-action pattern with a human-readable label."""
+    label: str
+    pattern: re.Pattern[str]
+
+
+# Security-critical: patterns are anchored to word boundaries where possible
+# to reduce false positives on benign text (e.g. "process" as a noun).
+_DANGER_PATTERNS: list[_DangerPattern] = [
+    # Subprocess / shell execution
+    _DangerPattern("SUBPROCESS_EXEC", re.compile(
+        r"\b(?:subprocess|os\.system|os\.popen|os\.exec[lv]p?e?|popen|spawn)\b", re.IGNORECASE,
+    )),
+    _DangerPattern("SHELL_INVOKE", re.compile(
+        r"\b(?:shell_exec|system\s*\(|exec\s*\(|eval\s*\(|__import__)", re.IGNORECASE,
+    )),
+    # Raw socket / network exfiltration
+    _DangerPattern("RAW_SOCKET", re.compile(
+        r"\b(?:socket\.(?:socket|connect|bind|listen)|open.*external.*socket)\b", re.IGNORECASE,
+    )),
+    _DangerPattern("OUTBOUND_CONNECT", re.compile(
+        r"\b(?:urllib\.request|http\.client|requests\.(?:get|post|put|delete)|curl\s|wget\s)\b",
+        re.IGNORECASE,
+    )),
+    # Dynamic code execution
+    _DangerPattern("DYNAMIC_CODE", re.compile(
+        r"\b(?:compile\s*\(|code\.interact|runpy\.run_module|importlib\.import_module)\b",
+        re.IGNORECASE,
+    )),
+    # File-system destruction
+    _DangerPattern("FS_DESTROY", re.compile(
+        r"\b(?:shutil\.rmtree|os\.remove|os\.unlink|rm\s+-rf|del\s+/[sS])\b", re.IGNORECASE,
+    )),
+    # Privilege escalation keywords in payload text
+    _DangerPattern("PRIV_ESCALATION", re.compile(
+        r"\b(?:chmod\s+[0-7]{3,4}|chown|setuid|setgid|sudo|su\s+root)\b", re.IGNORECASE,
+    )),
+]
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+def check_payload_sandbox(text: str) -> Optional[str]:
+    """Scan *text* for dangerous syscall / execution patterns.
+
+    Returns a warning string describing the first match, or ``None`` if
+    the text is clean.
+    """
+    for dp in _DANGER_PATTERNS:
+        match = dp.pattern.search(text)
+        if match:
+            return (
+                f"[SANDBOX_BLOCK] Dangerous pattern '{dp.label}' detected: "
+                f"matched '{match.group()}' in payload."
+            )
+    return None
+
+
+def check_action_sandbox(action_id: str, payload: str) -> Optional[str]:
+    """Combined check: action ID against known dangerous names + payload scan.
+
+    Returns a warning string or ``None``.
+    """
+    # Check the payload text for dangerous patterns
+    payload_hit = check_payload_sandbox(payload)
+    if payload_hit:
+        return payload_hit
+
+    # Check action ID against dangerous action keywords
+    dangerous_action_keywords = [
+        "exec", "shell", "socket", "subprocess", "eval", "import",
+        "rm_rf", "drop_table", "truncate",
+    ]
+    action_lower = action_id.lower()
+    for keyword in dangerous_action_keywords:
+        if keyword in action_lower:
+            return (
+                f"[SANDBOX_BLOCK] Action ID '{action_id}' contains "
+                f"dangerous keyword '{keyword}'."
+            )
+
+    return None

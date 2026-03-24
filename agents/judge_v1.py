@@ -1,110 +1,237 @@
+from __future__ import annotations
+
+import hashlib
 import json
 import os
 import re
-from difflib import SequenceMatcher
+from datetime import date, timezone
+from typing import Optional
+
+import numpy as np
+
+from core.config import settings
+from core.embeddings import cosine_similarity, encode
+from core.sandbox import check_action_sandbox
+from manifest.signing import ManifestTamperedError, verify_manifest_signature
+
 
 class AletheiaJudge:
-    def __init__(self, policy_path='manifest/security_policy.json'):
+    """Policy enforcer with cryptographic manifest verification and semantic veto."""
+
+    def __init__(self, policy_path: str = "manifest/security_policy.json") -> None:
         self.policy_path = policy_path
+        self.signature_path = os.getenv(
+            "ALETHEIA_MANIFEST_SIGNATURE_PATH", "manifest/security_policy.json.sig"
+        )
+        self.public_key_path = os.getenv(
+            "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH", "manifest/security_policy.ed25519.pub"
+        )
         self.load_policy()
 
-        # PATCH 2.1: Semantic Distance Thresholds for action-alias detection
-        # Maps restricted action IDs to known semantic aliases / camouflage phrases
-        self.semantic_aliases = {
+        # Semantic alias map — restricted action IDs → known camouflage phrases.
+        # Expanded for embedding coverage: short canonical aliases + natural paraphrases.
+        self.semantic_aliases: dict[str, list[str]] = {
             "Transfer_Funds": [
                 "liquidity realignment", "fund rebalance", "balance migration",
-                "capital movement", "asset transfer", "monetary shift"
+                "capital movement", "asset transfer", "monetary shift",
+                "move money to another account", "transfer balance to external wallet",
+                "send funds to offshore account", "wire payment to third party",
+                "reallocate capital to partner ledger", "transfer capital reserves",
             ],
             "Approve_Loan_Disbursement": [
                 "credit facilitation", "lending authorization", "disbursement approval",
-                "loan release", "credit limit update"
+                "loan release", "credit limit update",
+                "approve credit line automatically", "authorize loan payout",
             ],
             "Modify_Auth_Registry": [
                 "permission update", "access realignment", "role migration",
-                "credential refresh", "auth maintenance", "limit registry"
+                "credential refresh", "auth maintenance", "limit registry",
+                "grant admin access", "escalate user privileges", "elevate permissions",
+                "change user role to administrator", "promote to superuser",
             ],
             "Initiate_ACH": [
                 "automated clearing", "bank routing update", "payment rail adjustment",
-                "settlement initiation"
+                "settlement initiation",
+                "initiate bank transfer", "process automated payment",
+                "execute wire transfer", "submit ACH transaction",
             ],
             "Open_External_Socket": [
                 "external sync", "outbound handshake", "remote bridge",
-                "data relay channel"
+                "data relay channel",
+                "send data to external server", "exfiltrate records externally",
+                "relay information to outside system", "copy database to remote host",
+                "transmit data to remote endpoint",
             ],
             "Bulk_Delete_Resource": [
                 "resource cleanup", "infrastructure pruning", "bulk deprecation",
-                "mass decommission"
-            ]
+                "mass decommission",
+                "destroy all resources", "wipe production data",
+                "remove all infrastructure", "delete everything in production",
+            ],
         }
-        self.similarity_threshold = 0.45
 
-    def load_policy(self):
+        # Configurable cosine-similarity threshold (default 0.55)
+        self.similarity_threshold: float = settings.intent_threshold
+
+        # Grey-zone band: payloads in [grey_zone_lower, similarity_threshold) get
+        # a secondary keyword heuristic check to reduce false negatives from
+        # creative paraphrases that fall just below the primary threshold.
+        self.grey_zone_lower: float = settings.grey_zone_lower
+
+        # Keyword heuristics for the grey-zone second-pass classifier.
+        # If a payload falls in the grey zone AND contains any of these
+        # high-risk keywords, it is escalated to a veto.
+        self._grey_zone_keywords: list[re.Pattern[str]] = [
+            re.compile(r"\b(?:transfer|move|send|wire|relay|route)\b", re.IGNORECASE),
+            re.compile(r"\b(?:funds?|money|capital|payment|balance|assets?)\b", re.IGNORECASE),
+            re.compile(r"\b(?:admin|superuser|root|privilege|escalat|elevat)\b", re.IGNORECASE),
+            re.compile(r"\b(?:delete|drop|truncat|wipe|destroy|decommission|purge)\b", re.IGNORECASE),
+            re.compile(r"\b(?:exfiltrat|extract|export|dump|leak|siphon)\b", re.IGNORECASE),
+            re.compile(r"\b(?:external|outside|remote|offshore|third.party)\b", re.IGNORECASE),
+            re.compile(r"\b(?:bypass|override|disable|ignore|skip)\b", re.IGNORECASE),
+            re.compile(r"\b(?:socket|exec|subprocess|eval|shell)\b", re.IGNORECASE),
+        ]
+
+        # Pre-compute embeddings for all alias phrases (flattened) once.
+        # Alias order is rotated daily via a hash-based permutation to prevent
+        # reverse-engineering of the static bank through sequential probing.
+        self._alias_phrases: list[str] = []
+        self._alias_action_map: list[str] = []
+        for action, phrases in self.semantic_aliases.items():
+            for phrase in phrases:
+                self._alias_phrases.append(phrase)
+                self._alias_action_map.append(action)
+
+        # Daily rotation — deterministic shuffle seeded by date + secret
+        self._rotate_alias_bank()
+
+        self._alias_embeddings: np.ndarray = encode(self._alias_phrases)
+
+    def _rotate_alias_bank(self) -> None:
+        """Deterministic daily rotation of alias phrase order.
+
+        Uses SHA-256(date + manifest hash) as the seed so the order changes
+        every day but is reproducible within the same day for consistency.
+        This prevents attackers from reverse-engineering the alias bank
+        by observing stable similarity scores across probing sessions.
+        """
+        day_str = date.today().isoformat()
+        # Include manifest hash so rotation changes when policy is re-signed
+        try:
+            manifest_bytes = open(self.policy_path, "rb").read()
+            manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()[:16]
+        except FileNotFoundError:
+            manifest_hash = "no_manifest"
+
+        seed_material = f"{day_str}:{manifest_hash}".encode("utf-8")
+        seed = int(hashlib.sha256(seed_material).hexdigest(), 16) % (2**32)
+
+        # Fisher-Yates shuffle using the deterministic seed
+        import random as _rng
+        rng = _rng.Random(seed)
+        combined = list(zip(self._alias_phrases, self._alias_action_map))
+        rng.shuffle(combined)
+        self._alias_phrases = [p for p, _ in combined]
+        self._alias_action_map = [a for _, a in combined]
+
+    def load_policy(self) -> None:
         """Loads the 'Ground Truth' from the manifest."""
         try:
-            with open(self.policy_path, 'r') as f:
+            # Security-critical: verify detached signature before parsing untrusted policy bytes.
+            verify_manifest_signature(
+                manifest_path=self.policy_path,
+                signature_path=self.signature_path,
+                public_key_path=self.public_key_path,
+            )
+            with open(self.policy_path, "r") as f:
                 self.policy = json.load(f)
             print(f"[JUDGE] Policy Loaded: {self.policy['policy_name']} v{self.policy['version']}")
+        except ManifestTamperedError:
+            raise
         except Exception as e:
             print(f"[JUDGE] ERROR: Could not load manifest! {e}")
             self.policy = None
 
-    def verify_action(self, action_id, user_context="unknown", payload=None):
+    def verify_action(
+        self,
+        action_id: str,
+        user_context: str = "unknown",
+        payload: Optional[str] = None,
+    ) -> tuple[bool, str]:
         """Checks if an action violates the HARD_VETO rules."""
         if not self.policy:
             return False, "CRITICAL: No policy loaded. All actions blocked."
 
-        for restricted in self.policy['restricted_actions']:
-            if action_id == restricted['action']:
+        for restricted in self.policy["restricted_actions"]:
+            if action_id == restricted["action"]:
                 return False, (
                     f"VETO TRIGGERED: {restricted['id']}\n"
                     f"Rationale: {restricted['rationale']}\n"
                     f"Dual-Key Required: Sign-off needed from CEO_RELAY."
                 )
 
-        # PATCH 2.1: Semantic Distance Check — scan payload for camouflaged actions
         if payload:
+            # Sandbox check — block subprocess/socket/exec patterns in payload
+            sandbox_hit = check_action_sandbox(action_id, payload)
+            if sandbox_hit:
+                return False, sandbox_hit
+
+            # Semantic Distance Check — cosine similarity against alias embeddings
             alias_hit = self._check_semantic_distance(payload)
             if alias_hit:
                 return False, alias_hit
-        
+
         return True, "Action Approved by the Judge."
 
-    def _check_semantic_distance(self, payload):
-        """PATCH 2.1: Checks if payload text is semantically close to restricted actions."""
-        payload_lower = payload.lower()
-        # Extract meaningful phrases (3-4 word windows) from the payload
-        words = re.findall(r'[a-z_]+', payload_lower)
-        phrases = []
-        for window in range(2, 5):
-            for i in range(len(words) - window + 1):
-                phrases.append(' '.join(words[i:i+window]))
+    def _check_semantic_distance(self, payload: str) -> Optional[str]:
+        """Cosine-similarity check: is the payload semantically close to any restricted alias?
 
-        for action, aliases in self.semantic_aliases.items():
-            # Direct alias match
-            for alias in aliases:
-                if alias in payload_lower:
-                    return (
-                        f"SEMANTIC VETO: Phrase '{alias}' clusters with restricted action '{action}'.\n"
-                        f"Distance: DIRECT MATCH\n"
-                        f"Dual-Key Required: Sign-off needed from CEO_RELAY."
-                    )
-            # Fuzzy similarity check against phrase windows
-            for phrase in phrases:
-                for alias in aliases:
-                    similarity = SequenceMatcher(None, phrase, alias).ratio()
-                    if similarity >= self.similarity_threshold:
-                        return (
-                            f"SEMANTIC VETO: Phrase '{phrase}' is {similarity:.0%} similar to "
-                            f"known alias '{alias}' for restricted action '{action}'.\n"
-                            f"Distance: {1 - similarity:.2f} (threshold: {1 - self.similarity_threshold:.2f})\n"
-                            f"Dual-Key Required: Sign-off needed from CEO_RELAY."
-                        )
+        Two-tier system:
+        1. Primary veto: similarity >= threshold (hard block).
+        2. Grey-zone escalation: similarity in [grey_zone_lower, threshold) AND
+           payload contains high-risk keywords → treated as a veto.
+        """
+        payload_embedding = encode([payload])
+        similarities = cosine_similarity(payload_embedding, self._alias_embeddings)[0]
+        max_idx = int(np.argmax(similarities))
+        max_sim = float(similarities[max_idx])
+
+        # Primary veto — above threshold
+        if max_sim >= self.similarity_threshold:
+            return self._format_semantic_veto(max_idx, max_sim)
+
+        # Grey-zone second-pass — keyword heuristic for the ambiguous band
+        if max_sim >= self.grey_zone_lower:
+            keyword_hits = sum(1 for pat in self._grey_zone_keywords if pat.search(payload))
+            if keyword_hits >= 2:
+                matched_phrase = self._alias_phrases[max_idx]
+                matched_action = self._alias_action_map[max_idx]
+                return (
+                    f"GREY-ZONE VETO: Payload is {max_sim:.0%} similar to "
+                    f"known alias '{matched_phrase}' for restricted action '{matched_action}' "
+                    f"AND matched {keyword_hits} high-risk keywords.\n"
+                    f"Distance: {1 - max_sim:.2f} (grey-zone: {1 - self.grey_zone_lower:.2f}–{1 - self.similarity_threshold:.2f})\n"
+                    f"Dual-Key Required: Sign-off needed from CEO_RELAY."
+                )
+
         return None
+
+    def _format_semantic_veto(self, idx: int, sim: float) -> str:
+        """Format the standard semantic veto message."""
+        matched_phrase = self._alias_phrases[idx]
+        matched_action = self._alias_action_map[idx]
+        return (
+            f"SEMANTIC VETO: Payload is {sim:.0%} similar to "
+            f"known alias '{matched_phrase}' for restricted action '{matched_action}'.\n"
+            f"Distance: {1 - sim:.2f} (threshold: {1 - self.similarity_threshold:.2f})\n"
+            f"Dual-Key Required: Sign-off needed from CEO_RELAY."
+        )
+
 
 # --- Simulation for the CEO ---
 if __name__ == "__main__":
     judge = AletheiaJudge()
-    
+
     # Let's test a dangerous action
     status, message = judge.verify_action("Modify_Auth_Registry")
     print(f"\nAudit Result:\n{message}")

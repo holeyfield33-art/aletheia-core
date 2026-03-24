@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aletheia-cyber-core"
-version = "1.0.0"
-description = "A 2026-native, multi-agent security framework for protecting autonomous AI systems from instruction smuggling, noise-jamming, and meta-injections."
+version = "1.2.0"
+description = "Enterprise-grade System 2 security layer for autonomous AI agents. Protects against instruction smuggling, semantic camouflage, and supply-chain attacks."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -20,7 +20,7 @@ keywords = [
     "cyber-defense",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
@@ -36,6 +36,10 @@ dependencies = [
     "uvicorn>=0.24.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
+    "cryptography>=43.0.0",
+    "sentence-transformers>=3.0.0",
+    "torch>=2.0.0",
+    "pyyaml>=6.0",
 ]
 
 [project.urls]
@@ -47,7 +51,7 @@ Issues = "https://github.com/holeyfield33-art/aletheia-core/issues"
 aletheia-audit = "main:run_aletheia_audit"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "bridge*", "simulations*", "manifest*"]
+include = ["agents*", "bridge*", "simulations*", "manifest*", "core*"]
 
 [tool.setuptools.package-data]
-manifest = ["*.json"]
+manifest = ["*.json", "*.sig", "*.pub"]
