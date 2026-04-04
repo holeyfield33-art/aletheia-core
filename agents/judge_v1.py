@@ -1,11 +1,38 @@
 from __future__ import annotations
 
 import hashlib
+import hmac as _hmac
 import json
 import os
 import re
 from datetime import date, timezone
 from typing import Optional
+
+import numpy as np
+
+_ALIAS_SALT = os.getenv("ALETHEIA_ALIAS_SALT", "").encode("utf-8")
+
+
+def _daily_rotation_seed(date_str: str, manifest_hash: str) -> int:
+    """Compute daily rotation seed using HMAC-SHA256 with a secret salt.
+
+    Without ALETHEIA_ALIAS_SALT, falls back to plain SHA-256 with a
+    logged warning — this is insecure for production deployments.
+    """
+    if _ALIAS_SALT:
+        digest = _hmac.new(
+            _ALIAS_SALT,
+            f"{date_str}{manifest_hash}".encode("utf-8"),
+            "sha256",
+        ).hexdigest()
+    else:
+        import logging
+        logging.getLogger("aletheia.scout").warning(
+            "ALETHEIA_ALIAS_SALT not set — alias rotation is predictable. "
+            "Set this in production."
+        )
+        digest = hashlib.sha256(f"{date_str}{manifest_hash}".encode("utf-8")).hexdigest()
+    return int(digest, 16)
 
 import numpy as np
 
@@ -123,8 +150,7 @@ class AletheiaJudge:
         except FileNotFoundError:
             manifest_hash = "no_manifest"
 
-        seed_material = f"{day_str}:{manifest_hash}".encode("utf-8")
-        seed = int(hashlib.sha256(seed_material).hexdigest(), 16) % (2**32)
+        seed = _daily_rotation_seed(day_str, manifest_hash) % (2**32)
 
         # Fisher-Yates shuffle using the deterministic seed
         import random as _rng

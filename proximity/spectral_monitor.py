@@ -114,8 +114,6 @@ class SpectralMonitor:
             )
             response.raise_for_status()
             data = response.json()
-            if asyncio.iscoroutine(data) or isinstance(data, asyncio.Future):
-                data = await data
 
             r_ratio = float(data.get("r_ratio", 0.0))
             spectral_gap = float(data.get("spectral_gap", 0.0))
