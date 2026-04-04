@@ -9,10 +9,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.4.2-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-262%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-275%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/security-audited-brightgreen" alt="Security Audit"/>
   <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
   <a href="https://render.com/deploy?repo=https://github.com/holeyfield33-art/aletheia-core">
@@ -56,21 +57,22 @@ The following properties are cryptographically or architecturally enforced:
 | 2 | **Semantic intent veto** | SentenceTransformer (`all-MiniLM-L6-v2`) cosine similarity against 50+ camouflage phrases. Configurable threshold (default 0.55). |
 | 3 | **Grey-zone escalation** | Payloads in the ambiguous similarity band (0.40–0.55) are second-pass classified via keyword heuristics. Two or more high-risk keyword hits trigger a veto. |
 | 4 | **Action sandbox** | Regex-based pattern scanner blocks subprocess exec, raw socket, `eval`, filesystem destruction, and privilege-escalation patterns before dispatch. |
-| 5 | **Daily alias rotation** | Semantic alias phrase order is deterministically shuffled daily (SHA-256 seed from date + manifest hash) to prevent reverse-engineering via probing. |
+| 5 | **Daily alias rotation** | Semantic alias phrase order is deterministically shuffled daily (HMAC-SHA256 seed from date + manifest hash + `ALETHEIA_ALIAS_SALT`) to prevent reverse-engineering via probing. |
 | 6 | **Embedding pre-warming** | Model loaded eagerly at FastAPI startup to eliminate cold-start latency on the first request. |
-| 7 | **Audit trail integrity** | Every decision produces a structured JSON log line and an HMAC-signed TMR receipt (decision + policy hash + signature). |
-| 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode, and URL percent-encoding decode — all applied before any agent sees the payload. |
-| 9 | **Rate limiting** | In-memory sliding-window limiter, default 10 requests per second per IP. |
-| 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. |
+| 7 | **Audit trail integrity** | Every decision produces a structured JSON log line and an HMAC-signed TMR receipt (decision + policy hash + payload_sha256 + action + origin + signature). |
+| 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode with 10x size bomb protection, and URL percent-encoding decode — all applied before any agent sees the payload. |
+| 9 | **Rate limiting** | In-memory sliding-window limiter, default 10 requests per second per IP. Distributed rate limiting via Redis for horizontal scaling. |
+| 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. Version and mode never exposed to unauthenticated /health callers. |
 | 11 | **Config-driven defense modes** | `active` / `shadow` / `monitor` — switchable via environment variable or `config.yaml` without code changes. |
+| 12 | **Receipt replay resistance** | HMAC signature includes payload_sha256, action, and origin to prevent reuse across contexts. |
 
 Additional guarantees:
 
 - **API Key Authentication** — `X-API-Key` header required when `ALETHEIA_API_KEYS` is configured
 - **Real Client IP** — rate limiting derived from network layer, never from request body
 - **Payload Privacy** — audit logs store SHA-256 hash + length only; no plaintext content in active mode
-- **Receipt Signing** — HMAC receipts use `ALETHEIA_RECEIPT_SECRET`; falls back to `UNSIGNED_DEV_MODE`
-- **Health Endpoint** — `GET /health` returns version, uptime, and manifest verification status
+- **Receipt Signing** — HMAC receipts use `ALETHEIA_RECEIPT_SECRET`; must be set for active mode
+- **Shadow Verdict Blocking** — In shadow mode, blocks are logged but not exposed to clients
 
 ---
 
@@ -190,20 +192,24 @@ Response:
 {
   "decision": "PROCEED | DENIED | RATE_LIMITED | SANDBOX_BLOCKED",
   "metadata": {
-    "threat_level": 1.2,
+    "threat_level": "LOW | MEDIUM | HIGH | CRITICAL",
     "latency_ms": 14.0,
-    "payload_sha256": "sha256...",
-    "payload_length": 42,
+    "request_id": "a1b2c3d4e5f6g7h8",
     "client_id": "ALETHEIA_ENTERPRISE"
   },
   "receipt": {
     "decision": "PROCEED",
     "policy_hash": "sha256...",
+    "payload_sha256": "sha256...",
+    "action": "Read_Report",
+    "origin": "trusted_admin",
     "signature": "hmac-sha256...",
     "issued_at": "ISO-8601"
   }
 }
 ```
+
+**Note:** `shadow_verdict` and `redacted_payload` have been removed from client responses (v1.4.2+) as part of security hardening.
 
 ---
 
@@ -280,11 +286,88 @@ If this project is useful to your organization, consider reaching out about our 
 | Variable | Required | Description |
 |---|---|---|
 | `ALETHEIA_API_KEYS` | Production | Comma-separated API keys for `X-API-Key` auth. Unset = open mode. |
-| `ALETHEIA_RECEIPT_SECRET` | Production | HMAC secret for audit receipts. Unset = `UNSIGNED_DEV_MODE`. |
+| `ALETHEIA_RECEIPT_SECRET` | YES (production) | HMAC secret for audit receipts. Service will NOT boot in active mode without this. Generate via `openssl rand -hex 32`. |
+| `ALETHEIA_ALIAS_SALT` | RECOMMENDED | Salt for daily alias rotation. Prevents enumeration attacks. Generate via `openssl rand -hex 32`. |
 | `ALETHEIA_MODE` | No | `active` (default), `shadow`, or `monitor` |
 | `ALETHEIA_LOG_LEVEL` | No | `INFO` (default), `DEBUG`, `WARNING` |
 | `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | Requests per IP per second. Default: `10` |
+| `ALETHEIA_REDIS_URL` | For horizontal scaling | Redis URL for distributed rate limiting. Example: `redis://localhost:6379/0` |
 | `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable proximity module. Default: `false` |
+
+---
+
+## Pre-Launch Verification
+
+Before starting the service in production, complete the following checklist:
+
+### 1. Verify required secrets are set
+
+```bash
+# ALETHEIA_RECEIPT_SECRET is mandatory for active mode
+if [ -z "$ALETHEIA_RECEIPT_SECRET" ]; then
+  echo "ERROR: ALETHEIA_RECEIPT_SECRET not set"
+  exit 1
+fi
+
+# ALETHEIA_ALIAS_SALT is recommended
+if [ -z "$ALETHEIA_ALIAS_SALT" ]; then
+  echo "WARNING: ALETHEIA_ALIAS_SALT not set — alias rotation is predictable"
+fi
+```
+
+### 2. Test the health endpoint
+
+```bash
+curl http://localhost:8000/health
+# Expected response (v1.4.2+):
+# {
+#   "status": "ok",
+#   "uptime_seconds": 3600,
+#   "manifest_signature": "VALID"
+# }
+# Note: version and mode information removed to prevent information leakage
+```
+
+### 3. Verify receipt signing works
+
+```bash
+curl -X POST http://localhost:8000/v1/audit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": "test payload",
+    "origin": "admin",
+    "action": "Read_Report"
+  }'
+# Response must include "signature" field with non-empty HMAC-SHA256 hex string
+# DO NOT use UNSIGNED_DEV_MODE in production
+```
+
+### 4. Confirm shadow mode does not leak verdicts
+
+```bash
+ALETHEIA_MODE=shadow uvicorn bridge.fastapi_wrapper:app --port 8000 &
+sleep 2
+
+curl -X POST http://localhost:8000/v1/audit \
+  -H "Content-Type: application/json" \
+  -d '{"payload": "transfer funds", "origin": "user", "action": "Transfer_Funds"}'
+# Response MUST NOT contain "shadow_verdict" field (even though action is blocked internally)
+```
+
+### Production Launch Command
+
+```bash
+# Generate secure secrets
+ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32)
+ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
+
+# Start in active mode
+ALETHEIA_MODE=active \
+ALETHEIA_RECEIPT_SECRET="$ALETHEIA_RECEIPT_SECRET" \
+ALETHEIA_ALIAS_SALT="$ALETHEIA_ALIAS_SALT" \
+ALETHEIA_REDIS_URL="redis://your-production:6379" \
+uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
 ---
 
