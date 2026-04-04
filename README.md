@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Aletheia Cyber-Defense" width="180"/>
+  <img src="assets/logo.png" alt="Aletheia Core" width="180"/>
 </p>
 
-<h1 align="center">Aletheia Cyber-Defense (ACD)</h1>
+<h1 align="center">Aletheia Core</h1>
 
 <p align="center">
   <strong>Enterprise-Grade System 2 Security for AI Agents</strong>
@@ -94,7 +94,7 @@ Additional guarantees:
 ### Install
 
 ```bash
-pip install -r requirements.txt
+pip install aletheia-cyber-core
 ```
 
 #### Optional Consciousness Proximity Module
@@ -178,9 +178,9 @@ Request:
 ```json
 {
   "payload": "string (max 10,000 chars)",
-  "origin": "trusted_admin | untrusted_metadata | external_file",
-  "action": "string",
-  "ip": "string"
+  "origin": "string (max 128 chars)",
+  "action": "string — pattern: ^[A-Za-z0-9_\\-:.]+$",
+  "client_ip_claim": "string (optional, audit/debug only — never used for enforcement)"
 }
 ```
 
@@ -192,7 +192,8 @@ Response:
   "metadata": {
     "threat_level": 1.2,
     "latency_ms": 14.0,
-    "redacted_payload": "string",
+    "payload_sha256": "sha256...",
+    "payload_length": 42,
     "client_id": "ALETHEIA_ENTERPRISE"
   },
   "receipt": {
@@ -270,10 +271,7 @@ All settings are configurable via environment variables (prefixed `ALETHEIA_`) o
 
 ## Support
 
-If this project is useful to your organization, consider supporting its development:
-
-- [GitHub Sponsors](https://github.com/sponsors/holeyfield33-art)
-- [Buy Me a Coffee](https://buymeacoffee.com/holeyfielde)
+If this project is useful to your organization, consider reaching out about our [managed services and enterprise plans](mailto:hello@aletheia-core.com).
 
 ---
 
