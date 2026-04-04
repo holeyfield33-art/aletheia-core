@@ -2,10 +2,7 @@ name: Release & Version Sync
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: read
@@ -59,20 +56,36 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'requirements-proximity.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest
+          pip install -r requirements-proximity.txt
           pip install -e .
 
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
+      - name: Run core tests
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --ignore=tests/test_proximity \
+            --ignore=tests/test_api.py
+        env:
+          ALETHEIA_MODE: shadow
+          ALETHEIA_LOG_LEVEL: WARNING
+
+      - name: Run proximity tests
+        run: python -m pytest tests/test_proximity/ -v --tb=short
 
   publish:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
     steps:
