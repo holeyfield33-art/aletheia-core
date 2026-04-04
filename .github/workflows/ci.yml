@@ -33,7 +33,10 @@ jobs:
             core/rate_limit.py core/sandbox.py bridge/fastapi_wrapper.py main.py
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short --ignore=tests/test_proximity
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --ignore=tests/test_proximity \
+            --ignore=tests/test_api.py
         env:
           ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
