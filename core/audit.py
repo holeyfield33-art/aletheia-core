@@ -56,12 +56,21 @@ def _policy_hash() -> str:
         return "MANIFEST_MISSING"
 
 
-def _redact_payload(payload: str, max_len: int = 200) -> str:
-    """Truncate and sanitize payload for safe logging. Never log raw user input."""
-    sanitized = payload.replace("\n", " ").replace("\r", "")
-    if len(sanitized) > max_len:
-        return sanitized[:max_len] + "...[TRUNCATED]"
-    return sanitized
+def _hash_payload(payload: str) -> dict[str, str | int]:
+    """Return payload fingerprint for audit log. Never store raw user input in prod.
+
+    In active mode: SHA-256 hash + length only (no content).
+    In shadow/debug mode: adds a short sanitized preview.
+    """
+    sha = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    result: dict[str, str | int] = {
+        "payload_sha256": sha,
+        "payload_length": len(payload),
+    }
+    if settings.mode != "active":
+        sanitized = payload.replace("\n", " ").replace("\r", "")[:120]
+        result["payload_preview"] = sanitized
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +101,7 @@ def log_audit_event(
         "origin": origin,
         "reason": reason,
         "latency_ms": round(latency_ms, 2),
-        "redacted_payload": _redact_payload(payload),
+        **_hash_payload(payload),
         "policy_hash": _policy_hash(),
         "client_id": settings.client_id,
     }
@@ -109,23 +118,26 @@ def log_audit_event(
 
 
 def build_tmr_receipt(*, decision: str, policy_hash: str) -> dict[str, str]:
-    """Triple Modular Redundancy receipt: decision + policy_hash + HMAC signature.
+    """Build a tamper-evident receipt signed with a private HMAC secret.
 
-    The HMAC key is the manifest public key bytes (available to any verifier).
-    This proves the receipt was produced by a process that had access to policy
-    verification material at the time of the decision.
+    Uses ALETHEIA_RECEIPT_SECRET env var as the HMAC key.
+    Falls back to UNSIGNED_DEV_MODE if not set — never use in production.
+
+    Previously used the public key as the HMAC key, which was cosmetic only.
+    This version uses a real secret so receipts cannot be forged by third parties.
     """
-    pub_key_path = Path(os.getenv(
-        "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH",
-        "manifest/security_policy.ed25519.pub",
-    ))
-    try:
-        hmac_key = pub_key_path.read_bytes()
-    except FileNotFoundError:
-        hmac_key = b"NO_KEY_AVAILABLE"
+    secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
+    if not secret:
+        return {
+            "decision": decision,
+            "policy_hash": policy_hash,
+            "signature": "UNSIGNED_DEV_MODE",
+            "issued_at": datetime.now(timezone.utc).isoformat(),
+            "warning": "Set ALETHEIA_RECEIPT_SECRET for production receipt signing.",
+        }
 
-    message = f"{decision}|{policy_hash}".encode("utf-8")
-    sig = hmac.new(hmac_key, message, hashlib.sha256).hexdigest()
+    message = f"{decision}|{policy_hash}|{datetime.now(timezone.utc).date().isoformat()}".encode("utf-8")
+    sig = hmac.new(secret, message, hashlib.sha256).hexdigest()
 
     return {
         "decision": decision,
