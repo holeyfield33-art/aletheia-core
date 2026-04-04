@@ -13,11 +13,16 @@ authors = [
     {name = "Ashura Joseph Holeyfield", email = "holeyfield33art@users.noreply.github.com"},
 ]
 keywords = [
-    "ai-security",
-    "multi-agent",
+    "ai-safety",
+    "llm-security",
     "prompt-injection",
-    "instruction-smuggling",
-    "cyber-defense",
+    "ai-agents",
+    "guardrails",
+    "cryptography",
+    "ed25519",
+    "audit-trail",
+    "runtime-security",
+    "nist-ai-rmf",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -43,15 +48,26 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/holeyfield33-art/aletheia-core"
+Homepage = "https://aletheia-core.com"
+Documentation = "https://aletheia-core.com"
 Repository = "https://github.com/holeyfield33-art/aletheia-core"
 Issues = "https://github.com/holeyfield33-art/aletheia-core/issues"
+Changelog = "https://github.com/holeyfield33-art/aletheia-core/releases"
 
 [project.scripts]
 aletheia-audit = "main:run_aletheia_audit"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "bridge*", "simulations*", "manifest*", "core*"]
+include = ["agents*", "bridge*", "simulations*", "manifest*", "core*", "proximity*"]
+
+[project.optional-dependencies]
+proximity = [
+    "httpx>=0.24.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
 
 [tool.setuptools.package-data]
 manifest = ["*.json", "*.sig", "*.pub"]
@@ -59,3 +75,4 @@ manifest = ["*.json", "*.sig", "*.pub"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+asyncio_mode = "auto"
