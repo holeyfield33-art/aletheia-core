@@ -36,12 +36,19 @@ class TestAuditLogging(unittest.TestCase):
         self.assertEqual(r1["signature"], r2["signature"])
 
     def test_tmr_receipt_changes_with_different_decision(self) -> None:
-        r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
-        r2 = build_tmr_receipt(decision="DENIED", policy_hash="abc123")
-        self.assertNotEqual(r1["signature"], r2["signature"])
+        old_env = os.environ.get("ALETHEIA_RECEIPT_SECRET")
+        os.environ["ALETHEIA_RECEIPT_SECRET"] = "enterprise-secret"
+        try:
+            r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
+            r2 = build_tmr_receipt(decision="DENIED", policy_hash="abc123")
+            self.assertNotEqual(r1["signature"], r2["signature"])
+        finally:
+            if old_env is None:
+                os.environ.pop("ALETHEIA_RECEIPT_SECRET", None)
+            else:
+                os.environ["ALETHEIA_RECEIPT_SECRET"] = old_env
 
-    def test_payload_redaction_truncates(self) -> None:
-        """Payloads longer than 200 chars are truncated in the audit record."""
+    def test_payload_hashing_instead_of_redaction(self) -> None:
         long_payload = "A" * 500
         record = log_audit_event(
             decision="PROCEED",
@@ -51,8 +58,10 @@ class TestAuditLogging(unittest.TestCase):
             source_ip="10.0.0.2",
             origin="trusted_admin",
         )
-        self.assertIn("TRUNCATED", record["redacted_payload"])
-        self.assertLess(len(record["redacted_payload"]), 250)
+        self.assertIn("payload_sha256", record)
+        self.assertIn("payload_length", record)
+        self.assertEqual(record["payload_length"], 500)
+        self.assertNotIn("redacted_payload", record)
 
 
 class TestRateLimiter(unittest.TestCase):

@@ -12,3 +12,8 @@ build/
 venv/
 *.log
 manifest/*.ed25519.key
+
+# Runtime artifacts — never commit
+audit.log
+*.audit.log
+logs/

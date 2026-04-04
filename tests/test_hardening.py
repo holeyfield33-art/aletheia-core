@@ -161,5 +161,159 @@ class TestEmbeddingPreWarm(unittest.TestCase):
         self.assertGreater(result.shape[1], 100)  # embedding dimension > 100
 
 
+# ---------------------------------------------------------------------------
+# Enterprise hardening tests — appended
+# ---------------------------------------------------------------------------
+
+import os
+from unittest.mock import patch, MagicMock
+
+from fastapi.testclient import TestClient
+
+
+class TestClientIPExtraction(unittest.TestCase):
+    """IP must come from network layer, never from request body."""
+
+    def setUp(self):
+        # Import here to avoid embedding model load at module level
+        from bridge.fastapi_wrapper import app, _get_client_ip
+        self.app = app
+        self._get_client_ip = _get_client_ip
+
+    def test_get_client_ip_from_x_forwarded_for(self):
+        mock_request = MagicMock()
+        mock_request.headers = {"x-forwarded-for": "203.0.113.5, 10.0.0.1"}
+        mock_request.client = None
+        from bridge.fastapi_wrapper import _get_client_ip
+        assert _get_client_ip(mock_request) == "203.0.113.5"
+
+    def test_get_client_ip_from_client_host(self):
+        mock_request = MagicMock()
+        mock_request.headers = {}
+        mock_request.client = MagicMock()
+        mock_request.client.host = "198.51.100.1"
+        from bridge.fastapi_wrapper import _get_client_ip
+        assert _get_client_ip(mock_request) == "198.51.100.1"
+
+    def test_get_client_ip_unknown_fallback(self):
+        mock_request = MagicMock()
+        mock_request.headers = {}
+        mock_request.client = None
+        from bridge.fastapi_wrapper import _get_client_ip
+        assert _get_client_ip(mock_request) == "unknown"
+
+    def test_audit_request_has_no_ip_field(self):
+        from bridge.fastapi_wrapper import AuditRequest
+        fields = AuditRequest.model_fields
+        assert "ip" not in fields, "ip field must be removed from AuditRequest"
+
+    def test_audit_request_accepts_client_ip_claim(self):
+        from bridge.fastapi_wrapper import AuditRequest
+        req = AuditRequest(
+            payload="test", origin="test_origin",
+            action="test_action", client_ip_claim="1.2.3.4"
+        )
+        assert req.client_ip_claim == "1.2.3.4"
+
+    def test_audit_request_action_pattern_rejects_invalid(self):
+        from bridge.fastapi_wrapper import AuditRequest
+        from pydantic import ValidationError
+        with self.assertRaises(ValidationError):
+            AuditRequest(payload="x", origin="o", action="bad action with spaces")
+
+    def test_audit_request_action_pattern_accepts_valid(self):
+        from bridge.fastapi_wrapper import AuditRequest
+        req = AuditRequest(payload="x", origin="o", action="summarize_doc.v2")
+        assert req.action == "summarize_doc.v2"
+
+
+class TestApiKeyAuth(unittest.TestCase):
+    """API key enforcement must block unauthenticated requests when keys are configured."""
+
+    def test_auth_disabled_when_no_keys_set(self):
+        with patch.dict(os.environ, {"ALETHEIA_API_KEYS": ""}, clear=False):
+            from bridge.fastapi_wrapper import _load_api_keys
+            keys = _load_api_keys()
+            assert len(keys) == 0
+
+    def test_auth_enabled_when_keys_set(self):
+        with patch.dict(os.environ, {"ALETHEIA_API_KEYS": "key1,key2"}, clear=False):
+            from bridge.fastapi_wrapper import _load_api_keys
+            keys = _load_api_keys()
+            assert "key1" in keys
+            assert "key2" in keys
+
+    def test_keys_are_stripped(self):
+        with patch.dict(os.environ, {"ALETHEIA_API_KEYS": " key1 , key2 "}, clear=False):
+            from bridge.fastapi_wrapper import _load_api_keys
+            keys = _load_api_keys()
+            assert "key1" in keys
+            assert "key2" in keys
+
+
+class TestReceiptSigning(unittest.TestCase):
+    """Receipt must use real secret, not public key."""
+
+    def test_dev_mode_when_no_secret(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
+            from core.audit import build_tmr_receipt
+            receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
+            assert receipt["signature"] == "UNSIGNED_DEV_MODE"
+            assert "warning" in receipt
+
+    def test_signed_when_secret_set(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret-key"}, clear=False):
+            from core.audit import build_tmr_receipt
+            receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
+            assert receipt["signature"] != "UNSIGNED_DEV_MODE"
+            assert len(receipt["signature"]) == 64  # SHA-256 hex
+
+    def test_different_decisions_different_signatures(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}, clear=False):
+            from core.audit import build_tmr_receipt
+            r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
+            r2 = build_tmr_receipt(decision="DENIED", policy_hash="abc")
+            assert r1["signature"] != r2["signature"]
+
+    def test_no_warning_when_secret_set(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "real-secret"}, clear=False):
+            from core.audit import build_tmr_receipt
+            receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
+            assert "warning" not in receipt
+
+
+class TestPayloadHashing(unittest.TestCase):
+    """Payload must be hashed in logs, not stored as text in active mode."""
+
+    def test_active_mode_returns_hash_not_text(self):
+        with patch("core.audit.settings") as mock_settings:
+            mock_settings.mode = "active"
+            from core.audit import _hash_payload
+            result = _hash_payload("sensitive user input")
+            assert "payload_sha256" in result
+            assert "payload_length" in result
+            assert "payload_preview" not in result
+            assert "sensitive" not in str(result)
+
+    def test_shadow_mode_includes_preview(self):
+        with patch("core.audit.settings") as mock_settings:
+            mock_settings.mode = "shadow"
+            from core.audit import _hash_payload
+            result = _hash_payload("test payload")
+            assert "payload_preview" in result
+
+    def test_hash_is_deterministic(self):
+        from core.audit import _hash_payload
+        r1 = _hash_payload("same input")
+        r2 = _hash_payload("same input")
+        assert r1["payload_sha256"] == r2["payload_sha256"]
+
+    def test_length_is_accurate(self):
+        from core.audit import _hash_payload
+        payload = "exactly twenty chars"
+        result = _hash_payload(payload)
+        assert result["payload_length"] == len(payload)
+
+
 if __name__ == "__main__":
     unittest.main()
