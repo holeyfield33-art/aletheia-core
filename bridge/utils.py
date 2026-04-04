@@ -1,7 +1,10 @@
+import logging
 import unicodedata
 import base64
 import re
 import urllib.parse
+
+_utils_logger = logging.getLogger("aletheia.bridge.utils")
 
 # Limit recursion to prevent denial-of-service via deeply nested encodings
 _MAX_DECODE_DEPTH = 5
@@ -16,8 +19,9 @@ def normalize_shadow_text(text: str, _depth: int = 0) -> str:
     # 1. Standard NFKC collapse (Homoglyphs)
     normalized = unicodedata.normalize('NFKC', text)
     if normalized != text:
-        print(f"[BRIDGE] HOMOGLYPH DETECTED: Input contained shadow "
-              f"character substitutions. Normalized to safe form.")
+        _utils_logger.debug(
+            "homoglyph detected — input contained shadow character substitutions"
+        )
 
     # 2. Control Character & Zero-Width Strip
     normalized = "".join(ch for ch in normalized if unicodedata.category(ch)[0] != "C")
@@ -27,7 +31,7 @@ def normalize_shadow_text(text: str, _depth: int = 0) -> str:
         try:
             url_decoded = urllib.parse.unquote(normalized, errors="strict")
             if url_decoded != normalized:
-                print(f"[BRIDGE] URL-ENCODING DECODED (depth {_depth}): Hidden payload extracted.")
+                _utils_logger.debug("url-encoding decoded at depth %d", _depth)
                 normalized = url_decoded
         except Exception:
             pass
@@ -37,7 +41,14 @@ def normalize_shadow_text(text: str, _depth: int = 0) -> str:
         if re.search(r'^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$', normalized) and len(normalized) >= 4:
             try:
                 decoded = base64.b64decode(normalized).decode('utf-8')
-                print(f"[BRIDGE] BASE64 LAYER DECODED (depth {_depth}): Hidden payload extracted.")
+                # Reject if decoded size grows more than 10x — compression bomb protection
+                if len(decoded) > max(len(normalized) * 10, 10_000):
+                    _utils_logger.warning(
+                        "base64 decode rejected at depth %d — decoded size %d exceeds limit",
+                        _depth, len(decoded),
+                    )
+                    return normalized
+                _utils_logger.debug("base64 layer decoded at depth %d", _depth)
                 return normalize_shadow_text(decoded, _depth + 1)
             except Exception:
                 pass

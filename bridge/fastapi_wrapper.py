@@ -24,7 +24,7 @@ _logger = logging.getLogger("aletheia.api")
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.4.1",
+    version="1.4.2",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
 
@@ -36,7 +36,17 @@ judge = AletheiaJudge()
 
 @app.on_event("startup")
 async def _on_startup() -> None:
-    """Pre-warm the embedding model to eliminate cold-start latency."""
+    """Pre-warm embedding model and validate critical secrets at startup."""
+    import sys
+    # Refuse to run in active mode without a receipt signing secret
+    if settings.mode == "active" and not os.getenv("ALETHEIA_RECEIPT_SECRET", ""):
+        _logger.critical(
+            "FATAL: ALETHEIA_RECEIPT_SECRET is not set and mode=active. "
+            "Audit receipts would be unsigned (UNSIGNED_DEV_MODE). "
+            "Set ALETHEIA_RECEIPT_SECRET or switch to mode=shadow for development. "
+            "Refusing to start."
+        )
+        sys.exit(1)
     warm_up()
 
 
@@ -95,6 +105,21 @@ def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
         )
 
 
+def _discretise_threat(score: float) -> str:
+    """Return a discretised threat band, never the raw float.
+
+    Raw scores are never returned to clients — they enable black-box
+    model fingerprinting and threshold probing.
+    """
+    if score < 3.0:
+        return "LOW"
+    if score < 6.0:
+        return "MEDIUM"
+    if score < settings.policy_threshold:
+        return "HIGH"
+    return "CRITICAL"
+
+
 _startup_time: float = _time.monotonic()
 
 
@@ -116,9 +141,7 @@ async def health_check() -> dict:
         manifest_status = "INVALID"
 
     return {
-        "status": "ok",
-        "version": app.version,
-        "mode": settings.mode,
+        "status": "ok" if manifest_status == "VALID" else "degraded",
         "manifest_signature": manifest_status,
         "uptime_seconds": round(_time.monotonic() - _startup_time, 1),
     }
@@ -126,7 +149,9 @@ async def health_check() -> dict:
 
 @app.post("/v1/audit", dependencies=[Depends(_check_api_key)])
 async def secure_audit(req: AuditRequest, request: Request) -> dict:
+    import uuid
     client_ip = _get_client_ip(request)
+    request_id = str(uuid.uuid4())[:16]
     start_time = _time.time()
 
     # --- Rate limiting (per-IP, in-memory sliding window) ---
@@ -197,21 +222,24 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         origin=req.origin,
         reason=reason if is_blocked else "",
         latency_ms=latency,
+        extra={"request_id": request_id},
     )
 
     response: dict = {
         "decision": decision,
         "metadata": {
-            "threat_level": threat_score,
+            "threat_level": _discretise_threat(threat_score),
             "latency_ms": round(latency, 2),
-            "redacted_payload": clean_content if decision == "PROCEED" else "BLOCK_ACTIVE",
+            "request_id": request_id,
             "client_id": settings.client_id,
         },
         "receipt": audit_record["receipt"],
     }
     if shadow_verdict:
-        response["shadow_verdict"] = shadow_verdict
-        response["reason"] = reason
+        # Shadow verdict logged internally only — never expose to client
+        _logger.info(
+            "shadow_verdict=DENIED action=%s origin=%s", req.action, req.origin
+        )
     elif is_blocked:
         response["reason"] = reason
     else:

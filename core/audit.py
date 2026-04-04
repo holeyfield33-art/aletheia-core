@@ -112,36 +112,57 @@ def log_audit_event(
     _get_audit_logger().info(json.dumps(record, default=str))
 
     # Build TMR-style receipt
-    receipt = build_tmr_receipt(decision=decision, policy_hash=record["policy_hash"])
+    receipt = build_tmr_receipt(
+        decision=decision,
+        policy_hash=record["policy_hash"],
+        payload_sha256=record.get("payload_sha256", ""),
+        action=action,
+        origin=origin,
+    )
     record["receipt"] = receipt
     return record
 
 
-def build_tmr_receipt(*, decision: str, policy_hash: str) -> dict[str, str]:
+def build_tmr_receipt(
+    *,
+    decision: str,
+    policy_hash: str,
+    payload_sha256: str = "",
+    action: str = "",
+    origin: str = "",
+) -> dict[str, str]:
     """Build a tamper-evident receipt signed with a private HMAC secret.
 
-    Uses ALETHEIA_RECEIPT_SECRET env var as the HMAC key.
-    Falls back to UNSIGNED_DEV_MODE if not set — never use in production.
-
-    Previously used the public key as the HMAC key, which was cosmetic only.
-    This version uses a real secret so receipts cannot be forged by third parties.
+    Signs: decision + policy_hash + payload_sha256 + action + origin + timestamp.
+    Including payload_sha256, action, and origin prevents receipt replay attacks
+    where a valid receipt from a benign request is reused for a malicious one.
     """
     secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
+    issued_at = datetime.now(timezone.utc).isoformat()
+
     if not secret:
         return {
             "decision": decision,
             "policy_hash": policy_hash,
+            "payload_sha256": payload_sha256,
+            "action": action,
+            "origin": origin,
             "signature": "UNSIGNED_DEV_MODE",
-            "issued_at": datetime.now(timezone.utc).isoformat(),
+            "issued_at": issued_at,
             "warning": "Set ALETHEIA_RECEIPT_SECRET for production receipt signing.",
         }
 
-    message = f"{decision}|{policy_hash}|{datetime.now(timezone.utc).date().isoformat()}".encode("utf-8")
+    message = (
+        f"{decision}|{policy_hash}|{payload_sha256}|{action}|{origin}|{issued_at}"
+    ).encode("utf-8")
     sig = hmac.new(secret, message, hashlib.sha256).hexdigest()
 
     return {
         "decision": decision,
         "policy_hash": policy_hash,
+        "payload_sha256": payload_sha256,
+        "action": action,
+        "origin": origin,
         "signature": sig,
-        "issued_at": datetime.now(timezone.utc).isoformat(),
+        "issued_at": issued_at,
     }

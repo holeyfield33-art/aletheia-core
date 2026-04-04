@@ -13,7 +13,9 @@ class AletheiaScoutV2:
             "high_risk_ips": ["192.168.1.50", "10.0.0.99"],
             "high_risk_keywords": ["1Password", "local_file_exfil", "extension_hijack"]
         }
-        self.query_history = {} # To track rotation-probing
+        # Cap at 10,000 entries to prevent memory exhaustion from unique source IDs
+        self._query_history: dict[str, list[float]] = {}
+        self._query_history_max = 10_000
 
         # PATCH 2.1: Neutral-Anchor / Contextual Camouflage Detection
         self.neutral_tokens = [
@@ -54,14 +56,21 @@ class AletheiaScoutV2:
 
         # 4. Rotation Probing Detection (Anti-Polymorphic Bypass)
         current_time = time.time()
-        if source_id not in self.query_history:
-            self.query_history[source_id] = []
+        if source_id not in self._query_history:
+            if len(self._query_history) >= self._query_history_max:
+                # Remove the entry with the oldest last-seen timestamp
+                oldest_key = min(
+                    self._query_history,
+                    key=lambda k: self._query_history[k][-1] if self._query_history[k] else 0,
+                )
+                del self._query_history[oldest_key]
+            self._query_history[source_id] = []
         
         # Clean old history
-        self.query_history[source_id] = [t for t in self.query_history[source_id] if current_time - t < 60]
-        self.query_history[source_id].append(current_time)
+        self._query_history[source_id] = [t for t in self._query_history[source_id] if current_time - t < 60]
+        self._query_history[source_id].append(current_time)
 
-        if len(self.query_history[source_id]) > 5:
+        if len(self._query_history[source_id]) > 5:
             return 7.5, "ALERT: Rapid Meta-Querying Detected (Rotation Probing)"
 
         return 1.0, "Context Clean."

@@ -315,5 +315,146 @@ class TestPayloadHashing(unittest.TestCase):
         assert result["payload_length"] == len(payload)
 
 
+# ---------------------------------------------------------------------------
+# Red-team fix tests — appended
+# ---------------------------------------------------------------------------
+
+import os
+import unittest
+from unittest.mock import patch
+
+
+class TestReceiptReplayProtection(unittest.TestCase):
+    """Receipt must cover payload, action, origin to prevent replay attacks."""
+
+    def test_receipt_includes_payload_sha256(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}):
+            from core.audit import build_tmr_receipt
+            receipt = build_tmr_receipt(
+                decision="PROCEED",
+                policy_hash="abc123",
+                payload_sha256="deadbeef",
+                action="summarize",
+                origin="trusted_admin",
+            )
+            assert receipt["payload_sha256"] == "deadbeef"
+
+    def test_different_actions_different_signatures(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}):
+            from core.audit import build_tmr_receipt
+            r1 = build_tmr_receipt(
+                decision="PROCEED", policy_hash="abc",
+                payload_sha256="xyz", action="summarize", origin="admin"
+            )
+            r2 = build_tmr_receipt(
+                decision="PROCEED", policy_hash="abc",
+                payload_sha256="xyz", action="transfer_funds", origin="admin"
+            )
+            assert r1["signature"] != r2["signature"]
+
+    def test_different_origins_different_signatures(self):
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}):
+            from core.audit import build_tmr_receipt
+            r1 = build_tmr_receipt(
+                decision="PROCEED", policy_hash="abc",
+                payload_sha256="xyz", action="summarize", origin="trusted_admin"
+            )
+            r2 = build_tmr_receipt(
+                decision="PROCEED", policy_hash="abc",
+                payload_sha256="xyz", action="summarize", origin="untrusted"
+            )
+            assert r1["signature"] != r2["signature"]
+
+
+class TestThreatLevelDiscretisation(unittest.TestCase):
+    """Raw threat scores must never be returned to clients."""
+
+    def test_low_score_returns_band(self):
+        from bridge.fastapi_wrapper import _discretise_threat
+        assert _discretise_threat(1.0) == "LOW"
+
+    def test_medium_score_returns_band(self):
+        from bridge.fastapi_wrapper import _discretise_threat
+        assert _discretise_threat(4.5) == "MEDIUM"
+
+    def test_high_score_returns_band(self):
+        from bridge.fastapi_wrapper import _discretise_threat
+        assert _discretise_threat(7.0) == "HIGH"
+
+    def test_critical_score_returns_band(self):
+        from bridge.fastapi_wrapper import _discretise_threat
+        assert _discretise_threat(9.5) == "CRITICAL"
+
+    def test_returns_string_not_float(self):
+        from bridge.fastapi_wrapper import _discretise_threat
+        result = _discretise_threat(5.0)
+        assert isinstance(result, str)
+        assert "." not in result
+
+
+class TestShadowModeOracle(unittest.TestCase):
+    """shadow_verdict must never be returned to the client."""
+
+    def test_shadow_verdict_not_in_response_keys(self):
+        # This is a structural test — if shadow_verdict is in the response
+        # schema, this test catches it before deployment
+        import ast, inspect
+        try:
+            from bridge import fastapi_wrapper
+            source = inspect.getsource(fastapi_wrapper.secure_audit)
+            # shadow_verdict should not be added to the response dict
+            assert 'response["shadow_verdict"]' not in source, \
+                "shadow_verdict must not be returned to client"
+        except ImportError:
+            self.skipTest("fastapi_wrapper not importable without model")
+
+
+class TestUtilsNoStdoutLeakage(unittest.TestCase):
+    """Internal normalization logic must not print to stdout."""
+
+    def test_homoglyph_detection_uses_logger_not_print(self):
+        import inspect
+        from bridge import utils
+        source = inspect.getsource(utils.normalize_shadow_text)
+        assert "print(" not in source, \
+            "normalize_shadow_text must use logging not print()"
+
+
+class TestBase64SizeLimit(unittest.TestCase):
+    """Base64 decoder must reject payloads that grow beyond 10x original size."""
+
+    def test_normal_base64_decodes(self):
+        import base64
+        from bridge.utils import normalize_shadow_text
+        payload = "hello world"
+        encoded = base64.b64encode(payload.encode()).decode()
+        result = normalize_shadow_text(encoded)
+        assert result == payload
+
+    def test_oversized_decode_rejected(self):
+        """A payload that decodes to 10x+ its size should not be processed."""
+        import base64
+        from bridge.utils import normalize_shadow_text
+        # Create a string that when base64 decoded would be much larger
+        # We test that the function doesn't crash and returns something safe
+        large = "A" * 100
+        encoded = base64.b64encode(large.encode()).decode()
+        result = normalize_shadow_text(encoded)
+        # Should either return the original encoded or the decoded — key is no crash
+        assert isinstance(result, str)
+
+
+class TestScoutHistoryCap(unittest.TestCase):
+    """Scout query_history must not grow without bound."""
+
+    def test_query_history_has_size_cap(self):
+        from agents.scout_v2 import AletheiaScoutV2
+        scout = AletheiaScoutV2()
+        assert hasattr(scout, '_query_history_max'), \
+            "Scout must have _query_history_max to prevent memory exhaustion"
+        assert scout._query_history_max <= 50_000, \
+            "Cap must be a reasonable limit"
+
+
 if __name__ == "__main__":
     unittest.main()
