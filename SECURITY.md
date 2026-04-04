@@ -4,8 +4,10 @@
 
 | Version | Supported |
 |---------|-----------|
-| 1.2.x   | Yes       |
-| < 1.2.0 | No        |
+| 1.4.x   | ✅ Yes    |
+| 1.3.x   | ✅ Yes    |
+| 1.2.x   | ✅ Yes    |
+| < 1.2.0 | ❌ No     |
 
 ## Reporting a Vulnerability
 
@@ -16,7 +18,7 @@ responsibly.
 
 ### Contact
 
-Email: **holeyfield33art@users.noreply.github.com**
+Email: **hello@aletheia-core.com**
 
 Include the following in your report:
 

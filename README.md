@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-265%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-262%20passing-brightgreen" alt="Tests"/>
   <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
   <a href="https://render.com/deploy?repo=https://github.com/holeyfield33-art/aletheia-core">
@@ -63,6 +63,14 @@ The following properties are cryptographically or architecturally enforced:
 | 9 | **Rate limiting** | In-memory sliding-window limiter, default 10 requests per second per IP. |
 | 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. |
 | 11 | **Config-driven defense modes** | `active` / `shadow` / `monitor` — switchable via environment variable or `config.yaml` without code changes. |
+
+Additional guarantees:
+
+- **API Key Authentication** — `X-API-Key` header required when `ALETHEIA_API_KEYS` is configured
+- **Real Client IP** — rate limiting derived from network layer, never from request body
+- **Payload Privacy** — audit logs store SHA-256 hash + length only; no plaintext content in active mode
+- **Receipt Signing** — HMAC receipts use `ALETHEIA_RECEIPT_SECRET`; falls back to `UNSIGNED_DEV_MODE`
+- **Health Endpoint** — `GET /health` returns version, uptime, and manifest verification status
 
 ---
 
@@ -121,7 +129,7 @@ uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
 ### Run the test suite
 
 ```bash
-pytest tests/ -v
+pytest tests/ -v --ignore=tests/test_api.py
 ```
 
 ---
@@ -222,11 +230,12 @@ aletheia-cyber-core/
 │   ├── security_policy.ed25519.pub # Public verification key
 │   └── signing.py           # Manifest signing and verification
 ├── tests/
-│   ├── test_core.py         # Integration tests (18)
-│   ├── test_judge.py        # Judge unit + adversarial tests (13)
-│   ├── test_nitpicker.py    # Nitpicker unit + semantic tests (8)
-│   ├── test_enterprise.py   # Audit, rate-limit, hardening tests (9)
-│   └── test_hardening.py    # Sandbox, grey-zone, rotation tests (15)
+│   ├── test_core.py         # Integration tests
+│   ├── test_judge.py        # Judge unit + adversarial tests
+│   ├── test_nitpicker.py    # Nitpicker unit + semantic tests
+│   ├── test_enterprise.py   # Audit, rate-limit, hardening tests
+│   ├── test_hardening.py    # Sandbox, grey-zone, rotation tests
+│   └── test_proximity/      # Consciousness proximity module (84 tests)
 ├── simulations/             # Adversarial simulation scripts
 ├── main.py                  # CLI entry point
 ├── AGENTS.md                # Agent communication protocol
@@ -265,6 +274,19 @@ If this project is useful to your organization, consider supporting its developm
 
 - [GitHub Sponsors](https://github.com/sponsors/holeyfield33-art)
 - [Buy Me a Coffee](https://buymeacoffee.com/holeyfielde)
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `ALETHEIA_API_KEYS` | Production | Comma-separated API keys for `X-API-Key` auth. Unset = open mode. |
+| `ALETHEIA_RECEIPT_SECRET` | Production | HMAC secret for audit receipts. Unset = `UNSIGNED_DEV_MODE`. |
+| `ALETHEIA_MODE` | No | `active` (default), `shadow`, or `monitor` |
+| `ALETHEIA_LOG_LEVEL` | No | `INFO` (default), `DEBUG`, `WARNING` |
+| `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | Requests per IP per second. Default: `10` |
+| `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable proximity module. Default: `false` |
 
 ---
 

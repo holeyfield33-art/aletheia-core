@@ -1,4 +1,4 @@
-# Contributing to Aletheia Cyber-Defense
+# Contributing to Aletheia Core
 
 Thank you for your interest in improving Aletheia. This document outlines how to
 contribute effectively.
@@ -9,7 +9,6 @@ contribute effectively.
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt
-   pip install pytest
    ```
 3. Sign the security manifest (required for tests to pass):
    ```bash
@@ -17,14 +16,23 @@ contribute effectively.
    ```
 4. Run the test suite to confirm your environment works:
    ```bash
-   pytest tests/ -v
+   pytest tests/ -v --ignore=tests/test_api.py
    ```
+
+### Proximity module tests (optional)
+
+The consciousness proximity module has separate dependencies:
+
+```bash
+pip install -r requirements-proximity.txt
+pytest tests/test_proximity/ -v
+```
 
 ## Development Workflow
 
 1. Create a branch from `main` for your change.
 2. Make your changes. Follow the conventions below.
-3. Run the full test suite (`pytest tests/ -v`) and ensure all tests pass.
+3. Run the full test suite (`pytest tests/ -v --ignore=tests/test_api.py`) and ensure all tests pass.
 4. Commit with a [conventional commit](https://www.conventionalcommits.org/) message:
    - `feat:` for new features
    - `fix:` for bug fixes
