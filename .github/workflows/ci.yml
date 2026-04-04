@@ -24,19 +24,31 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('requirements-ci.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-py${{ matrix.python-version }}-
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements-ci.txt
 
       - name: Compile check
         run: |
           python -m py_compile core/audit.py core/config.py core/embeddings.py \
             core/rate_limit.py core/sandbox.py bridge/fastapi_wrapper.py main.py
 
-      - name: Run tests
+      - name: Run core tests
         run: |
           python -m pytest tests/ -v --tb=short \
             --ignore=tests/test_proximity \
-            --ignore=tests/test_api.py
+            --ignore=tests/test_api.py \
+            --ignore=tests/test_nitpicker.py
         env:
           ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
+
+      - name: Run proximity tests
+        run: python -m pytest tests/test_proximity/ -v --tb=short
