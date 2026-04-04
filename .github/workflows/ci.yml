@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile check
+        run: |
+          python -m py_compile core/audit.py core/config.py core/embeddings.py \
+            core/rate_limit.py core/sandbox.py bridge/fastapi_wrapper.py main.py
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short --ignore=tests/test_proximity
+        env:
+          ALETHEIA_MODE: shadow
+          ALETHEIA_LOG_LEVEL: WARNING

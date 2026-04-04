@@ -14,12 +14,15 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-181%20passing-brightgreen" alt="Tests"/>
   <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
+  <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI"/>
 </p>
 
 <p align="center">
   <a href="docs/index.html">📖 Documentation</a> •
   <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a> •
-  <a href="https://codespaces.new/holeyfield33-art/aletheia-core">Try in Codespaces</a>
+  <a href="https://codespaces.new/holeyfield33-art/aletheia-core">
+    <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces" />
+  </a>
 </p>
 
 ---
