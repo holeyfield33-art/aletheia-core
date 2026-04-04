@@ -1,0 +1,5 @@
+# Consciousness Proximity Module
+# Install only when CONSCIOUSNESS_PROXIMITY_ENABLED=true
+# pip install -r requirements-proximity.txt
+httpx>=0.24.0
+pytest-asyncio>=0.21.0
