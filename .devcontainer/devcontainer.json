@@ -1,7 +1,7 @@
 {
   "name": "Aletheia Core",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
-  "postCreateCommand": "pip install -r requirements.txt && python main.py sign-manifest && echo '✅ Aletheia Core ready — run: ./demo.sh'",
+  "postCreateCommand": "pip install -r requirements.txt && python main.py sign-manifest && echo '✅ Ready — run ./demo.sh'",
   "forwardPorts": [8000],
   "portsAttributes": {
     "8000": {

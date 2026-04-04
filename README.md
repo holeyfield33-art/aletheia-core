@@ -12,9 +12,12 @@
   <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-181%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-265%20passing-brightgreen" alt="Tests"/>
   <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
-  <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+  <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  <a href="https://render.com/deploy?repo=https://github.com/holeyfield33-art/aletheia-core">
+    <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="28" />
+  </a>
 </p>
 
 <p align="center">
@@ -85,6 +88,17 @@ The following properties are cryptographically or architecturally enforced:
 ```bash
 pip install -r requirements.txt
 ```
+
+#### Optional Consciousness Proximity Module
+
+To enable the optional proximity feature set:
+
+```bash
+pip install -r requirements-proximity.txt
+export CONSCIOUSNESS_PROXIMITY_ENABLED=true
+```
+
+The proximity module is gated behind `CONSCIOUSNESS_PROXIMITY_ENABLED=true` and includes optional runtime dependencies for governance monitoring and relay scoring.
 
 ### Sign the manifest (required before first run)
 
