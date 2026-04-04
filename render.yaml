@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: aletheia-core
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python main.py sign-manifest
+    startCommand: uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ALETHEIA_MODE
+        value: active
+      - key: ALETHEIA_LOG_LEVEL
+        value: INFO
+    plan: free
