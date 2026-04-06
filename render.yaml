@@ -1,4 +1,4 @@
-yamlservices:
+services:
   - type: web
     name: aletheia-core
     runtime: python
