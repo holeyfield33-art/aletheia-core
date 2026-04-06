@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import time as _time
 import traceback
 
@@ -24,7 +25,7 @@ _logger = logging.getLogger("aletheia.api")
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.4.2",
+    version="1.4.4",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
 
@@ -39,12 +40,23 @@ async def _on_startup() -> None:
     """Pre-warm embedding model and validate critical secrets at startup."""
     import sys
     # Refuse to run in active mode without a receipt signing secret
-    if settings.mode == "active" and not os.getenv("ALETHEIA_RECEIPT_SECRET", ""):
+    receipt_secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "")
+    if settings.mode == "active" and not receipt_secret:
         _logger.critical(
             "FATAL: ALETHEIA_RECEIPT_SECRET is not set and mode=active. "
             "Audit receipts would be unsigned (UNSIGNED_DEV_MODE). "
             "Set ALETHEIA_RECEIPT_SECRET or switch to mode=shadow for development. "
             "Refusing to start."
+        )
+        sys.exit(1)
+    # Enforce minimum secret length (32 chars = 256 bits of entropy when hex-encoded)
+    _MIN_SECRET_LEN = 32
+    if receipt_secret and len(receipt_secret) < _MIN_SECRET_LEN:
+        _logger.critical(
+            "FATAL: ALETHEIA_RECEIPT_SECRET is too short (%d chars). "
+            "Minimum is %d characters. Generate with: openssl rand -hex 32",
+            len(receipt_secret),
+            _MIN_SECRET_LEN,
         )
         sys.exit(1)
     warm_up()
@@ -98,7 +110,11 @@ def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
     """
     if not _API_KEYS:
         return  # auth disabled — open mode
-    if not x_api_key or x_api_key not in _API_KEYS:
+    # Timing-safe comparison: iterate all keys to prevent timing oracle attacks.
+    # secrets.compare_digest is constant-time; we check against each allowed key.
+    if not x_api_key or not any(
+        secrets.compare_digest(x_api_key, allowed) for allowed in _API_KEYS
+    ):
         raise HTTPException(
             status_code=401,
             detail={"error": "UNAUTHORIZED", "reason": "Valid X-API-Key required."},
@@ -126,12 +142,12 @@ _startup_time: float = _time.monotonic()
 @app.get("/health")
 async def health_check() -> dict:
     """Public health endpoint. No auth required. Used by load balancers and status pages."""
-    from manifest.signing import verify_manifest
+    from manifest.signing import verify_manifest_signature
     from pathlib import Path
 
     # Check manifest integrity
     try:
-        verify_manifest(
+        verify_manifest_signature(
             manifest_path="manifest/security_policy.json",
             signature_path="manifest/security_policy.json.sig",
             public_key_path="manifest/security_policy.ed25519.pub",
@@ -202,7 +218,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     # DECISION: block if threat score exceeds threshold OR Judge veto
     is_blocked = (threat_score >= settings.policy_threshold) or (not is_allowed)
     reason = report if threat_score >= settings.policy_threshold else veto_msg
-    latency = (time.time() - start_time) * 1000
+    latency = (_time.time() - start_time) * 1000
 
     decision = "DENIED" if is_blocked else "PROCEED"
 

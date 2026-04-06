@@ -11,14 +11,14 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Aletheia Cyber-Defense, please report it
+If you discover a security vulnerability in Aletheia Core, please report it
 responsibly.
 
 **Do not open a public GitHub issue.**
 
 ### Contact
 
-Email: **hello@aletheia-core.com**
+Email: **info@aletheia-core.com**
 
 Include the following in your report:
 

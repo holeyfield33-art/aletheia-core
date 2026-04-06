@@ -29,7 +29,7 @@ Then call it:
 ```bash
 curl -X POST http://127.0.0.1:8000/v1/audit \
   -H "Content-Type: application/json" \
-  -d '{"payload":"hello","origin":"trusted_admin","action":"Read_Metadata","ip":"1.1.1.1"}'
+  -d '{"payload":"hello","origin":"trusted_admin","action":"Read_Metadata"}'
 ```
 
 ## 3) Simulation path (security demos)
