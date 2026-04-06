@@ -1,0 +1,29 @@
+# Never include private keys in Docker images
+manifest/*.ed25519.key
+
+# Development artifacts
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Logs and runtime artifacts
+audit.log
+*.audit.log
+logs/
+
+# Test files (not needed at runtime)
+tests/
+simulations/
+
+# Development docs
+*.md
+docs/LAUNCH_GUIDE.md
+
+# Git
+.git/
+.github/
