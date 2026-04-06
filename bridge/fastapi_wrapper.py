@@ -171,7 +171,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     start_time = _time.time()
 
     # --- Rate limiting (per-IP, in-memory sliding window) ---
-    if not rate_limiter.allow(client_ip):
+    if not await rate_limiter.allow(client_ip):
         log_audit_event(
             decision="RATE_LIMITED",
             threat_score=0.0,
