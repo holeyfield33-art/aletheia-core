@@ -25,7 +25,7 @@ _logger = logging.getLogger("aletheia.api")
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.4.4",
+    version="1.4.7",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
 

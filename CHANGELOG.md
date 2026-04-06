@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.4.7] — 2026-04-06
+
+### Added
+- Upstash Redis distributed rate limiter — sliding window via sorted set,
+  survives restarts, synchronizes across workers
+- Automatic backend selection: Redis when configured, in-memory fallback
+- Startup log clearly indicates which backend is active
+- UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN documented in README
+  and render.yaml
+
+### Changed
+- rate_limiter.allow() is now async in both backends
+- In-memory fallback uses asyncio.Lock (was threading.Lock)
+
 ## [1.4.4] — 2026-04-06
 
 ### Security
