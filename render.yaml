@@ -1,8 +1,11 @@
-services:
+yamlservices:
   - type: web
     name: aletheia-core
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      pip install torch==2.2.2+cpu --index-url https://download.pytorch.org/whl/cpu &&
+      pip install -r requirements.txt --no-deps --ignore-requires-python ||
+      pip install -r requirements.txt
     startCommand: uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ALETHEIA_MODE
@@ -13,8 +16,12 @@ services:
         generateValue: true
       - key: ALETHEIA_API_KEYS
         sync: false
+      - key: ALETHEIA_ALIAS_SALT
+        sync: false
       - key: UPSTASH_REDIS_REST_URL
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: HUGGING_FACE_HUB_TOKEN
         sync: false
     plan: free
