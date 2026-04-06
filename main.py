@@ -3,6 +3,7 @@ import argparse
 from agents.judge_v1 import AletheiaJudge
 from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
+from bridge.fastapi_wrapper import app  # noqa: F401 — Vercel entrypoint
 from bridge.utils import normalize_shadow_text
 from manifest.signing import ManifestTamperedError, sign_manifest
 

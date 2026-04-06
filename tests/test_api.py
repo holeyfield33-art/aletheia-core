@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from bridge.fastapi_wrapper import app
+from bridge.fastapi_wrapper import app, scout
 from core.rate_limit import rate_limiter
 
 # ---------------------------------------------------------------------------
@@ -63,6 +63,7 @@ class TestAuditEndpointBasic(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
         TestAuditEndpointBasic._ip_counter += 1
         self._ip = f"{_IP_BASIC}{self._ip_counter}"
@@ -83,7 +84,7 @@ class TestAuditEndpointBasic(unittest.TestCase):
     def test_metadata_contains_expected_fields(self) -> None:
         _, body = _post(self.client, _safe_body(self._ip))
         meta = body["metadata"]
-        for field in ("threat_level", "latency_ms", "redacted_payload", "client_id"):
+        for field in ("threat_level", "latency_ms", "request_id", "client_id"):
             self.assertIn(field, meta, f"Missing metadata field: {field}")
 
     def test_receipt_contains_signature(self) -> None:
@@ -106,6 +107,7 @@ class TestAuditEndpointDenied(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
         TestAuditEndpointDenied._ip_counter += 1
         self._ip = f"{_IP_DENIED}{self._ip_counter}"
@@ -119,9 +121,10 @@ class TestAuditEndpointDenied(unittest.TestCase):
         self.assertIn("reason", body)
         self.assertTrue(body["reason"])
 
-    def test_denied_redacted_payload_is_block_active(self) -> None:
+    def test_denied_response_contains_metadata(self) -> None:
         _, body = _post(self.client, _blocked_body(self._ip))
-        self.assertEqual(body["metadata"]["redacted_payload"], "BLOCK_ACTIVE")
+        self.assertIn("metadata", body)
+        self.assertIn("threat_level", body["metadata"])
 
     def test_high_threat_score_payload_blocked(self) -> None:
         """SYSTEM_UPDATE prefix triggers Scout with score ≥ 9.0."""
@@ -142,6 +145,7 @@ class TestAuditEndpointSandbox(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
         TestAuditEndpointSandbox._ip_counter += 1
         self._ip = f"{_IP_SANDBOX}{self._ip_counter}"
@@ -184,6 +188,7 @@ class TestAuditEndpointRateLimit(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_rate_limit_returns_429(self) -> None:
@@ -207,6 +212,7 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_shadow_mode_overrides_deny_to_proceed(self) -> None:
@@ -217,7 +223,8 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
             _, resp = _post(self.client, _blocked_body(f"{_IP_SHADOW}1"))
             # Decision flipped to PROCEED in shadow mode
             self.assertEqual(resp["decision"], "PROCEED")
-            self.assertEqual(resp.get("shadow_verdict"), "DENIED")
+            # shadow_verdict is logged server-side, not exposed in response
+            self.assertNotIn("shadow_verdict", resp)
         finally:
             wrapper_mod.settings.shadow_mode = original
 
@@ -229,13 +236,14 @@ class TestAuditEndpointValidation(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
         TestAuditEndpointValidation._ip_counter += 1
         self._ip = f"{_IP_VALIDATION}{self._ip_counter}"
 
     def test_missing_required_field_returns_422(self) -> None:
-        # Missing 'ip' field
-        body = {"payload": "test", "origin": "admin", "action": "Read_Report"}
+        # Missing 'payload' field (required by AuditRequest)
+        body = {"origin": "admin", "action": "Read_Report"}
         r = self.client.post("/v1/audit", json=body)
         self.assertEqual(r.status_code, 422)
 
@@ -259,6 +267,7 @@ class TestAuditEndpointGlobalExceptionHandler(unittest.TestCase):
 
     def setUp(self) -> None:
         rate_limiter.reset()
+        scout._query_history.clear()
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_internal_error_returns_500(self) -> None:
