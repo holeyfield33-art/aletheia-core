@@ -61,7 +61,9 @@ The following properties are cryptographically or architecturally enforced:
 | 6 | **Embedding pre-warming** | Model loaded eagerly at FastAPI startup to eliminate cold-start latency on the first request. |
 | 7 | **Audit trail integrity** | Every decision produces a structured JSON log line and an HMAC-signed TMR receipt (decision + policy hash + payload_sha256 + action + origin + signature). |
 | 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode with 10x size bomb protection, and URL percent-encoding decode — all applied before any agent sees the payload. |
-| 9 | **Rate limiting** | In-memory sliding-window limiter (50,000 IP cap), default 10 requests per second per IP. State is per-process; use an external proxy for multi-worker rate limiting. |
+| 9 | **Rate limiting** | Sliding-window per-IP rate limiter. Distributed via
+Upstash Redis when `UPSTASH_REDIS_REST_URL` is configured (survives restarts,
+synchronizes across workers). Falls back to in-memory for single-node deployments. |
 | 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. Version and mode never exposed to unauthenticated /health callers. |
 | 11 | **Config-driven defense modes** | `active` / `shadow` / `monitor` — switchable via environment variable or `config.yaml` without code changes. |
 | 12 | **Receipt replay resistance** | HMAC signature includes payload_sha256, action, and origin to prevent reuse across contexts. |
@@ -284,7 +286,12 @@ All settings are configurable via environment variables (prefixed `ALETHEIA_`) o
 
 ### Known Limitations
 
-- **Rate limiter is in-memory only.** State resets on process restart and does not synchronize across workers or processes. For horizontal scaling, place a rate-limiting proxy (nginx, Traefik, Cloudflare) in front. No Redis integration exists.
+- **Rate limiting:** When `UPSTASH_REDIS_REST_URL` is configured, rate limiting
+  is distributed across all workers and instances via Upstash Redis (sliding window,
+  sorted set per IP). Without Upstash credentials, falls back to an in-memory
+  limiter that resets on restart and does not synchronize across workers.
+  Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for production
+  deployments behind multiple workers.
 - **Embedding model requires ~500 MB on disk.** The `all-MiniLM-L6-v2` model is downloaded on first use. Pre-pull in your Docker image build step.
 - **Static alias bank.** While daily rotation mitigates probing, a determined adversary with prolonged access could enumerate patterns. Consider supplementing with an LLM-based classifier for high-sensitivity deployments.
 - **No runtime syscall interception.** The action sandbox validates declared intents, not runtime behavior. Pair with OS-level sandboxing (seccomp, AppArmor) for defense in depth.
@@ -307,6 +314,8 @@ If this project is useful to your organization, consider reaching out about our 
 | `ALETHEIA_MODE` | No | `active` (default), `shadow`, or `monitor` |
 | `ALETHEIA_LOG_LEVEL` | No | `INFO` (default), `DEBUG`, `WARNING` |
 | `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | Requests per IP per second. Default: `10` |
+| `UPSTASH_REDIS_REST_URL` | Recommended | Upstash Redis REST endpoint for distributed rate limiting. Falls back to in-memory if absent. |
+| `UPSTASH_REDIS_REST_TOKEN` | Recommended | Upstash Redis REST token. Required when URL is set. Rotate immediately if exposed. |
 | `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable proximity module. Default: `false` |
 
 ---
