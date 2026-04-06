@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.2-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.4.4-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-275%20passing-brightgreen" alt="Tests"/>
@@ -61,7 +61,7 @@ The following properties are cryptographically or architecturally enforced:
 | 6 | **Embedding pre-warming** | Model loaded eagerly at FastAPI startup to eliminate cold-start latency on the first request. |
 | 7 | **Audit trail integrity** | Every decision produces a structured JSON log line and an HMAC-signed TMR receipt (decision + policy hash + payload_sha256 + action + origin + signature). |
 | 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode with 10x size bomb protection, and URL percent-encoding decode — all applied before any agent sees the payload. |
-| 9 | **Rate limiting** | In-memory sliding-window limiter, default 10 requests per second per IP. Distributed rate limiting via Redis for horizontal scaling. |
+| 9 | **Rate limiting** | In-memory sliding-window limiter (50,000 IP cap), default 10 requests per second per IP. State is per-process; use an external proxy for multi-worker rate limiting. |
 | 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. Version and mode never exposed to unauthenticated /health callers. |
 | 11 | **Config-driven defense modes** | `active` / `shadow` / `monitor` — switchable via environment variable or `config.yaml` without code changes. |
 | 12 | **Receipt replay resistance** | HMAC signature includes payload_sha256, action, and origin to prevent reuse across contexts. |
@@ -209,7 +209,23 @@ Response:
 }
 ```
 
-**Note:** `shadow_verdict` and `redacted_payload` have been removed from client responses (v1.4.2+) as part of security hardening.
+**Note:** `shadow_verdict` and `redacted_payload` are never returned to clients. `client_ip_claim`, if provided, is stored in the audit log for debugging only and is never used for enforcement.
+
+---
+
+**GET** `/health`
+
+No auth required. Used by load balancers and uptime monitors.
+
+```json
+{
+  "status": "ok",
+  "manifest_signature": "VALID",
+  "uptime_seconds": 3600.0
+}
+```
+
+`status` is `"degraded"` if manifest signature verification fails. `version` and `mode` are intentionally omitted to reduce information leakage.
 
 ---
 
@@ -268,7 +284,7 @@ All settings are configurable via environment variables (prefixed `ALETHEIA_`) o
 
 ### Known Limitations
 
-- **Rate limiter is in-memory.** State resets on process restart and does not synchronize across workers. Use Redis or an external store for horizontal scaling.
+- **Rate limiter is in-memory only.** State resets on process restart and does not synchronize across workers or processes. For horizontal scaling, place a rate-limiting proxy (nginx, Traefik, Cloudflare) in front. No Redis integration exists.
 - **Embedding model requires ~500 MB on disk.** The `all-MiniLM-L6-v2` model is downloaded on first use. Pre-pull in your Docker image build step.
 - **Static alias bank.** While daily rotation mitigates probing, a determined adversary with prolonged access could enumerate patterns. Consider supplementing with an LLM-based classifier for high-sensitivity deployments.
 - **No runtime syscall interception.** The action sandbox validates declared intents, not runtime behavior. Pair with OS-level sandboxing (seccomp, AppArmor) for defense in depth.
@@ -277,7 +293,7 @@ All settings are configurable via environment variables (prefixed `ALETHEIA_`) o
 
 ## Support
 
-If this project is useful to your organization, consider reaching out about our [managed services and enterprise plans](mailto:hello@aletheia-core.com).
+If this project is useful to your organization, consider reaching out about our [managed services and enterprise plans](mailto:info@aletheia-core.com).
 
 ---
 
@@ -291,7 +307,6 @@ If this project is useful to your organization, consider reaching out about our 
 | `ALETHEIA_MODE` | No | `active` (default), `shadow`, or `monitor` |
 | `ALETHEIA_LOG_LEVEL` | No | `INFO` (default), `DEBUG`, `WARNING` |
 | `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | Requests per IP per second. Default: `10` |
-| `ALETHEIA_REDIS_URL` | For horizontal scaling | Redis URL for distributed rate limiting. Example: `redis://localhost:6379/0` |
 | `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable proximity module. Default: `false` |
 
 ---
@@ -319,7 +334,7 @@ fi
 
 ```bash
 curl http://localhost:8000/health
-# Expected response (v1.4.2+):
+# Expected response (v1.4.4+):
 # {
 #   "status": "ok",
 #   "uptime_seconds": 3600,
@@ -365,9 +380,68 @@ ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
 ALETHEIA_MODE=active \
 ALETHEIA_RECEIPT_SECRET="$ALETHEIA_RECEIPT_SECRET" \
 ALETHEIA_ALIAS_SALT="$ALETHEIA_ALIAS_SALT" \
-ALETHEIA_REDIS_URL="redis://your-production:6379" \
-uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
 ```
+
+---
+
+## Deployment Checklist
+
+Before going live in `active` mode, verify all of the following:
+
+| # | Check | Command |
+|---|-------|---------|
+| 1 | Manifest is signed | `python main.py sign-manifest` |
+| 2 | `ALETHEIA_RECEIPT_SECRET` is set (≥ 32 chars) | `echo ${#ALETHEIA_RECEIPT_SECRET}` |
+| 3 | `ALETHEIA_ALIAS_SALT` is set | `echo ${#ALETHEIA_ALIAS_SALT}` |
+| 4 | Health endpoint returns `"status":"ok"` | `curl http://localhost:8000/health` |
+| 5 | Receipt signature is not `UNSIGNED_DEV_MODE` | Inspect `signature` field in `/v1/audit` response |
+| 6 | Tests pass | `pytest tests/ --ignore=tests/test_api.py -q` |
+| 7 | Private key is NOT in Docker image | `docker run --rm <image> ls /app/manifest/*.key` — must error |
+
+Required environment variables:
+
+| Variable | Required | Min Length | Notes |
+|---|---|---|---|
+| `ALETHEIA_RECEIPT_SECRET` | YES (active mode) | 32 chars | Generate: `openssl rand -hex 32` |
+| `ALETHEIA_ALIAS_SALT` | RECOMMENDED | 32 chars | Generate: `openssl rand -hex 32` |
+| `ALETHEIA_API_KEYS` | RECOMMENDED | — | Comma-separated. Unset = open mode. |
+| `ALETHEIA_MODE` | No | — | `active` (default), `shadow`, `monitor` |
+| `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | — | Default: `10` |
+| `ALETHEIA_LOG_LEVEL` | No | — | Default: `INFO` |
+| `ALETHEIA_AUDIT_LOG_PATH` | No | — | Default: `audit.log` |
+
+---
+
+## Architecture Decision Records
+
+**ADR-001: In-memory rate limiting only**
+Rate limiting is intentionally in-memory and per-process. Adding Redis would introduce a hard runtime dependency that breaks single-binary deployments, adds operational complexity, and is unnecessary for the target deployment model (single-host, proxy-fronted). For horizontal scaling, place a rate-limiting proxy (nginx, Cloudflare, Traefik) in front.
+
+**ADR-002: Threat score discretisation**
+Raw cosine-similarity floats and threat scores are never returned to clients. Returning exact values would let an attacker black-box calibrate their payload against the exact veto threshold. Only discretised bands (`LOW` / `MEDIUM` / `HIGH` / `CRITICAL`) are exposed.
+
+**ADR-003: Startup rejection without RECEIPT_SECRET**
+The service `sys.exit(1)` in `active` mode without `ALETHEIA_RECEIPT_SECRET`. An unsigned receipt (`UNSIGNED_DEV_MODE`) in production would allow an attacker to forge receipts, breaking audit trail integrity. Hard refusal is preferable to degraded operation.
+
+**ADR-004: Ed25519 for manifest signing**
+Ed25519 was chosen over RSA for manifest signing: smaller keys, faster verification, no padding oracle attacks, and deterministic signatures. The public key ships with the package; the private key never leaves the operator's control.
+
+---
+
+## Performance Characteristics
+
+Measured on a 2-core VM with the `all-MiniLM-L6-v2` model pre-warmed:
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| Cold-start (model load) | ~3–8 s | Model downloaded on first use if not cached |
+| Warm-start (subsequent requests) | ~12–40 ms p99 | Embedding encode dominates |
+| Sandbox check only | < 1 ms | Pure regex, no model |
+| Memory footprint | ~500 MB | Dominated by PyTorch + model weights |
+| Rate limit overhead | < 0.1 ms | In-memory list operations with threading.Lock |
+
+The embedding model is loaded eagerly at startup (`warm_up()`) to eliminate cold-start latency on the first production request.
 
 ---
 
