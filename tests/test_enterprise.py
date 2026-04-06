@@ -1,5 +1,6 @@
 """Tests for enterprise features: audit logging, TMR receipts, rate limiter, input hardening."""
 
+import asyncio
 import json
 import os
 import tempfile
@@ -7,7 +8,7 @@ import unittest
 
 from bridge.utils import normalize_shadow_text
 from core.audit import build_tmr_receipt, log_audit_event
-from core.rate_limit import RateLimiter
+from core.rate_limit import InMemoryRateLimiter
 
 
 class TestAuditLogging(unittest.TestCase):
@@ -66,24 +67,24 @@ class TestAuditLogging(unittest.TestCase):
 
 class TestRateLimiter(unittest.TestCase):
     def test_allows_up_to_limit(self) -> None:
-        limiter = RateLimiter(max_per_second=3)
-        self.assertTrue(limiter.allow("ip1"))
-        self.assertTrue(limiter.allow("ip1"))
-        self.assertTrue(limiter.allow("ip1"))
-        self.assertFalse(limiter.allow("ip1"))
+        limiter = InMemoryRateLimiter(max_per_second=3)
+        self.assertTrue(asyncio.run(limiter.allow("ip1")))
+        self.assertTrue(asyncio.run(limiter.allow("ip1")))
+        self.assertTrue(asyncio.run(limiter.allow("ip1")))
+        self.assertFalse(asyncio.run(limiter.allow("ip1")))
 
     def test_separate_keys_independent(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
-        self.assertTrue(limiter.allow("ip1"))
-        self.assertTrue(limiter.allow("ip2"))
-        self.assertFalse(limiter.allow("ip1"))
+        limiter = InMemoryRateLimiter(max_per_second=1)
+        self.assertTrue(asyncio.run(limiter.allow("ip1")))
+        self.assertTrue(asyncio.run(limiter.allow("ip2")))
+        self.assertFalse(asyncio.run(limiter.allow("ip1")))
 
     def test_reset_clears_state(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
-        limiter.allow("ip1")
-        self.assertFalse(limiter.allow("ip1"))
-        limiter.reset("ip1")
-        self.assertTrue(limiter.allow("ip1"))
+        limiter = InMemoryRateLimiter(max_per_second=1)
+        asyncio.run(limiter.allow("ip1"))
+        self.assertFalse(asyncio.run(limiter.allow("ip1")))
+        limiter.reset_sync("ip1")
+        self.assertTrue(asyncio.run(limiter.allow("ip1")))
 
 
 class TestInputHardening(unittest.TestCase):
