@@ -276,7 +276,7 @@
   <div class="nav-brand">Aletheia<span>Core</span></div>
   <div class="nav-links">
     <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
-    <a href="#pilot" class="btn-nav">Apply for Access</a>
+    <a href="https://app.aletheia-core.com/demo" class="btn-nav">Try Live Demo →</a>
   </div>
 </nav>
 
@@ -295,7 +295,8 @@
     <div class="stat-chip"><b>Ed25519</b> + HMAC-SHA256</div>
     <div class="stat-chip"><b>Zero</b> external runtime deps</div>
   </div>
-  <a href="mailto:info@aletheia-core.com" class="cta-primary">Apply for Design Partner Access</a>
+  <a href="https://app.aletheia-core.com/demo" class="cta-primary">▶ Try Live Demo →</a>
+  <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-secondary" style="margin-left:12px;color:var(--silver);font-size:0.9rem;">Book a service →</a>
   <span class="cta-sub">or browse the code at <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--silver)">github.com/holeyfield33-art/aletheia-core</a></span>
 </div>
 
@@ -351,6 +352,19 @@ curl -X POST https://your-host/v1/audit \
     <span class="k">"issued_at"</span>: <span class="s">"2026-04-06T07:00:00Z"</span>
   }
 }</pre>
+  </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<section id="demo" style="background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container" style="text-align:center; padding: 4rem 2rem;">
+    <div class="section-label">Live Demo</div>
+    <h2 style="font-family:var(--font-head); font-size:clamp(1.6rem,3vw,2.4rem); margin-bottom:1rem;">See it block a real attack</h2>
+    <p style="color:var(--silver); max-width:480px; margin: 0 auto 2rem;">No install. No API key. The same engine running in production.</p>
+    <a href="https://app.aletheia-core.com/demo" target="_blank" style="display:inline-block; background:var(--crimson); color:#f0eee8; font-family:var(--font-mono); font-size:0.85rem; padding:14px 32px; border-radius:3px; text-decoration:none;">▶ Open Live Demo →</a>
+    <p style="margin-top:1rem; font-family:var(--font-mono); font-size:0.72rem; color:var(--muted);">app.aletheia-core.com/demo</p>
   </div>
 </section>
 
@@ -415,8 +429,8 @@ curl -X POST https://your-host/v1/audit \
       <li>
         <span class="proof-check">✓</span>
         <div>
-          <strong>Zero runtime dependencies for rate limiting</strong>
-          <span>No Redis, no external state, no network calls in the hot path. Rate limiter is pure Python in-process.</span>
+          <strong>Distributed rate limiting via Upstash Redis</strong>
+          <span>Sliding-window sorted set per IP. Survives restarts. Synchronizes across workers. Falls back to in-memory when unconfigured.</span>
         </div>
       </li>
       <li>
@@ -439,20 +453,22 @@ curl -X POST https://your-host/v1/audit \
 
 <hr class="divider" />
 
-<!-- Pilot Program -->
+<!-- Services Funnel -->
 <section id="pilot">
   <div class="container">
     <div class="pilot-box">
-      <h2>Design Partner Program</h2>
-      <p>We are onboarding a small cohort of design partners to shape the Aletheia Core roadmap. In exchange for early access and direct input, design partners receive:</p>
+      <h2>Service Engagements</h2>
+      <p>We help teams deploy Aletheia Core as a secure runtime guardrail with tailored support, integration, and oversight.</p>
       <div class="pilot-benefits">
-        <div class="pilot-benefit">Dedicated integration call</div>
-        <div class="pilot-benefit">Custom policy manifest configuration</div>
-        <div class="pilot-benefit">Priority support</div>
-        <div class="pilot-benefit">Direct influence on the roadmap</div>
+        <div class="pilot-benefit">Enterprise integration and architecture review</div>
+        <div class="pilot-benefit">Custom policy manifest design</div>
+        <div class="pilot-benefit">Real-time attack simulation</div>
+        <div class="pilot-benefit">Upstash Redis rate limiting setup</div>
+        <div class="pilot-benefit">Direct security engineering support</div>
+        <div class="pilot-benefit">Ongoing incident and audit guidance</div>
       </div>
-      <p style="font-size:0.9rem;margin-bottom:1.5rem;">This is not a live enterprise pricing offer. We are selecting partners deliberately. If Aletheia fits a real need you have, we want to hear about it.</p>
-      <a href="mailto:info@aletheia-core.com" class="cta-primary">Apply at info@aletheia-core.com</a>
+      <p style="font-size:0.9rem;margin-bottom:1.5rem;">Engagements are curated for teams that need secure AI action control, auditable policy enforcement, and a hardened production path.</p>
+      <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-primary">Book a service →</a>
     </div>
   </div>
 </section>
