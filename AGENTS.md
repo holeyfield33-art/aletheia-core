@@ -60,8 +60,14 @@ All agents are implemented and active. Claims here reflect the actual code.
 ## 4. Pipeline Execution Order
 
 ```
-Request → Input Hardening (normalize_shadow_text)
-        → Sandbox check (check_action_sandbox)  ← blocks early if dangerous patterns
+Request → Schema Validation (Pydantic strict, extra="forbid")
+        → Bundle Drift Check (policy_version + manifest_hash)
+        → Rate Limiting (Upstash Redis / in-memory fallback)
+        → Input Hardening (NFKC, URL/Base64 decode, unescape, entropy quarantine)
+        → Degraded Mode Gate (fail-closed for privileged actions)
+        → Semantic Intent Classification (5 categories + coercive detection)
+        → Replay Defense (SHA256 decision token, NX-based claim)
+        → Sandbox check (check_action_sandbox)  ← blocks dangerous patterns
         → Scout.evaluate_threat_context()        ← threat scoring
         → Nitpicker.sanitize_intent()            ← polymorphic sanitization
         → Judge.verify_action()                  ← manifest + semantic veto
@@ -74,6 +80,8 @@ Request → Input Hardening (normalize_shadow_text)
 ## 5. Design Principles
 
 - **Zero-Trust Input:** All external data is untrusted by default. Input hardening runs before any agent sees the payload.
-- **Fail Closed:** Invalid manifest signature, missing policy, or unverifiable actions → hard DENIED, no graceful degradation.
-- **Defense in Depth:** All three agents must pass independently. Scout score alone can deny. Judge veto alone can deny.
+- **Fail Closed:** Invalid manifest signature, missing policy, unverifiable actions, or unavailable dependencies → hard DENIED, no graceful degradation for privileged actions.
+- **Defense in Depth:** All three agents must pass independently. Scout score alone can deny. Judge veto alone can deny. Semantic intent classifier can deny before agents run.
 - **Opaque Decisions:** Raw threat scores, similarity floats, and matched rule IDs are never returned to clients. Only discretised bands (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) are exposed.
+- **Replay Resistance:** Every decision is bound to a unique token derived from request_id, timestamp, policy_version, and manifest_hash. Duplicate tokens are rejected.
+- **Drift Detection:** Workers verify they use the same signed policy bundle. Version or hash mismatches across instances are rejected.

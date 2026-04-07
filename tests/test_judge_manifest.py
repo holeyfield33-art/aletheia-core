@@ -38,6 +38,7 @@ def _make_valid_judge(tmp_dir: Path) -> AletheiaJudge:
     policy = {
         "policy_name": "TestPolicy",
         "version": "1.0",
+        "expires_at": "2099-01-01T00:00:00+00:00",
         "restricted_actions": [
             {
                 "action": "Modify_Auth_Registry",
@@ -82,6 +83,7 @@ class TestManifestTamperDetection(unittest.TestCase):
             policy = {
                 "policy_name": "Legit",
                 "version": "1.0",
+                "expires_at": "2099-01-01T00:00:00+00:00",
                 "restricted_actions": [],
             }
             manifest_path.write_text(json.dumps(policy), encoding="utf-8")
@@ -113,7 +115,9 @@ class TestManifestTamperDetection(unittest.TestCase):
             generate_keypair(priv, pub)
 
             manifest_path = tmp_dir / "policy.json"
-            manifest_path.write_text('{"policy_name":"x","version":"1","restricted_actions":[]}')
+            manifest_path.write_text(
+                '{"policy_name":"x","version":"1","expires_at":"2099-01-01T00:00:00+00:00","restricted_actions":[]}'
+            )
 
             missing_sig = tmp_dir / "no_such.sig"
 
@@ -134,7 +138,9 @@ class TestManifestTamperDetection(unittest.TestCase):
 
             manifest_path = tmp_dir / "policy.json"
             sig_path = tmp_dir / "policy.json.sig"
-            manifest_path.write_text('{"policy_name":"x","version":"1","restricted_actions":[]}')
+            manifest_path.write_text(
+                '{"policy_name":"x","version":"1","expires_at":"2099-01-01T00:00:00+00:00","restricted_actions":[]}'
+            )
             sign_manifest(
                 manifest_path=str(manifest_path),
                 signature_path=str(sig_path),
@@ -164,7 +170,9 @@ class TestManifestTamperDetection(unittest.TestCase):
 
             manifest_path = tmp_dir / "policy.json"
             sig_path = tmp_dir / "policy.json.sig"
-            manifest_path.write_text('{"policy_name":"x","version":"1","restricted_actions":[]}')
+            manifest_path.write_text(
+                '{"policy_name":"x","version":"1","expires_at":"2099-01-01T00:00:00+00:00","restricted_actions":[]}'
+            )
             # Sign with key1, verify with key2 → mismatch
             sign_manifest(
                 manifest_path=str(manifest_path),

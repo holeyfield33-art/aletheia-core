@@ -6,6 +6,8 @@ READ-ONLY observer that enforces policies and red-line safety.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import hashlib
+import json
 from typing import Any
 
 from .safety_bounds import SafetyBounds
@@ -180,6 +182,26 @@ class SovereignRelay:
             ),
             timestamp=timestamp,
             session_id=proposed_action.session_id,
+            request_id=str(proposed_action.metadata.get("request_id", "")),
+            policy_version=str(proposed_action.metadata.get("policy_version", "UNKNOWN")),
+            manifest_hash=str(proposed_action.metadata.get("manifest_hash", "")),
+            fallback_state=str(proposed_action.metadata.get("fallback_state", "normal")),
+            decision_token=str(
+                proposed_action.metadata.get(
+                    "decision_token",
+                    hashlib.sha256(
+                        json.dumps(
+                            {
+                                "description": proposed_action.description,
+                                "type": proposed_action.type,
+                                "session_id": proposed_action.session_id,
+                                "timestamp": timestamp.isoformat(),
+                            },
+                            sort_keys=True,
+                        ).encode("utf-8")
+                    ).hexdigest(),
+                )
+            ),
             approved=approved,
             policy_violations=violations,
         )
@@ -250,5 +272,5 @@ class SovereignRelay:
             return True
 
         except Exception:
-            # Fail open: if we can't check, don't block
-            return True
+            # Fail closed: anchor check unavailable should deny action.
+            return False

@@ -1,6 +1,7 @@
 {
   "policy_name": "Aletheia_Core_v1_Sovereign",
   "version": "2026.03.07",
+  "expires_at": "2027-03-07T00:00:00+00:00",
   "enforcement_level": "HARD_VETO",
   "restricted_actions": [
     {

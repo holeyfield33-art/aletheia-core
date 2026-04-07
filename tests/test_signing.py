@@ -23,7 +23,10 @@ def _tmp_dir():
     return Path(d)
 
 
-def _write_manifest(directory: Path, content: str = '{"policy": "v1"}') -> Path:
+def _write_manifest(
+    directory: Path,
+    content: str = '{"policy": "v1", "version": "1.0", "expires_at": "2099-01-01T00:00:00+00:00"}',
+) -> Path:
     p = directory / "policy.json"
     p.write_text(content, encoding="utf-8")
     return p
@@ -156,6 +159,8 @@ class TestSignManifest(unittest.TestCase):
 class TestVerifyManifestSignature(unittest.TestCase):
 
     def _signed_setup(self, content: str = '{"policy": "v1"}'):
+        if content == '{"policy": "v1"}':
+            content = '{"policy": "v1", "version": "1.0", "expires_at": "2099-01-01T00:00:00+00:00"}'
         d = _tmp_dir()
         manifest = _write_manifest(d, content)
         priv = d / "priv.key"
@@ -173,7 +178,10 @@ class TestVerifyManifestSignature(unittest.TestCase):
     def test_tampered_manifest_raises(self) -> None:
         d, manifest, priv, pub, sig = self._signed_setup()
         # Modify manifest after signing
-        manifest.write_text('{"policy": "tampered"}', encoding="utf-8")
+        manifest.write_text(
+            '{"policy": "tampered", "version": "1.0", "expires_at": "2099-01-01T00:00:00+00:00"}',
+            encoding="utf-8",
+        )
         with self.assertRaises(ManifestTamperedError) as ctx:
             verify_manifest_signature(manifest, sig, pub)
         self.assertIn("hash mismatch", str(ctx.exception).lower())
@@ -245,7 +253,14 @@ class TestVerifyManifestSignature(unittest.TestCase):
     def test_sign_verify_roundtrip_with_binary_content(self) -> None:
         """Signing works for manifests with unicode/special characters."""
         d = _tmp_dir()
-        content = json.dumps({"policy": "v1", "note": "caf\u00e9 \u4e2d\u6587"})
+        content = json.dumps(
+            {
+                "policy": "v1",
+                "note": "caf\u00e9 \u4e2d\u6587",
+                "version": "1.0",
+                "expires_at": "2099-01-01T00:00:00+00:00",
+            }
+        )
         manifest = _write_manifest(d, content)
         priv = d / "priv.key"
         pub = d / "pub.key"

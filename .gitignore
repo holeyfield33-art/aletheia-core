@@ -23,3 +23,6 @@ package-lock.json
 audit.log
 *.audit.log
 logs/
+
+# Hypothesis test database
+.hypothesis/

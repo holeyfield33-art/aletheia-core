@@ -56,6 +56,14 @@ def _policy_hash() -> str:
         return "MANIFEST_MISSING"
 
 
+def _policy_version() -> str:
+    try:
+        data = json.loads(Path("manifest/security_policy.json").read_text(encoding="utf-8"))
+        return str(data.get("version", "UNKNOWN"))
+    except Exception:
+        return "UNKNOWN"
+
+
 def _hash_payload(payload: str) -> dict[str, str | int]:
     """Return payload fingerprint for audit log. Never store raw user input in prod.
 
@@ -87,6 +95,10 @@ def log_audit_event(
     origin: str,
     reason: str = "",
     latency_ms: float = 0.0,
+    request_id: str = "",
+    fallback_state: str = "normal",
+    policy_match: str = "",
+    confidence: float = 0.0,
     extra: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Write a structured JSON audit record and return a TMR receipt."""
@@ -103,7 +115,12 @@ def log_audit_event(
         "latency_ms": round(latency_ms, 2),
         **_hash_payload(payload),
         "policy_hash": _policy_hash(),
+        "policy_version": _policy_version(),
         "client_id": settings.client_id,
+        "request_id": request_id,
+        "fallback_state": fallback_state,
+        "policy_match": policy_match,
+        "confidence": confidence,
     }
     if extra:
         record["extra"] = extra
@@ -115,9 +132,13 @@ def log_audit_event(
     receipt = build_tmr_receipt(
         decision=decision,
         policy_hash=record["policy_hash"],
+        policy_version=record["policy_version"],
         payload_sha256=record.get("payload_sha256", ""),
         action=action,
         origin=origin,
+        request_id=request_id,
+        fallback_state=fallback_state,
+        issued_at=record["timestamp"],
     )
     record["receipt"] = receipt
     return record
@@ -127,9 +148,13 @@ def build_tmr_receipt(
     *,
     decision: str,
     policy_hash: str,
+    policy_version: str = "UNKNOWN",
     payload_sha256: str = "",
     action: str = "",
     origin: str = "",
+    request_id: str = "",
+    fallback_state: str = "normal",
+    issued_at: str = "",
 ) -> dict[str, str]:
     """Build a tamper-evident receipt signed with a private HMAC secret.
 
@@ -138,31 +163,43 @@ def build_tmr_receipt(
     where a valid receipt from a benign request is reused for a malicious one.
     """
     secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
-    issued_at = datetime.now(timezone.utc).isoformat()
+    issued_at = issued_at or datetime.now(timezone.utc).isoformat()
+    decision_token = hashlib.sha256(
+        f"{request_id}|{issued_at}|{policy_version}|{policy_hash}".encode("utf-8")
+    ).hexdigest()
 
     if not secret:
         return {
             "decision": decision,
             "policy_hash": policy_hash,
+            "policy_version": policy_version,
             "payload_sha256": payload_sha256,
             "action": action,
             "origin": origin,
+            "request_id": request_id,
+            "fallback_state": fallback_state,
+            "decision_token": decision_token,
             "signature": "UNSIGNED_DEV_MODE",
             "issued_at": issued_at,
             "warning": "Set ALETHEIA_RECEIPT_SECRET for production receipt signing.",
         }
 
     message = (
-        f"{decision}|{policy_hash}|{payload_sha256}|{action}|{origin}|{issued_at}"
+        f"{decision}|{policy_hash}|{policy_version}|{payload_sha256}|"
+        f"{action}|{origin}|{request_id}|{fallback_state}|{issued_at}|{decision_token}"
     ).encode("utf-8")
     sig = hmac.new(secret, message, hashlib.sha256).hexdigest()
 
     return {
         "decision": decision,
         "policy_hash": policy_hash,
+        "policy_version": policy_version,
         "payload_sha256": payload_sha256,
         "action": action,
         "origin": origin,
+        "request_id": request_id,
+        "fallback_state": fallback_state,
+        "decision_token": decision_token,
         "signature": sig,
         "issued_at": issued_at,
     }

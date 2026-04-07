@@ -62,6 +62,8 @@ class UpstashRateLimiter:
         self._circuit_open_until: float = 0.0
         self._FAILURE_THRESHOLD: int = 5
         self._CIRCUIT_RESET_SECONDS: float = 30.0
+        self.backend = "upstash"
+        self.degraded = False
         _logger.info(
             "Rate limiter: Upstash Redis backend active at %s",
             self._url.split("//")[-1],  # log host only, not full URL
@@ -125,6 +127,7 @@ class UpstashRateLimiter:
 
         except Exception as exc:
             self._failure_count += 1
+            self.degraded = True
             if self._failure_count >= self._FAILURE_THRESHOLD:
                 self._circuit_open_until = _t.monotonic() + self._CIRCUIT_RESET_SECONDS
                 _logger.error(
@@ -178,6 +181,8 @@ class InMemoryRateLimiter:
         self._max = max_per_second or settings.rate_limit_per_second
         self._lock = asyncio.Lock()
         self._windows: OrderedDict[str, list[float]] = OrderedDict()
+        self.backend = "inmemory"
+        self.degraded = True
         _logger.warning(
             "Rate limiter: in-memory fallback active. "
             "Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for "

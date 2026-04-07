@@ -9,6 +9,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncIterator, Optional
 
 import httpx
@@ -30,6 +31,11 @@ class DecisionReceipt:
     timestamp: datetime
     helios_hash: str = ""
     session_id: str = ""
+    request_id: str = ""
+    policy_version: str = "UNKNOWN"
+    manifest_hash: str = ""
+    fallback_state: str = "normal"
+    decision_token: str = ""
     approved: bool = True
     policy_violations: list[str] = field(default_factory=list)
 
@@ -82,7 +88,42 @@ class IdentityAnchor:
         self._own_client = http_client is None
         self._decisions: list[DecisionReceipt] = []
         self._chain_hashes: list[str] = []
+        self._seen_tokens: set[str] = set()
+        _raw = os.getenv("ALETHEIA_ANCHOR_STATE_PATH", "")
+        self._state_path: Path | None = Path(_raw) if _raw else None
         self._constitution: Constitution | None = None
+        self._load_state()
+
+    def _load_state(self) -> None:
+        if not self._state_path:
+            return
+        try:
+            if not self._state_path.exists():
+                return
+            data = json.loads(self._state_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                return
+            self._chain_hashes = list(data.get("chain_hashes", []))
+            self._seen_tokens = set(data.get("seen_tokens", []))
+        except Exception:
+            # Fail closed during replay checks only; state loading remains best-effort.
+            self._chain_hashes = []
+            self._seen_tokens = set()
+
+    def _persist_state(self) -> None:
+        if not self._state_path:
+            return
+        self._state_path.parent.mkdir(parents=True, exist_ok=True)
+        self._state_path.write_text(
+            json.dumps(
+                {
+                    "chain_hashes": self._chain_hashes,
+                    "seen_tokens": sorted(self._seen_tokens),
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
 
     async def open(self) -> None:
         """Open anchor session."""
@@ -108,6 +149,11 @@ class IdentityAnchor:
             64-character hex hash of this decision
         """
         # Compute canonical JSON
+        if receipt.decision_token:
+            if receipt.decision_token in self._seen_tokens:
+                raise ValueError("replay_detected")
+            self._seen_tokens.add(receipt.decision_token)
+
         canonical = json.dumps(
             {
                 "action": receipt.action,
@@ -115,6 +161,11 @@ class IdentityAnchor:
                 "approved": receipt.approved,
                 "timestamp": receipt.timestamp.isoformat(),
                 "violations": sorted(receipt.policy_violations),
+                "request_id": receipt.request_id,
+                "policy_version": receipt.policy_version,
+                "manifest_hash": receipt.manifest_hash,
+                "fallback_state": receipt.fallback_state,
+                "decision_token": receipt.decision_token,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -130,6 +181,7 @@ class IdentityAnchor:
         # Append to local chain (never insert, never delete)
         self._decisions.append(receipt)
         self._chain_hashes.append(new_hash)
+        self._persist_state()
 
         # Attempt Mneme persistence (best-effort)
         if self._client:
@@ -141,6 +193,10 @@ class IdentityAnchor:
                         "action": receipt.action,
                         "approved": receipt.approved,
                         "timestamp": receipt.timestamp.isoformat(),
+                        "request_id": receipt.request_id,
+                        "policy_version": receipt.policy_version,
+                        "manifest_hash": receipt.manifest_hash,
+                        "fallback_state": receipt.fallback_state,
                     },
                     headers={"Authorization": f"Bearer {MNEME_API_KEY}"}
                     if MNEME_API_KEY
@@ -195,6 +251,11 @@ class IdentityAnchor:
                     "approved": receipt.approved,
                     "timestamp": receipt.timestamp.isoformat(),
                     "violations": sorted(receipt.policy_violations),
+                    "request_id": receipt.request_id,
+                    "policy_version": receipt.policy_version,
+                    "manifest_hash": receipt.manifest_hash,
+                    "fallback_state": receipt.fallback_state,
+                    "decision_token": receipt.decision_token,
                 },
                 sort_keys=True,
                 separators=(",", ":"),

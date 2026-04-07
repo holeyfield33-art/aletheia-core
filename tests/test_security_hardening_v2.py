@@ -333,3 +333,74 @@ class TestUnauthenticatedAccessBlocked:
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.get("/health")
         assert resp.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# CLASS 7: Degraded Mode Fail-Closed
+# ---------------------------------------------------------------------------
+
+
+class TestDegradedModeFailClosed:
+    """Privileged actions must fail closed when remote dependencies degrade."""
+
+    def test_privileged_action_denied_in_degraded_mode(self) -> None:
+        from fastapi.testclient import TestClient
+
+        with (
+            patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}),
+            patch("bridge.fastapi_wrapper.rate_limiter.degraded", True),
+            patch("bridge.fastapi_wrapper.decision_store._degraded", True),
+            patch(
+                "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
+                new=AsyncMock(return_value=type("R", (), {"accepted": True, "reason": "ok"})()),
+            ),
+        ):
+            from bridge.fastapi_wrapper import app
+
+            client = TestClient(app, raise_server_exceptions=False)
+            resp = client.post(
+                "/v1/audit",
+                json={
+                    "payload": "normal request",
+                    "origin": "test",
+                    "action": "transfer_funds",
+                },
+                headers={"X-API-Key": "valid-key"},
+            )
+        assert resp.status_code == 503
+        assert resp.json()["reason"] == "degraded_mode_privileged_action_denied"
+
+    def test_read_only_action_allowed_path_in_degraded_mode(self) -> None:
+        from fastapi.testclient import TestClient
+
+        with (
+            patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}),
+            patch("bridge.fastapi_wrapper.rate_limiter.degraded", True),
+            patch("bridge.fastapi_wrapper.decision_store._degraded", True),
+            patch(
+                "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
+                new=AsyncMock(return_value=type("R", (), {"accepted": True, "reason": "ok"})()),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.decision_store.claim_decision",
+                new=AsyncMock(return_value=type("R", (), {"accepted": True, "reason": "accepted"})()),
+            ),
+            patch("bridge.fastapi_wrapper.rate_limiter.allow", new=AsyncMock(return_value=True)),
+            patch("bridge.fastapi_wrapper.scout.evaluate_threat_context", return_value=(0.0, "ok")),
+            patch("bridge.fastapi_wrapper.nitpicker.sanitize_intent", return_value="safe"),
+            patch("bridge.fastapi_wrapper.judge.verify_action", return_value=(True, "Action Approved by the Judge.")),
+            patch("bridge.fastapi_wrapper.log_audit_event", return_value={"receipt": {"id": "r"}}),
+        ):
+            from bridge.fastapi_wrapper import app
+
+            client = TestClient(app, raise_server_exceptions=False)
+            resp = client.post(
+                "/v1/audit",
+                json={
+                    "payload": "fetch health status",
+                    "origin": "test",
+                    "action": "read_status",
+                },
+                headers={"X-API-Key": "valid-key"},
+            )
+        assert resp.status_code == 200

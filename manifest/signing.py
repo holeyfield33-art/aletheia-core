@@ -19,17 +19,23 @@ class ManifestTamperedError(RuntimeError):
 class ManifestSignature:
     algorithm: str
     key_id: str
+    key_version: str
+    manifest_version: str
     payload_sha256: str
     signature_b64: str
     signed_at: str
+    expires_at: str
 
     def as_json(self) -> dict[str, Any]:
         return {
             "algorithm": self.algorithm,
             "key_id": self.key_id,
+            "key_version": self.key_version,
+            "manifest_version": self.manifest_version,
             "payload_sha256": self.payload_sha256,
             "signature": self.signature_b64,
             "signed_at": self.signed_at,
+            "expires_at": self.expires_at,
         }
 
 
@@ -57,6 +63,21 @@ def _public_key_id(public_key: Ed25519PublicKey) -> str:
         format=serialization.PublicFormat.Raw,
     )
     return hashlib.sha256(public_raw).hexdigest()
+
+
+def _load_manifest_metadata(payload: bytes) -> tuple[str, str]:
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except Exception as exc:
+        raise ManifestTamperedError("Manifest is not valid JSON.") from exc
+
+    version = str(data.get("version", "")).strip()
+    expires_at = str(data.get("expires_at", "")).strip()
+    if not version:
+        raise ManifestTamperedError("Manifest version is required.")
+    if not expires_at:
+        raise ManifestTamperedError("Manifest expires_at is required.")
+    return version, expires_at
 
 
 def _load_private_key(private_key_path: Path) -> Ed25519PrivateKey:
@@ -111,6 +132,7 @@ def sign_manifest(
         generate_keypair(private_path, public_path)
 
     payload = _read_bytes(manifest)
+    manifest_version, expires_at = _load_manifest_metadata(payload)
     payload_hash = hashlib.sha256(payload).hexdigest()
 
     private_key = _load_private_key(private_path)
@@ -120,9 +142,12 @@ def sign_manifest(
     signed = ManifestSignature(
         algorithm="ed25519",
         key_id=_public_key_id(public_key),
+        key_version=os.getenv("ALETHEIA_MANIFEST_KEY_VERSION", "v1"),
+        manifest_version=manifest_version,
         payload_sha256=payload_hash,
         signature_b64=base64.b64encode(signature_bytes).decode("ascii"),
         signed_at=datetime.now(timezone.utc).isoformat(),
+        expires_at=expires_at,
     )
 
     signature.write_text(json.dumps(signed.as_json(), indent=2), encoding="utf-8")
@@ -140,6 +165,7 @@ def verify_manifest_signature(
     public_path = _resolve_path(public_key_path)
 
     payload = _read_bytes(manifest)
+    manifest_version, manifest_expires_at = _load_manifest_metadata(payload)
     payload_hash = hashlib.sha256(payload).hexdigest()
 
     public_key = _load_public_key(public_path)
@@ -150,7 +176,16 @@ def verify_manifest_signature(
     except json.JSONDecodeError as exc:
         raise ManifestTamperedError("Manifest signature file is not valid JSON.") from exc
 
-    required_fields = {"algorithm", "key_id", "payload_sha256", "signature", "signed_at"}
+    required_fields = {
+        "algorithm",
+        "key_id",
+        "key_version",
+        "manifest_version",
+        "payload_sha256",
+        "signature",
+        "signed_at",
+        "expires_at",
+    }
     if not required_fields.issubset(signature_data):
         raise ManifestTamperedError("Manifest signature file missing required fields.")
 
@@ -160,6 +195,23 @@ def verify_manifest_signature(
     if signature_data["key_id"] != expected_key_id:
         raise ManifestTamperedError("Manifest signature key mismatch.")
 
+    expected_key_version = os.getenv("ALETHEIA_MANIFEST_KEY_VERSION", "v1")
+    if signature_data["key_version"] != expected_key_version:
+        raise ManifestTamperedError("Manifest signature key version mismatch.")
+
+    if signature_data["manifest_version"] != manifest_version:
+        raise ManifestTamperedError("Manifest version drift detected.")
+
+    if signature_data["expires_at"] != manifest_expires_at:
+        raise ManifestTamperedError("Manifest expiry metadata mismatch.")
+
+    try:
+        expiry = datetime.fromisoformat(str(signature_data["expires_at"]).replace("Z", "+00:00"))
+    except Exception as exc:
+        raise ManifestTamperedError("Manifest expiry is malformed.") from exc
+    if expiry <= datetime.now(timezone.utc):
+        raise ManifestTamperedError("Manifest has expired.")
+
     if signature_data["payload_sha256"] != payload_hash:
         raise ManifestTamperedError("Manifest hash mismatch; file has been modified.")
 
@@ -167,6 +219,9 @@ def verify_manifest_signature(
         signature_bytes = base64.b64decode(signature_data["signature"], validate=True)
     except (ValueError, TypeError) as exc:
         raise ManifestTamperedError("Manifest signature encoding is invalid.") from exc
+
+    if len(signature_bytes) != 64:
+        raise ManifestTamperedError("Manifest signature length is invalid.")
 
     try:
         public_key.verify(signature_bytes, payload)
