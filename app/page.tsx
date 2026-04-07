@@ -2,9 +2,9 @@ import { PRODUCT, URLS, STATUS, CTAS } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "AI Runtime Security for Agents",
+  title: "Aletheia Core — Block malicious code before it installs",
   description:
-    "Aletheia Core — AI runtime security engine. Block unsafe agent actions before execution. Signed audit receipts. Self-hosted or hosted.",
+    "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks before execution. Open source. Verifiable.",
   alternates: { canonical: URLS.appBase },
 };
 
@@ -12,16 +12,17 @@ export default function HomePage() {
   return (
     <>
       <Hero />
+      <TrustBar />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <HowItWorks />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
-      <WhatItIsAndIsNot />
+      <BuiltInTheOpen />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
-      <Pricing />
+      <HowToUse />
+      <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
+      <VerifyItYourself />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <Services />
-      <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
-      <VerifySection />
     </>
   );
 }
@@ -51,7 +52,7 @@ function Hero() {
         }}
       >
         v{PRODUCT.version} &middot; {PRODUCT.license} License &middot;{" "}
-        {PRODUCT.testCount} Tests Passing
+        {PRODUCT.testCount} Tests Passing &middot; Hosted API {STATUS.hostedApi}
       </div>
 
       <h1
@@ -64,12 +65,12 @@ function Hero() {
           marginBottom: "1.25rem",
         }}
       >
-        Runtime Security for{" "}
+        Aletheia blocks{" "}
         <em style={{ color: "var(--crimson-hi)", fontStyle: "normal" }}>
-          AI Agents
+          malicious code
         </em>
         <br />
-        and Automations
+        before it installs.
       </h1>
 
       <p
@@ -77,48 +78,13 @@ function Hero() {
           fontSize: "1.05rem",
           color: "var(--silver)",
           maxWidth: "580px",
-          margin: "0 auto 1.25rem",
+          margin: "0 auto 2.5rem",
           lineHeight: 1.7,
         }}
       >
-        Block unsafe actions before execution. Every decision produces a{" "}
-        <strong style={{ color: "var(--white)" }}>signed audit receipt</strong>{" "}
-        for independent verification. Deploy self-hosted or consume as a hosted
-        API.
+        Detect supply-chain attacks in Python packages, dependencies, and
+        runtime hooks &mdash; before execution.
       </p>
-
-      <ul
-        style={{
-          listStyle: "none",
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: "0.5rem",
-          marginBottom: "2.5rem",
-        }}
-      >
-        {[
-          "Runtime enforcement",
-          "Signed audit receipts",
-          "Self-hosted or hosted",
-          "Open-source MIT core",
-        ].map((item) => (
-          <li
-            key={item}
-            style={{
-              background: "var(--surface-2)",
-              border: "1px solid var(--border-hi)",
-              padding: "0.35rem 0.85rem",
-              borderRadius: "100px",
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.78rem",
-              color: "var(--silver)",
-            }}
-          >
-            {item}
-          </li>
-        ))}
-      </ul>
 
       <div
         style={{
@@ -129,54 +95,75 @@ function Hero() {
           alignItems: "center",
         }}
       >
-        <a href={CTAS.primary.href} className="btn-primary">
-          ▶ {CTAS.primary.label}
+        <a href="/demo" className="btn-primary">
+          ▶ Run Demo
         </a>
-        <a href={CTAS.services.href} className="btn-secondary">
-          {CTAS.services.label}
-        </a>
-        <a href="/#pricing" className="btn-ghost">
-          View Pricing
-        </a>
-      </div>
-
-      <p
-        style={{
-          marginTop: "1.25rem",
-          fontSize: "0.8rem",
-          color: "var(--muted)",
-        }}
-      >
-        or browse the source at{" "}
         <a
           href={URLS.github}
-          style={{ color: "var(--silver-dim)" }}
+          className="btn-secondary"
           target="_blank"
           rel="noopener noreferrer"
         >
-          github.com/holeyfield33-art/aletheia-core
+          View Source
         </a>
-      </p>
+      </div>
     </section>
+  );
+}
+
+function TrustBar() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        gap: "1.25rem",
+        padding: "1rem 2rem 2rem",
+      }}
+    >
+      {[
+        "Open Source",
+        "MIT Licensed",
+        "No data stored",
+        "Local verification available",
+      ].map((item) => (
+        <span
+          key={item}
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.75rem",
+            color: "var(--silver)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border-hi)",
+            padding: "0.35rem 0.85rem",
+            borderRadius: "100px",
+            letterSpacing: "0.03em",
+          }}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
   );
 }
 
 function HowItWorks() {
   const stages = [
     {
-      num: "STAGE 1",
-      title: "Input Hardening",
-      body: "NFKC homoglyph collapse, zero-width strip, recursive Base64 decode (up to 5 layers, 10× size-bomb protection), and URL decode — all applied before any agent sees the payload.",
+      num: "SCOUT",
+      title: "Threat Intelligence",
+      body: "Scans for known instruction-smuggling signatures, sensitive data exfiltration patterns, and swarm probing behavior.",
     },
     {
-      num: "STAGE 2",
-      title: "Tri-Agent Analysis",
-      body: "Scout scores threat context and detects swarm probing. Nitpicker runs semantic similarity against blocked patterns. Judge verifies the Ed25519 manifest and applies cosine-similarity veto.",
+      num: "NITPICKER",
+      title: "Intent &amp; Pattern Detection",
+      body: "Runs semantic similarity analysis against blocked patterns. Detects camouflaged commands hiding behind benign-looking prefixes.",
     },
     {
-      num: "STAGE 3",
-      title: "Signed Audit Receipt",
-      body: "Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt binding the decision to the policy hash, payload fingerprint, action, and origin.",
+      num: "JUDGE",
+      title: "Final Decision",
+      body: "Verifies the Ed25519 policy manifest, applies cosine-similarity veto against restricted actions, and produces a signed audit receipt.",
     },
   ];
 
@@ -201,8 +188,8 @@ function HowItWorks() {
             fontSize: "1rem",
           }}
         >
-          Every request passes three sequential stages before a decision is
-          made.
+          Three agents inspect every request sequentially. All three must pass
+          for an action to proceed.
         </p>
         <div
           style={{
@@ -248,199 +235,175 @@ function HowItWorks() {
             </div>
           ))}
         </div>
+
+        <div
+          style={{
+            marginTop: "2.5rem",
+            padding: "1.25rem",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.8rem",
+            color: "var(--silver)",
+            textAlign: "center",
+            letterSpacing: "0.02em",
+            overflowX: "auto",
+          }}
+        >
+          Request → Input Hardening → Scout → Nitpicker → Judge → PROCEED / DENIED → Signed Receipt
+        </div>
+
+        <ul
+          style={{
+            listStyle: "none",
+            marginTop: "1.5rem",
+            maxWidth: "620px",
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          {[
+            "Every decision is cryptographically signed — tamper-evident by design",
+            "Fail-closed: invalid manifest or unverifiable action = automatic DENIED",
+            "All three agents must pass independently — no single point of bypass",
+            "Raw scores are never exposed to clients — only discretised threat bands",
+          ].map((item) => (
+            <li
+              key={item}
+              style={{
+                display: "flex",
+                gap: "0.6rem",
+                padding: "0.5rem 0",
+                fontSize: "0.88rem",
+                color: "var(--silver)",
+                lineHeight: 1.55,
+              }}
+            >
+              <span style={{ color: "var(--green)", flexShrink: 0 }}>✓</span>
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
 }
 
-function WhatItIsAndIsNot() {
-  const is = [
-    "Runtime enforcement layer — gates risky agent actions before execution",
-    "Signed audit evidence — every decision produces a tamper-evident receipt",
-    "Deployable as self-hosted service or consumed via hosted API",
-    "One layer in a broader security stack",
-  ];
-  const isNot = [
-    "Not a replacement for model alignment",
-    "Does not secure infrastructure outside its deployment boundary",
-    "Does not prevent all possible misuse — designed to raise the cost of attacks",
-    "Not a compliance certification — consult qualified counsel for compliance",
-  ];
-
+function BuiltInTheOpen() {
   return (
     <section style={{ padding: "4rem 2rem", background: "var(--surface)" }}>
-      <div className="container">
+      <div className="container" style={{ maxWidth: "720px" }}>
         <h2
           style={{
             fontFamily: "var(--font-head)",
             fontSize: "1.75rem",
             fontWeight: 800,
             color: "var(--white)",
-            marginBottom: "0.5rem",
+            marginBottom: "1rem",
           }}
         >
-          What Aletheia Is and Is Not
+          Built in the open
         </h2>
         <p
           style={{
             color: "var(--silver)",
-            marginBottom: "2.5rem",
             fontSize: "1rem",
+            lineHeight: 1.7,
+            marginBottom: "1.25rem",
           }}
         >
-          Clarity on scope reduces integration mistakes and overclaims.
+          Aletheia Core is built by{" "}
+          <strong style={{ color: "var(--white)" }}>{PRODUCT.founder}</strong>.
+          The entire codebase is open source under the MIT License. Every
+          detection rule, every policy check, and every decision path is
+          auditable on GitHub. There are no black-box decisions — you can read
+          every line that determines whether an action is allowed or blocked.
         </p>
-        <div
+        <p
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: "2rem",
+            color: "var(--silver)",
+            fontSize: "0.95rem",
+            lineHeight: 1.7,
+            marginBottom: "1.5rem",
           }}
         >
-          <div>
-            <h3
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.82rem",
-                color: "var(--green)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                marginBottom: "1rem",
-              }}
-            >
-              It is
-            </h3>
-            <ul style={{ listStyle: "none" }}>
-              {is.map((item) => (
-                <li
-                  key={item}
-                  style={{
-                    display: "flex",
-                    gap: "0.75rem",
-                    padding: "0.65rem 0",
-                    borderBottom: "1px solid var(--border)",
-                    fontSize: "0.9rem",
-                    color: "var(--silver)",
-                    lineHeight: 1.55,
-                  }}
-                >
-                  <span style={{ color: "var(--green)", flexShrink: 0, marginTop: "2px" }}>
-                    ✓
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h3
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.82rem",
-                color: "var(--crimson-hi)",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                marginBottom: "1rem",
-              }}
-            >
-              It is not
-            </h3>
-            <ul style={{ listStyle: "none" }}>
-              {isNot.map((item) => (
-                <li
-                  key={item}
-                  style={{
-                    display: "flex",
-                    gap: "0.75rem",
-                    padding: "0.65rem 0",
-                    borderBottom: "1px solid var(--border)",
-                    fontSize: "0.9rem",
-                    color: "var(--silver)",
-                    lineHeight: 1.55,
-                  }}
-                >
-                  <span style={{ color: "var(--crimson-hi)", flexShrink: 0, marginTop: "2px" }}>
-                    ✕
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+          The security policy manifest is signed with Ed25519. Audit receipts
+          are HMAC-SHA256 signed. If you don&apos;t trust the hosted API, run it
+          yourself — the results are identical.
+        </p>
+        <a
+          href={URLS.github}
+          className="btn-secondary"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Browse the source on GitHub →
+        </a>
       </div>
     </section>
   );
 }
 
-function Pricing() {
-  const plans = [
+function HowToUse() {
+  const options = [
     {
-      name: "Developer",
-      price: "Free",
-      priceDetail: "self-hosted",
-      tag: "Open Source",
-      tagColor: "var(--green)",
+      label: "Free",
+      name: "Run it yourself",
+      color: "var(--green)",
       description:
-        "MIT-licensed core. Run it yourself. Full source, full control.",
+        "Open source. MIT license. Full control. Run locally or self-host — the entire codebase is yours.",
       features: [
         "Full MIT source code",
         "FastAPI REST endpoint",
         "Ed25519 manifest signing",
         "HMAC-signed audit receipts",
         "Tri-agent pipeline",
-        "In-memory rate limiting",
         "Community support via GitHub",
       ],
       cta: { label: "View on GitHub", href: URLS.github },
-      ctaStyle: "secondary",
+      ctaStyle: "secondary" as const,
     },
     {
-      name: "Pro",
-      price: "Hosted API",
-      priceDetail: STATUS.hostedApiLabel,
-      tag: "Live",
-      tagColor: "var(--green)",
+      label: "Paid",
+      name: "Use the API",
+      color: "var(--crimson-hi)",
       description:
-        "Consume Aletheia as a hosted API. No infrastructure to manage.",
+        "Pre-install protection as a service. Simple REST integration, no setup required. We handle uptime and scaling.",
       features: [
         "Hosted REST endpoint",
         "Managed uptime",
         "API key provisioning",
-        "Usage-based billing",
+        "No infrastructure to manage",
+        "Same tri-agent pipeline",
         "Email support",
-        "Upstash Redis rate limiting",
-        "Receipt verification endpoint",
       ],
       cta: {
         label: "Contact for Access",
         href: `mailto:${URLS.contactEmail}?subject=Hosted API Access`,
       },
-      ctaStyle: "primary",
+      ctaStyle: "primary" as const,
       highlight: true,
     },
     {
-      name: "Enterprise",
-      price: "Custom",
-      priceDetail: "contact for pricing",
-      tag: "Services Available",
-      tagColor: "var(--silver)",
+      label: "Service",
+      name: "Get a security audit",
+      color: "var(--silver)",
       description:
-        "Self-hosted deployment with support, custom policy design, and SLA options.",
+        "We scan your dependencies, explain risks in plain English, and provide actionable fixes.",
       features: [
-        "Everything in Developer",
-        "Integration architecture review",
-        "Custom policy manifest design",
-        "Managed deployment support",
-        "Dedicated security engineering",
-        "Audit and compliance guidance",
-        "SLA options available",
+        "Dependency risk assessment",
+        "Plain-English risk report",
+        "Prioritized fix recommendations",
+        "Architecture review",
+        "Custom policy design",
+        "Ongoing retainer available",
       ],
       cta: {
-        label: "Book a Service",
-        href: `mailto:${URLS.contactEmail}?subject=Enterprise Inquiry`,
+        label: "Request Audit",
+        href: `mailto:${URLS.contactEmail}?subject=Security Audit Request`,
       },
-      ctaStyle: "secondary",
+      ctaStyle: "secondary" as const,
     },
   ];
 
@@ -456,7 +419,7 @@ function Pricing() {
             marginBottom: "0.5rem",
           }}
         >
-          Pricing
+          How to use Aletheia
         </h2>
         <p
           style={{
@@ -465,7 +428,7 @@ function Pricing() {
             fontSize: "1rem",
           }}
         >
-          Open-source core. Hosted API live. Services available now.
+          Open-source core. Hosted API live. Security services available now.
         </p>
         <div
           style={{
@@ -474,14 +437,14 @@ function Pricing() {
             gap: "1.5rem",
           }}
         >
-          {plans.map((plan) => (
+          {options.map((opt) => (
             <div
-              key={plan.name}
+              key={opt.name}
               style={{
-                background: plan.highlight
+                background: opt.highlight
                   ? "var(--surface-2)"
                   : "var(--surface)",
-                border: plan.highlight
+                border: opt.highlight
                   ? "1px solid var(--crimson)"
                   : "1px solid var(--border)",
                 borderRadius: "10px",
@@ -507,38 +470,17 @@ function Pricing() {
                       color: "var(--white)",
                     }}
                   >
-                    {plan.name}
+                    {opt.name}
                   </h3>
                   <span
                     style={{
                       fontFamily: "var(--font-mono)",
                       fontSize: "0.72rem",
-                      color: plan.tagColor,
+                      color: opt.color,
                       letterSpacing: "0.06em",
                     }}
                   >
-                    {plan.tag}
-                  </span>
-                </div>
-                <div>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-head)",
-                      fontSize: "1.5rem",
-                      fontWeight: 800,
-                      color: "var(--white)",
-                    }}
-                  >
-                    {plan.price}
-                  </span>
-                  <span
-                    style={{
-                      color: "var(--muted)",
-                      fontSize: "0.82rem",
-                      marginLeft: "0.4rem",
-                    }}
-                  >
-                    / {plan.priceDetail}
+                    {opt.label}
                   </span>
                 </div>
                 <p
@@ -546,14 +488,13 @@ function Pricing() {
                     color: "var(--silver)",
                     fontSize: "0.88rem",
                     lineHeight: 1.55,
-                    marginTop: "0.5rem",
                   }}
                 >
-                  {plan.description}
+                  {opt.description}
                 </p>
               </div>
               <ul style={{ listStyle: "none", flex: 1 }}>
-                {plan.features.map((f) => (
+                {opt.features.map((f) => (
                   <li
                     key={f}
                     style={{
@@ -573,17 +514,20 @@ function Pricing() {
                 ))}
               </ul>
               <a
-                href={plan.cta.href}
+                href={opt.cta.href}
                 className={
-                  plan.ctaStyle === "primary" ? "btn-primary" : "btn-secondary"
+                  opt.ctaStyle === "primary" ? "btn-primary" : "btn-secondary"
                 }
                 style={{
                   justifyContent: "center",
                   textAlign: "center",
                   marginTop: "0.5rem",
                 }}
+                {...(opt.cta.href.startsWith("http")
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
               >
-                {plan.cta.label}
+                {opt.cta.label}
               </a>
             </div>
           ))}
@@ -705,10 +649,10 @@ function Services() {
   );
 }
 
-function VerifySection() {
+function VerifyItYourself() {
   return (
-    <section style={{ padding: "4rem 2rem" }}>
-      <div className="container" style={{ textAlign: "center" }}>
+    <section style={{ padding: "4rem 2rem", background: "var(--surface)" }}>
+      <div className="container" style={{ maxWidth: "720px" }}>
         <h2
           style={{
             fontFamily: "var(--font-head)",
@@ -718,22 +662,77 @@ function VerifySection() {
             marginBottom: "0.75rem",
           }}
         >
-          Verify a Receipt
+          Verify it yourself
         </h2>
         <p
           style={{
             color: "var(--silver)",
-            maxWidth: "520px",
-            margin: "0 auto 1.75rem",
             fontSize: "1rem",
+            lineHeight: 1.7,
+            marginBottom: "1.5rem",
           }}
         >
-          Signed receipts enable independent verification. Paste any audit
-          receipt to inspect its fields and structure.
+          You do not need to trust us. Clone the repo, run the scan, and inspect
+          the signed receipt yourself.
         </p>
-        <a href="/verify" className="btn-secondary">
-          Open Receipt Viewer →
-        </a>
+
+        <div
+          style={{
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            padding: "1.25rem",
+            marginBottom: "1.5rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.82rem",
+            color: "var(--silver)",
+            lineHeight: 1.8,
+            overflowX: "auto",
+          }}
+        >
+          <div style={{ color: "var(--muted)" }}># Clone and install</div>
+          <div>git clone {URLS.github}.git</div>
+          <div>cd aletheia-core &amp;&amp; pip install -r requirements.txt</div>
+          <br />
+          <div style={{ color: "var(--muted)" }}># Run a scan</div>
+          <div>
+            curl -X POST http://localhost:8000/v1/audit \
+          </div>
+          <div style={{ paddingLeft: "1rem" }}>
+            -H &quot;Content-Type: application/json&quot; \
+          </div>
+          <div style={{ paddingLeft: "1rem" }}>
+            -d &apos;{`{"payload":"test input","origin":"local","action":"fetch_data"}`}&apos;
+          </div>
+          <br />
+          <div style={{ color: "var(--muted)" }}>
+            # Every response includes a signed receipt you can independently
+            verify
+          </div>
+        </div>
+
+        <p
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.9rem",
+            lineHeight: 1.6,
+            marginBottom: "1.5rem",
+          }}
+        >
+          Every decision &mdash; PROCEED or DENIED &mdash; produces an
+          HMAC-SHA256 signed receipt binding the decision to the policy hash,
+          payload fingerprint, action, and origin. Paste any receipt into the
+          viewer to inspect its fields.
+        </p>
+
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <a href="/verify" className="btn-secondary">
+            Open Receipt Viewer
+          </a>
+          <a href="/demo" className="btn-primary">
+            ▶ Run Demo
+          </a>
+        </div>
       </div>
     </section>
   );

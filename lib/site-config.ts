@@ -10,14 +10,15 @@
 
 export const PRODUCT = {
   name: "Aletheia Core",
-  tagline: "AI runtime security engine for agents and automations",
+  tagline: "Aletheia blocks malicious code before it installs.",
   description:
-    "Block unsafe agent actions before execution. Every decision produces a signed audit receipt for independent verification.",
+    "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks — before execution.",
   version: "1.5.1",
-  testCount: 525,
+  testCount: 527,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",
   copyrightYear: "2026",
+  founder: "Joseph Holeyfield",
 } as const;
 
 export const URLS = {

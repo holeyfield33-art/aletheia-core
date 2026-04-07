@@ -4,33 +4,34 @@ import { PRODUCT, URLS } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: {
-    default: `${PRODUCT.name} — AI Runtime Security`,
+    default: `${PRODUCT.name} — Block malicious code before it installs`,
     template: `%s | ${PRODUCT.name}`,
   },
   description:
-    "AI runtime security engine for agents and automations. Block unsafe actions before execution. Signed audit receipts for independent verification.",
+    "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks before execution. Open source, verifiable, no black-box decisions.",
   keywords: [
-    "AI security",
-    "agent security",
+    "supply-chain security",
+    "malicious code detection",
+    "Python security",
+    "dependency scanning",
     "runtime security",
     "audit receipts",
     "AI safety",
-    "LLM security",
-    "signed audit",
+    "open-source security",
   ],
   openGraph: {
     type: "website",
     url: URLS.appBase,
     siteName: PRODUCT.name,
-    title: `${PRODUCT.name} — AI Runtime Security`,
+    title: `${PRODUCT.name} — Block malicious code before it installs`,
     description:
-      "Block unsafe AI agent actions before execution. Signed audit receipts. Self-hosted or hosted deployment.",
+      "Detect supply-chain attacks in Python packages and dependencies. Open source. Verifiable.",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PRODUCT.name} — AI Runtime Security`,
+    title: `${PRODUCT.name} — Block malicious code before it installs`,
     description:
-      "AI runtime security engine. Signed audit receipts. Demo available now.",
+      "Detect supply-chain attacks in Python packages and dependencies. Open source. Demo available now.",
   },
   metadataBase: new URL(URLS.appBase),
 };
