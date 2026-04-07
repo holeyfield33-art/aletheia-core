@@ -1,17 +1,29 @@
 <!DOCTYPE html>
+<!-- PUBLIC FACTS SYNC
+  Keep this block in sync with lib/site-config.ts whenever any value changes.
+  Version:            1.4.7
+  Test count:         296
+  Hosted API status:  launching
+  Primary CTA:        Try Live Demo → https://app.aletheia-core.com/demo
+  Secondary CTA:      Book a Service → mailto:info@aletheia-core.com?subject=Service Inquiry
+  GitHub:             https://github.com/holeyfield33-art/aletheia-core
+  Contact email:      info@aletheia-core.com
+  Last updated:       2026-04-07
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aletheia Core — Runtime AI Security</title>
-  <meta name="description" content="Enterprise-grade System 2 security layer for AI agents. Ed25519 policy manifests, semantic veto engine, HMAC-signed audit receipts." />
-  <meta property="og:title" content="Aletheia Core — Runtime AI Security" />
-  <meta property="og:description" content="Every AI agent action. Cryptographically signed. Tamper-proof." />
+  <title>Aletheia Core — AI Runtime Security for Agents</title>
+  <meta name="description" content="AI runtime security engine for agents and automations. Block unsafe actions before execution. Signed audit receipts. Self-hosted or hosted API." />
+  <meta property="og:title" content="Aletheia Core — AI Runtime Security for Agents" />
+  <meta property="og:description" content="Block unsafe agent actions before execution. Signed audit receipts for verification. Demo available. Services available now." />
   <meta property="og:url" content="https://aletheia-core.com" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Aletheia Core — Runtime AI Security" />
-  <meta name="twitter:description" content="System 2 security layer that interposes between AI agents and the actions they request. Ed25519 manifests, semantic veto, HMAC receipts." />
+  <meta name="twitter:title" content="Aletheia Core — AI Runtime Security" />
+  <meta name="twitter:description" content="AI runtime security engine for agents. Block unsafe actions. Signed audit receipts. Self-hosted or hosted. Try the live demo." />
+  <link rel="canonical" href="https://aletheia-core.com" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
@@ -261,11 +273,80 @@
     .footer-copy { color: var(--muted); font-size: 0.82rem; }
     .footer-copy a { color: var(--silver); }
 
-    @media (max-width: 600px) {
+    /* Pricing cards */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+    .pricing-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .pricing-card.highlight { border-color: var(--crimson); background: var(--surface-2); }
+    .pricing-card h3 { font-family: var(--font-head); font-size: 1.1rem; color: var(--white); }
+    .pricing-card .price { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; color: var(--white); }
+    .pricing-card .price-detail { color: var(--muted); font-size: 0.82rem; margin-left: 0.3rem; }
+    .pricing-card .plan-tag { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; }
+    .pricing-card .plan-desc { color: var(--silver); font-size: 0.88rem; line-height: 1.55; }
+    .pricing-features { list-style: none; flex: 1; }
+    .pricing-features li {
+      display: flex;
+      gap: 0.6rem;
+      padding: 0.4rem 0;
+      font-size: 0.86rem;
+      color: var(--silver);
+      border-bottom: 1px solid var(--border);
+    }
+    .pricing-features li .chk { color: var(--green); flex-shrink: 0; }
+
+    /* Services grid */
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
+    .service-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--crimson);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+    .service-card h3 { font-size: 0.95rem; color: var(--white); margin-bottom: 0.4rem; font-weight: 600; }
+    .service-card p { font-size: 0.85rem; color: var(--silver); line-height: 1.55; }
+
+    /* What it is/is not */
+    .clarity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
+    .clarity-list { list-style: none; }
+    .clarity-list li {
+      display: flex; gap: 0.75rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--silver);
+      line-height: 1.55;
+    }
+    .clarity-list li .mark { flex-shrink: 0; margin-top: 2px; }
+
+    /* Mobile nav toggle */
+    .nav-toggle {
+      display: none;
+      background: none; border: none; cursor: pointer;
+      color: var(--silver); font-size: 1.3rem; padding: 0.25rem;
+    }
+
+    @media (max-width: 640px) {
       nav { padding: 0 1rem; }
       .hero { padding: 4rem 1rem 3rem; }
       section { padding: 3rem 1rem; }
       .pilot-box { padding: 1.5rem; }
+      .nav-links a:not(.btn-nav) { display: none; }
+      .nav-toggle { display: block; }
+      .hero-cta-row { flex-direction: column; align-items: center; }
+    }
+
+    @media (max-width: 480px) {
+      .stat-row { gap: 0.5rem; }
+      .stat-chip { font-size: 0.75rem; }
+      .pricing-grid, .services-grid, .clarity-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -273,31 +354,44 @@
 
 <!-- Nav -->
 <nav>
-  <div class="nav-brand">Aletheia<span>Core</span></div>
+  <a class="nav-brand" href="https://aletheia-core.com" style="text-decoration:none;">
+    <img src="../assets/logo.png" alt="Aletheia Core" style="height:28px;width:auto;vertical-align:middle;margin-right:0.5rem;" onerror="this.style.display='none'" />
+    Aletheia<span>Core</span>
+  </a>
   <div class="nav-links">
-    <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#services">Services</a>
+    <a href="https://app.aletheia-core.com/demo">Demo</a>
+    <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--muted);">GitHub</a>
     <a href="https://app.aletheia-core.com/demo" class="btn-nav">Try Live Demo →</a>
   </div>
+  <button class="nav-toggle" aria-label="Menu">☰</button>
 </nav>
 
 <!-- Hero -->
 <div class="hero">
-  <div class="hero-badge">v1.4.7 · MIT License · 296 Tests Passing</div>
-  <h1>Every AI Agent Action.<br/><em>Cryptographically Signed.</em> Tamper-Proof.</h1>
+  <div class="hero-badge">v1.4.7 &middot; MIT License &middot; 296 Tests Passing</div>
+  <h1>Runtime Security for<br/><em>AI Agents</em> and Automations</h1>
   <p class="hero-sub">
-    Aletheia Core is a System 2 security layer that interposes between AI agents and
-    the actions they request — verifying policy integrity, semantic intent, and
-    cryptographic audit receipts before any action executes.
+    Block unsafe actions before execution.
+    Every decision produces a <strong style="color:var(--white)">signed audit receipt</strong>
+    for independent verification.
+    Deploy self-hosted or consume as a hosted API.
   </p>
   <div class="stat-row">
-    <div class="stat-chip"><b>v1.4.7</b> · current</div>
+    <div class="stat-chip"><b>v1.4.7</b> &middot; current</div>
     <div class="stat-chip"><b>296</b> tests passing</div>
     <div class="stat-chip"><b>Ed25519</b> + HMAC-SHA256</div>
-    <div class="stat-chip"><b>Zero</b> external runtime deps</div>
+    <div class="stat-chip">MIT open source</div>
   </div>
-  <a href="https://app.aletheia-core.com/demo" class="cta-primary">▶ Try Live Demo →</a>
-  <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-secondary" style="margin-left:12px;color:var(--silver);font-size:0.9rem;">Book a service →</a>
-  <span class="cta-sub">or browse the code at <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--silver)">github.com/holeyfield33-art/aletheia-core</a></span>
+  <div class="hero-cta-row" style="display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;align-items:center;">
+    <a href="https://app.aletheia-core.com/demo" class="cta-primary">▶ Try Live Demo</a>
+    <a href="mailto:info@aletheia-core.com?subject=Service Inquiry"
+       style="display:inline-block;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.82rem 1.75rem;border-radius:6px;font-weight:500;font-size:0.95rem;text-decoration:none;">
+      Book a Service
+    </a>
+  </div>
+  <span class="cta-sub">or browse the source at <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--silver-dim)">github.com/holeyfield33-art/aletheia-core</a></span>
 </div>
 
 <hr class="divider" />
@@ -359,9 +453,12 @@ curl -X POST https://your-host/v1/audit \
 
 <section id="demo" style="background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
   <div class="container" style="text-align:center; padding: 4rem 2rem;">
-    <div class="section-label">Live Demo</div>
-    <h2 style="font-family:var(--font-head); font-size:clamp(1.6rem,3vw,2.4rem); margin-bottom:1rem;">See it block a real attack</h2>
-    <p style="color:var(--silver); max-width:480px; margin: 0 auto 2rem;">No install. No API key. The same engine running in production.</p>
+    <div class="hero-badge" style="margin-bottom:1rem;">Live Demo</div>
+    <h2 style="font-family:var(--font-head); font-size:clamp(1.6rem,3vw,2.4rem); margin-bottom:1rem;">See It Block an Attack</h2>
+    <p style="color:var(--silver); max-width:480px; margin: 0 auto 2rem;">
+      No install. No API key required.
+      Send a test payload through a live audit engine and inspect the signed receipt.
+    </p>
     <a href="https://app.aletheia-core.com/demo" target="_blank" style="display:inline-block; background:var(--crimson); color:#f0eee8; font-family:var(--font-mono); font-size:0.85rem; padding:14px 32px; border-radius:3px; text-decoration:none;">▶ Open Live Demo →</a>
     <p style="margin-top:1rem; font-family:var(--font-mono); font-size:0.72rem; color:var(--muted);">app.aletheia-core.com/demo</p>
   </div>
@@ -377,7 +474,7 @@ curl -X POST https://your-host/v1/audit \
     <div class="guarantee-grid">
       <div class="guarantee-card">
         <h3>Ed25519 Manifest Signing</h3>
-        <p>Policy manifest verified with a detached Ed25519 signature before every load. Tamper or missing signature causes a hard crash — no graceful degradation.</p>
+        <p>Policy manifest verified with a detached Ed25519 signature before every load. Tamper or missing signature is designed to halt startup — read <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">manifest/signing.py</code> to verify.</p>
       </div>
       <div class="guarantee-card">
         <h3>Semantic Veto Engine</h3>
@@ -393,7 +490,7 @@ curl -X POST https://your-host/v1/audit \
       </div>
       <div class="guarantee-card">
         <h3>Payload Privacy</h3>
-        <p>In active mode, audit logs store only the SHA-256 hash and length of the payload. No plaintext content ever written to disk.</p>
+        <p>In active mode, audit logs are designed to store only the SHA-256 hash and length of the payload — not plaintext content. See <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">core/audit.py</code>.</p>
       </div>
       <div class="guarantee-card">
         <h3>Action Sandbox</h3>
@@ -452,22 +549,149 @@ curl -X POST https://your-host/v1/audit \
 
 <hr class="divider" />
 
-<!-- Services Funnel -->
-<section id="pilot">
+<!-- What Aletheia Is and Is Not -->
+<section style="background:var(--surface);">
   <div class="container">
-    <div class="pilot-box">
-      <h2>Service Engagements</h2>
-      <p>We help teams deploy Aletheia Core as a secure runtime guardrail with tailored support, integration, and oversight.</p>
-      <div class="pilot-benefits">
-        <div class="pilot-benefit">Enterprise integration and architecture review</div>
-        <div class="pilot-benefit">Custom policy manifest design</div>
-        <div class="pilot-benefit">Real-time attack simulation</div>
-        <div class="pilot-benefit">Upstash Redis rate limiting setup</div>
-        <div class="pilot-benefit">Direct security engineering support</div>
-        <div class="pilot-benefit">Ongoing incident and audit guidance</div>
+    <h2>What Aletheia Is and Is Not</h2>
+    <p class="section-sub">Clarity on scope prevents integration mistakes and overclaims.</p>
+    <div class="clarity-grid">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--green);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem;">It is</div>
+        <ul class="clarity-list">
+          <li><span class="mark" style="color:var(--green);">✓</span> Runtime enforcement layer — gates risky agent actions before execution</li>
+          <li><span class="mark" style="color:var(--green);">✓</span> Signed audit evidence — tamper-evident receipts for every decision</li>
+          <li><span class="mark" style="color:var(--green);">✓</span> Deployable self-hosted or consumed as a hosted API</li>
+          <li><span class="mark" style="color:var(--green);">✓</span> One layer in a broader security stack</li>
+        </ul>
       </div>
-      <p style="font-size:0.9rem;margin-bottom:1.5rem;">Engagements are curated for teams that need secure AI action control, auditable policy enforcement, and a hardened production path.</p>
-      <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-primary">Book a service →</a>
+      <div>
+        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--crimson-hi);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem;">It is not</div>
+        <ul class="clarity-list">
+          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Not a replacement for model alignment</li>
+          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Does not secure infrastructure outside its deployment boundary</li>
+          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Does not prevent all possible misuse — raises the cost of attacks</li>
+          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Not a compliance certification — consult qualified counsel</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Pricing -->
+<section id="pricing">
+  <div class="container">
+    <h2>Pricing</h2>
+    <p class="section-sub">Open-source core. Hosted API launching. Services available now.</p>
+    <div class="pricing-grid">
+
+      <div class="pricing-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <h3>Developer</h3>
+          <span class="plan-tag" style="color:var(--green);">Open Source</span>
+        </div>
+        <div><span class="price">Free</span><span class="price-detail">/ self-hosted</span></div>
+        <p class="plan-desc">MIT-licensed core. Run it yourself. Full source, full control.</p>
+        <ul class="pricing-features">
+          <li><span class="chk">✓</span> Full MIT source code</li>
+          <li><span class="chk">✓</span> FastAPI REST endpoint</li>
+          <li><span class="chk">✓</span> Ed25519 manifest signing</li>
+          <li><span class="chk">✓</span> HMAC-signed audit receipts</li>
+          <li><span class="chk">✓</span> Tri-agent pipeline</li>
+          <li><span class="chk">✓</span> In-memory rate limiting</li>
+          <li><span class="chk">✓</span> Community support via GitHub</li>
+        </ul>
+        <a href="https://github.com/holeyfield33-art/aletheia-core"
+           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
+          View on GitHub
+        </a>
+      </div>
+
+      <div class="pricing-card highlight">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <h3>Pro</h3>
+          <span class="plan-tag" style="color:#e67e22;">Launching</span>
+        </div>
+        <div><span class="price">Hosted API</span><span class="price-detail">/ launching</span></div>
+        <p class="plan-desc">Consume Aletheia as a hosted API. No infrastructure to manage.</p>
+        <ul class="pricing-features">
+          <li><span class="chk">✓</span> Hosted REST endpoint</li>
+          <li><span class="chk">✓</span> Managed uptime</li>
+          <li><span class="chk">✓</span> API key provisioning</li>
+          <li><span class="chk">✓</span> Usage-based billing</li>
+          <li><span class="chk">✓</span> Email support</li>
+          <li><span class="chk">✓</span> Upstash Redis rate limiting</li>
+          <li><span class="chk">✓</span> Receipt verification endpoint</li>
+        </ul>
+        <a href="mailto:info@aletheia-core.com?subject=Hosted API Access"
+           class="cta-primary" style="display:block;text-align:center;margin-top:0.5rem;">
+          Contact for Access
+        </a>
+      </div>
+
+      <div class="pricing-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <h3>Enterprise</h3>
+          <span class="plan-tag" style="color:var(--silver);">Services Available</span>
+        </div>
+        <div><span class="price">Custom</span><span class="price-detail">/ contact for pricing</span></div>
+        <p class="plan-desc">Self-hosted deployment with support, custom policy design, and SLA options.</p>
+        <ul class="pricing-features">
+          <li><span class="chk">✓</span> Everything in Developer</li>
+          <li><span class="chk">✓</span> Integration architecture review</li>
+          <li><span class="chk">✓</span> Custom policy manifest design</li>
+          <li><span class="chk">✓</span> Managed deployment support</li>
+          <li><span class="chk">✓</span> Dedicated security engineering</li>
+          <li><span class="chk">✓</span> Audit and compliance guidance</li>
+          <li><span class="chk">✓</span> SLA options available</li>
+        </ul>
+        <a href="mailto:info@aletheia-core.com?subject=Enterprise Inquiry"
+           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
+          Book a Service
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Services -->
+<section id="services" style="background:var(--surface);">
+  <div class="container">
+    <h2>Services</h2>
+    <p class="section-sub">Available now. Designed for teams deploying AI agents in production.</p>
+    <div class="services-grid" style="margin-bottom:2.5rem;">
+      <div class="service-card">
+        <h3>AI Security Audit</h3>
+        <p>Structured review of your agent architecture, action surface, and risk posture. Delivered as a written report with prioritized findings.</p>
+      </div>
+      <div class="service-card">
+        <h3>Rapid Integration</h3>
+        <p>Hands-on support deploying Aletheia Core into your stack. Covers policy manifest design, endpoint configuration, and API key setup.</p>
+      </div>
+      <div class="service-card">
+        <h3>Managed Protection</h3>
+        <p>Ongoing monitoring and policy tuning as your agent capabilities evolve. Available as a retainer engagement.</p>
+      </div>
+      <div class="service-card">
+        <h3>Compliance Mapping</h3>
+        <p>Map your audit receipt outputs to relevant frameworks. Supports documentation for internal controls and third-party reviews.</p>
+      </div>
+      <div class="service-card">
+        <h3>Enterprise Self-Hosted</h3>
+        <p>Full deployment support for private cloud or on-premises environments. Includes architecture review and production readiness checklist.</p>
+      </div>
+      <div class="service-card">
+        <h3>Team Training</h3>
+        <p>Half-day or full-day sessions covering AI agent attack vectors, policy design, and incident response playbooks.</p>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-primary">Book a Service →</a>
+      <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--muted);">info@aletheia-core.com</p>
     </div>
   </div>
 </section>
@@ -475,15 +699,15 @@ curl -X POST https://your-host/v1/audit \
 <!-- Footer -->
 <footer>
   <div class="footer-legal">
-    <a href="#">Privacy Policy</a>
-    <a href="#">Terms of Service</a>
-    <a href="#">Security</a>
-    <a href="#">DPA</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#services">Services</a>
+    <a href="https://app.aletheia-core.com/demo">Demo</a>
+    <a href="https://app.aletheia-core.com/verify">Verify Receipt</a>
     <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
+    <a href="mailto:info@aletheia-core.com">info@aletheia-core.com</a>
   </div>
   <div class="footer-copy">
-    &copy; 2026 Aletheia Sovereign Systems &mdash; MIT License &nbsp;|&nbsp;
-    <a href="mailto:info@aletheia-core.com">info@aletheia-core.com</a>
+    &copy; 2026 Aletheia Sovereign Systems &mdash; MIT License &nbsp;|&nbsp; v1.4.7
   </div>
 </footer>
 
