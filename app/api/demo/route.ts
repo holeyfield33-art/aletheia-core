@@ -111,6 +111,13 @@ export async function POST(request: NextRequest) {
     if (!upstream.ok) {
       // Do not forward raw upstream error bodies — return sanitized message
       console.error(`[demo-proxy] upstream returned ${upstream.status}`);
+      if (upstream.status === 429) {
+        const retryAfter = upstream.headers.get("Retry-After") ?? "5";
+        return NextResponse.json(
+          { error: "rate_limited" },
+          { status: 429, headers: { "Retry-After": retryAfter } },
+        );
+      }
       return NextResponse.json(SANITIZED_ERROR, { status: 503 });
     }
 

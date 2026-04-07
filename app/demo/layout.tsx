@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DemoErrorBoundary } from "@/app/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "Live Demo",
@@ -7,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function DemoLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <DemoErrorBoundary>{children}</DemoErrorBoundary>;
 }

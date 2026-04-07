@@ -28,7 +28,7 @@ _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.5.1",
+    version="1.5.2",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
 
@@ -60,6 +60,18 @@ judge = AletheiaJudge()
 async def _on_startup() -> None:
     """Pre-warm embedding model and validate critical secrets at startup."""
     import sys
+
+    # If ENVIRONMENT=production, refuse shadow mode — deny-decisions must be enforced
+    if os.getenv("ENVIRONMENT", "").lower() == "production" and settings.mode != "active":
+        _logger.critical(
+            "FATAL: ENVIRONMENT=production but ALETHEIA_MODE=%s. "
+            "Production must run in active mode. "
+            "Set ALETHEIA_MODE=active or remove ENVIRONMENT=production. "
+            "Refusing to start.",
+            settings.mode,
+        )
+        sys.exit(1)
+
     # Refuse to run in active mode without a receipt signing secret
     receipt_secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "")
     if settings.mode == "active" and not receipt_secret:
@@ -258,9 +270,10 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             origin=req.origin,
             reason="Rate limit exceeded",
         )
-        return JSONResponse(  # type: ignore[return-value]
+        return JSONResponse(
             status_code=429,
             content={"decision": "RATE_LIMITED", "reason": "Too many requests. Try again later."},
+            headers={"Retry-After": "5"},
         )
 
     # --- Input hardening ---

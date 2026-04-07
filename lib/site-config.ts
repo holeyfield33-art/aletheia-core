@@ -13,7 +13,7 @@ export const PRODUCT = {
   tagline: "Aletheia blocks malicious code before it installs.",
   description:
     "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks — before execution.",
-  version: "1.5.1",
+  version: "1.5.2",
   testCount: 527,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",

@@ -5,6 +5,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.2] — 2026-04-07
+
+### Security
+- Production startup guard: refuses to start in shadow mode when
+  ENVIRONMENT=production (prevents accidental DENIED→PROCEED pass-through)
+- Client-side AbortController timeout (8 s) on all demo fetch calls
+- Input sanitization: control characters stripped via `sanitizeForDisplay()`
+  before rendering receipt values (XSS defense-in-depth)
+- Spam-click protection: `useRef` inflight guard prevents duplicate concurrent
+  requests regardless of React render batching
+- Rate-limit feedback: 429 responses parsed client-side with Retry-After
+  countdown shown in the UI
+
+### Added
+- `DemoErrorBoundary` component — catches render crashes and shows
+  user-friendly fallback with refresh button
+- `Retry-After: 5` header on backend 429 responses; demo proxy forwards it
+- Demo proxy forwards 429 status from upstream with correct error code
+  instead of mapping to generic 503
+
+### Changed
+- Error display upgraded: distinct messages for rate-limit, timeout, and
+  generic failures (was single "request_failed" for all)
+- Version bumped to 1.5.2
+
+---
+
 ## [1.5.1] — 2026-04-07
 
 ### Security

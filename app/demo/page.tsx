@@ -1,6 +1,31 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+
+const CLIENT_TIMEOUT_MS = 8_000;
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Strip control characters (except newlines) before display. */
+function sanitizeForDisplay(s: string): string {
+  return s.replace(/[^\x20-\x7E\n\t]/g, "\uFFFD");
+}
+
+/** Perform a fetch with an AbortController timeout. */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Preset scenarios                                                   */
@@ -129,6 +154,8 @@ export default function DemoPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [retryAfter, setRetryAfter] = useState<number | null>(null);
+  const inflight = useRef(false);
 
   function applyPreset(idx: number) {
     const p = PRESETS[idx];
@@ -141,16 +168,18 @@ export default function DemoPage() {
   }
 
   const runAudit = useCallback(async () => {
-    if (loading) return; // prevent double submissions
+    if (inflight.current) return; // hard guard against spam clicks
     const trimmed = payload.trim();
     if (!trimmed) return;
 
+    inflight.current = true;
     setLoading(true);
     setResult(null);
     setShowReceipt(false);
+    setRetryAfter(null);
 
     try {
-      const res = await fetch("/api/demo", {
+      const res = await fetchWithTimeout("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,20 +188,28 @@ export default function DemoPage() {
           action,
         }),
       });
-      const data: AuditResult = await res.json();
-      // Strip any internal details that shouldn't be shown
-      if (data.metadata) {
-        delete (data.metadata as Record<string, unknown>).client_id;
+      if (res.status === 429) {
+        const ra = Number(res.headers.get("Retry-After") || "5");
+        setRetryAfter(ra);
+        setResult({ error: "rate_limited" });
+      } else {
+        const data: AuditResult = await res.json();
+        if (data.metadata) {
+          delete (data.metadata as Record<string, unknown>).client_id;
+        }
+        setResult(data);
       }
-      setResult(data);
-    } catch {
-      setResult({ error: "request_failed" });
+    } catch (err) {
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      setResult({ error: isAbort ? "request_timeout" : "request_failed" });
     } finally {
       setLoading(false);
+      inflight.current = false;
     }
-  }, [loading, payload, origin, action]);
+  }, [payload, origin, action]);
 
   async function quickRun(idx: number) {
+    if (inflight.current) return;
     const p = PRESETS[idx];
     setActivePreset(idx);
     setPayload(p.payload);
@@ -180,11 +217,12 @@ export default function DemoPage() {
     setAction(p.action);
     setResult(null);
     setShowReceipt(false);
+    setRetryAfter(null);
 
-    // Run immediately after setting state
+    inflight.current = true;
     setLoading(true);
     try {
-      const res = await fetch("/api/demo", {
+      const res = await fetchWithTimeout("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -193,15 +231,23 @@ export default function DemoPage() {
           action: p.action,
         }),
       });
-      const data: AuditResult = await res.json();
-      if (data.metadata) {
-        delete (data.metadata as Record<string, unknown>).client_id;
+      if (res.status === 429) {
+        const ra = Number(res.headers.get("Retry-After") || "5");
+        setRetryAfter(ra);
+        setResult({ error: "rate_limited" });
+      } else {
+        const data: AuditResult = await res.json();
+        if (data.metadata) {
+          delete (data.metadata as Record<string, unknown>).client_id;
+        }
+        setResult(data);
       }
-      setResult(data);
-    } catch {
-      setResult({ error: "request_failed" });
+    } catch (err) {
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      setResult({ error: isAbort ? "request_timeout" : "request_failed" });
     } finally {
       setLoading(false);
+      inflight.current = false;
     }
   }
 
@@ -483,10 +529,14 @@ export default function DemoPage() {
             }}
           >
             {isError ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                 <span className="badge-error">ERROR</span>
                 <span style={{ color: "var(--silver)", fontSize: "0.9rem" }}>
-                  {result.error || "request_failed"}
+                  {result.error === "rate_limited"
+                    ? `Too many requests. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
+                    : result.error === "request_timeout"
+                      ? "Request timed out. The backend may be starting up — try again."
+                      : "Something went wrong. Please try again."}
                 </span>
               </div>
             ) : (
@@ -685,7 +735,7 @@ function ReceiptField({ label, value }: { label: string; value: string }) {
           padding: "0.5rem 0.75rem",
         }}
       >
-        {value}
+        {sanitizeForDisplay(value)}
       </div>
     </div>
   );
