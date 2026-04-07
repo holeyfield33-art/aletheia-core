@@ -10,9 +10,7 @@ const BACKEND_BASE = process.env.ALETHEIA_BACKEND_URL ?? "";
 const DEMO_API_KEY = process.env.ALETHEIA_DEMO_API_KEY ?? "";
 const TIMEOUT_MS = 12_000;
 
-const SANITIZED_ERROR = {
-  error: "Engine temporarily unavailable. Please try again.",
-};
+const SANITIZED_ERROR = { error: "request_failed" };
 
 function validateBackendUrl(url: string): boolean {
   try {
@@ -66,7 +64,7 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
   if (
@@ -74,10 +72,7 @@ export async function POST(request: NextRequest) {
     body === null ||
     typeof (body as Record<string, unknown>).payload !== "string"
   ) {
-    return NextResponse.json(
-      { error: "Missing or invalid payload field." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "invalid_request" }, { status: 400 });
   }
 
   const { payload, origin, action } = body as Record<string, unknown>;
@@ -136,13 +131,13 @@ export async function POST(request: NextRequest) {
 
 // Reject all other methods
 export async function GET() {
-  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
 }
 
 export async function PUT() {
-  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
 }
 
 export async function DELETE() {
-  return NextResponse.json({ error: "Method not allowed." }, { status: 405 });
+  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
 }
