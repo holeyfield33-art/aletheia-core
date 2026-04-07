@@ -399,8 +399,8 @@ function Pricing() {
       name: "Pro",
       price: "Hosted API",
       priceDetail: STATUS.hostedApiLabel,
-      tag: "Launching",
-      tagColor: "#e67e22",
+      tag: "Live",
+      tagColor: "var(--green)",
       description:
         "Consume Aletheia as a hosted API. No infrastructure to manage.",
       features: [
@@ -465,7 +465,7 @@ function Pricing() {
             fontSize: "1rem",
           }}
         >
-          Open-source core. Hosted API launching. Services available now.
+          Open-source core. Hosted API live. Services available now.
         </p>
         <div
           style={{
