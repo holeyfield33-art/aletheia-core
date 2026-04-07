@@ -8,7 +8,7 @@ from manifest.signing import ManifestTamperedError, sign_manifest
 
 def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file_sig=None):
     print("\n" + "="*40)
-    print("ALETHEIA CORE v1.4.4")
+    print("ALETHEIA CORE v1.4.7")
     print("="*40)
     
     scout = AletheiaScoutV2()

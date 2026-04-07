@@ -1,6 +1,19 @@
 {
-  "installCommand": "true",
-  "buildCommand": "true",
-  "outputDirectory": "docs",
-  "framework": null
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "env": {
+    "ALETHEIA_BACKEND_URL": "@aletheia-backend-url",
+    "ALETHEIA_DEMO_API_KEY": "@aletheia-demo-api-key"
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
 }
