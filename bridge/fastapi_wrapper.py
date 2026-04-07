@@ -28,7 +28,7 @@ _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.5.0",
+    version="1.5.1",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
 
@@ -103,7 +103,7 @@ async def _on_startup() -> None:
 class AuditRequest(BaseModel):
     payload: str = Field(..., max_length=10_000)
     origin: str = Field(..., max_length=128)
-    action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-:.]+$")
+    action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
     client_ip_claim: str | None = Field(default=None, max_length=64)
 
 

@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.1] — 2026-04-07
+
+### Security
+- Tightened `action` field regex — removed `:` and `.` from allowed characters
+  to prevent namespace-injection patterns
+- Added Content-Length guard (50 KB limit) to demo proxy route — returns 413
+  before parsing oversized payloads
+
+### Changed
+- Hosted API status updated from "launching" to "live"
+- Version bumped to 1.5.1
+
+---
+
 ## [1.5.0] — 2026-04-07
 
 ### Security (red team remediation)

@@ -44,7 +44,14 @@ const ALLOWED_ACTIONS = new Set([
   "DEMO_ACTION",
 ]);
 
+const MAX_DEMO_BODY_BYTES = 50_000; // 50 KB — generous for demo payloads
+
 export async function POST(request: NextRequest) {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_DEMO_BODY_BYTES) {
+    return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+  }
+
   if (!BACKEND_BASE) {
     console.error("[demo-proxy] ALETHEIA_BACKEND_URL not configured");
     return NextResponse.json(SANITIZED_ERROR, { status: 503 });

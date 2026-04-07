@@ -223,8 +223,18 @@ class TestClientIPExtraction(unittest.TestCase):
 
     def test_audit_request_action_pattern_accepts_valid(self):
         from bridge.fastapi_wrapper import AuditRequest
-        req = AuditRequest(payload="x", origin="o", action="summarize_doc.v2")
-        assert req.action == "summarize_doc.v2"
+        req = AuditRequest(payload="x", origin="o", action="summarize_doc-v2")
+        assert req.action == "summarize_doc-v2"
+
+    def test_audit_request_action_pattern_rejects_colon(self):
+        from bridge.fastapi_wrapper import AuditRequest
+        with self.assertRaises(Exception):
+            AuditRequest(payload="x", origin="o", action="ns:action")
+
+    def test_audit_request_action_pattern_rejects_dot(self):
+        from bridge.fastapi_wrapper import AuditRequest
+        with self.assertRaises(Exception):
+            AuditRequest(payload="x", origin="o", action="summarize_doc.v2")
 
 
 class TestApiKeyAuth(unittest.TestCase):

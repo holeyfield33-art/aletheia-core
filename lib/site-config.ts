@@ -13,7 +13,7 @@ export const PRODUCT = {
   tagline: "AI runtime security engine for agents and automations",
   description:
     "Block unsafe agent actions before execution. Every decision produces a signed audit receipt for independent verification.",
-  version: "1.5.0",
+  version: "1.5.1",
   testCount: 525,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",
@@ -36,8 +36,8 @@ export const STATUS = {
    * "live" | "launching" | "private-beta" | "unavailable"
    * Only mark "live" when hosted API is publicly accessible.
    */
-  hostedApi: "launching" as const,
-  hostedApiLabel: "Hosted API — launching",
+  hostedApi: "live" as const,
+  hostedApiLabel: "Hosted API — live",
   servicesAvailable: true,
   openSource: true,
 } as const;
