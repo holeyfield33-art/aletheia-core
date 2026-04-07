@@ -1,0 +1,15 @@
+# Python backend runs on Render — exclude from Vercel build
+agents/
+bridge/
+core/
+manifest/
+proximity/
+simulations/
+tests/
+*.py
+pyproject.toml
+requirements*.txt
+MANIFEST.in
+Dockerfile
+render.yaml
+.venv/
