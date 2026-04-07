@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.4-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.4.7-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-275%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-502%20passing-brightgreen" alt="Tests"/>
   <img src="https://img.shields.io/badge/security-audited-brightgreen" alt="Security Audit"/>
   <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
@@ -343,7 +343,7 @@ fi
 
 ```bash
 curl http://localhost:8000/health
-# Expected response (v1.4.4+):
+# Expected response (v1.4.7+):
 # {
 #   "status": "ok",
 #   "uptime_seconds": 3600,

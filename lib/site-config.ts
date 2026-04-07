@@ -14,7 +14,7 @@ export const PRODUCT = {
   description:
     "Block unsafe agent actions before execution. Every decision produces a signed audit receipt for independent verification.",
   version: "1.4.7",
-  testCount: 296,
+  testCount: 502,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",
   copyrightYear: "2026",

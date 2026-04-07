@@ -46,9 +46,7 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short \
             --ignore=tests/test_proximity \
-            --ignore=tests/test_api.py \
-            --ignore=tests/test_nitpicker.py \
-            --ignore=tests/test_hardening.py
+            --ignore=tests/test_api.py
         env:
           ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING

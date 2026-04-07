@@ -203,5 +203,8 @@ def create_rate_limiter(max_per_second: int | None = None):
     return InMemoryRateLimiter(max_per_second)
 
 
+# Backward-compatible alias
+RateLimiter = InMemoryRateLimiter
+
 # Module-level singleton — backend selected at import time
 rate_limiter = create_rate_limiter()
