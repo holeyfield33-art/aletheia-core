@@ -49,7 +49,7 @@ const MAX_DEMO_BODY_BYTES = 50_000; // 50 KB — generous for demo payloads
 export async function POST(request: NextRequest) {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_DEMO_BODY_BYTES) {
-    return NextResponse.json({ error: "Payload too large." }, { status: 413 });
+    return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
   }
 
   if (!BACKEND_BASE) {

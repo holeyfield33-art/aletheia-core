@@ -2,10 +2,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "env": {
-    "ALETHEIA_BACKEND_URL": "@aletheia-backend-url",
-    "ALETHEIA_DEMO_API_KEY": "@aletheia-demo-api-key"
-  },
   "headers": [
     {
       "source": "/(.*)",
