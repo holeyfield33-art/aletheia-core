@@ -218,14 +218,10 @@ def _sanitise_reason(reason: str) -> str:
     return first_line.split(":")[0].strip() if ":" in first_line else "Action denied."
 
 
-_startup_time: float = _time.monotonic()
-
-
 @app.get("/health")
 async def health_check() -> dict:
     """Public health endpoint. No auth required. Used by load balancers and status pages."""
     from manifest.signing import verify_manifest_signature
-    from pathlib import Path
 
     # Check manifest integrity
     try:
@@ -241,7 +237,6 @@ async def health_check() -> dict:
     return {
         "status": "ok" if manifest_status == "VALID" else "degraded",
         "manifest_signature": manifest_status,
-        "uptime_seconds": round(_time.monotonic() - _startup_time, 1),
     }
 
 

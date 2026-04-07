@@ -352,13 +352,12 @@ echo "ALETHEIA_API_KEYS length: ${#ALETHEIA_API_KEYS}"
 
 ```bash
 curl http://localhost:8000/health
-# Expected response (v1.4.7+):
+# Expected response (v1.5.0+):
 # {
 #   "status": "ok",
-#   "uptime_seconds": 3600,
 #   "manifest_signature": "VALID"
 # }
-# Note: version and mode information removed to prevent information leakage
+# Note: version, mode, and uptime removed to prevent information leakage
 ```
 
 ### 3. Verify receipt signing works
