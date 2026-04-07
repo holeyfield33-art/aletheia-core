@@ -235,7 +235,7 @@ class TestRotationProbing(unittest.TestCase):
         scout = AletheiaScoutV2()
         # Pre-populate with 5 fake timestamps all older than 60 s
         old_time = time.time() - 65
-        scout.query_history["aging_ip"] = [old_time] * 5
+        scout._query_history["aging_ip"] = [old_time] * 5
 
         # These old entries should be pruned; the 1 fresh request must not trigger
         score, reason = scout.evaluate_threat_context("aging_ip", "safe")

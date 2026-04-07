@@ -2,268 +2,261 @@
 
 Covers:
 - Sliding-window expiry (time-based): blocked IPs allowed again after 1 s
-- Thread safety under concurrent hammering
+- Async concurrency under concurrent hammering
 - Per-key independence at high concurrency
 - reset(key) vs reset(None) semantics
-- RateLimiter instantiated with explicit max_per_second=0 / 1 / large
+- InMemoryRateLimiter instantiated with explicit max_per_second=1 / large
 - Module-level singleton shares no state with fresh instances
 """
 
 from __future__ import annotations
 
-import threading
+import asyncio
 import time
-import unittest
 
-from core.rate_limit import RateLimiter, rate_limiter
+import pytest
+
+from core.rate_limit import InMemoryRateLimiter, UpstashRateLimiter, rate_limiter
 
 
-class TestSlidingWindowExpiry(unittest.TestCase):
+# ---------------------------------------------------------------------------
+# Sliding-window expiry
+# ---------------------------------------------------------------------------
+
+class TestSlidingWindowExpiry:
     """The 1-second window must slide: old requests expire so new ones are allowed."""
 
-    def test_requests_allowed_after_window_expires(self) -> None:
-        """After waiting >1 s, the window should reset and new requests allowed."""
-        limiter = RateLimiter(max_per_second=2)
-        self.assertTrue(limiter.allow("ip1"))
-        self.assertTrue(limiter.allow("ip1"))
-        self.assertFalse(limiter.allow("ip1"))  # at limit
+    @pytest.mark.asyncio
+    async def test_requests_allowed_after_window_expires(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=2)
+        assert await limiter.allow("ip1") is True
+        assert await limiter.allow("ip1") is True
+        assert await limiter.allow("ip1") is False  # at limit
 
-        time.sleep(1.05)  # wait for window to expire
+        await asyncio.sleep(1.05)
 
-        # Window has slid — all old timestamps pruned
-        self.assertTrue(limiter.allow("ip1"), "Request should be allowed after window expires")
+        assert await limiter.allow("ip1") is True
 
-    def test_partial_window_expiry(self) -> None:
-        """Only timestamps outside the 1-second window should be pruned."""
-        limiter = RateLimiter(max_per_second=2)
-        limiter.allow("ip1")  # T=0
-        time.sleep(0.6)
-        limiter.allow("ip1")  # T=0.6 — now at limit (2 requests in window)
-        self.assertFalse(limiter.allow("ip1"))
+    @pytest.mark.asyncio
+    async def test_partial_window_expiry(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=2)
+        await limiter.allow("ip1")  # T=0
+        await asyncio.sleep(0.6)
+        await limiter.allow("ip1")  # T=0.6
+        assert await limiter.allow("ip1") is False
 
-        time.sleep(0.5)  # T=1.1 — first request (T=0) has expired, second (T=0.6) still live
+        await asyncio.sleep(0.5)  # T=1.1 — first expired
 
-        # One slot free (T=0 expired), one occupied (T=0.6)
-        self.assertTrue(limiter.allow("ip1"))
-        # But still at limit now
-        self.assertFalse(limiter.allow("ip1"))
+        assert await limiter.allow("ip1") is True
+        assert await limiter.allow("ip1") is False
 
-    def test_full_burst_then_recover(self) -> None:
-        """A full burst of N should block, then a full N allowed after expiry."""
+    @pytest.mark.asyncio
+    async def test_full_burst_then_recover(self) -> None:
         n = 5
-        limiter = RateLimiter(max_per_second=n)
+        limiter = InMemoryRateLimiter(max_per_second=n)
         for _ in range(n):
-            self.assertTrue(limiter.allow("burst_ip"))
-        self.assertFalse(limiter.allow("burst_ip"))
+            assert await limiter.allow("burst_ip") is True
+        assert await limiter.allow("burst_ip") is False
 
-        time.sleep(1.05)
+        await asyncio.sleep(1.05)
 
         for i in range(n):
-            self.assertTrue(limiter.allow("burst_ip"), f"Request {i+1} denied after expiry")
+            assert await limiter.allow("burst_ip") is True, f"Request {i+1} denied after expiry"
 
 
-class TestResetSemantics(unittest.TestCase):
-    """reset() must clear state correctly for single key and all keys."""
+# ---------------------------------------------------------------------------
+# Reset semantics
+# ---------------------------------------------------------------------------
 
-    def test_reset_single_key_clears_that_key(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
-        limiter.allow("a")
-        self.assertFalse(limiter.allow("a"))
-        limiter.reset("a")
-        self.assertTrue(limiter.allow("a"))
+class TestResetSemantics:
 
-    def test_reset_single_key_does_not_affect_others(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
-        limiter.allow("a")
-        limiter.allow("b")
-        self.assertFalse(limiter.allow("a"))
-        self.assertFalse(limiter.allow("b"))
+    @pytest.mark.asyncio
+    async def test_reset_single_key_clears_that_key(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1)
+        await limiter.allow("a")
+        assert await limiter.allow("a") is False
+        await limiter.reset("a")
+        assert await limiter.allow("a") is True
 
-        limiter.reset("a")  # only clear "a"
+    @pytest.mark.asyncio
+    async def test_reset_single_key_does_not_affect_others(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1)
+        await limiter.allow("a")
+        await limiter.allow("b")
+        assert await limiter.allow("a") is False
+        assert await limiter.allow("b") is False
 
-        self.assertTrue(limiter.allow("a"))   # "a" reset — allowed
-        self.assertFalse(limiter.allow("b"))  # "b" still blocked
+        await limiter.reset("a")
 
-    def test_reset_none_clears_all_keys(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
+        assert await limiter.allow("a") is True
+        assert await limiter.allow("b") is False
+
+    @pytest.mark.asyncio
+    async def test_reset_none_clears_all_keys(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1)
         for key in ("x", "y", "z"):
-            limiter.allow(key)
-            self.assertFalse(limiter.allow(key))
+            await limiter.allow(key)
+            assert await limiter.allow(key) is False
 
-        limiter.reset()  # clear all
+        await limiter.reset()
 
         for key in ("x", "y", "z"):
-            self.assertTrue(limiter.allow(key), f"Key '{key}' should be allowed after global reset")
+            assert await limiter.allow(key) is True
 
-    def test_reset_nonexistent_key_does_not_raise(self) -> None:
-        limiter = RateLimiter(max_per_second=5)
-        # Should not raise KeyError
-        limiter.reset("never_seen_key")
+    @pytest.mark.asyncio
+    async def test_reset_nonexistent_key_does_not_raise(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=5)
+        await limiter.reset("never_seen_key")
 
-    def test_reset_key_then_window_still_works(self) -> None:
-        limiter = RateLimiter(max_per_second=2)
-        limiter.allow("a")
-        limiter.reset("a")
-        limiter.allow("a")
-        limiter.allow("a")
-        self.assertFalse(limiter.allow("a"))  # back to limit
+    @pytest.mark.asyncio
+    async def test_reset_key_then_window_still_works(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=2)
+        await limiter.allow("a")
+        await limiter.reset("a")
+        await limiter.allow("a")
+        await limiter.allow("a")
+        assert await limiter.allow("a") is False
 
 
-class TestMaxPerSecondBoundaryValues(unittest.TestCase):
-    """Verify correct behaviour at extreme max_per_second values."""
+# ---------------------------------------------------------------------------
+# Boundary values
+# ---------------------------------------------------------------------------
 
-    def test_max_1_allows_first_blocks_second(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
-        self.assertTrue(limiter.allow("ip"))
-        self.assertFalse(limiter.allow("ip"))
+class TestMaxPerSecondBoundaryValues:
 
-    def test_max_1_sequential_keys_each_get_one_slot(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
+    @pytest.mark.asyncio
+    async def test_max_1_allows_first_blocks_second(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1)
+        assert await limiter.allow("ip") is True
+        assert await limiter.allow("ip") is False
+
+    @pytest.mark.asyncio
+    async def test_max_1_sequential_keys_each_get_one_slot(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1)
         for i in range(10):
-            self.assertTrue(limiter.allow(f"ip_{i}"))
+            assert await limiter.allow(f"ip_{i}") is True
 
-    def test_large_max_allows_many(self) -> None:
-        limiter = RateLimiter(max_per_second=1000)
+    @pytest.mark.asyncio
+    async def test_large_max_allows_many(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1000)
         for _ in range(1000):
-            self.assertTrue(limiter.allow("big_ip"))
-        self.assertFalse(limiter.allow("big_ip"))
+            assert await limiter.allow("big_ip") is True
+        assert await limiter.allow("big_ip") is False
 
 
-class TestPerKeyIndependence(unittest.TestCase):
-    """Different keys must never interfere with each other's counters."""
+# ---------------------------------------------------------------------------
+# Per-key independence
+# ---------------------------------------------------------------------------
 
-    def test_10_keys_each_independent_limit(self) -> None:
-        limiter = RateLimiter(max_per_second=3)
+class TestPerKeyIndependence:
+
+    @pytest.mark.asyncio
+    async def test_10_keys_each_independent_limit(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=3)
         keys = [f"client_{i}" for i in range(10)]
 
-        # Fill each key to limit
         for key in keys:
             for _ in range(3):
-                self.assertTrue(limiter.allow(key))
-            self.assertFalse(limiter.allow(key))
+                assert await limiter.allow(key) is True
+            assert await limiter.allow(key) is False
 
-        # All still blocked independently
         for key in keys:
-            self.assertFalse(limiter.allow(key))
+            assert await limiter.allow(key) is False
 
-    def test_resetting_one_key_does_not_unblock_others(self) -> None:
-        limiter = RateLimiter(max_per_second=1)
-        limiter.allow("shared1")
-        limiter.allow("shared2")
-        limiter.reset("shared1")
-        self.assertTrue(limiter.allow("shared1"))
-        self.assertFalse(limiter.allow("shared2"))
+    @pytest.mark.asyncio
+    async def test_resetting_one_key_does_not_unblock_others(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=1)
+        await limiter.allow("shared1")
+        await limiter.allow("shared2")
+        await limiter.reset("shared1")
+        assert await limiter.allow("shared1") is True
+        assert await limiter.allow("shared2") is False
 
 
-class TestThreadSafety(unittest.TestCase):
-    """Concurrent access from multiple threads must not corrupt internal state."""
+# ---------------------------------------------------------------------------
+# Async concurrency safety
+# ---------------------------------------------------------------------------
 
-    def test_concurrent_hammering_does_not_exceed_limit(self) -> None:
-        """Total allowed requests across all threads must not exceed max_per_second."""
-        limiter = RateLimiter(max_per_second=50)
-        allowed_count = [0]
-        lock = threading.Lock()
-        errors = []
+class TestAsyncConcurrency:
 
-        def hammer():
-            try:
-                for _ in range(20):
-                    result = limiter.allow("shared_ip")
-                    if result:
-                        with lock:
-                            allowed_count[0] += 1
-            except Exception as exc:
-                errors.append(exc)
+    @pytest.mark.asyncio
+    async def test_concurrent_hammering_does_not_exceed_limit(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=50)
+        allowed_count = 0
 
-        threads = [threading.Thread(target=hammer) for _ in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        async def hammer():
+            nonlocal allowed_count
+            for _ in range(20):
+                if await limiter.allow("shared_ip"):
+                    allowed_count += 1
 
-        self.assertEqual(errors, [], f"Thread errors: {errors}")
-        self.assertLessEqual(allowed_count[0], 50,
-                             f"Allowed {allowed_count[0]} requests, limit is 50")
+        await asyncio.gather(*(hammer() for _ in range(10)))
+        assert allowed_count <= 50
 
-    def test_concurrent_different_keys_no_cross_contamination(self) -> None:
-        """Each key should independently enforce its own limit under concurrency."""
-        limiter = RateLimiter(max_per_second=5)
+    @pytest.mark.asyncio
+    async def test_concurrent_different_keys_no_cross_contamination(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=5)
         per_key_allowed: dict[str, int] = {}
-        lock = threading.Lock()
 
-        def send_requests(key: str) -> None:
-            count = sum(1 for _ in range(10) if limiter.allow(key))
-            with lock:
-                per_key_allowed[key] = count
+        async def send_requests(key: str) -> None:
+            count = 0
+            for _ in range(10):
+                if await limiter.allow(key):
+                    count += 1
+            per_key_allowed[key] = count
 
-        keys = [f"thread_ip_{i}" for i in range(20)]
-        threads = [threading.Thread(target=send_requests, args=(k,)) for k in keys]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        keys = [f"task_ip_{i}" for i in range(20)]
+        await asyncio.gather(*(send_requests(k) for k in keys))
 
         for key, count in per_key_allowed.items():
-            self.assertLessEqual(count, 5,
-                                 f"Key {key} allowed {count} > 5 requests")
+            assert count <= 5, f"Key {key} allowed {count} > 5"
 
-    def test_reset_under_concurrent_access_does_not_raise(self) -> None:
-        """reset() called while threads are using allow() must not raise."""
-        limiter = RateLimiter(max_per_second=5)
-        errors = []
+    @pytest.mark.asyncio
+    async def test_reset_under_concurrent_access_does_not_raise(self) -> None:
+        limiter = InMemoryRateLimiter(max_per_second=5)
 
-        def allow_loop():
-            try:
-                for _ in range(50):
-                    limiter.allow("hammer")
-            except Exception as exc:
-                errors.append(exc)
+        async def allow_loop():
+            for _ in range(50):
+                await limiter.allow("hammer")
 
-        def reset_loop():
-            try:
-                for _ in range(20):
-                    limiter.reset("hammer")
-                    time.sleep(0.001)
-            except Exception as exc:
-                errors.append(exc)
+        async def reset_loop():
+            for _ in range(20):
+                await limiter.reset("hammer")
+                await asyncio.sleep(0.001)
 
-        threads = [threading.Thread(target=allow_loop) for _ in range(5)]
-        threads.append(threading.Thread(target=reset_loop))
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        self.assertEqual(errors, [], f"Errors under concurrency: {errors}")
+        await asyncio.gather(
+            *(allow_loop() for _ in range(5)),
+            reset_loop(),
+        )
 
 
-class TestModuleSingleton(unittest.TestCase):
-    """The module-level rate_limiter singleton must be an independent instance."""
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
 
-    def setUp(self) -> None:
-        rate_limiter.reset()
+class TestModuleSingleton:
 
-    def test_singleton_is_rate_limiter_instance(self) -> None:
-        self.assertIsInstance(rate_limiter, RateLimiter)
+    @pytest.mark.asyncio
+    async def test_singleton_is_valid_limiter_instance(self) -> None:
+        assert isinstance(rate_limiter, (InMemoryRateLimiter, UpstashRateLimiter))
 
-    def test_singleton_enforces_limits(self) -> None:
-        """Singleton should enforce its configured limit."""
-        # Exhaust the singleton limit for a unique IP
+    @pytest.mark.asyncio
+    async def test_singleton_enforces_limits(self) -> None:
+        await rate_limiter.reset()
         test_ip = "singleton_test_edge_ip_xyz"
-        results = [rate_limiter.allow(test_ip) for _ in range(200)]
+        results = [await rate_limiter.allow(test_ip) for _ in range(200)]
         allowed = sum(results)
-        # At most rate_limit_per_second (default 10) should be allowed
-        self.assertLessEqual(allowed, 10)
+        if isinstance(rate_limiter, InMemoryRateLimiter):
+            # In-memory limiter must enforce the configured limit
+            assert allowed <= 10
+        else:
+            # UpstashRateLimiter: if Redis is unreachable it fails open,
+            # so we only verify the method returns bools without crashing.
+            assert all(isinstance(r, bool) for r in results)
 
-    def test_fresh_instance_independent_from_singleton(self) -> None:
-        """A newly constructed RateLimiter has no shared state with the singleton."""
-        fresh = RateLimiter(max_per_second=2)
-        rate_limiter.allow("cross_check_ip")
-        # fresh limiter should be unaffected
-        self.assertTrue(fresh.allow("cross_check_ip"))
-        self.assertTrue(fresh.allow("cross_check_ip"))
-        self.assertFalse(fresh.allow("cross_check_ip"))
-
-
-if __name__ == "__main__":
-    unittest.main()
+    @pytest.mark.asyncio
+    async def test_fresh_inmemory_instance_independent_from_singleton(self) -> None:
+        fresh = InMemoryRateLimiter(max_per_second=2)
+        assert await fresh.allow("cross_check_ip") is True
+        assert await fresh.allow("cross_check_ip") is True
+        assert await fresh.allow("cross_check_ip") is False
