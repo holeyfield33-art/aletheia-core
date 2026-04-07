@@ -5,6 +5,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.0] — 2026-04-07
+
+### Security (red team remediation)
+- CRITICAL: UpstashRateLimiter now fails closed on Redis error — returns
+  False instead of True; circuit breaker opens after 5 consecutive failures
+  and resets after 30 seconds
+- CRITICAL: _get_client_ip() now validates X-Forwarded-For against
+  ALETHEIA_TRUSTED_PROXY_DEPTH (default 1) — prevents IP spoofing via
+  injected XFF headers
+- CRITICAL: Active mode now refuses to start when ALETHEIA_API_KEYS is
+  unset — prevents unauthenticated production deployments
+- HIGH: Veto reasons sanitised before client response — similarity scores,
+  matched alias phrases, and keyword counts no longer returned to callers
+- HIGH: CORS middleware added with ALETHEIA_CORS_ORIGINS allowlist
+- HIGH: Demo proxy validates ALETHEIA_BACKEND_URL against allowed host
+  suffixes — SSRF guard
+- HIGH: Scout _query_history protected by threading.Lock — race condition
+  under concurrent workers resolved
+- MEDIUM: Sandbox normalises Unicode whitespace before pattern matching —
+  thin-space and zero-width character bypass closed
+- MEDIUM: print() removed from all agent hot paths — replaced with
+  structured logging (aletheia.scout, aletheia.nitpicker, aletheia.judge)
+
+### Added
+- ALETHEIA_TRUSTED_PROXY_DEPTH env var (default: 1)
+- ALETHEIA_CORS_ORIGINS env var
+- tests/test_security_hardening_v2.py — 24 new security tests
+
+### Changed
+- Version bumped to 1.5.0
+
 ## [1.4.7] — 2026-04-06
 
 ### Added

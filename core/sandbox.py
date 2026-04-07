@@ -13,6 +13,8 @@ This module does NOT intercept runtime Python calls; it validates the
 from __future__ import annotations
 
 import re
+import unicodedata
+import re as _re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -66,14 +68,28 @@ _DANGER_PATTERNS: list[_DangerPattern] = [
 # Public API
 # ---------------------------------------------------------------------------
 
+def _normalise_for_sandbox(text: str) -> str:
+    """Collapse Unicode whitespace variants and homoglyphs before
+    pattern matching. Prevents thin-space and zero-width splitting.
+    """
+    # NFKC collapses homoglyphs
+    text = unicodedata.normalize("NFKC", text)
+    # Remove zero-width characters FIRST (before whitespace collapsing)
+    text = _re.sub(r"[\u200b-\u200d\ufeff]", "", text)
+    # Replace all Unicode whitespace/separator categories with ASCII space
+    text = _re.sub(r"[\s\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+", " ", text)
+    return text
+
+
 def check_payload_sandbox(text: str) -> Optional[str]:
     """Scan *text* for dangerous syscall / execution patterns.
 
     Returns a warning string describing the first match, or ``None`` if
     the text is clean.
     """
+    normalised = _normalise_for_sandbox(text)
     for dp in _DANGER_PATTERNS:
-        match = dp.pattern.search(text)
+        match = dp.pattern.search(normalised)
         if match:
             return (
                 f"[SANDBOX_BLOCK] Dangerous pattern '{dp.label}' detected: "

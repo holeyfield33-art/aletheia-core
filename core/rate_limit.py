@@ -58,6 +58,10 @@ class UpstashRateLimiter:
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
         }
+        self._failure_count: int = 0
+        self._circuit_open_until: float = 0.0
+        self._FAILURE_THRESHOLD: int = 5
+        self._CIRCUIT_RESET_SECONDS: float = 30.0
         _logger.info(
             "Rate limiter: Upstash Redis backend active at %s",
             self._url.split("//")[-1],  # log host only, not full URL
@@ -91,6 +95,13 @@ class UpstashRateLimiter:
 
         Uses atomic pipeline: ZREMRANGEBYSCORE → ZCARD → ZADD → EXPIRE
         """
+        import time as _t
+        if self._circuit_open_until > _t.monotonic():
+            _logger.warning(
+                "Redis circuit open — rate limiter blocking request for key: %s", key
+            )
+            return False
+
         redis_key = f"{_REDIS_KEY_PREFIX}{key}"
         now = time.time()
         window_start = now - _REDIS_WINDOW_SECONDS
@@ -109,16 +120,28 @@ class UpstashRateLimiter:
                     ["EXPIRE", redis_key, str(_REDIS_TTL_SECONDS)],
                 ])
                 current_count = results[1]  # ZCARD result
+                self._failure_count = 0
                 return int(current_count) < self._max
 
         except Exception as exc:
-            # If Redis is unavailable, fail open (allow the request) and log.
-            # Failing closed would take down the service if Redis has a blip.
-            # Monitor aletheia_redis_errors_total in your alerting.
-            _logger.warning(
-                "Redis rate limiter error — failing open: %s", exc
-            )
-            return True
+            self._failure_count += 1
+            if self._failure_count >= self._FAILURE_THRESHOLD:
+                self._circuit_open_until = _t.monotonic() + self._CIRCUIT_RESET_SECONDS
+                _logger.error(
+                    "Redis rate limiter circuit opened after %d failures — "
+                    "all requests blocked for %.0f seconds. "
+                    "Check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+                    self._failure_count,
+                    self._CIRCUIT_RESET_SECONDS,
+                )
+            else:
+                _logger.warning(
+                    "Redis rate limiter error (failure %d/%d) — blocking request: %s",
+                    self._failure_count,
+                    self._FAILURE_THRESHOLD,
+                    exc,
+                )
+            return False
 
     async def reset(self, key: str | None = None) -> None:
         """Clear rate limit state. Used in tests and admin operations."""

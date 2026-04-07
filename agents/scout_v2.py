@@ -1,5 +1,9 @@
 import time
 import re
+import threading
+import logging
+
+_scout_logger = logging.getLogger("aletheia.scout")
 
 class AletheiaScoutV2:
     def __init__(self):
@@ -16,6 +20,7 @@ class AletheiaScoutV2:
         # Cap at 10,000 entries to prevent memory exhaustion from unique source IDs
         self._query_history: dict[str, list[float]] = {}
         self._query_history_max = 10_000
+        self._query_history_lock = threading.Lock()
 
         # PATCH 2.1: Neutral-Anchor / Contextual Camouflage Detection
         self.neutral_tokens = [
@@ -29,7 +34,7 @@ class AletheiaScoutV2:
         ]
 
     def evaluate_threat_context(self, source_id, payload, file_sig=None):
-        print(f"[SCOUT] Scanning Grok X-Stream Intelligence for: {source_id}")
+        _scout_logger.debug("Scanning Grok X-Stream Intelligence for: %s", source_id)
         
         # 1. Signature Match (Instruction Smuggling) - Deep Scan (Global Search)
         for prefix in self.threat_intel_db["smuggling_prefixes"]:
@@ -55,22 +60,25 @@ class AletheiaScoutV2:
             )
 
         # 4. Rotation Probing Detection (Anti-Polymorphic Bypass)
-        current_time = time.time()
-        if source_id not in self._query_history:
-            if len(self._query_history) >= self._query_history_max:
-                # Remove the entry with the oldest last-seen timestamp
-                oldest_key = min(
-                    self._query_history,
-                    key=lambda k: self._query_history[k][-1] if self._query_history[k] else 0,
-                )
-                del self._query_history[oldest_key]
-            self._query_history[source_id] = []
-        
-        # Clean old history
-        self._query_history[source_id] = [t for t in self._query_history[source_id] if current_time - t < 60]
-        self._query_history[source_id].append(current_time)
+        with self._query_history_lock:
+            current_time = time.time()
+            if source_id not in self._query_history:
+                if len(self._query_history) >= self._query_history_max:
+                    oldest_key = min(
+                        self._query_history,
+                        key=lambda k: self._query_history[k][-1] if self._query_history[k] else 0,
+                    )
+                    del self._query_history[oldest_key]
+                self._query_history[source_id] = []
 
-        if len(self._query_history[source_id]) > 5:
+            self._query_history[source_id] = [
+                t for t in self._query_history[source_id]
+                if current_time - t < 60
+            ]
+            self._query_history[source_id].append(current_time)
+            recent_count = len(self._query_history[source_id])
+
+        if recent_count > 5:
             return 7.5, "ALERT: Rapid Meta-Querying Detected (Rotation Probing)"
 
         return 1.0, "Context Clean."

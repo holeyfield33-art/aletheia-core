@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import Optional
 
@@ -7,6 +8,8 @@ import numpy as np
 
 from core.config import settings
 from core.embeddings import cosine_similarity, encode
+
+_nitpicker_logger = logging.getLogger("aletheia.nitpicker")
 
 
 class AletheiaNitpickerV2:
@@ -88,7 +91,7 @@ class AletheiaNitpickerV2:
         if match:
             prefix = match.group(0)
             remainder = text.strip()[len(prefix):].strip()
-            print(f"[NITPICKER] IMPERATIVE-ALIAS DETECTED: '{prefix.strip()}' is a sleeper prefix.")
+            _nitpicker_logger.warning("IMPERATIVE-ALIAS DETECTED: '%s' is a sleeper prefix.", prefix.strip())
             return f"[ALIAS_STRIPPED: {prefix.strip()}] {remainder}", True
         return text, False
 
@@ -100,17 +103,17 @@ class AletheiaNitpickerV2:
         # Config-driven deterministic rotation (cycles through modes list)
         current_mode = self.modes[self._rotation_index % len(self.modes)]
         self._rotation_index += 1
-        print(f"[NITPICKER] Rotating Logic... Current Mode: {current_mode}")
+        _nitpicker_logger.debug("Rotating Logic... Current Mode: %s", current_mode)
 
         # Always run imperative-alias strip before mode logic
         text, alias_found = self._strip_imperative_aliases(text)
         if alias_found:
-            print(f"[NITPICKER] Post-alias payload: {text}")
+            _nitpicker_logger.debug("Post-alias payload: %s", text)
 
         # Semantic blocked-pattern check runs regardless of mode
         block_msg = self._check_blocked_similarity(text)
         if block_msg:
-            print(f"[NITPICKER] {block_msg}")
+            _nitpicker_logger.warning("%s", block_msg)
             return block_msg
 
         if current_mode == "LINEAGE":

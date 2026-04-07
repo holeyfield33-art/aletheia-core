@@ -8,6 +8,7 @@ import traceback
 
 import os
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -23,10 +24,30 @@ from core.sandbox import check_action_sandbox
 
 _logger = logging.getLogger("aletheia.api")
 
+_TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
+
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.4.7",
+    version="1.5.0",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
+)
+
+_CORS_ORIGINS: list[str] = [
+    o.strip()
+    for o in os.getenv(
+        "ALETHEIA_CORS_ORIGINS",
+        "https://app.aletheia-core.com,https://aletheia-core.com"
+    ).split(",")
+    if o.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type", "X-API-Key"],
+    max_age=600,
 )
 
 # Singleton agent instances
@@ -59,6 +80,23 @@ async def _on_startup() -> None:
             _MIN_SECRET_LEN,
         )
         sys.exit(1)
+    if settings.mode == "active" and not _API_KEYS:
+        _logger.critical(
+            "FATAL: ALETHEIA_API_KEYS is not set and mode=active. "
+            "The /v1/audit endpoint is fully unauthenticated. "
+            "Set ALETHEIA_API_KEYS to a comma-separated list of API keys, "
+            "or switch to mode=shadow for development. "
+            "Refusing to start."
+        )
+        sys.exit(1)
+    if not os.getenv("ALETHEIA_ALIAS_SALT", "").strip():
+        _logger.warning(
+            "WARNING: ALETHEIA_ALIAS_SALT is not set. "
+            "Daily alias bank rotation is predictable — "
+            "an attacker who knows the manifest hash and date can "
+            "enumerate the alias order. Set this in production. "
+            "Generate: openssl rand -hex 32"
+        )
     warm_up()
 
 
@@ -82,10 +120,25 @@ async def _global_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 
 def _get_client_ip(request: Request) -> str:
-    """Derive real client IP from network layer. Never trust body-supplied IP."""
-    xff = request.headers.get("x-forwarded-for")
+    """Derive real client IP with proxy chain validation.
+
+    ALETHEIA_TRUSTED_PROXY_DEPTH controls how many rightmost XFF entries
+    are trusted infrastructure. Default 1 (single Render/Vercel proxy).
+    Set to 0 for direct connections (no proxy).
+
+    Security: never take the leftmost XFF value — it is fully attacker-
+    controlled. Take the entry at position -(TRUSTED_PROXY_DEPTH + 1)
+    from the right, or fall back to network-layer IP.
+    """
+    xff = request.headers.get("x-forwarded-for", "")
     if xff:
-        return xff.split(",")[0].strip()
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        if len(parts) > _TRUSTED_PROXY_DEPTH:
+            # Real client is the entry just before the trusted proxy tail
+            return parts[-(1 + _TRUSTED_PROXY_DEPTH)]
+        elif parts:
+            # Fewer entries than expected — take first available
+            return parts[0]
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
@@ -134,6 +187,35 @@ def _discretise_threat(score: float) -> str:
     if score < settings.policy_threshold:
         return "HIGH"
     return "CRITICAL"
+
+
+def _sanitise_reason(reason: str) -> str:
+    """Strip internal diagnostic detail from veto messages before
+    returning to clients. Prevents black-box threshold probing.
+
+    Preserves the decision category (VETO TRIGGERED, SEMANTIC VETO,
+    SANDBOX_BLOCKED, etc.) without leaking similarity scores,
+    matched phrases, or keyword counts.
+    """
+    if not reason:
+        return reason
+    # Extract just the first line (decision category)
+    first_line = reason.split("\n")[0].strip()
+    # Map internal categories to opaque client messages
+    if "VETO TRIGGERED" in first_line:
+        return "Action denied by policy manifest."
+    if "SEMANTIC VETO" in first_line or "GREY-ZONE VETO" in first_line:
+        return "Action denied: semantic policy violation."
+    if "SANDBOX_BLOCK" in first_line:
+        return "Action denied: dangerous pattern detected."
+    if "SHADOW-RISK" in first_line or "Smuggling Signature" in first_line:
+        return "Action denied: threat intelligence match."
+    if "Sensitive Data Pattern" in first_line:
+        return "Action denied: sensitive content detected."
+    if "Rotation Probing" in first_line:
+        return "Action denied: request pattern anomaly."
+    # Default: return only the category keyword, not the full message
+    return first_line.split(":")[0].strip() if ":" in first_line else "Action denied."
 
 
 _startup_time: float = _time.monotonic()
@@ -257,7 +339,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             "shadow_verdict=DENIED action=%s origin=%s", req.action, req.origin
         )
     elif is_blocked:
-        response["reason"] = reason
+        response["reason"] = _sanitise_reason(reason)
     else:
         response["reasoning"] = veto_msg
 

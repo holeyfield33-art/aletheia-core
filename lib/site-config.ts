@@ -13,7 +13,7 @@ export const PRODUCT = {
   tagline: "AI runtime security engine for agents and automations",
   description:
     "Block unsafe agent actions before execution. Every decision produces a signed audit receipt for independent verification.",
-  version: "1.4.7",
+  version: "1.5.0",
   testCount: 502,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",

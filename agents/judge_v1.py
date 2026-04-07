@@ -3,12 +3,15 @@ from __future__ import annotations
 import hashlib
 import hmac as _hmac
 import json
+import logging
 import os
 import re
 from datetime import date, timezone
 from typing import Optional
 
 import numpy as np
+
+_judge_logger = logging.getLogger("aletheia.judge")
 
 _ALIAS_SALT = os.getenv("ALETHEIA_ALIAS_SALT", "").encode("utf-8")
 
@@ -171,11 +174,11 @@ class AletheiaJudge:
             )
             with open(self.policy_path, "r") as f:
                 self.policy = json.load(f)
-            print(f"[JUDGE] Policy Loaded: {self.policy['policy_name']} v{self.policy['version']}")
+            _judge_logger.info("Policy Loaded: %s v%s", self.policy['policy_name'], self.policy['version'])
         except ManifestTamperedError:
             raise
         except Exception as e:
-            print(f"[JUDGE] ERROR: Could not load manifest! {e}")
+            _judge_logger.error("Could not load manifest! %s", e)
             self.policy = None
 
     def verify_action(

@@ -14,6 +14,22 @@ const SANITIZED_ERROR = {
   error: "Engine temporarily unavailable. Please try again.",
 };
 
+function validateBackendUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Must be HTTPS in production
+    if (parsed.protocol !== "https:") return false;
+    // Must be a known Aletheia host — not localhost or internal IPs
+    const allowedHosts = (
+      process.env.ALETHEIA_ALLOWED_BACKEND_HOSTS ??
+      "onrender.com,aletheia-core.com"
+    ).split(",").map((h) => h.trim());
+    return allowedHosts.some((h) => parsed.hostname.endsWith(h));
+  } catch {
+    return false;
+  }
+}
+
 // Allowed action values for demo (prevents abuse of the proxy)
 const ALLOWED_ACTIONS = new Set([
   "fetch_data",
@@ -31,6 +47,11 @@ const ALLOWED_ACTIONS = new Set([
 export async function POST(request: NextRequest) {
   if (!BACKEND_BASE) {
     console.error("[demo-proxy] ALETHEIA_BACKEND_URL not configured");
+    return NextResponse.json(SANITIZED_ERROR, { status: 503 });
+  }
+
+  if (!validateBackendUrl(BACKEND_BASE)) {
+    console.error("[demo-proxy] ALETHEIA_BACKEND_URL failed validation:", BACKEND_BASE);
     return NextResponse.json(SANITIZED_ERROR, { status: 503 });
   }
 

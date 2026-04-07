@@ -317,6 +317,8 @@ If this project is useful to your organization, consider reaching out about our 
 | `UPSTASH_REDIS_REST_URL` | Recommended | Upstash Redis REST endpoint for distributed rate limiting. Falls back to in-memory if absent. |
 | `UPSTASH_REDIS_REST_TOKEN` | Recommended | Upstash Redis REST token. Required when URL is set. Rotate immediately if exposed. |
 | `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable proximity module. Default: `false` |
+| `ALETHEIA_TRUSTED_PROXY_DEPTH` | No | Number of trusted reverse proxies in front of the service. Default: 1 (Render/Vercel). Set to 0 for direct. |
+| `ALETHEIA_CORS_ORIGINS` | No | Comma-separated allowed CORS origins. Default: app.aletheia-core.com and aletheia-core.com |
 
 ---
 
@@ -337,6 +339,13 @@ fi
 if [ -z "$ALETHEIA_ALIAS_SALT" ]; then
   echo "WARNING: ALETHEIA_ALIAS_SALT not set — alias rotation is predictable"
 fi
+
+# ALETHEIA_API_KEYS must be set in active mode
+if [ -z "$ALETHEIA_API_KEYS" ]; then
+  echo "ERROR: ALETHEIA_API_KEYS not set — service will refuse to start in active mode"
+  exit 1
+fi
+echo "ALETHEIA_API_KEYS length: ${#ALETHEIA_API_KEYS}"
 ```
 
 ### 2. Test the health endpoint
