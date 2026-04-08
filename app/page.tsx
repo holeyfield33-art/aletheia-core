@@ -401,7 +401,7 @@ function BuiltInTheOpen() {
           Use the live demo with no key, request a free trial key for evaluation,
           or upgrade to Hosted Pro for production API access and retained audit logs.
         </div>
-        <aa
+        <a
           href={URLS.github}
           className="btn-secondary"
           target="_blank"
