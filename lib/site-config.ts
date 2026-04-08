@@ -46,9 +46,12 @@ export const STATUS = {
 export const CTAS = {
   primary: { label: "Try Live Demo", href: "/demo" },
   services: {
-    label: "Book a Service",
+    label: "Book Services",
     href: URLS.contact,
   },
-  pricing: { label: "View Pricing", href: "/#pricing" },
-  github: { label: "GitHub", href: URLS.github },
+  pricing: { label: "Pricing", href: "/#pricing" },
+  github: { label: "View GitHub", href: URLS.github },
+  docs: { label: "Read Docs", href: URLS.landingPage },
+  trial: { label: "Start Free Trial", href: "/dashboard/keys" },
+  upgrade: { label: "Upgrade to Hosted Pro", href: `mailto:${URLS.contactEmail}?subject=Hosted Pro` },
 } as const;

@@ -5,7 +5,15 @@
 <h1 align="center">Aletheia Core</h1>
 
 <p align="center">
-  <strong>Enterprise-Grade System 2 Security for AI Agents</strong>
+  <strong>Runtime audit and pre-execution block layer for AI agents.</strong><br/>
+  Signed policy enforcement, semantic threat detection, tamper-evident audit receipts.
+</p>
+
+<p align="center">
+  <a href="https://app.aletheia-core.com">Website</a> &middot;
+  <a href="https://app.aletheia-core.com/demo">Live Demo</a> &middot;
+  <a href="https://aletheia-core.com">Docs</a> &middot;
+  <a href="SECURITY.md">Security Policy</a>
 </p>
 
 <p align="center">
@@ -13,87 +21,37 @@
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-527%20passing-brightgreen" alt="Tests"/>
-  <img src="https://img.shields.io/badge/security-audited-brightgreen" alt="Security Audit"/>
-  <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
-  <a href="https://render.com/deploy?repo=https://github.com/holeyfield33-art/aletheia-core">
-    <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render" height="28" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="docs/index.html">📖 Documentation</a> •
-  <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a> •
-  <a href="https://codespaces.new/holeyfield33-art/aletheia-core">
-    <img src="https://github.com/codespaces/badge.svg" alt="Open in GitHub Codespaces" />
-  </a>
 </p>
 
 ---
 
-## The Problem
+## Why Aletheia Core
 
-Autonomous AI agents increasingly manage CI/CD pipelines, financial transactions, and
-critical infrastructure. The [LiteLLM supply-chain attack](https://github.com/BerriAI/litellm)
-demonstrated that a single compromised dependency can silently exfiltrate credentials from
-thousands of production environments. Existing guardrails operate at the token level —
-they cannot detect semantically camouflaged instructions or verify policy integrity
-at runtime.
+Autonomous AI agents manage CI/CD pipelines, financial transactions, and critical infrastructure.
+A single compromised dependency can silently exfiltrate credentials from production environments.
+Existing guardrails operate at the token level — they cannot detect semantically camouflaged
+instructions or verify policy integrity at runtime.
 
-Aletheia provides a **System 2 reasoning layer** that interposes between AI agents and
-the actions they request. Every action is verified against a cryptographically signed
-policy manifest, analyzed for semantic similarity to known attack patterns, and logged
-with a tamper-evident audit receipt — before it is allowed to execute.
+Aletheia provides a **runtime enforcement layer** that interposes between AI agents and the
+actions they request. Every action is verified against a cryptographically signed policy
+manifest, analyzed for semantic similarity to known attack patterns, and logged with a
+tamper-evident audit receipt — before it is allowed to execute.
 
----
-
-## Security Controls
-
-The following properties are cryptographically or architecturally enforced:
-
-| # | Guarantee | Mechanism |
-|---|-----------|-----------|
-| 1 | **Tamper-evident policy manifest** | Ed25519 detached signature verified before every policy load. Invalid or missing signature causes a hard crash (`ManifestTamperedError`). |
-| 2 | **Semantic intent veto** | SentenceTransformer (`all-MiniLM-L6-v2`) cosine similarity against 50+ camouflage phrases. Configurable threshold (default 0.55). |
-| 3 | **Grey-zone escalation** | Payloads in the ambiguous similarity band (0.40–0.55) are second-pass classified via keyword heuristics. Two or more high-risk keyword hits trigger a veto. |
-| 4 | **Action sandbox** | Regex-based pattern scanner blocks subprocess exec, raw socket, `eval`, filesystem destruction, and privilege-escalation patterns before dispatch. |
-| 5 | **Daily alias rotation** | Semantic alias phrase order is deterministically shuffled daily (HMAC-SHA256 seed from date + manifest hash + `ALETHEIA_ALIAS_SALT`) to prevent reverse-engineering via probing. |
-| 6 | **Embedding pre-warming** | Model loaded eagerly at FastAPI startup to eliminate cold-start latency on the first request. |
-| 7 | **Audit trail integrity** | Every decision produces a structured JSON log line and an HMAC-signed TMR receipt (decision + policy hash + payload_sha256 + action + origin + signature). |
-| 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode with 10x size bomb protection, and URL percent-encoding decode — all applied before any agent sees the payload. |
-| 9 | **Rate limiting** | Sliding-window per-IP rate limiter. Distributed via
-Upstash Redis when `UPSTASH_REDIS_REST_URL` is configured (survives restarts,
-synchronizes across workers). Falls back to in-memory for single-node deployments. |
-| 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. Version and mode never exposed to unauthenticated /health callers. |
-| 11 | **Config-driven defense modes** | `active` / `shadow` / `monitor` — switchable via environment variable or `config.yaml` without code changes. |
-| 12 | **Receipt replay resistance** | HMAC signature includes payload_sha256, action, and origin to prevent reuse across contexts. |
-
-Additional guarantees:
-
-- **API Key Authentication** — `X-API-Key` header required when `ALETHEIA_API_KEYS` is configured
-- **Real Client IP** — rate limiting derived from network layer, never from request body
-- **Payload Privacy** — audit logs store SHA-256 hash + length only; no plaintext content in active mode
-- **Receipt Signing** — HMAC receipts use `ALETHEIA_RECEIPT_SECRET`; must be set for active mode
-- **Shadow Verdict Blocking** — In shadow mode, blocks are logged but not exposed to clients
-
----
-
-## Key Features
-
-- **Cryptographic Policy Integrity** — Ed25519-signed security manifest; tamper triggers an instant hard veto
-- **Semantic Intent Analysis** — Cosine similarity replaces string matching; catches camouflaged fund transfers, privilege escalation, and data exfiltration
-- **Grey-Zone Second-Pass Classifier** — Keyword heuristics catch creative paraphrases that fall below the primary threshold
-- **Action Sandbox** — Pattern-based scanner blocks subprocess, eval, raw socket, and filesystem-destruction payloads
-- **Polymorphic Defense** — Config-driven deterministic rotation across LINEAGE, INTENT, and SKEPTIC modes
-- **Structured Audit Trail** — JSON-line logging with HMAC-signed TMR receipts on every decision
-- **Rate Limiting** — Sliding-window limiter (10 req/s per IP, configurable)
-- **Input Hardening** — Homoglyph normalization, Base64 and URL-encoding recursive decode, control-character strip
-- **Daily Alias Rotation** — Alias bank order shuffled deterministically per day to resist probing
-- **Swarm-Resistant Triage** — Scout agent clusters diversionary noise and prioritizes high-blast-radius threats
+**Key properties:**
+- Ed25519-signed policy manifest — tamper triggers hard veto
+- Semantic intent veto — cosine similarity against 50+ camouflage phrases
+- HMAC-signed audit receipts on every decision
+- Fail-closed design — invalid manifest or unverifiable action = automatic DENIED
+- MIT open source — read every line that determines an allow or block
 
 ---
 
 ## Quick Start
+
+### Try the live demo (no install)
+
+[**app.aletheia-core.com/demo**](https://app.aletheia-core.com/demo) — no API key required.
 
 ### Install
 
@@ -266,6 +224,25 @@ aletheia-cyber-core/
 ├── AGENTS.md                # Agent communication protocol
 └── requirements.txt
 ```
+
+---
+
+## Hosted vs Self-Hosted
+
+| | **Self-Hosted (Community)** | **Hosted Trial** | **Hosted Pro** |
+|---|---|---|---|
+| **Price** | Free (MIT) | Free | $49/mo |
+| **Hosting** | You manage | Managed | Managed |
+| **API keys** | You configure | One trial key | Production keys |
+| **Audit logs** | Your storage | None | 30-day retention |
+| **Support** | GitHub community | — | Priority support |
+| **Use case** | Full control, research | Evaluation | Production |
+
+- **Live demo** — free, no API key required: [app.aletheia-core.com/demo](https://app.aletheia-core.com/demo)
+- **Self-hosted** — the open-source engine. Clone the repo, sign a manifest, run the server.
+- **Hosted Trial** — free evaluation key with limited monthly requests.
+- **Hosted Pro** — production API access, managed infrastructure, retained audit logs.
+- **Services** — starting at $2,500 for red-team review, custom policy engineering, deployment guidance.
 
 ---
 
@@ -490,7 +467,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on submitting issues and p
 
 ## Security
 
-To report a vulnerability, see [SECURITY.md](SECURITY.md).
+See [SECURITY.md](SECURITY.md) for responsible disclosure policy.
+
+**What Aletheia is:**
+- Runtime enforcement layer — gates agent actions before execution
+- Signed audit evidence — tamper-evident receipts on every decision
+- One layer in a broader security stack — designed for auditability
+
+**What it is not:**
+- Not a replacement for model alignment
+- Not an OS-level sandbox — validates declared intents, not runtime behavior
+- Not a compliance certification — consult qualified counsel
 
 ## License
 

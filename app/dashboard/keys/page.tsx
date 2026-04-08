@@ -136,7 +136,7 @@ export default function KeysPage() {
           marginBottom: "0.75rem",
         }}
       >
-        API Key Management
+        Trial API Key Management
       </div>
       <h1
         style={{
@@ -147,7 +147,7 @@ export default function KeysPage() {
           marginBottom: "0.5rem",
         }}
       >
-        API Keys
+        Trial API Keys
       </h1>
       <p
         style={{
@@ -159,9 +159,9 @@ export default function KeysPage() {
           lineHeight: 1.6,
         }}
       >
-        Manage keys for authenticating against the Aletheia runtime API. All keys are prefixed
-        with <code style={{ color: "var(--silver)" }}>aleth_live_</code> or{" "}
-        <code style={{ color: "var(--silver)" }}>aleth_test_</code>.
+        Trial keys are for evaluation use with limited monthly requests.
+        For production API access with retained audit logs, upgrade to{" "}
+        <a href="mailto:info@aletheia-core.com?subject=Hosted Pro" style={{ color: "var(--crimson-hi)" }}>Hosted Pro</a>.
       </p>
 
       {/* Generate button */}
@@ -179,7 +179,7 @@ export default function KeysPage() {
           marginBottom: "1.5rem",
         }}
       >
-        + Generate New Key
+        + Get Trial API Key
       </button>
 
       {/* Key table */}
@@ -314,7 +314,7 @@ export default function KeysPage() {
                     marginBottom: "1.25rem",
                   }}
                 >
-                  Generate New API Key
+                  Generate Trial API Key
                 </h2>
 
                 <label

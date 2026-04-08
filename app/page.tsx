@@ -96,7 +96,7 @@ function Hero() {
         }}
       >
         <a href="/demo" className="btn-primary">
-          ▶ Run Demo
+          ▶ Try Live Demo
         </a>
         <a
           href={URLS.github}
@@ -104,7 +104,7 @@ function Hero() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          View Source
+          View GitHub
         </a>
       </div>
     </section>
@@ -123,10 +123,11 @@ function TrustBar() {
       }}
     >
       {[
-        "Open Source",
+        `v${PRODUCT.version}`,
         "MIT Licensed",
-        "No data stored",
-        "Local verification available",
+        `${PRODUCT.testCount} Tests Passing`,
+        "Signed Receipts",
+        "Live Demo",
       ].map((item) => (
         <span
           key={item}
@@ -383,7 +384,24 @@ function BuiltInTheOpen() {
           are HMAC-SHA256 signed. If you don&apos;t trust the hosted API, run it
           yourself — the results are identical.
         </p>
-        <a
+        <div
+          style={{
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "8px",
+            padding: "1rem 1.25rem",
+            marginBottom: "1.5rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.82rem",
+            color: "var(--silver)",
+            lineHeight: 1.7,
+          }}
+        >
+          <strong style={{ color: "var(--white)" }}>API Access:</strong>{" "}
+          Use the live demo with no key, request a free trial key for evaluation,
+          or upgrade to Hosted Pro for production API access and retained audit logs.
+        </div>
+        <aa
           href={URLS.github}
           className="btn-secondary"
           target="_blank"
@@ -401,58 +419,77 @@ function HowToUse() {
     {
       label: "Community",
       name: "Self-hosted engine",
+      price: "Free",
+      priceDetail: "/ self-hosted",
       color: "var(--green)",
       description:
-        "Self-hosted engine for local enforcement and research. Full MIT source, full control.",
+        "MIT-licensed open-source engine. Full control, self-hosted.",
       features: [
-        "Full MIT source code",
-        "FastAPI REST endpoint",
-        "Ed25519 manifest signing",
-        "HMAC-signed audit receipts",
-        "Tri-agent pipeline",
-        "Community support via GitHub",
+        "MIT licensed",
+        "Self-hosted",
+        "Core runtime protection",
+        "Signed receipts",
+        "Community support",
       ],
       cta: { label: "View on GitHub", href: URLS.github },
       ctaStyle: "secondary" as const,
     },
     {
-      label: "Cloud",
-      name: "Managed infrastructure",
+      label: "Hosted Trial",
+      name: "Free evaluation",
+      price: "Free",
+      priceDetail: "/ evaluation",
+      color: "var(--silver)",
+      description:
+        "Free evaluation key with limited monthly requests. No credit card required.",
+      features: [
+        "Free evaluation key",
+        "Limited monthly requests",
+        "One API key",
+        "Evaluation use only",
+      ],
+      cta: { label: "Start Free Trial", href: "/dashboard/keys" },
+      ctaStyle: "secondary" as const,
+    },
+    {
+      label: "Hosted Pro",
+      name: "Production API",
+      price: "$49",
+      priceDetail: "/mo",
       color: "var(--crimson-hi)",
       description:
-        "Managed infrastructure, 30-day searchable audit persistence, and third-party receipt authority.",
+        "Production API access with managed operations, retained audit logs, and priority support.",
       features: [
-        "Hosted REST endpoint",
-        "Managed uptime & scaling",
-        "API key provisioning",
-        "30-day audit log persistence",
-        "Third-party receipt authority",
-        "Email support",
+        "Production API access",
+        "Higher request volume",
+        "30-day audit logs",
+        "Managed operations",
+        "Priority support",
       ],
       cta: {
-        label: "Contact for Access",
-        href: `mailto:${URLS.contactEmail}?subject=Cloud API Access`,
+        label: "Upgrade to Hosted Pro",
+        href: `mailto:${URLS.contactEmail}?subject=Hosted Pro`,
       },
       ctaStyle: "primary" as const,
       highlight: true,
     },
     {
-      label: "Enterprise",
-      name: "Custom policy engineering",
+      label: "Services",
+      name: "Expert engagement",
+      price: "From $2,500",
+      priceDetail: "",
       color: "var(--silver)",
       description:
-        "Custom policy engineering, adversarial testing & policy hardening, and dedicated support.",
+        "Agent red-team review, custom policy engineering, runtime security integration, and deployment guidance.",
       features: [
-        "Dedicated policy engineering",
-        "Adversarial testing & hardening",
-        "Custom manifest design",
-        "Architecture review",
-        "Dedicated support channel",
-        "SLA options available",
+        "Agent red-team review",
+        "Custom policy engineering",
+        "Runtime security integration",
+        "Deployment guidance",
       ],
       cta: {
-        label: "Contact Sales",
-        href: `mailto:${URLS.contactEmail}?subject=Enterprise Inquiry`,
+        label: "Book Services",
+        href: `mailto:${URLS.contactEmail}?subject=Service Inquiry`,
       },
       ctaStyle: "secondary" as const,
     },
@@ -470,7 +507,7 @@ function HowToUse() {
             marginBottom: "0.5rem",
           }}
         >
-          How to use Aletheia
+          Pricing
         </h2>
         <p
           style={{
@@ -479,12 +516,12 @@ function HowToUse() {
             fontSize: "1rem",
           }}
         >
-          Open-source core. Hosted API live. Security services available now.
+          Open-source core. Hosted API for evaluation and production. Expert services available.
         </p>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
             gap: "1.5rem",
           }}
         >
@@ -533,6 +570,33 @@ function HowToUse() {
                   >
                     {opt.label}
                   </span>
+                </div>
+                <div
+                  style={{
+                    marginBottom: "0.5rem",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-head)",
+                      fontSize: "1.5rem",
+                      fontWeight: 800,
+                      color: "var(--white)",
+                    }}
+                  >
+                    {opt.price}
+                  </span>
+                  {opt.priceDetail && (
+                    <span
+                      style={{
+                        color: "var(--muted)",
+                        fontSize: "0.82rem",
+                        marginLeft: "0.3rem",
+                      }}
+                    >
+                      {opt.priceDetail}
+                    </span>
+                  )}
                 </div>
                 <p
                   style={{

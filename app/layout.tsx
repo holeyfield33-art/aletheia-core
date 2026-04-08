@@ -100,6 +100,38 @@ function Nav() {
         }}
       >
         <a
+          href="/demo"
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.88rem",
+            textDecoration: "none",
+          }}
+        >
+          Demo
+        </a>
+        <a
+          href={URLS.landingPage}
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.88rem",
+            textDecoration: "none",
+          }}
+        >
+          Docs
+        </a>
+        <a
+          href={URLS.github}
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.88rem",
+            textDecoration: "none",
+          }}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub
+        </a>
+        <a
           href="/#pricing"
           style={{
             color: "var(--silver)",
@@ -122,38 +154,6 @@ function Nav() {
         <a
           href="/demo"
           style={{
-            color: "var(--silver)",
-            fontSize: "0.88rem",
-            textDecoration: "none",
-          }}
-        >
-          Demo
-        </a>
-        <a
-          href="/dashboard"
-          style={{
-            color: "var(--silver)",
-            fontSize: "0.88rem",
-            textDecoration: "none",
-          }}
-        >
-          Dashboard
-        </a>
-        <a
-          href={URLS.github}
-          style={{
-            color: "var(--muted)",
-            fontSize: "0.88rem",
-            textDecoration: "none",
-          }}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub
-        </a>
-        <a
-          href="/demo"
-          style={{
             background: "var(--crimson)",
             color: "var(--white)",
             padding: "0.38rem 0.95rem",
@@ -164,7 +164,7 @@ function Nav() {
             transition: "background 0.2s",
           }}
         >
-          Try Demo
+          Try Live Demo
         </a>
       </div>
     </nav>
@@ -190,10 +190,10 @@ function Footer() {
         }}
       >
         {[
+          { label: "Demo", href: "/demo" },
+          { label: "Docs", href: URLS.landingPage },
           { label: "Pricing", href: "/#pricing" },
           { label: "Services", href: "/#services" },
-          { label: "Demo", href: "/demo" },
-          { label: "Verify Receipt", href: "/verify" },
           { label: "GitHub", href: URLS.github },
           { label: `${URLS.contactEmail}`, href: `mailto:${URLS.contactEmail}` },
         ].map(({ label, href }) => (

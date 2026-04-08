@@ -359,11 +359,11 @@
     Aletheia<span>Core</span>
   </a>
   <div class="nav-links">
-    <a href="#pricing">Pricing</a>
-    <a href="#services">Services</a>
     <a href="https://app.aletheia-core.com/demo">Demo</a>
     <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--muted);">GitHub</a>
-    <a href="https://app.aletheia-core.com/demo" class="btn-nav">Try Live Demo →</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#services">Services</a>
+    <a href="https://app.aletheia-core.com/demo" class="btn-nav">Try Live Demo</a>
   </div>
   <button class="nav-toggle" aria-label="Menu">☰</button>
 </nav>
@@ -586,7 +586,11 @@ curl -X POST https://your-host/v1/audit \
 <section id="pricing">
   <div class="container">
     <h2>Pricing</h2>
-    <p class="section-sub">Open-source core. Hosted API live. Services available now.</p>
+    <p class="section-sub">Open-source core. Hosted API for evaluation and production. Expert services available.</p>
+    <p style="color:var(--silver);font-size:0.9rem;margin-bottom:2rem;line-height:1.7;">
+      Use the live demo with no key, request a free trial key for evaluation,
+      or upgrade to Hosted Pro for production API access and retained audit logs.
+    </p>
     <div class="pricing-grid">
 
       <div class="pricing-card">
@@ -595,15 +599,13 @@ curl -X POST https://your-host/v1/audit \
           <span class="plan-tag" style="color:var(--green);">Open Source</span>
         </div>
         <div><span class="price">Free</span><span class="price-detail">/ self-hosted</span></div>
-        <p class="plan-desc">Self-hosted engine for local enforcement and research.</p>
+        <p class="plan-desc">MIT-licensed open-source engine. Full control, self-hosted.</p>
         <ul class="pricing-features">
-          <li><span class="chk">✓</span> Full MIT source code</li>
-          <li><span class="chk">✓</span> FastAPI REST endpoint</li>
-          <li><span class="chk">✓</span> Ed25519 manifest signing</li>
-          <li><span class="chk">✓</span> HMAC-signed audit receipts</li>
-          <li><span class="chk">✓</span> Tri-agent pipeline</li>
-          <li><span class="chk">✓</span> In-memory rate limiting</li>
-          <li><span class="chk">✓</span> Community support via GitHub</li>
+          <li><span class="chk">✓</span> MIT licensed</li>
+          <li><span class="chk">✓</span> Self-hosted</li>
+          <li><span class="chk">✓</span> Core runtime protection</li>
+          <li><span class="chk">✓</span> Signed receipts</li>
+          <li><span class="chk">✓</span> Community support</li>
         </ul>
         <a href="https://github.com/holeyfield33-art/aletheia-core"
            style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
@@ -611,51 +613,95 @@ curl -X POST https://your-host/v1/audit \
         </a>
       </div>
 
+      <div class="pricing-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <h3>Hosted Trial</h3>
+          <span class="plan-tag" style="color:var(--silver);">Free</span>
+        </div>
+        <div><span class="price">Free</span><span class="price-detail">/ evaluation</span></div>
+        <p class="plan-desc">Free evaluation key with limited monthly requests. No credit card required.</p>
+        <ul class="pricing-features">
+          <li><span class="chk">✓</span> Free evaluation key</li>
+          <li><span class="chk">✓</span> Limited monthly requests</li>
+          <li><span class="chk">✓</span> One API key</li>
+          <li><span class="chk">✓</span> Evaluation use only</li>
+        </ul>
+        <a href="https://app.aletheia-core.com/dashboard/keys"
+           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
+          Start Free Trial
+        </a>
+      </div>
+
       <div class="pricing-card highlight">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Cloud</h3>
-          <span class="plan-tag" style="color:var(--green);">Live</span>
+          <h3>Hosted Pro</h3>
+          <span class="plan-tag" style="color:var(--green);">Production</span>
         </div>
-        <div><span class="price">Hosted API</span><span class="price-detail">/ live</span></div>
-        <p class="plan-desc">Managed infrastructure, 30-day searchable audit persistence, and third-party receipt authority.</p>
+        <div><span class="price">$49</span><span class="price-detail">/mo</span></div>
+        <p class="plan-desc">Production API access with managed operations, retained audit logs, and priority support.</p>
         <ul class="pricing-features">
-          <li><span class="chk">✓</span> Hosted REST endpoint</li>
-          <li><span class="chk">✓</span> Managed uptime & scaling</li>
-          <li><span class="chk">✓</span> API key provisioning</li>
-          <li><span class="chk">✓</span> 30-day audit log persistence</li>
-          <li><span class="chk">✓</span> Third-party receipt authority</li>
-          <li><span class="chk">✓</span> Upstash Redis rate limiting</li>
-          <li><span class="chk">✓</span> Email support</li>
+          <li><span class="chk">✓</span> Production API access</li>
+          <li><span class="chk">✓</span> Higher request volume</li>
+          <li><span class="chk">✓</span> 30-day audit logs</li>
+          <li><span class="chk">✓</span> Managed operations</li>
+          <li><span class="chk">✓</span> Priority support</li>
         </ul>
-        <a href="mailto:info@aletheia-core.com?subject=Hosted API Access"
+        <a href="mailto:info@aletheia-core.com?subject=Hosted Pro"
            class="cta-primary" style="display:block;text-align:center;margin-top:0.5rem;">
-          Contact for Access
+          Upgrade to Hosted Pro
         </a>
       </div>
 
       <div class="pricing-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Enterprise</h3>
-          <span class="plan-tag" style="color:var(--silver);">Services Available</span>
+          <h3>Services</h3>
+          <span class="plan-tag" style="color:var(--silver);">Expert</span>
         </div>
-        <div><span class="price">Custom</span><span class="price-detail">/ contact for pricing</span></div>
-        <p class="plan-desc">Custom policy engineering, adversarial testing & policy hardening, and dedicated support.</p>
+        <div><span class="price">From $2,500</span></div>
+        <p class="plan-desc">Agent red-team review, custom policy engineering, runtime security integration.</p>
         <ul class="pricing-features">
-          <li><span class="chk">✓</span> Everything in Community</li>
-          <li><span class="chk">✓</span> Dedicated policy engineering</li>
-          <li><span class="chk">✓</span> Adversarial testing & hardening</li>
-          <li><span class="chk">✓</span> Custom manifest design</li>
-          <li><span class="chk">✓</span> Dedicated support channel</li>
-          <li><span class="chk">✓</span> Architecture review</li>
-          <li><span class="chk">✓</span> SLA options available</li>
+          <li><span class="chk">✓</span> Agent red-team review</li>
+          <li><span class="chk">✓</span> Custom policy engineering</li>
+          <li><span class="chk">✓</span> Runtime security integration</li>
+          <li><span class="chk">✓</span> Deployment guidance</li>
         </ul>
-        <a href="mailto:info@aletheia-core.com?subject=Enterprise Inquiry"
+        <a href="mailto:info@aletheia-core.com?subject=Service Inquiry"
            style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          Book a Service
+          Book Services
         </a>
       </div>
 
     </div>
+
+    <!-- Choosing a Path -->
+    <div style="margin-top:3rem;max-width:680px;margin-left:auto;margin-right:auto;">
+      <h3 style="text-align:center;margin-bottom:1.25rem;">Choosing a Path</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:0.88rem;line-height:1.6;">
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Demo</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You want to see the pipeline in action before committing to anything.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Self-Hosted</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need full control, your own infrastructure, or you want to contribute.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Hosted Trial</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You want a free evaluation key to test the API in your own code.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Hosted Pro</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need production API access, retained audit logs, and managed operations.</td>
+          </tr>
+          <tr>
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Services</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need expert help with red-team testing, policy design, or integration.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
   </div>
 </section>
 
@@ -693,7 +739,7 @@ curl -X POST https://your-host/v1/audit \
       </div>
     </div>
     <div style="text-align:center;">
-      <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-primary">Book a Service →</a>
+      <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-primary">Book Services</a>
       <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--muted);">info@aletheia-core.com</p>
     </div>
   </div>
@@ -702,11 +748,10 @@ curl -X POST https://your-host/v1/audit \
 <!-- Footer -->
 <footer>
   <div class="footer-legal">
+    <a href="https://app.aletheia-core.com/demo">Demo</a>
+    <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
     <a href="#pricing">Pricing</a>
     <a href="#services">Services</a>
-    <a href="https://app.aletheia-core.com/demo">Demo</a>
-    <a href="https://app.aletheia-core.com/verify">Verify Receipt</a>
-    <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
     <a href="mailto:info@aletheia-core.com">info@aletheia-core.com</a>
   </div>
   <div class="footer-copy">

@@ -182,7 +182,7 @@ class InMemoryRateLimiter:
         self._lock = asyncio.Lock()
         self._windows: OrderedDict[str, list[float]] = OrderedDict()
         self.backend = "inmemory"
-        self.degraded = True
+        self.degraded = False
         _logger.warning(
             "Rate limiter: in-memory fallback active. "
             "Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN for "

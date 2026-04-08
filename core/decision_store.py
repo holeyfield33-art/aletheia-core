@@ -212,7 +212,7 @@ class DecisionStore:
     def __init__(self) -> None:
         self._central_available = _upstash_configured()
         self._store = _UpstashDecisionStore() if self._central_available else _SQLiteDecisionStore()
-        self._degraded = not self._central_available
+        self._degraded = False
 
     @property
     def backend(self) -> str:

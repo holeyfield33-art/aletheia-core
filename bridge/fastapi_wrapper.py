@@ -30,9 +30,11 @@ _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.5.2",
+    version="1.6.0",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
+
+_BOOT_TIME = _time.time()
 
 _CORS_ORIGINS: list[str] = [
     o.strip()
@@ -54,11 +56,16 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Rate limit headers middleware — expose remaining quota + Retry-After
+# Security + rate limit headers middleware
 # ---------------------------------------------------------------------------
 @app.middleware("http")
-async def add_rate_limit_headers(request: Request, call_next):
+async def add_security_and_rate_limit_headers(request: Request, call_next):
     response = await call_next(request)
+    # Security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Cache-Control"] = "no-store"
+    # Rate limit headers
     if hasattr(request.state, "rate_limit_remaining"):
         response.headers["X-RateLimit-Remaining"] = str(request.state.rate_limit_remaining)
     if hasattr(request.state, "retry_after"):
@@ -250,6 +257,8 @@ def _sanitise_reason(reason: str) -> str:
 @app.get("/health")
 async def health_check() -> dict:
     """Public health endpoint. No auth required. Used by load balancers and status pages."""
+    import datetime
+
     from manifest.signing import verify_manifest_signature
 
     # Check manifest integrity
@@ -265,8 +274,52 @@ async def health_check() -> dict:
 
     return {
         "status": "ok" if manifest_status == "VALID" else "degraded",
+        "service": "aletheia-core",
+        "version": app.version,
+        "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "manifest_signature": manifest_status,
     }
+
+
+@app.get("/ready")
+async def readiness_check() -> JSONResponse:
+    """Readiness probe. Returns 200 if all subsystems are healthy, 503 otherwise."""
+    import json as _json
+
+    from manifest.signing import verify_manifest_signature
+
+    try:
+        verify_manifest_signature(
+            manifest_path="manifest/security_policy.json",
+            signature_path="manifest/security_policy.json.sig",
+            public_key_path="manifest/security_policy.ed25519.pub",
+        )
+        manifest_ok = True
+    except Exception:
+        manifest_ok = False
+
+    # Load policy version from manifest
+    try:
+        with open("manifest/security_policy.json", "r", encoding="utf-8") as f:
+            policy_data = _json.load(f)
+        policy_version = policy_data.get("version", "unknown")
+    except Exception:
+        policy_version = "unknown"
+
+    receipt_configured = bool(os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip())
+    ready = manifest_ok
+
+    body = {
+        "ready": ready,
+        "manifest_signature": "VALID" if manifest_ok else "INVALID",
+        "policy_version": policy_version,
+        "receipt_signing_configured": receipt_configured,
+    }
+    return JSONResponse(
+        status_code=200 if ready else 503,
+        content=body,
+    )
 
 
 def _is_read_only_action(action: str) -> bool:
