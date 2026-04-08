@@ -4,11 +4,11 @@ import { PRODUCT, URLS } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: {
-    default: `${PRODUCT.name} — Block malicious code before it installs`,
+    default: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
     template: `%s | ${PRODUCT.name}`,
   },
   description:
-    "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks before execution. Open source, verifiable, no black-box decisions.",
+    "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   keywords: [
     "supply-chain security",
     "malicious code detection",
@@ -23,15 +23,15 @@ export const metadata: Metadata = {
     type: "website",
     url: URLS.appBase,
     siteName: PRODUCT.name,
-    title: `${PRODUCT.name} — Block malicious code before it installs`,
+    title: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
     description:
-      "Detect supply-chain attacks in Python packages and dependencies. Open source. Verifiable.",
+      "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PRODUCT.name} — Block malicious code before it installs`,
+    title: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
     description:
-      "Detect supply-chain attacks in Python packages and dependencies. Open source. Demo available now.",
+      "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   },
   metadataBase: new URL(URLS.appBase),
 };
@@ -128,6 +128,16 @@ function Nav() {
           }}
         >
           Demo
+        </a>
+        <a
+          href="/dashboard"
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.88rem",
+            textDecoration: "none",
+          }}
+        >
+          Dashboard
         </a>
         <a
           href={URLS.github}

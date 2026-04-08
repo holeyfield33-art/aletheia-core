@@ -5,7 +5,6 @@ import logging
 import secrets
 import time as _time
 import traceback
-import hashlib
 
 import os
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
@@ -16,41 +15,22 @@ from pydantic import BaseModel, ConfigDict, Field
 from agents.judge_v1 import AletheiaJudge
 from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
+from bridge.utils import normalize_shadow_text
 from core.audit import log_audit_event
 from core.config import settings
-from core.decision_store import decision_store
 from core.embeddings import warm_up
 from core.rate_limit import rate_limiter
-from core.runtime_security import (
-    classify_blocked_intent,
-    log_intent_decision,
-    normalize_untrusted_text,
-    validate_structured_request,
-)
 from core.sandbox import check_action_sandbox
-from manifest.signing import verify_manifest_signature
+from core.decision_store import decision_store
+from core.runtime_security import classify_blocked_intent
 
 _logger = logging.getLogger("aletheia.api")
 
 _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 
-
-def _is_read_only_action(action: str) -> bool:
-    safe_tokens = ("read", "list", "get", "view", "query", "status", "health", "fetch")
-    lower = action.lower()
-    return any(token in lower for token in safe_tokens)
-
-
-def _manifest_hash() -> str:
-    try:
-        data = open("manifest/security_policy.json", "rb").read()
-        return hashlib.sha256(data).hexdigest()
-    except Exception:
-        return "MANIFEST_MISSING"
-
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.6.0",
+    version="1.5.2",
     description="Enterprise-grade System 2 security layer for autonomous AI agents.",
 )
 
@@ -71,6 +51,20 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-API-Key"],
     max_age=600,
 )
+
+
+# ---------------------------------------------------------------------------
+# Rate limit headers middleware — expose remaining quota + Retry-After
+# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def add_rate_limit_headers(request: Request, call_next):
+    response = await call_next(request)
+    if hasattr(request.state, "rate_limit_remaining"):
+        response.headers["X-RateLimit-Remaining"] = str(request.state.rate_limit_remaining)
+    if hasattr(request.state, "retry_after"):
+        response.headers["Retry-After"] = str(request.state.retry_after)
+    return response
+
 
 # Singleton agent instances
 scout = AletheiaScoutV2()
@@ -123,13 +117,6 @@ async def _on_startup() -> None:
             "Refusing to start."
         )
         sys.exit(1)
-
-    # Security-critical: startup refuses to run if signed manifest integrity fails.
-    verify_manifest_signature(
-        manifest_path="manifest/security_policy.json",
-        signature_path="manifest/security_policy.json.sig",
-        public_key_path="manifest/security_policy.ed25519.pub",
-    )
     if not os.getenv("ALETHEIA_ALIAS_SALT", "").strip():
         _logger.warning(
             "WARNING: ALETHEIA_ALIAS_SALT is not set. "
@@ -143,7 +130,6 @@ async def _on_startup() -> None:
 
 class AuditRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     payload: str = Field(..., max_length=10_000)
     origin: str = Field(..., max_length=128)
     action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
@@ -283,43 +269,29 @@ async def health_check() -> dict:
     }
 
 
+def _is_read_only_action(action: str) -> bool:
+    """Return True if the action appears to be read-only / safe."""
+    safe_tokens = ("read", "list", "get", "view", "query", "status", "health", "fetch")
+    lower = action.lower()
+    return any(token in lower for token in safe_tokens)
+
+
 @app.post("/v1/audit", dependencies=[Depends(_check_api_key)])
 async def secure_audit(req: AuditRequest, request: Request) -> dict:
     import uuid
     client_ip = _get_client_ip(request)
-    request_id = str(uuid.uuid4())
+    request_id = str(uuid.uuid4())[:16]
     start_time = _time.time()
 
-    # Strict schema + allowlist checks for structured fields.
-    try:
-        structured = validate_structured_request(
-            {
-                "payload": req.payload,
-                "origin": req.origin,
-                "action": req.action,
-            }
-        )
-    except ValueError as exc:
-        return JSONResponse(
-            status_code=400,
-            content={"decision": "DENIED", "reason": f"Invalid request schema: {exc}"},
-        )
-
-    fallback_state = "normal"
-
-    # Verify worker policy bundle consistency before processing.
-    bundle_check = await decision_store.verify_policy_bundle(
-        policy_version=str(judge.policy.get("version", "UNKNOWN")) if judge.policy else "UNKNOWN",
-        manifest_hash=_manifest_hash(),
+    # --- Degraded mode determination ---
+    degraded = bool(
+        getattr(rate_limiter, "degraded", False) or decision_store.degraded
     )
-    if not bundle_check.accepted:
-        return JSONResponse(
-            status_code=503,
-            content={"decision": "DENIED", "reason": bundle_check.reason},
-        )
+    fallback_state = "degraded" if degraded else "normal"
 
     # --- Rate limiting (per-IP, in-memory sliding window) ---
     if not await rate_limiter.allow(client_ip):
+        request.state.retry_after = 5
         log_audit_event(
             decision="RATE_LIMITED",
             threat_score=0.0,
@@ -328,7 +300,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             source_ip=client_ip,
             origin=req.origin,
             reason="Rate limit exceeded",
-            request_id=request_id,
             fallback_state=fallback_state,
         )
         return JSONResponse(
@@ -337,62 +308,48 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             headers={"Retry-After": "5"},
         )
 
-    # --- Input hardening ---
-    normalization = normalize_untrusted_text(structured.payload)
-    clean_input = normalization.normalized_form
-    if normalization.quarantined:
+    # --- Degraded mode fail-closed for privileged actions ---
+    if degraded and not _is_read_only_action(req.action):
+        log_audit_event(
+            decision="DENIED",
+            threat_score=0.0,
+            payload=req.payload,
+            action=req.action,
+            source_ip=client_ip,
+            origin=req.origin,
+            reason="degraded_mode_privileged_action_denied",
+            fallback_state=fallback_state,
+        )
         return JSONResponse(
-            status_code=400,
+            status_code=503,
             content={
                 "decision": "DENIED",
-                "reason": f"Input quarantined: {normalization.quarantine_reason}",
+                "reason": "degraded_mode_privileged_action_denied",
             },
         )
 
-    # Degraded mode is fail-closed for privileged actions.
-    degraded = bool(getattr(rate_limiter, "degraded", False) or decision_store.degraded)
-    if degraded:
-        fallback_state = "degraded"
-        _logger.error("Security fallback mode active: privileged actions are denied")
-        if not _is_read_only_action(structured.action):
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "decision": "DENIED",
-                    "reason": "degraded_mode_privileged_action_denied",
-                },
-            )
+    # --- Input hardening ---
+    clean_input = normalize_shadow_text(req.payload)
 
-    # Semantic intent defense over normalized form.
+    # --- Semantic intent classification (pre-agent screen) ---
     intent_decision = classify_blocked_intent(clean_input)
-    final_intent_decision = "DENIED" if intent_decision.blocked else "ALLOW"
-    log_intent_decision(
-        normalized_form=clean_input,
-        decision=intent_decision,
-        final_decision=final_intent_decision,
-        request_id=request_id,
-    )
     if intent_decision.blocked:
+        log_audit_event(
+            decision="DENIED",
+            threat_score=8.0,
+            payload=req.payload,
+            action=req.action,
+            source_ip=client_ip,
+            origin=req.origin,
+            reason=f"semantic_intent_policy_block:{intent_decision.category}",
+            fallback_state=fallback_state,
+        )
         return JSONResponse(
             status_code=403,
             content={
                 "decision": "DENIED",
-                "reason": "semantic_intent_policy_block",
-                "category": intent_decision.category,
+                "reason": "Action denied: semantic policy violation.",
             },
-        )
-
-    # Replay defense: reject duplicate decision token claims.
-    replay_claim = await decision_store.claim_decision(
-        request_id=request_id,
-        timestamp_iso=str(_time.time()),
-        policy_version=str(judge.policy.get("version", "UNKNOWN")) if judge.policy else "UNKNOWN",
-        manifest_hash=_manifest_hash(),
-    )
-    if not replay_claim.accepted:
-        return JSONResponse(
-            status_code=409,
-            content={"decision": "DENIED", "reason": replay_claim.reason},
         )
 
     # --- Sandbox check — block subprocess/socket/exec patterns early ---
@@ -402,14 +359,11 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             decision="SANDBOX_BLOCKED",
             threat_score=10.0,
             payload=req.payload,
-            action=structured.action,
+            action=req.action,
             source_ip=client_ip,
-            origin=structured.origin,
+            origin=req.origin,
             reason=sandbox_hit,
-            request_id=request_id,
             fallback_state=fallback_state,
-            policy_match="sandbox",
-            confidence=1.0,
         )
         return JSONResponse(
             status_code=403,
@@ -420,10 +374,10 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     threat_score, report = scout.evaluate_threat_context(client_ip, clean_input)
 
     # 2. NITPICKER PHASE
-    clean_content = nitpicker.sanitize_intent(clean_input, structured.origin)
+    clean_content = nitpicker.sanitize_intent(clean_input, req.origin)
 
     # 3. JUDGE PHASE — now includes payload for semantic veto
-    is_allowed, veto_msg = judge.verify_action(structured.action, payload=clean_input)
+    is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)
 
     # DECISION: block if threat score exceeds threshold OR Judge veto
     is_blocked = (threat_score >= settings.policy_threshold) or (not is_allowed)
@@ -443,20 +397,13 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         decision=decision,
         threat_score=threat_score,
         payload=req.payload,
-        action=structured.action,
+        action=req.action,
         source_ip=client_ip,
-        origin=structured.origin,
+        origin=req.origin,
         reason=reason if is_blocked else "",
         latency_ms=latency,
-        request_id=request_id,
         fallback_state=fallback_state,
-        policy_match=intent_decision.matched_policy,
-        confidence=intent_decision.confidence,
-        extra={
-            "request_id": request_id,
-            "normalization_flags": normalization.flags,
-            "clean_content": clean_content[:200],
-        },
+        extra={"request_id": request_id},
     )
 
     response: dict = {

@@ -103,9 +103,10 @@ export default function VerifyPage() {
           Receipt Viewer
         </h1>
         <p style={{ color: "var(--silver)", maxWidth: "520px", lineHeight: 1.65 }}>
-          Paste an Aletheia audit receipt to inspect its fields. This viewer
-          parses and displays receipt structure. Full cryptographic signature
-          verification is available in the CLI — run{" "}
+          Client-side integrity check for tamper-evident JSON receipts.
+          Paste a receipt to inspect its fields and verify structural
+          consistency. Full cryptographic HMAC signature verification is
+          available in the CLI — run{" "}
           <code
             style={{
               fontFamily: "var(--font-mono)",

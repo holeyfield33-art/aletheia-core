@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.0-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.5.2-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-548%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-527%20passing-brightgreen" alt="Tests"/>
   <img src="https://img.shields.io/badge/security-audited-brightgreen" alt="Security Audit"/>
   <img src="https://img.shields.io/badge/status-production--ready-brightgreen" alt="Status"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
@@ -47,29 +47,26 @@ with a tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## Security Guarantees
+## Security Controls
 
 The following properties are cryptographically or architecturally enforced:
 
 | # | Guarantee | Mechanism |
 |---|-----------|-----------|
-| 1 | **Tamper-proof policy manifest** | Ed25519 detached signature verified before every policy load. Invalid or missing signature causes a hard crash (`ManifestTamperedError`). |
+| 1 | **Tamper-evident policy manifest** | Ed25519 detached signature verified before every policy load. Invalid or missing signature causes a hard crash (`ManifestTamperedError`). |
 | 2 | **Semantic intent veto** | SentenceTransformer (`all-MiniLM-L6-v2`) cosine similarity against 50+ camouflage phrases. Configurable threshold (default 0.55). |
 | 3 | **Grey-zone escalation** | Payloads in the ambiguous similarity band (0.40–0.55) are second-pass classified via keyword heuristics. Two or more high-risk keyword hits trigger a veto. |
 | 4 | **Action sandbox** | Regex-based pattern scanner blocks subprocess exec, raw socket, `eval`, filesystem destruction, and privilege-escalation patterns before dispatch. |
 | 5 | **Daily alias rotation** | Semantic alias phrase order is deterministically shuffled daily (HMAC-SHA256 seed from date + manifest hash + `ALETHEIA_ALIAS_SALT`) to prevent reverse-engineering via probing. |
 | 6 | **Embedding pre-warming** | Model loaded eagerly at FastAPI startup to eliminate cold-start latency on the first request. |
 | 7 | **Audit trail integrity** | Every decision produces a structured JSON log line and an HMAC-signed TMR receipt (decision + policy hash + payload_sha256 + action + origin + signature). |
-| 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, bounded URL percent-encoding decode (depth 5, budget 24), bounded Base64 decode with size-bomb protection, JSON/hex unescape, entropy quarantine, and strict Pydantic schema validation — all applied before any agent sees the payload. |
-| 9 | **Rate limiting** | Sliding-window per-IP rate limiter. Distributed via Upstash Redis when `UPSTASH_REDIS_REST_URL` is configured (survives restarts, synchronizes across workers). Falls back to in-memory for single-node deployments. |
+| 8 | **Input hardening** | NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode with 10x size bomb protection, and URL percent-encoding decode — all applied before any agent sees the payload. |
+| 9 | **Rate limiting** | Sliding-window per-IP rate limiter. Distributed via
+Upstash Redis when `UPSTASH_REDIS_REST_URL` is configured (survives restarts,
+synchronizes across workers). Falls back to in-memory for single-node deployments. |
 | 10 | **No stack-trace leakage** | Global FastAPI exception handler returns an opaque error in production mode. Version and mode never exposed to unauthenticated /health callers. |
 | 11 | **Config-driven defense modes** | `active` / `shadow` / `monitor` — switchable via environment variable or `config.yaml` without code changes. |
-| 12 | **Receipt replay resistance** | HMAC signature includes payload_sha256, action, origin, request_id, policy_version, manifest_hash, fallback_state, and decision_token. Receipts are bound to a unique request and rejected on replay. |
-| 13 | **Semantic intent classification** | Five-category blocked-intent classifier (malicious_capability, data_exfiltration, privilege_escalation, tool_abuse, policy_evasion) with coercive pattern detection and fail-closed uncertain confidence. Catches paraphrases, euphemisms, and roleplay-based bypass attempts. |
-| 14 | **Distributed replay defense** | SHA256 decision tokens bound to request_id, timestamp, policy_version, and manifest_hash. NX-based idempotent claims with SQLite local fallback and optional Upstash Redis centralized store. |
-| 15 | **Fail-closed degraded mode** | Privileged actions are denied when remote dependencies are unavailable. Only explicitly safe read-only paths are allowed in degraded mode. Fallback state is recorded in every receipt. |
-| 16 | **Manifest version and expiry** | Manifest metadata includes `version`, `expires_at`, and `key_version`. Stale, expired, or version-mismatched manifests are hard-rejected at startup. |
-| 17 | **Deployment drift detection** | Workers verify they use the same signed policy bundle. Mismatched manifest hash or policy version across instances triggers a hard deny. |
+| 12 | **Receipt replay resistance** | HMAC signature includes payload_sha256, action, and origin to prevent reuse across contexts. |
 
 Additional guarantees:
 
@@ -83,17 +80,14 @@ Additional guarantees:
 
 ## Key Features
 
-- **Cryptographic Policy Integrity** — Ed25519-signed security manifest with version, expiry, and key rotation metadata; tamper triggers an instant hard veto
+- **Cryptographic Policy Integrity** — Ed25519-signed security manifest; tamper triggers an instant hard veto
 - **Semantic Intent Analysis** — Cosine similarity replaces string matching; catches camouflaged fund transfers, privilege escalation, and data exfiltration
-- **Semantic Intent Classification** — Five-category blocked-intent classifier detects paraphrases, euphemisms, roleplay, and coercive instruction patterns; fails closed when uncertain
 - **Grey-Zone Second-Pass Classifier** — Keyword heuristics catch creative paraphrases that fall below the primary threshold
 - **Action Sandbox** — Pattern-based scanner blocks subprocess, eval, raw socket, and filesystem-destruction payloads
 - **Polymorphic Defense** — Config-driven deterministic rotation across LINEAGE, INTENT, and SKEPTIC modes
-- **Structured Audit Trail** — JSON-line logging with HMAC-signed TMR receipts on every decision, bound to request ID, policy version, and manifest hash
-- **Rate Limiting** — Sliding-window limiter (10 req/s per IP, configurable) with Upstash Redis for distributed deployments
-- **Input Hardening** — Homoglyph normalization, bounded Base64/URL-encoding decode, JSON/hex unescape, entropy quarantine, strict schema validation
-- **Distributed Replay Defense** — SHA256 decision tokens with idempotent claims, SQLite local fallback, and deployment drift detection across workers
-- **Fail-Closed Degraded Mode** — Privileged actions denied when remote dependencies are unavailable; read-only paths allowed with observable fallback state
+- **Structured Audit Trail** — JSON-line logging with HMAC-signed TMR receipts on every decision
+- **Rate Limiting** — Sliding-window limiter (10 req/s per IP, configurable)
+- **Input Hardening** — Homoglyph normalization, Base64 and URL-encoding recursive decode, control-character strip
 - **Daily Alias Rotation** — Alias bank order shuffled deterministically per day to resist probing
 - **Swarm-Resistant Triage** — Scout agent clusters diversionary noise and prioritizes high-blast-radius threats
 
@@ -101,33 +95,22 @@ Additional guarantees:
 
 ## Quick Start
 
-### Install from PyPI
+### Install
 
 ```bash
 pip install aletheia-cyber-core
 ```
 
-### Install from source
+#### Optional Consciousness Proximity Module
 
-```bash
-git clone https://github.com/holeyfield33-art/aletheia-core.git
-cd aletheia-core
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-#### Optional: Consciousness Proximity Module
+To enable the optional proximity feature set:
 
 ```bash
 pip install -r requirements-proximity.txt
 export CONSCIOUSNESS_PROXIMITY_ENABLED=true
 ```
 
-#### Optional: Development dependencies (testing)
-
-```bash
-pip install -e ".[dev]"
-```
+The proximity module is gated behind `CONSCIOUSNESS_PROXIMITY_ENABLED=true` and includes optional runtime dependencies for governance monitoring and relay scoring.
 
 ### Sign the manifest (required before first run)
 
@@ -147,126 +130,24 @@ python main.py
 uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
 ```
 
-### Run the live demo
-
-```bash
-bash demo.sh
-```
-
 ### Run the test suite
 
 ```bash
-# Full test suite (requires torch + sentence-transformers)
-pytest tests/ -v
-
-# CI-lightweight (skips embedding-dependent tests)
 pytest tests/ -v --ignore=tests/test_api.py
-```
-
----
-
-## Deployment
-
-### Deploy to Render
-
-One-click deploy:
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/holeyfield33-art/aletheia-core)
-
-Or manually:
-1. Connect your GitHub repo in the Render dashboard.
-2. Render reads `render.yaml` automatically — it defines the build, start command, and env vars.
-3. Set the following env vars in the Render dashboard:
-   - `ALETHEIA_RECEIPT_SECRET` — generate with `openssl rand -hex 32`
-   - `ALETHEIA_ALIAS_SALT` — generate with `openssl rand -hex 32`
-   - `ALETHEIA_API_KEYS` — comma-separated API keys for authentication
-   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — for distributed rate limiting (recommended)
-4. Sign the manifest locally (`python main.py sign-manifest`) and commit `security_policy.json.sig` before deploying.
-5. Verify after deploy: `curl https://<your-app>.onrender.com/health`
-
-### Deploy to Vercel (frontend dashboard)
-
-The Next.js dashboard is deployed separately from the Python API:
-
-1. Connect the repo in the Vercel dashboard.
-2. Vercel reads `vercel.json` — framework is `nextjs`, build command is `npm run build`.
-3. Set the `NEXT_PUBLIC_ALETHEIA_API_URL` env var to your Render API URL.
-4. Deploy. The frontend calls the API via the `/api/demo` proxy route.
-
-### Deploy with Docker
-
-```bash
-# Build
-docker build -t aletheia-core .
-
-# Run
-docker run -d \
-  -p 8000:8000 \
-  -e ALETHEIA_MODE=active \
-  -e ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32) \
-  -e ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32) \
-  -e ALETHEIA_API_KEYS=your-api-key-here \
-  aletheia-core
-```
-
-The Dockerfile:
-- Uses `python:3.11-slim`
-- Verifies the manifest signature exists at build time
-- Creates a non-root user (`appuser`) for runtime
-- Exposes port 8000
-- Starts with `uvicorn bridge.fastapi_wrapper:app`
-
-### Install from PyPI (library use)
-
-```bash
-pip install aletheia-cyber-core
-```
-
-Use the CLI entry point:
-
-```bash
-aletheia-audit
-```
-
-Or import directly in Python:
-
-```python
-from agents import AletheiaScoutV2, AletheiaNitpickerV2, AletheiaJudge
-from core.runtime_security import normalize_untrusted_text, classify_blocked_intent
-from manifest.signing import verify_manifest_signature
 ```
 
 ---
 
 ## Architecture
 
-Aletheia operates via a tri-agent consensus model with defense-in-depth input hardening:
+Aletheia operates via a tri-agent consensus model:
 
 ```
 Incoming Request
 │
-├─ Schema Validation (Pydantic strict mode, extra="forbid")
-├─ Bundle Drift Check (policy version + manifest hash across workers)
-├─ Rate Limiting (Upstash Redis distributed / in-memory fallback)
-│
-├─ Input Hardening
-│   ├─ NFKC normalization
-│   ├─ Zero-width / control character strip
-│   ├─ Bounded URL decode (depth 5)
-│   ├─ Bounded Base64 decode (budget 24)
-│   ├─ JSON / hex unescape
-│   └─ Entropy quarantine (threshold 5.2)
-│
-├─ Degraded Mode Gate (fail-closed for privileged actions)
-├─ Semantic Intent Classification (5 policy categories + coercive detection)
-├─ Replay Defense (SHA256 decision token, NX-based idempotent claim)
+├─ Input Hardening (NFKC, Base64, URL decode)
 │
 ▼
-┌─────────────────┐
-│   Action Sandbox │  Block subprocess, socket, eval, fs-destroy patterns
-└────────┬────────┘
-         │
-         ▼
 ┌─────────────────┐
 │      Scout      │  Threat intelligence, swarm detection, IP scoring
 └────────┬────────┘
@@ -280,14 +161,14 @@ Incoming Request
          ▼
 ┌─────────────────┐
 │      Judge      │  Manifest signature verification, policy veto,
-│                 │  semantic alias veto, grey-zone escalation
+│                 │  semantic alias veto, grey-zone escalation,
+│                 │  action sandbox check
 └────────┬────────┘
          │
     PROCEED / DENY
          │
          ▼
-   Audit Log + HMAC-Signed TMR Receipt
-   (bound to request_id, policy_version, manifest_hash)
+   Audit Log + TMR Receipt
 ```
 
 ---
@@ -361,43 +242,27 @@ aletheia-cyber-core/
 ├── bridge/
 │   ├── fastapi_wrapper.py   # Production REST API (rate-limited, audited)
 │   ├── config.py            # Legacy config shim
-│   └── utils.py             # Input hardening facade (delegates to core)
+│   └── utils.py             # Input hardening (homoglyphs, Base64, URL)
 ├── core/
 │   ├── config.py            # Centralized settings (env / yaml / defaults)
 │   ├── embeddings.py        # Shared SentenceTransformer service
 │   ├── audit.py             # Structured JSON logging + TMR receipts
-│   ├── rate_limit.py        # Sliding-window rate limiter (Upstash + in-memory)
-│   ├── sandbox.py           # Action sandbox pattern scanner
-│   ├── runtime_security.py  # Hardened normalization, intent classifier, schema validation
-│   └── decision_store.py    # Distributed replay defense + drift detection
+│   ├── rate_limit.py        # Sliding-window rate limiter
+│   └── sandbox.py           # Action sandbox pattern scanner
 ├── manifest/
-│   ├── security_policy.json        # Ground truth veto rules (versioned, expires)
+│   ├── security_policy.json        # Ground truth veto rules
 │   ├── security_policy.json.sig    # Ed25519 detached signature
 │   ├── security_policy.ed25519.pub # Public verification key
-│   └── signing.py           # Manifest signing, verification, expiry validation
-├── proximity/
-│   ├── identity_anchor.py   # Append-only hash chain + replay token tracking
-│   ├── proximity_score.py   # Proximity scoring
-│   ├── sovereign_relay.py   # Constitutional relay with fail-closed anchoring
-│   ├── safety_bounds.py     # Safety boundary enforcement
-│   └── spectral_monitor.py  # Spectral health monitoring
+│   └── signing.py           # Manifest signing and verification
 ├── tests/
-│   ├── test_core.py                         # Integration tests
-│   ├── test_judge.py                        # Judge unit + adversarial tests
-│   ├── test_nitpicker.py                    # Nitpicker unit + semantic tests
-│   ├── test_enterprise.py                   # Audit, rate-limit, hardening tests
-│   ├── test_hardening.py                    # Sandbox, grey-zone, rotation tests
-│   ├── test_signing.py                      # Ed25519 signing/verification + expiry
-│   ├── test_judge_manifest.py               # Manifest veto + metadata validation
-│   ├── test_security_hardening_v2.py        # XFF, CORS, fail-closed, degraded mode
-│   ├── test_runtime_security_layer.py       # Normalization, intent, adversarial, property-based
-│   ├── test_distributed_security_integration.py  # Replay, restart, drift tests
-│   └── test_proximity/                      # Consciousness proximity module tests
+│   ├── test_core.py         # Integration tests
+│   ├── test_judge.py        # Judge unit + adversarial tests
+│   ├── test_nitpicker.py    # Nitpicker unit + semantic tests
+│   ├── test_enterprise.py   # Audit, rate-limit, hardening tests
+│   ├── test_hardening.py    # Sandbox, grey-zone, rotation tests
+│   └── test_proximity/      # Consciousness proximity module (84 tests)
 ├── simulations/             # Adversarial simulation scripts
 ├── main.py                  # CLI entry point
-├── render.yaml              # Render deployment config
-├── vercel.json              # Vercel frontend config
-├── Dockerfile               # Docker build (non-root, signature-verified)
 ├── AGENTS.md                # Agent communication protocol
 └── requirements.txt
 ```
@@ -431,6 +296,28 @@ All settings are configurable via environment variables (prefixed `ALETHEIA_`) o
 - **Static alias bank.** While daily rotation mitigates probing, a determined adversary with prolonged access could enumerate patterns. Consider supplementing with an LLM-based classifier for high-sensitivity deployments.
 - **No runtime syscall interception.** The action sandbox validates declared intents, not runtime behavior. Pair with OS-level sandboxing (seccomp, AppArmor) for defense in depth.
 
+### Security Assumptions
+
+Aletheia is a **runtime enforcement layer**. It validates declared intents and policy compliance — it does not sandbox process execution at the OS level. For defense-in-depth, pair with OS-level sandboxing (AppArmor, seccomp-bpf) and network-level controls.
+
+| Assumption | Implication |
+|---|---|
+| Aletheia sees all agent actions | Deploy as an inline proxy or SDK wrapper, not a sidecar that can be bypassed |
+| Policy manifest is signed offline | The Ed25519 private key must never reside on the runtime host |
+| HMAC receipts prove decision integrity | They do not prove the action was actually executed — pair with execution logs |
+| Embeddings are deterministic per model version | Model upgrades may shift similarity scores; re-validate thresholds after upgrades |
+
+### NIST AI RMF Alignment
+
+Aletheia maps to the [NIST AI Risk Management Framework](https://www.nist.gov/artificial-intelligence/risk-management-framework) core functions:
+
+| NIST Function | Aletheia Mechanism |
+|---|---|
+| **GOVERN** | Ed25519-signed policy manifests enforce organisational risk tolerance as immutable, versioned artefacts |
+| **MAP** | Semantic intent classifier categorises each request into one of 5 risk categories before agent evaluation |
+| **MEASURE** | HMAC-signed audit receipts provide cryptographically verifiable evidence of every enforcement decision |
+| **MANAGE** | Daily alias rotation, configurable thresholds, and `active`/`shadow`/`monitor` modes enable adaptive risk response |
+
 ---
 
 ## Support
@@ -449,10 +336,8 @@ If this project is useful to your organization, consider reaching out about our 
 | `ALETHEIA_MODE` | No | `active` (default), `shadow`, or `monitor` |
 | `ALETHEIA_LOG_LEVEL` | No | `INFO` (default), `DEBUG`, `WARNING` |
 | `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | Requests per IP per second. Default: `10` |
-| `UPSTASH_REDIS_REST_URL` | Recommended | Upstash Redis REST endpoint for distributed rate limiting and replay defense. Falls back to in-memory if absent. |
+| `UPSTASH_REDIS_REST_URL` | Recommended | Upstash Redis REST endpoint for distributed rate limiting. Falls back to in-memory if absent. |
 | `UPSTASH_REDIS_REST_TOKEN` | Recommended | Upstash Redis REST token. Required when URL is set. Rotate immediately if exposed. |
-| `ALETHEIA_ANCHOR_STATE_PATH` | No | Path for identity anchor state persistence (replay token tracking across restarts). Default: disabled. |
-| `ALETHEIA_DECISION_DB_PATH` | No | SQLite path for decision store local fallback. Default: `aletheia_decisions.db`. |
 | `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable proximity module. Default: `false` |
 | `ALETHEIA_TRUSTED_PROXY_DEPTH` | No | Number of trusted reverse proxies in front of the service. Default: 1 (Render/Vercel). Set to 0 for direct. |
 | `ALETHEIA_CORS_ORIGINS` | No | Comma-separated allowed CORS origins. Default: app.aletheia-core.com and aletheia-core.com |
@@ -546,15 +431,12 @@ Before going live in `active` mode, verify all of the following:
 | # | Check | Command |
 |---|-------|---------|
 | 1 | Manifest is signed | `python main.py sign-manifest` |
-| 2 | Manifest is not expired | Check `expires_at` field in `manifest/security_policy.json` |
-| 3 | `ALETHEIA_RECEIPT_SECRET` is set (≥ 32 chars) | `echo ${#ALETHEIA_RECEIPT_SECRET}` |
-| 4 | `ALETHEIA_ALIAS_SALT` is set | `echo ${#ALETHEIA_ALIAS_SALT}` |
-| 5 | Health endpoint returns `"status":"ok"` | `curl http://localhost:8000/health` |
-| 6 | Receipt signature is not `UNSIGNED_DEV_MODE` | Inspect `signature` field in `/v1/audit` response |
-| 7 | Tests pass | `pytest tests/ -q` |
-| 8 | Private key is NOT in Docker image | `docker run --rm <image> ls /app/manifest/*.key` — must error |
-| 9 | Upstash configured for multi-worker | Verify `UPSTASH_REDIS_REST_URL` is set |
-| 10 | Degraded mode is observable | Check startup logs for `backend=inmemory` warnings |
+| 2 | `ALETHEIA_RECEIPT_SECRET` is set (≥ 32 chars) | `echo ${#ALETHEIA_RECEIPT_SECRET}` |
+| 3 | `ALETHEIA_ALIAS_SALT` is set | `echo ${#ALETHEIA_ALIAS_SALT}` |
+| 4 | Health endpoint returns `"status":"ok"` | `curl http://localhost:8000/health` |
+| 5 | Receipt signature is not `UNSIGNED_DEV_MODE` | Inspect `signature` field in `/v1/audit` response |
+| 6 | Tests pass | `pytest tests/ --ignore=tests/test_api.py -q` |
+| 7 | Private key is NOT in Docker image | `docker run --rm <image> ls /app/manifest/*.key` — must error |
 
 Required environment variables:
 
@@ -572,8 +454,8 @@ Required environment variables:
 
 ## Architecture Decision Records
 
-**ADR-001: Distributed rate limiting with local fallback**
-Rate limiting uses Upstash Redis when `UPSTASH_REDIS_REST_URL` is configured, providing distributed sliding-window enforcement across all workers. When Upstash is unavailable, the system falls back to an in-memory limiter that is marked as degraded — privileged actions are denied in this state (fail-closed). This replaces the previous in-memory-only design to support multi-worker production deployments.
+**ADR-001: In-memory rate limiting only**
+Rate limiting is intentionally in-memory and per-process. Adding Redis would introduce a hard runtime dependency that breaks single-binary deployments, adds operational complexity, and is unnecessary for the target deployment model (single-host, proxy-fronted). For horizontal scaling, place a rate-limiting proxy (nginx, Cloudflare, Traefik) in front.
 
 **ADR-002: Threat score discretisation**
 Raw cosine-similarity floats and threat scores are never returned to clients. Returning exact values would let an attacker black-box calibrate their payload against the exact veto threshold. Only discretised bands (`LOW` / `MEDIUM` / `HIGH` / `CRITICAL`) are exposed.

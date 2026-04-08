@@ -76,9 +76,21 @@ def _hash_payload(payload: str) -> dict[str, str | int]:
         "payload_length": len(payload),
     }
     if settings.mode != "active":
-        sanitized = payload.replace("\n", " ").replace("\r", "")[:120]
-        result["payload_preview"] = sanitized
+        result["payload_preview"] = safe_payload_preview(payload)
     return result
+
+
+def safe_payload_preview(payload: str, max_len: int = 120) -> str:
+    """Return a truncated, control-character-stripped preview of a payload.
+
+    Safe for inclusion in logs and diagnostic output — never returns raw
+    user input and always truncates to *max_len* characters.
+    """
+    sanitized = payload.replace("\n", " ").replace("\r", "").replace("\t", " ")
+    if len(sanitized) > max_len:
+        suffix = "...[TRUNCATED]"
+        return sanitized[:max_len - len(suffix)] + suffix
+    return sanitized
 
 
 # ---------------------------------------------------------------------------
@@ -99,11 +111,14 @@ def log_audit_event(
     fallback_state: str = "normal",
     policy_match: str = "",
     confidence: float = 0.0,
+    replay_token_outcome: str = "",
+    status_code: int = 0,
     extra: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Write a structured JSON audit record and return a TMR receipt."""
     now = datetime.now(timezone.utc)
 
+    manifest_hash = _policy_hash()
     record: dict[str, Any] = {
         "timestamp": now.isoformat(),
         "decision": decision,
@@ -114,7 +129,8 @@ def log_audit_event(
         "reason": reason,
         "latency_ms": round(latency_ms, 2),
         **_hash_payload(payload),
-        "policy_hash": _policy_hash(),
+        "policy_hash": manifest_hash,
+        "manifest_fingerprint": manifest_hash[:16] if manifest_hash else "",
         "policy_version": _policy_version(),
         "client_id": settings.client_id,
         "request_id": request_id,
@@ -122,6 +138,10 @@ def log_audit_event(
         "policy_match": policy_match,
         "confidence": confidence,
     }
+    if replay_token_outcome:
+        record["replay_token_outcome"] = replay_token_outcome
+    if status_code:
+        record["status_code"] = status_code
     if extra:
         record["extra"] = extra
 

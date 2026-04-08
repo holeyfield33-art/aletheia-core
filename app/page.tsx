@@ -2,9 +2,9 @@ import { PRODUCT, URLS, STATUS, CTAS } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Aletheia Core — Block malicious code before it installs",
+  title: "Aletheia Core — Runtime audit and pre-execution block layer for AI agents",
   description:
-    "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks before execution. Open source. Verifiable.",
+    "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   alternates: { canonical: URLS.appBase },
 };
 
@@ -65,12 +65,12 @@ function Hero() {
           marginBottom: "1.25rem",
         }}
       >
-        Aletheia blocks{" "}
+        Professional-grade{" "}
         <em style={{ color: "var(--crimson-hi)", fontStyle: "normal" }}>
-          malicious code
+          runtime audit
         </em>
         <br />
-        before it installs.
+        and pre-execution block layer for AI agents.
       </h1>
 
       <p
@@ -82,8 +82,8 @@ function Hero() {
           lineHeight: 1.7,
         }}
       >
-        Detect supply-chain attacks in Python packages, dependencies, and
-        runtime hooks &mdash; before execution.
+        Cryptographically signed enforcement, semantic policy hardening, and
+        tamper-evident audit receipts for agentic workflows.
       </p>
 
       <div
@@ -151,19 +151,24 @@ function TrustBar() {
 function HowItWorks() {
   const stages = [
     {
-      num: "SCOUT",
-      title: "Threat Intelligence",
-      body: "Scans for known instruction-smuggling signatures, sensitive data exfiltration patterns, and swarm probing behavior.",
+      num: "INPUT HARDENING",
+      title: "Normalization",
+      body: "NFKC homoglyph collapse, zero-width strip, recursive Base64/URL decode. All applied before any agent evaluates the payload.",
     },
     {
-      num: "NITPICKER",
-      title: "Intent &amp; Pattern Detection",
-      body: "Runs semantic similarity analysis against blocked patterns. Detects camouflaged commands hiding behind benign-looking prefixes.",
+      num: "SEMANTIC SCORING",
+      title: "Policy Evaluation",
+      body: "Scout scores threat context. Nitpicker runs semantic similarity against blocked patterns. Cosine-similarity analysis against camouflage aliases.",
     },
     {
-      num: "JUDGE",
-      title: "Final Decision",
-      body: "Verifies the Ed25519 policy manifest, applies cosine-similarity veto against restricted actions, and produces a signed audit receipt.",
+      num: "JUDGE (Ed25519)",
+      title: "Decision",
+      body: "Verifies the Ed25519 policy manifest. Applies pre-execution block against restricted actions. Produces a cryptographically bound decision.",
+    },
+    {
+      num: "HMAC RECEIPT",
+      title: "Receipt Signing",
+      body: "Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt binding decision to policy hash, payload fingerprint, and origin.",
     },
   ];
 
@@ -179,7 +184,7 @@ function HowItWorks() {
             marginBottom: "0.5rem",
           }}
         >
-          How It Works
+          Verification Pipeline
         </h2>
         <p
           style={{
@@ -188,14 +193,78 @@ function HowItWorks() {
             fontSize: "1rem",
           }}
         >
-          Three agents inspect every request sequentially. All three must pass
-          for an action to proceed.
+          Every request passes through a deterministic pipeline. Each stage must clear independently.
         </p>
+
+        {/* Pipeline flow diagram */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0",
+            marginBottom: "2.5rem",
+            overflowX: "auto",
+            padding: "1.25rem 0",
+          }}
+        >
+          {[
+            { label: "Request", color: "var(--muted)" },
+            { label: "Normalization", color: "var(--silver)" },
+            { label: "Policy Evaluation", color: "var(--silver)" },
+            { label: "Decision", color: "var(--crimson-hi)" },
+            { label: "Receipt Signing", color: "var(--green)" },
+            { label: "Audit Persistence", color: "var(--green)" },
+          ].map((node, i, arr) => (
+            <div key={node.label} style={{ display: "flex", alignItems: "center" }}>
+              <div
+                style={{
+                  background: "var(--surface)",
+                  border: `1px solid ${node.color}`,
+                  padding: "0.5rem 1rem",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.72rem",
+                  color: node.color,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {node.label}
+              </div>
+              {i < arr.length - 1 && (
+                <div
+                  style={{
+                    width: "24px",
+                    height: "1px",
+                    background: "var(--border-hi)",
+                    position: "relative",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: "-3px",
+                      top: "-3px",
+                      width: 0,
+                      height: 0,
+                      borderTop: "3px solid transparent",
+                      borderBottom: "3px solid transparent",
+                      borderLeft: "5px solid var(--border-hi)",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Stage detail cards */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "1.5rem",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "1.25rem",
           }}
         >
           {stages.map(({ num, title, body }) => (
@@ -204,17 +273,17 @@ function HowItWorks() {
               style={{
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
-                borderRadius: "8px",
                 padding: "1.5rem",
               }}
             >
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "0.72rem",
+                  fontSize: "0.7rem",
                   color: "var(--crimson-hi)",
                   letterSpacing: "0.1em",
                   marginBottom: "0.5rem",
+                  textTransform: "uppercase",
                 }}
               >
                 {num}
@@ -234,24 +303,6 @@ function HowItWorks() {
               </p>
             </div>
           ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: "2.5rem",
-            padding: "1.25rem",
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "8px",
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.8rem",
-            color: "var(--silver)",
-            textAlign: "center",
-            letterSpacing: "0.02em",
-            overflowX: "auto",
-          }}
-        >
-          Request → Input Hardening → Scout → Nitpicker → Judge → PROCEED / DENIED → Signed Receipt
         </div>
 
         <ul
@@ -348,11 +399,11 @@ function BuiltInTheOpen() {
 function HowToUse() {
   const options = [
     {
-      label: "Free",
-      name: "Run it yourself",
+      label: "Community",
+      name: "Self-hosted engine",
       color: "var(--green)",
       description:
-        "Open source. MIT license. Full control. Run locally or self-host — the entire codebase is yours.",
+        "Self-hosted engine for local enforcement and research. Full MIT source, full control.",
       features: [
         "Full MIT source code",
         "FastAPI REST endpoint",
@@ -365,43 +416,43 @@ function HowToUse() {
       ctaStyle: "secondary" as const,
     },
     {
-      label: "Paid",
-      name: "Use the API",
+      label: "Cloud",
+      name: "Managed infrastructure",
       color: "var(--crimson-hi)",
       description:
-        "Pre-install protection as a service. Simple REST integration, no setup required. We handle uptime and scaling.",
+        "Managed infrastructure, 30-day searchable audit persistence, and third-party receipt authority.",
       features: [
         "Hosted REST endpoint",
-        "Managed uptime",
+        "Managed uptime & scaling",
         "API key provisioning",
-        "No infrastructure to manage",
-        "Same tri-agent pipeline",
+        "30-day audit log persistence",
+        "Third-party receipt authority",
         "Email support",
       ],
       cta: {
         label: "Contact for Access",
-        href: `mailto:${URLS.contactEmail}?subject=Hosted API Access`,
+        href: `mailto:${URLS.contactEmail}?subject=Cloud API Access`,
       },
       ctaStyle: "primary" as const,
       highlight: true,
     },
     {
-      label: "Service",
-      name: "Get a security audit",
+      label: "Enterprise",
+      name: "Custom policy engineering",
       color: "var(--silver)",
       description:
-        "We scan your dependencies, explain risks in plain English, and provide actionable fixes.",
+        "Custom policy engineering, adversarial testing & policy hardening, and dedicated support.",
       features: [
-        "Dependency risk assessment",
-        "Plain-English risk report",
-        "Prioritized fix recommendations",
+        "Dedicated policy engineering",
+        "Adversarial testing & hardening",
+        "Custom manifest design",
         "Architecture review",
-        "Custom policy design",
-        "Ongoing retainer available",
+        "Dedicated support channel",
+        "SLA options available",
       ],
       cta: {
-        label: "Request Audit",
-        href: `mailto:${URLS.contactEmail}?subject=Security Audit Request`,
+        label: "Contact Sales",
+        href: `mailto:${URLS.contactEmail}?subject=Enterprise Inquiry`,
       },
       ctaStyle: "secondary" as const,
     },

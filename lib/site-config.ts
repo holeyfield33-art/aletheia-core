@@ -10,11 +10,11 @@
 
 export const PRODUCT = {
   name: "Aletheia Core",
-  tagline: "Aletheia blocks malicious code before it installs.",
+  tagline: "Professional-grade runtime audit and pre-execution block layer for AI agents.",
   description:
-    "Detect supply-chain attacks in Python packages, dependencies, and runtime hooks — before execution.",
-  version: "1.6.0",
-  testCount: 548,
+    "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
+  version: "1.5.2",
+  testCount: 527,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",
   copyrightYear: "2026",

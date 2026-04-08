@@ -27,6 +27,38 @@ async function fetchWithTimeout(
   }
 }
 
+const MAX_RETRIES = 2;
+const RETRY_BASE_MS = 1000;
+
+/** Fetch with exponential backoff retry on transient failures. */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, init);
+      // Don't retry on client errors (4xx) or rate limits
+      if (res.status === 429 || (res.status >= 400 && res.status < 500)) {
+        return res;
+      }
+      // Retry on server errors (5xx)
+      if (res.status >= 500 && attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_BASE_MS * 2 ** attempt));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err;
+      // Don't retry on user-visible aborts or final attempt
+      if (attempt >= MAX_RETRIES) break;
+      await new Promise((r) => setTimeout(r, RETRY_BASE_MS * 2 ** attempt));
+    }
+  }
+  throw lastError;
+}
+
 /* ------------------------------------------------------------------ */
 /* Preset scenarios                                                   */
 /* ------------------------------------------------------------------ */
@@ -155,6 +187,7 @@ export default function DemoPage() {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
+  const [rateLimitRemaining, setRateLimitRemaining] = useState<number | null>(null);
   const inflight = useRef(false);
 
   function applyPreset(idx: number) {
@@ -179,7 +212,7 @@ export default function DemoPage() {
     setRetryAfter(null);
 
     try {
-      const res = await fetchWithTimeout("/api/demo", {
+      const res = await fetchWithRetry("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -188,6 +221,8 @@ export default function DemoPage() {
           action,
         }),
       });
+      const rlRemaining = res.headers.get("X-RateLimit-Remaining");
+      if (rlRemaining !== null) setRateLimitRemaining(Number(rlRemaining));
       if (res.status === 429) {
         const ra = Number(res.headers.get("Retry-After") || "5");
         setRetryAfter(ra);
@@ -222,7 +257,7 @@ export default function DemoPage() {
     inflight.current = true;
     setLoading(true);
     try {
-      const res = await fetchWithTimeout("/api/demo", {
+      const res = await fetchWithRetry("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -231,6 +266,8 @@ export default function DemoPage() {
           action: p.action,
         }),
       });
+      const rlRemaining = res.headers.get("X-RateLimit-Remaining");
+      if (rlRemaining !== null) setRateLimitRemaining(Number(rlRemaining));
       if (res.status === 429) {
         const ra = Number(res.headers.get("Retry-After") || "5");
         setRetryAfter(ra);
@@ -632,7 +669,9 @@ export default function DemoPage() {
           </div>
 
           {/* Receipt details — collapsed by default */}
-          {result.receipt && (
+          {result.receipt && (() => {
+            const safeReceipt = getPublicReceipt(result.receipt);
+            return safeReceipt ? (
             <div style={{ padding: "0 1.75rem 1.25rem" }}>
               <button
                 onClick={() => setShowReceipt((v) => !v)}
@@ -653,28 +692,28 @@ export default function DemoPage() {
                     gap: "0.75rem",
                   }}
                 >
-                  {result.receipt.policy_hash && (
+                  {safeReceipt.policy_hash && (
                     <ReceiptField
                       label="Policy Hash"
-                      value={result.receipt.policy_hash}
+                      value={safeReceipt.policy_hash}
                     />
                   )}
-                  {result.receipt.payload_sha256 && (
+                  {safeReceipt.payload_sha256 && (
                     <ReceiptField
                       label="Payload SHA-256"
-                      value={result.receipt.payload_sha256}
+                      value={safeReceipt.payload_sha256}
                     />
                   )}
-                  {result.receipt.signature && (
+                  {safeReceipt.signature && (
                     <ReceiptField
                       label="Signature"
-                      value={result.receipt.signature}
+                      value={safeReceipt.signature}
                     />
                   )}
-                  {result.receipt.issued_at && (
+                  {safeReceipt.issued_at && (
                     <ReceiptField
                       label="Issued At"
-                      value={result.receipt.issued_at}
+                      value={safeReceipt.issued_at}
                     />
                   )}
                   {result.metadata?.request_id && (
@@ -686,7 +725,8 @@ export default function DemoPage() {
                 </div>
               )}
             </div>
-          )}
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -708,7 +748,38 @@ export default function DemoPage() {
   );
 }
 
+/** XSS-safe display of receipt values. Escapes HTML entities and control chars. */
+function safeReceiptDisplay(value: string): string {
+  return sanitizeForDisplay(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+/**
+ * Strip internal data from receipt in production mode.
+ * Only decision, human-readable reason, and timestamp are retained.
+ */
+function getPublicReceipt(
+  receipt: AuditResult["receipt"],
+): AuditResult["receipt"] {
+  if (!receipt) return receipt;
+  const isDev = process.env.NODE_ENV === "development";
+  if (isDev) return receipt;
+  // Production: only safe, non-internal fields
+  return {
+    decision: receipt.decision,
+    issued_at: receipt.issued_at,
+    signature: receipt.signature,
+    policy_hash: receipt.policy_hash,
+    payload_sha256: receipt.payload_sha256,
+  };
+}
+
 function ReceiptField({ label, value }: { label: string; value: string }) {
+  const escaped = safeReceiptDisplay(value);
   return (
     <div>
       <div
@@ -734,9 +805,8 @@ function ReceiptField({ label, value }: { label: string; value: string }) {
           borderRadius: "4px",
           padding: "0.5rem 0.75rem",
         }}
-      >
-        {sanitizeForDisplay(value)}
-      </div>
+        dangerouslySetInnerHTML={{ __html: escaped }}
+      />
     </div>
   );
 }

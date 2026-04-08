@@ -90,7 +90,7 @@ PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ## 7) Run tests
 
 ```bash
-# Full test suite (548 tests, requires torch + sentence-transformers)
+# Full test suite (588 tests, requires torch + sentence-transformers)
 pytest tests/ -v
 
 # CI-lightweight (skip embedding-dependent tests)

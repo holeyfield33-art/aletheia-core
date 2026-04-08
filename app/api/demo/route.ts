@@ -8,9 +8,28 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_BASE = process.env.ALETHEIA_BACKEND_URL ?? "";
 const DEMO_API_KEY = process.env.ALETHEIA_DEMO_API_KEY ?? "";
-const TIMEOUT_MS = 12_000;
+const TIMEOUT_MS = 5_000;
+const ACTIVE_MODE = process.env.ACTIVE_MODE;
 
 const SANITIZED_ERROR = { error: "request_failed" };
+
+/** Security headers applied to every response. */
+const corsHeaders: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "X-XSS-Protection": "0",
+  "Access-Control-Allow-Origin": process.env.ALETHEIA_CORS_ORIGIN ?? "https://aletheia-core.com",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Max-Age": "600",
+};
+
+/** Wrap NextResponse.json with security headers. */
+function secureJson(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
+  const merged = { ...corsHeaders, ...(init?.headers ?? {}) };
+  return NextResponse.json(body, { status: init?.status ?? 200, headers: merged });
+}
 
 function validateBackendUrl(url: string): boolean {
   try {
@@ -42,29 +61,47 @@ const ALLOWED_ACTIONS = new Set([
   "DEMO_ACTION",
 ]);
 
-const MAX_DEMO_BODY_BYTES = 50_000; // 50 KB — generous for demo payloads
+const MAX_DEMO_BODY_BYTES = 25_000; // 25 KB — bounded for demo payloads
+const MAX_BODY_CHARS = 25_000; // raw character limit before JSON parse
 
 export async function POST(request: NextRequest) {
+  // Production mode gate
+  if (process.env.ENVIRONMENT === "production" && ACTIVE_MODE !== "true") {
+    console.error("[demo-proxy] ACTIVE_MODE is not 'true' in production");
+    return secureJson({ error: "service_unavailable" }, { status: 503 });
+  }
+
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_DEMO_BODY_BYTES) {
-    return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
+    return secureJson({ error: "payload_too_large" }, { status: 413 });
   }
 
   if (!BACKEND_BASE) {
     console.error("[demo-proxy] ALETHEIA_BACKEND_URL not configured");
-    return NextResponse.json(SANITIZED_ERROR, { status: 503 });
+    return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
   if (!validateBackendUrl(BACKEND_BASE)) {
     console.error("[demo-proxy] ALETHEIA_BACKEND_URL failed validation:", BACKEND_BASE);
-    return NextResponse.json(SANITIZED_ERROR, { status: 503 });
+    return secureJson(SANITIZED_ERROR, { status: 503 });
+  }
+
+  // Raw body size check (character count)
+  let rawText: string;
+  try {
+    rawText = await request.text();
+  } catch {
+    return secureJson({ error: "invalid_request" }, { status: 400 });
+  }
+  if (rawText.length > MAX_BODY_CHARS) {
+    return secureJson({ error: "payload_too_large" }, { status: 413 });
   }
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(rawText);
   } catch {
-    return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+    return secureJson({ error: "invalid_request" }, { status: 400 });
   }
 
   if (
@@ -72,7 +109,7 @@ export async function POST(request: NextRequest) {
     body === null ||
     typeof (body as Record<string, unknown>).payload !== "string"
   ) {
-    return NextResponse.json({ error: "invalid_request" }, { status: 400 });
+    return secureJson({ error: "invalid_request" }, { status: 400 });
   }
 
   const { payload, origin, action } = body as Record<string, unknown>;
@@ -113,16 +150,16 @@ export async function POST(request: NextRequest) {
       console.error(`[demo-proxy] upstream returned ${upstream.status}`);
       if (upstream.status === 429) {
         const retryAfter = upstream.headers.get("Retry-After") ?? "5";
-        return NextResponse.json(
+        return secureJson(
           { error: "rate_limited" },
           { status: 429, headers: { "Retry-After": retryAfter } },
         );
       }
-      return NextResponse.json(SANITIZED_ERROR, { status: 503 });
+      return secureJson(SANITIZED_ERROR, { status: 503 });
     }
 
     const data = await upstream.json();
-    return NextResponse.json(data);
+    return secureJson(data);
   } catch (err) {
     clearTimeout(timer);
     const isTimeout =
@@ -132,19 +169,24 @@ export async function POST(request: NextRequest) {
       // Log non-timeout errors without exposing details
       console.error("[demo-proxy] upstream fetch failed:", err instanceof Error ? err.message : "unknown");
     }
-    return NextResponse.json(SANITIZED_ERROR, { status: 503 });
+    return secureJson(SANITIZED_ERROR, { status: 503 });
   }
+}
+
+// OPTIONS preflight handler
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }
 
 // Reject all other methods
 export async function GET() {
-  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
+  return secureJson({ error: "method_not_allowed" }, { status: 405 });
 }
 
 export async function PUT() {
-  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
+  return secureJson({ error: "method_not_allowed" }, { status: 405 });
 }
 
 export async function DELETE() {
-  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
+  return secureJson({ error: "method_not_allowed" }, { status: 405 });
 }

@@ -1,4 +1,6 @@
 import argparse
+import os
+import sys
 
 from agents.judge_v1 import AletheiaJudge
 from agents.nitpicker_v2 import AletheiaNitpickerV2
@@ -6,9 +8,24 @@ from agents.scout_v2 import AletheiaScoutV2
 from bridge.utils import normalize_shadow_text
 from manifest.signing import ManifestTamperedError, sign_manifest
 
+
+def _validate_production_env() -> None:
+    """Validate critical environment variables when running in production."""
+    if os.getenv("ENVIRONMENT") == "production":
+        if os.getenv("ACTIVE_MODE") != "true":
+            print("FATAL: Production running without ACTIVE_MODE=true", file=sys.stderr)
+            sys.exit(1)
+        signing_secret = os.getenv("SIGNING_SECRET") or ""
+        if len(signing_secret) < 32:
+            print("FATAL: Production missing SIGNING_SECRET (min 32 chars)", file=sys.stderr)
+            sys.exit(1)
+
+
+_validate_production_env()
+
 def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file_sig=None):
     print("\n" + "="*40)
-    print("ALETHEIA CORE v1.6.0")
+    print("ALETHEIA CORE v1.5.2")
     print("="*40)
     
     scout = AletheiaScoutV2()

@@ -280,5 +280,40 @@ class TestAuditEndpointGlobalExceptionHandler(unittest.TestCase):
         self.assertNotIn("Traceback", json.dumps(resp))
 
 
+class TestHealthReadinessEndpoints(unittest.TestCase):
+    """Health, readiness, and response hardening tests."""
+
+    def setUp(self) -> None:
+        self.client = TestClient(app, raise_server_exceptions=False)
+
+    def test_health_returns_200_with_required_fields(self) -> None:
+        r = self.client.get("/health")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn(body["status"], ("ok", "degraded"))
+        self.assertEqual(body["service"], "aletheia-core")
+        self.assertIn("version", body)
+        self.assertIn("uptime_seconds", body)
+        self.assertIn("timestamp", body)
+        # Security headers
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
+        self.assertEqual(r.headers.get("x-frame-options"), "DENY")
+        self.assertIn("no-store", r.headers.get("cache-control", ""))
+
+    def test_ready_returns_readiness_status(self) -> None:
+        r = self.client.get("/ready")
+        self.assertIn(r.status_code, (200, 503))
+        body = r.json()
+        self.assertIn("ready", body)
+        self.assertIn("manifest_signature", body)
+        self.assertIn("policy_version", body)
+        self.assertIn("receipt_signing_configured", body)
+
+    def test_unsupported_methods_return_405(self) -> None:
+        self.assertEqual(self.client.get("/v1/audit").status_code, 405)
+        self.assertEqual(self.client.post("/health").status_code, 405)
+        self.assertEqual(self.client.post("/ready").status_code, 405)
+
+
 if __name__ == "__main__":
     unittest.main()
