@@ -11,7 +11,7 @@ import os
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from agents.judge_v1 import AletheiaJudge
 from agents.nitpicker_v2 import AletheiaNitpickerV2
@@ -142,6 +142,8 @@ async def _on_startup() -> None:
 
 
 class AuditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     payload: str = Field(..., max_length=10_000)
     origin: str = Field(..., max_length=128)
     action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")

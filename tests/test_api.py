@@ -36,16 +36,17 @@ _IP_ERROR = "192.0.8."      # error-handler tests
 
 def _safe_body(ip: str) -> dict:
     return {"payload": _SAFE_PAYLOAD, "origin": _SAFE_ORIGIN,
-            "action": _SAFE_ACTION, "ip": ip}
+            "action": _SAFE_ACTION, "_ip": ip}
 
 
 def _blocked_body(ip: str) -> dict:
     return {"payload": _BLOCKED_PAYLOAD, "origin": _BLOCKED_ORIGIN,
-            "action": _BLOCKED_ACTION, "ip": ip}
+            "action": _BLOCKED_ACTION, "_ip": ip}
 
 
 def _post(client: TestClient, body: dict) -> tuple[int, dict]:
-    r = client.post("/v1/audit", json=body)
+    ip = body.pop("_ip", body.pop("ip", "127.0.0.1"))
+    r = client.post("/v1/audit", json=body, headers={"X-Forwarded-For": f"{ip}, 10.0.0.1"})
     return r.status_code, r.json()
 
 
@@ -252,7 +253,6 @@ class TestAuditEndpointValidation(unittest.TestCase):
             "payload": "A" * 10_001,
             "origin": "trusted_admin",
             "action": "Read_Report",
-            "ip": "10.0.0.1",
         }
         r = self.client.post("/v1/audit", json=body)
         self.assertEqual(r.status_code, 422)

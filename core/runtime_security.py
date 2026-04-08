@@ -183,6 +183,17 @@ def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = Non
     policy = policy or NormalizationPolicy()
     raw = text if isinstance(text, str) else str(text)
 
+    if len(raw) > policy.max_text_size:
+        return NormalizationResult(
+            text=raw,
+            normalized_form=raw[:policy.max_text_size],
+            recursion_depth=0,
+            decode_steps=0,
+            quarantined=True,
+            quarantine_reason="text_size_exceeded",
+            flags=["quarantined"],
+        )
+
     normalized = unicodedata.normalize("NFKC", raw)
     stripped = _strip_controls(normalized)
 
