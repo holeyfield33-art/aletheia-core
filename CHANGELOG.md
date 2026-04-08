@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.5.3] — 2026-04-08
+
+### Fixed
+- CI: `InMemoryRateLimiter` and `DecisionStore` no longer mark themselves
+  degraded when Upstash Redis is unavailable — local fallbacks are functional
+- Three `test_redteam_adversarial` tests now pass without Upstash env vars
+
+### Changed
+- Site/dashboard/docs: pricing restructured to 4 tiers (Community, Hosted
+  Trial, Hosted Pro, Services) with explicit prices
+- Nav simplified to Demo, Docs, GitHub, Pricing, Services
+- Dashboard keys pages updated to trial-key messaging with upgrade path
+- Docs: added "Choosing a Path" decision table
+- README: rewrote hero, moved Quick Start above Security Controls, added
+  Hosted vs Self-Hosted comparison table
+- Version bumped to 1.5.3
+
+---
+
 ## [1.5.2] — 2026-04-07
 
 ### Security
