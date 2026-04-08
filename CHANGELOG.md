@@ -5,6 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.0] — 2026-04-08
+
+### Added
+- **Trial API Key system**: SQLite-backed key store with SHA-256 hashing,
+  monthly quota enforcement, and billing period auto-reset (`core/key_store.py`)
+- Key management endpoints: `POST /v1/keys`, `GET /v1/keys`,
+  `DELETE /v1/keys/{id}`, `GET /v1/keys/{id}/usage` — all admin-key protected
+- Dashboard: Trial Keys page with backend integration, quickstart curl example
+- Dashboard: Usage visibility page with progress bars and plan metadata
+- Next.js API proxy routes (`/api/keys`) to keep admin key server-side
+- 40 new tests: 26 key store unit tests + 14 quota enforcement integration tests
+
+### Changed
+- `_check_api_key` now supports two-tier auth: env keys (no quota) + key store
+  keys (trial/pro with monthly quota)
+- CORS updated to allow DELETE method and X-Admin-Key header
+- Middleware updated with method allowlists for `/v1/keys` paths
+- Dashboard nav reordered; overview cards updated with trial language
+- Logs page replaced with honest placeholder (removed fake mock data)
+- Version bumped to 1.6.0
+
+### Security
+- Trial keys are SHA-256 hashed at rest; raw key returned only once at creation
+- Admin endpoints require dedicated `ALETHEIA_ADMIN_KEY` (constant-time compare)
+- Quota exceeded returns 429 with Retry-After header
+
+---
+
 ## [1.5.3] — 2026-04-08
 
 ### Fixed

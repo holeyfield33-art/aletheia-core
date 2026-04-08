@@ -40,10 +40,11 @@ export default function DashboardIndex() {
         }}
       >
         {[
-          { label: "Audit Logs", href: "/dashboard/logs", desc: "View audit logs and decision receipts" },
+          { label: "Trial API Keys", href: "/dashboard/keys", desc: "Generate, view, and revoke trial API keys" },
+          { label: "Usage", href: "/dashboard/usage", desc: "View request usage and quota for your trial keys" },
+          { label: "Audit Logs", href: "/dashboard/logs", desc: "Audit log viewer — coming with Hosted Pro" },
           { label: "Policy", href: "/dashboard/policy", desc: "View and manage security_policy.json" },
           { label: "Evidence", href: "/dashboard/evidence", desc: "Export signed audit evidence (JSONL)" },
-          { label: "Trial API Keys", href: "/dashboard/keys", desc: "Generate, view, and revoke trial API keys" },
         ].map(({ label, href, desc }) => (
           <a
             key={href}

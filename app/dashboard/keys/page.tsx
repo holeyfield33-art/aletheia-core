@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { CTAS, URLS } from "@/lib/site-config";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -9,48 +10,15 @@ import { useState, useCallback } from "react";
 interface ApiKey {
   id: string;
   name: string;
-  prefix: string;
-  mode: "live" | "test";
-  created: string;
-  lastUsed: string | null;
-}
-
-/* ------------------------------------------------------------------ */
-/* Mock data                                                          */
-/* ------------------------------------------------------------------ */
-
-const INITIAL_KEYS: ApiKey[] = [
-  {
-    id: "k1",
-    name: "Production Agent",
-    prefix: "aleth_live_...a3f8",
-    mode: "live",
-    created: "2026-03-15",
-    lastUsed: "2026-04-08",
-  },
-  {
-    id: "k2",
-    name: "Staging CI",
-    prefix: "aleth_test_...9c1d",
-    mode: "test",
-    created: "2026-03-22",
-    lastUsed: "2026-04-07",
-  },
-  {
-    id: "k3",
-    name: "Local Dev",
-    prefix: "aleth_test_...e4b2",
-    mode: "test",
-    created: "2026-04-01",
-    lastUsed: null,
-  },
-];
-
-function generateKeyId(): string {
-  const hex = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return hex;
+  key_prefix: string;
+  plan: string;
+  status: string;
+  monthly_quota: number;
+  requests_used: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
+  last_used_at: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -58,45 +26,79 @@ function generateKeyId(): string {
 /* ------------------------------------------------------------------ */
 
 export default function KeysPage() {
-  const [keys, setKeys] = useState<ApiKey[]>(INITIAL_KEYS);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* Modal state */
   const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyMode, setNewKeyMode] = useState<"live" | "test">("test");
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
   const [secretCopied, setSecretCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  const handleGenerate = useCallback(() => {
-    const raw = generateKeyId();
-    const prefix = newKeyMode === "live" ? "aleth_live_" : "aleth_test_";
-    const secret = prefix + raw;
-    const display = prefix + "..." + raw.slice(-4);
+  /* Fetch keys on mount */
+  useEffect(() => {
+    fetchKeys();
+  }, []);
 
-    setGeneratedSecret(secret);
-    setKeys((prev) => [
-      {
-        id: raw.slice(0, 8),
-        name: newKeyName || "Unnamed Key",
-        prefix: display,
-        mode: newKeyMode,
-        created: new Date().toISOString().slice(0, 10),
-        lastUsed: null,
-      },
-      ...prev,
-    ]);
-  }, [newKeyName, newKeyMode]);
+  const fetchKeys = async () => {
+    try {
+      const res = await fetch("/api/keys");
+      if (res.ok) {
+        const data = await res.json();
+        setKeys(data.keys || []);
+      }
+    } catch {
+      /* non-critical — keys will show empty */
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleRevoke = useCallback((id: string) => {
-    setKeys((prev) => prev.filter((k) => k.id !== id));
+  const handleGenerate = useCallback(async () => {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName || "Unnamed Key" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || data.error || "Failed to generate key");
+        setGenerating(false);
+        return;
+      }
+      const data = await res.json();
+      setGeneratedSecret(data.key);
+      /* Refresh key list */
+      fetchKeys();
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setGenerating(false);
+    }
+  }, [newKeyName]);
+
+  const handleRevoke = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/keys/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
+      }
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setNewKeyName("");
-    setNewKeyMode("test");
     setGeneratedSecret(null);
     setSecretCopied(false);
+    setError(null);
   }, []);
 
   const handleCopy = useCallback(() => {
@@ -123,6 +125,8 @@ export default function KeysPage() {
     width: "100%",
     maxWidth: "440px",
   };
+
+  const activeKeys = keys.filter((k) => k.status === "active");
 
   return (
     <div>
@@ -155,32 +159,165 @@ export default function KeysPage() {
           fontSize: "0.78rem",
           color: "var(--muted)",
           marginBottom: "1.5rem",
-          maxWidth: "600px",
+          maxWidth: "640px",
           lineHeight: 1.6,
         }}
       >
-        Trial keys are for evaluation use with limited monthly requests.
-        For production API access with retained audit logs, upgrade to{" "}
-        <a href="mailto:info@aletheia-core.com?subject=Hosted Pro" style={{ color: "var(--crimson-hi)" }}>Hosted Pro</a>.
+        Trial keys are for evaluation only with limited monthly requests (1,000/month).
+        They are not for production workloads. For production API access with
+        retained audit logs, higher quotas, and managed infrastructure, upgrade to{" "}
+        <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
+          Hosted Pro
+        </a>.
       </p>
 
-      {/* Generate button */}
-      <button
-        onClick={() => setShowModal(true)}
+      {/* Usage instructions */}
+      <div
         style={{
-          background: "var(--crimson)",
-          color: "var(--white)",
-          border: "none",
-          padding: "0.6rem 1.5rem",
-          fontFamily: "var(--font-mono)",
-          fontSize: "0.82rem",
-          fontWeight: 600,
-          cursor: "pointer",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          padding: "1.25rem",
           marginBottom: "1.5rem",
+          maxWidth: "640px",
         }}
       >
-        + Get Trial API Key
-      </button>
+        <div
+          style={{
+            fontFamily: "var(--font-head)",
+            fontSize: "0.95rem",
+            fontWeight: 700,
+            color: "var(--white)",
+            marginBottom: "0.5rem",
+          }}
+        >
+          How to use your trial key
+        </div>
+        <p
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.78rem",
+            color: "var(--silver)",
+            lineHeight: 1.7,
+            marginBottom: "0.75rem",
+          }}
+        >
+          Use this trial key in the <code style={{ color: "var(--white)" }}>X-API-Key</code>{" "}
+          header when calling the hosted API. Trial keys are limited to evaluation
+          usage and are not for production workloads.
+        </p>
+
+        {/* Quickstart curl example */}
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.72rem",
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "0.35rem",
+          }}
+        >
+          Quickstart
+        </div>
+        <pre
+          style={{
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            padding: "0.75rem 1rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.75rem",
+            color: "var(--silver)",
+            lineHeight: 1.7,
+            overflowX: "auto",
+            whiteSpace: "pre",
+            marginBottom: "0.75rem",
+          }}
+        >{`curl -X POST ${URLS.appBase}/v1/audit \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: sk_trial_xxxxx" \\
+  -d '{
+    "payload": "Generate the Q1 revenue report",
+    "origin": "monitoring-agent",
+    "action": "Read_Report"
+  }'`}</pre>
+
+        {/* Common errors */}
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.72rem",
+            color: "var(--muted)",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: "0.35rem",
+          }}
+        >
+          Common errors
+        </div>
+        <ul
+          style={{
+            listStyle: "none",
+            padding: 0,
+            margin: 0,
+          }}
+        >
+          {[
+            { code: "401", desc: "Missing or invalid X-API-Key header" },
+            { code: "403", desc: "Key revoked or action denied by policy" },
+            { code: "429", desc: "Rate limit or monthly quota exceeded" },
+          ].map((e) => (
+            <li
+              key={e.code}
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                padding: "0.25rem 0",
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.75rem",
+                color: "var(--silver)",
+              }}
+            >
+              <span style={{ color: "var(--crimson-hi)", fontWeight: 600, minWidth: "28px" }}>
+                {e.code}
+              </span>
+              {e.desc}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Actions bar */}
+      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            background: "var(--crimson)",
+            color: "var(--white)",
+            border: "none",
+            padding: "0.6rem 1.5rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.82rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          + Generate Trial Key
+        </button>
+        <a
+          href="/dashboard/usage"
+          className="btn-secondary"
+          style={{ fontSize: "0.82rem", padding: "0.6rem 1.25rem" }}
+        >
+          View Usage
+        </a>
+        <a
+          href={CTAS.upgrade.href}
+          className="btn-ghost"
+          style={{ fontSize: "0.82rem", padding: "0.6rem 1.25rem", color: "var(--silver)" }}
+        >
+          Upgrade to Hosted Pro
+        </a>
+      </div>
 
       {/* Key table */}
       <div
@@ -199,7 +336,7 @@ export default function KeysPage() {
         >
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Name", "Prefix", "Mode", "Created", "Last Used", ""].map((h) => (
+              {["Name", "Prefix", "Plan", "Status", "Created", "Last Used", ""].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -219,54 +356,10 @@ export default function KeysPage() {
             </tr>
           </thead>
           <tbody>
-            {keys.map((k) => (
-              <tr
-                key={k.id}
-                style={{ borderBottom: "1px solid var(--border)" }}
-              >
-                <td style={{ padding: "0.55rem 0.75rem", color: "var(--white)" }}>{k.name}</td>
-                <td style={{ padding: "0.55rem 0.75rem", color: "var(--silver)" }}>{k.prefix}</td>
-                <td style={{ padding: "0.55rem 0.75rem" }}>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "0.15rem 0.5rem",
-                      fontSize: "0.68rem",
-                      fontWeight: 600,
-                      letterSpacing: "0.05em",
-                      background: k.mode === "live" ? "rgba(139,26,42,0.25)" : "rgba(255,255,255,0.06)",
-                      color: k.mode === "live" ? "var(--crimson-hi)" : "var(--muted)",
-                    }}
-                  >
-                    {k.mode.toUpperCase()}
-                  </span>
-                </td>
-                <td style={{ padding: "0.55rem 0.75rem", color: "var(--muted)" }}>{k.created}</td>
-                <td style={{ padding: "0.55rem 0.75rem", color: "var(--muted)" }}>
-                  {k.lastUsed || "—"}
-                </td>
-                <td style={{ padding: "0.55rem 0.75rem", textAlign: "right" }}>
-                  <button
-                    onClick={() => handleRevoke(k.id)}
-                    style={{
-                      background: "none",
-                      border: "1px solid rgba(139,26,42,0.5)",
-                      color: "var(--crimson-hi)",
-                      padding: "0.25rem 0.75rem",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.72rem",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Revoke
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {keys.length === 0 && (
+            {loading ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   style={{
                     padding: "2rem",
                     textAlign: "center",
@@ -274,9 +367,97 @@ export default function KeysPage() {
                     fontSize: "0.78rem",
                   }}
                 >
-                  No active keys. Generate a new key to get started.
+                  Loading keys…
                 </td>
               </tr>
+            ) : keys.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={7}
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "var(--muted)",
+                    fontSize: "0.78rem",
+                  }}
+                >
+                  No keys yet. Generate a trial key to get started.
+                </td>
+              </tr>
+            ) : (
+              keys.map((k) => (
+                <tr
+                  key={k.id}
+                  style={{
+                    borderBottom: "1px solid var(--border)",
+                    opacity: k.status === "revoked" ? 0.5 : 1,
+                  }}
+                >
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--white)" }}>{k.name}</td>
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--silver)" }}>
+                    {k.key_prefix}
+                  </td>
+                  <td style={{ padding: "0.55rem 0.75rem" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "0.15rem 0.5rem",
+                        fontSize: "0.68rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.05em",
+                        background: "rgba(255,255,255,0.06)",
+                        color: "var(--muted)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {k.plan}
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.55rem 0.75rem" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "0.15rem 0.5rem",
+                        fontSize: "0.68rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.05em",
+                        background:
+                          k.status === "active"
+                            ? "rgba(46,184,122,0.12)"
+                            : "rgba(176,34,54,0.15)",
+                        color: k.status === "active" ? "var(--green)" : "var(--crimson-hi)",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {k.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--muted)" }}>
+                    {k.created_at?.slice(0, 10) || "—"}
+                  </td>
+                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--muted)" }}>
+                    {k.last_used_at?.slice(0, 10) || "—"}
+                  </td>
+                  <td style={{ padding: "0.55rem 0.75rem", textAlign: "right" }}>
+                    {k.status === "active" && (
+                      <button
+                        onClick={() => handleRevoke(k.id)}
+                        style={{
+                          background: "none",
+                          border: "1px solid rgba(139,26,42,0.5)",
+                          color: "var(--crimson-hi)",
+                          padding: "0.25rem 0.75rem",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.72rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
@@ -293,10 +474,15 @@ export default function KeysPage() {
           fontSize: "0.72rem",
           color: "var(--muted)",
           lineHeight: 1.6,
+          maxWidth: "640px",
         }}
       >
         Keys are hashed at rest using SHA-256. Only the prefix is stored for identification.
-        Live keys grant access to enforcement endpoints. Use test keys for staging and development.
+        Trial keys are limited to 1,000 requests per month for evaluation use.
+        For production access, managed infrastructure, and higher quotas,{" "}
+        <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
+          upgrade to Hosted Pro
+        </a>.
       </div>
 
       {/* Modal */}
@@ -317,6 +503,22 @@ export default function KeysPage() {
                   Generate Trial API Key
                 </h2>
 
+                {error && (
+                  <div
+                    style={{
+                      background: "rgba(176,34,54,0.15)",
+                      border: "1px solid var(--crimson-hi)",
+                      padding: "0.5rem 0.75rem",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.75rem",
+                      color: "var(--crimson-hi)",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
                 <label
                   style={{
                     display: "block",
@@ -334,7 +536,7 @@ export default function KeysPage() {
                   type="text"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  placeholder="e.g. Production Agent"
+                  placeholder="e.g. My Evaluation Key"
                   maxLength={64}
                   style={{
                     width: "100%",
@@ -344,54 +546,15 @@ export default function KeysPage() {
                     color: "var(--white)",
                     fontFamily: "var(--font-mono)",
                     fontSize: "0.82rem",
-                    marginBottom: "1rem",
+                    marginBottom: "1.5rem",
                     outline: "none",
                   }}
                 />
 
-                <label
-                  style={{
-                    display: "block",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.72rem",
-                    color: "var(--muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    marginBottom: "0.35rem",
-                  }}
-                >
-                  Mode
-                </label>
-                <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
-                  {(["test", "live"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => setNewKeyMode(m)}
-                      style={{
-                        flex: 1,
-                        padding: "0.5rem",
-                        background:
-                          newKeyMode === m ? "rgba(139,26,42,0.25)" : "var(--surface)",
-                        border:
-                          newKeyMode === m
-                            ? "1px solid var(--crimson)"
-                            : "1px solid var(--border)",
-                        color: newKeyMode === m ? "var(--crimson-hi)" : "var(--muted)",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {m}
-                    </button>
-                  ))}
-                </div>
-
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <button
                     onClick={handleGenerate}
+                    disabled={generating}
                     style={{
                       flex: 1,
                       background: "var(--crimson)",
@@ -401,10 +564,11 @@ export default function KeysPage() {
                       fontFamily: "var(--font-mono)",
                       fontSize: "0.82rem",
                       fontWeight: 600,
-                      cursor: "pointer",
+                      cursor: generating ? "wait" : "pointer",
+                      opacity: generating ? 0.7 : 1,
                     }}
                   >
-                    Generate
+                    {generating ? "Generating…" : "Generate Trial Key"}
                   </button>
                   <button
                     onClick={handleCloseModal}
@@ -433,7 +597,7 @@ export default function KeysPage() {
                     marginBottom: "0.75rem",
                   }}
                 >
-                  Key Generated
+                  Trial Key Generated
                 </h2>
 
                 <div
@@ -448,8 +612,8 @@ export default function KeysPage() {
                     marginBottom: "1rem",
                   }}
                 >
-                  We do not store this key in plain text. If lost, it must be rotated.
-                  Copy it now — you will not see it again.
+                  This key is shown once only. We store only a SHA-256 hash — if
+                  lost, generate a new key. Copy it now.
                 </div>
 
                 <div
@@ -461,14 +625,27 @@ export default function KeysPage() {
                     fontSize: "0.82rem",
                     color: "var(--white)",
                     wordBreak: "break-all",
-                    marginBottom: "1rem",
+                    marginBottom: "0.5rem",
                     userSelect: "all",
                   }}
                 >
                   {generatedSecret}
                 </div>
 
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.72rem",
+                    color: "var(--muted)",
+                    marginBottom: "1rem",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Use this key in the <code style={{ color: "var(--white)" }}>X-API-Key</code>{" "}
+                  header to call the hosted API. Trial: 1,000 requests/month.
+                </div>
+
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                   <button
                     onClick={handleCopy}
                     style={{
@@ -483,8 +660,23 @@ export default function KeysPage() {
                       cursor: "pointer",
                     }}
                   >
-                    {secretCopied ? "✓ Copied" : "Copy to Clipboard"}
+                    {secretCopied ? "✓ Copied" : "Copy Key"}
                   </button>
+                  <a
+                    href="/dashboard/usage"
+                    style={{
+                      padding: "0.6rem 1rem",
+                      background: "none",
+                      border: "1px solid var(--border)",
+                      color: "var(--silver)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.82rem",
+                      textDecoration: "none",
+                      textAlign: "center",
+                    }}
+                  >
+                    View Usage
+                  </a>
                   <button
                     onClick={handleCloseModal}
                     style={{

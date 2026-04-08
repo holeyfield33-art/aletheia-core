@@ -6,7 +6,12 @@ import secrets
 import time as _time
 import traceback
 
+import hashlib
+import json
 import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -23,6 +28,7 @@ from core.rate_limit import rate_limiter
 from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
 from core.runtime_security import classify_blocked_intent
+from core.key_store import key_store, DEFAULT_QUOTAS
 
 _logger = logging.getLogger("aletheia.api")
 
@@ -49,8 +55,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
     allow_credentials=False,
-    allow_methods=["POST", "GET"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_methods=["POST", "GET", "DELETE"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Admin-Key"],
     max_age=600,
 )
 
@@ -71,6 +77,36 @@ async def add_security_and_rate_limit_headers(request: Request, call_next):
     if hasattr(request.state, "retry_after"):
         response.headers["Retry-After"] = str(request.state.retry_after)
     return response
+
+
+# ---------------------------------------------------------------------------
+# Admin-key dependency for key management endpoints
+# ---------------------------------------------------------------------------
+
+def _check_admin_key(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> None:
+    """Require X-Admin-Key header for key management operations."""
+    admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
+    if not admin_key:
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "key_management_unavailable",
+                     "message": "Key management is not configured. Set ALETHEIA_ADMIN_KEY."},
+        )
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, admin_key):
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "message": "Valid X-Admin-Key required."},
+        )
+
+
+# ---------------------------------------------------------------------------
+# Key management request models
+# ---------------------------------------------------------------------------
+
+class CreateKeyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., min_length=1, max_length=64)
+    plan: str = Field(default="trial", pattern=r"^(trial|pro)$")
 
 
 # Singleton agent instances
@@ -192,22 +228,59 @@ _API_KEYS: set[str] = _load_api_keys()
 
 
 def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    """Dependency: validate X-API-Key header if auth is enabled.
+    """Dependency: validate X-API-Key header and enforce quota.
 
     Auth is disabled when ALETHEIA_API_KEYS is not set (dev/open mode).
     Auth is enabled when ALETHEIA_API_KEYS contains one or more keys.
+
+    Two key sources are checked in order:
+    1. Environment keys (``ALETHEIA_API_KEYS``) — admin / demo keys, no quota.
+    2. Key store (SQLite) — trial / pro keys with monthly quota enforcement.
     """
     if not _API_KEYS:
         return  # auth disabled — open mode
-    # Timing-safe comparison: iterate all keys to prevent timing oracle attacks.
-    # secrets.compare_digest is constant-time; we check against each allowed key.
-    if not x_api_key or not any(
-        secrets.compare_digest(x_api_key, allowed) for allowed in _API_KEYS
-    ):
+
+    if not x_api_key:
         raise HTTPException(
             status_code=401,
-            detail={"error": "UNAUTHORIZED", "reason": "Valid X-API-Key required."},
+            detail={"error": "unauthorized", "message": "Valid X-API-Key required."},
         )
+
+    # 1. Check env-based keys (admin / demo — no quota)
+    if any(secrets.compare_digest(x_api_key, allowed) for allowed in _API_KEYS):
+        return
+
+    # 2. Check key store (trial / pro — quota enforced)
+    quota = key_store.check_and_increment(x_api_key)
+    if quota.allowed:
+        return
+
+    # Determine appropriate error
+    if "Invalid" in quota.reason:
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "unauthorized", "message": "Invalid API key."},
+        )
+    if "revoked" in quota.reason.lower():
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "key_revoked", "message": quota.reason},
+        )
+    if "monthly request limit" in quota.reason.lower():
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "quota_exceeded",
+                "message": quota.reason,
+                "requests_used": quota.requests_used,
+                "monthly_quota": quota.monthly_quota,
+            },
+            headers={"Retry-After": "86400"},
+        )
+    raise HTTPException(
+        status_code=403,
+        detail={"error": "forbidden", "message": quota.reason},
+    )
 
 
 def _discretise_threat(score: float) -> str:
@@ -480,3 +553,56 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         response["reasoning"] = veto_msg
 
     return response
+
+# ---------------------------------------------------------------------------
+# Key management endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/v1/keys", dependencies=[Depends(_check_admin_key)])
+async def create_key(req: CreateKeyRequest) -> JSONResponse:
+    """Create a new API key.  Returns the raw key exactly once."""
+    raw_key, record = key_store.create_key(name=req.name, plan=req.plan)
+    return JSONResponse(
+        content={
+            "key": raw_key,
+            **record.to_public_dict(),
+        },
+        status_code=201,
+    )
+
+
+@app.get("/v1/keys", dependencies=[Depends(_check_admin_key)])
+async def list_keys() -> JSONResponse:
+    """List all API keys (metadata only — no raw keys or hashes)."""
+    records = key_store.list_keys()
+    return JSONResponse(
+        content={"keys": [r.to_public_dict() for r in records]},
+    )
+
+
+@app.delete("/v1/keys/{key_id}", dependencies=[Depends(_check_admin_key)])
+async def revoke_key(key_id: str) -> JSONResponse:
+    """Revoke an API key by ID."""
+    if not key_id or len(key_id) > 64:
+        raise HTTPException(status_code=400, detail={"error": "invalid_key_id"})
+    success = key_store.revoke_key(key_id)
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "key_not_found", "message": "Key not found or already revoked."},
+        )
+    return JSONResponse(content={"status": "revoked", "id": key_id})
+
+
+@app.get("/v1/keys/{key_id}/usage", dependencies=[Depends(_check_admin_key)])
+async def get_key_usage(key_id: str) -> JSONResponse:
+    """Get usage statistics for a specific key."""
+    if not key_id or len(key_id) > 64:
+        raise HTTPException(status_code=400, detail={"error": "invalid_key_id"})
+    record = key_store.get_by_id(key_id)
+    if not record:
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "key_not_found", "message": "Key not found."},
+        )
+    return JSONResponse(content=record.to_public_dict())

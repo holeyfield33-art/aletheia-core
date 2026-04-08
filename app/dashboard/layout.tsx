@@ -6,10 +6,11 @@ export const metadata: Metadata = {
 };
 
 const NAV_ITEMS = [
-  { label: "Logs", href: "/dashboard/logs" },
+  { label: "Trial Keys", href: "/dashboard/keys" },
+  { label: "Usage", href: "/dashboard/usage" },
+  { label: "Audit Logs", href: "/dashboard/logs" },
   { label: "Policy", href: "/dashboard/policy" },
   { label: "Evidence", href: "/dashboard/evidence" },
-  { label: "Trial Keys", href: "/dashboard/keys" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

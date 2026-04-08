@@ -24,3 +24,4 @@ audit.log
 *.audit.log
 logs/
 .hypothesis/
+data/*.db
