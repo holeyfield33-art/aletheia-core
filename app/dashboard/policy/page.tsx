@@ -7,7 +7,7 @@ import { useState } from "react";
 /* ------------------------------------------------------------------ */
 
 const DEFAULT_POLICY = `{
-  "policy_version": "1.5.3",
+  "policy_version": "1.6.1",
   "restricted_actions": [
     "Transfer_Funds",
     "Approve_Loan_Disbursement",

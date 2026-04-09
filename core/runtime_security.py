@@ -357,8 +357,11 @@ class IntentClassifier:
         )
 
 
+_intent_classifier = IntentClassifier()
+
+
 def classify_blocked_intent(normalized_text: str) -> IntentDecision:
-    return IntentClassifier().classify(normalized_text)
+    return _intent_classifier.classify(normalized_text)
 
 
 def log_intent_decision(

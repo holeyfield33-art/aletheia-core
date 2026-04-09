@@ -36,8 +36,8 @@ _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.6.0",
-    description="Enterprise-grade System 2 security layer for autonomous AI agents.",
+    version="1.6.1",
+    description="Runtime audit and pre-execution block layer for autonomous AI agents.",
 )
 
 _BOOT_TIME = _time.time()
@@ -493,7 +493,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         )
         return JSONResponse(
             status_code=403,
-            content={"decision": "SANDBOX_BLOCKED", "reason": sandbox_hit},
+            content={"decision": "SANDBOX_BLOCKED", "reason": _sanitise_reason(sandbox_hit)},
         )
 
     # 1. SCOUT PHASE
@@ -512,11 +512,22 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
 
     decision = "DENIED" if is_blocked else "PROCEED"
 
-    # Shadow mode override: log the block but let the request through
+    # Shadow mode override: log the block but let the request through.
+    # Safety: shadow mode is NEVER allowed when ENVIRONMENT=production,
+    # even if settings.shadow_mode was toggled at runtime.
     shadow_verdict = None
+    _env_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
     if is_blocked and settings.shadow_mode:
-        decision = "PROCEED"
-        shadow_verdict = "DENIED"
+        if _env_is_production:
+            _logger.error(
+                "SHADOW_MODE_BLOCKED: shadow_mode=true but ENVIRONMENT=production. "
+                "Refusing to override DENIED decision for action=%s origin=%s. "
+                "Fix configuration: set ALETHEIA_MODE=active for production.",
+                req.action, req.origin,
+            )
+        else:
+            decision = "PROCEED"
+            shadow_verdict = "DENIED"
 
     # --- Structured audit log + TMR receipt ---
     audit_record = log_audit_event(

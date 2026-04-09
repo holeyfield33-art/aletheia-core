@@ -25,3 +25,4 @@ audit.log
 /logs/
 .hypothesis/
 data/*.db
+data/*.sqlite3

@@ -17,10 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.0-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.6.1-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-527%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-631%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -351,7 +351,7 @@ echo "ALETHEIA_API_KEYS length: ${#ALETHEIA_API_KEYS}"
 
 ```bash
 curl http://localhost:8000/health
-# Expected response (v1.5.0+):
+# Expected response:
 # {
 #   "status": "ok",
 #   "manifest_signature": "VALID"

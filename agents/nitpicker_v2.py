@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from typing import Optional
 
 import numpy as np
@@ -52,6 +53,7 @@ class AletheiaNitpickerV2:
 
         # Config-driven deterministic rotation counter (not random.choice)
         self._rotation_index: int = 0
+        self._rotation_lock = threading.Lock()
 
         # Semantic similarity threshold from config
         self._similarity_threshold: float = settings.nitpicker_similarity_threshold
@@ -101,8 +103,9 @@ class AletheiaNitpickerV2:
 
     def sanitize_intent(self, text: str, source_origin: str) -> str:
         # Config-driven deterministic rotation (cycles through modes list)
-        current_mode = self.modes[self._rotation_index % len(self.modes)]
-        self._rotation_index += 1
+        with self._rotation_lock:
+            current_mode = self.modes[self._rotation_index % len(self.modes)]
+            self._rotation_index += 1
         _nitpicker_logger.debug("Rotating Logic... Current Mode: %s", current_mode)
 
         # Always run imperative-alias strip before mode logic

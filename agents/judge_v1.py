@@ -7,6 +7,7 @@ import logging
 import os
 import re
 from datetime import date, timezone
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -148,7 +149,7 @@ class AletheiaJudge:
         day_str = date.today().isoformat()
         # Include manifest hash so rotation changes when policy is re-signed
         try:
-            manifest_bytes = open(self.policy_path, "rb").read()
+            manifest_bytes = Path(self.policy_path).read_bytes()
             manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()[:16]
         except FileNotFoundError:
             manifest_hash = "no_manifest"
