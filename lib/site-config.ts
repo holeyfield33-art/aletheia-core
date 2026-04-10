@@ -14,7 +14,7 @@ export const PRODUCT = {
   description:
     "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   version: "1.6.2",
-  testCount: 527,
+  testCount: 689,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",
   copyrightYear: "2026",

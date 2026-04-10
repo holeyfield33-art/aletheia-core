@@ -2,9 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies (layer cache)
+# Install system dependencies for log rotation and backups
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    logrotate sqlite3 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install dependencies (layer cache) — hash-pinned for supply-chain verification
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 
 # Copy application
 COPY . .
@@ -17,6 +22,11 @@ RUN addgroup --system appgroup && adduser --system --no-create-home --ingroup ap
 RUN chown -R appuser:appgroup /app
 # Restrict data directory permissions
 RUN mkdir -p /app/data && chmod 700 /app/data
+# Log rotation config
+COPY deploy/logrotate.conf /etc/logrotate.d/aletheia
+RUN mkdir -p /var/log/aletheia && chown appuser:appgroup /var/log/aletheia
+# Backup directory
+RUN mkdir -p /backups && chown appuser:appgroup /backups
 USER appuser
 
 EXPOSE 8000

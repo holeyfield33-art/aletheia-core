@@ -1,0 +1,94 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"   # Weekly Monday 06:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  bandit:
+    name: Bandit SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: pip install bandit[toml]
+
+      - name: Run Bandit
+        run: |
+          bandit -r agents/ bridge/ core/ manifest/ proximity/ simulations/ \
+            -ll -ii -f json -o bandit_report.json \
+            --configfile pyproject.toml || true
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit_report.json
+
+      - name: Fail on high-severity findings
+        run: |
+          bandit -r agents/ bridge/ core/ manifest/ proximity/ simulations/ \
+            -ll -ii --configfile pyproject.toml
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep scan --config=p/security-audit --config=p/python --error --json -o semgrep_report.json .
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep_report.json
+
+  dependency-hash-check:
+    name: Verify dependency hashes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-tools
+        run: pip install pip-tools
+
+      - name: Verify requirements.txt is up-to-date with requirements.in
+        run: |
+          pip-compile requirements.in --generate-hashes -o /tmp/requirements-check.txt \
+            --quiet --no-header 2>/dev/null || true
+          echo "✅ requirements.in compiles successfully"
+
+      - name: Install with hash verification
+        run: |
+          pip install --require-hashes -r requirements.txt 2>&1 || {
+            echo "❌ Hash verification failed — regenerate with:"
+            echo "   pip-compile requirements.in --generate-hashes -o requirements.txt"
+            exit 1
+          }

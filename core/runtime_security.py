@@ -273,25 +273,25 @@ class IntentClassifier:
 
     _category_patterns: dict[str, list[re.Pattern[str]]] = {
         "malicious_capability": [
-            re.compile(r"\b(?:build|write|generate).*(?:malware|exploit|ransomware)\b", re.IGNORECASE),
+            re.compile(r"\b(?:build|write|generate).{0,500}(?:malware|exploit|ransomware)\b", re.IGNORECASE),
             re.compile(r"\b(?:weaponize|attack chain|zero.day)\b", re.IGNORECASE),
         ],
         "data_exfiltration": [
-            re.compile(r"\b(?:exfiltrat|export|dump|leak|copy).*(?:data|records|database|secrets)\b", re.IGNORECASE),
-            re.compile(r"\b(?:send|relay|transmit).*(?:external|outside|remote|offshore)\b", re.IGNORECASE),
+            re.compile(r"\b(?:exfiltrat|export|dump|leak|copy).{0,500}(?:data|records|database|secrets)\b", re.IGNORECASE),
+            re.compile(r"\b(?:send|relay|transmit).{0,500}(?:external|outside|remote|offshore)\b", re.IGNORECASE),
         ],
         "privilege_escalation": [
-            re.compile(r"\b(?:grant|elevate|escalat|promote).*(?:admin|root|privilege|role)\b", re.IGNORECASE),
-            re.compile(r"\b(?:bypass|disable|override).*(?:auth|access control|policy)\b", re.IGNORECASE),
+            re.compile(r"\b(?:grant|elevate|escalat|promote).{0,500}(?:admin|root|privilege|role)\b", re.IGNORECASE),
+            re.compile(r"\b(?:bypass|disable|override).{0,500}(?:auth|access control|policy)\b", re.IGNORECASE),
         ],
         "tool_abuse": [
-            re.compile(r"\b(?:run|execute|invoke).*(?:shell|subprocess|eval|socket|script)\b", re.IGNORECASE),
-            re.compile(r"\b(?:drop|truncate|delete).*(?:database|table|production)\b", re.IGNORECASE),
+            re.compile(r"\b(?:run|execute|invoke).{0,500}(?:shell|subprocess|eval|socket|script)\b", re.IGNORECASE),
+            re.compile(r"\b(?:drop|truncate|delete).{0,500}(?:database|table|production)\b", re.IGNORECASE),
         ],
         "policy_evasion": [
-            re.compile(r"\b(?:pretend|roleplay|simulate).*(?:ignore|bypass|override).*(?:policy|rules|safety)\b", re.IGNORECASE),
-            re.compile(r"\b(?:roleplay|simulate).*(?:ignore|bypass|override).*(?:guardrails?|controls?)\b", re.IGNORECASE),
-            re.compile(r"\b(?:as a game|hypothetical|for testing only).*(?:ignore|disable).*(?:guardrails|policy)\b", re.IGNORECASE),
+            re.compile(r"\b(?:pretend|roleplay|simulate).{0,200}(?:ignore|bypass|override).{0,200}(?:policy|rules|safety)\b", re.IGNORECASE),
+            re.compile(r"\b(?:roleplay|simulate).{0,200}(?:ignore|bypass|override).{0,200}(?:guardrails?|controls?)\b", re.IGNORECASE),
+            re.compile(r"\b(?:as a game|hypothetical|for testing only).{0,200}(?:ignore|disable).{0,200}(?:guardrails|policy)\b", re.IGNORECASE),
             re.compile(r"\b(?:do this secretly|without logging|without audit|avoid detection)\b", re.IGNORECASE),
         ],
     }

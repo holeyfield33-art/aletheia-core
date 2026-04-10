@@ -1,4 +1,4 @@
-# Operations Runbook — Aletheia Core v1.6.0
+# Operations Runbook — Aletheia Core v1.6.2
 
 This document covers day-to-day operations, environment setup, and troubleshooting
 for a production Aletheia Core deployment.
@@ -10,16 +10,20 @@ for a production Aletheia Core deployment.
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `ALETHEIA_MODE` | Yes | `active` (production) / `shadow` (dev, log-only) / `monitor` |
-| `ALETHEIA_RECEIPT_SECRET` | Yes (active) | HMAC signing secret for audit receipts. Generate: `openssl rand -hex 32` |
+| `ALETHEIA_RECEIPT_SECRET` | Yes (active) | HMAC signing secret for audit receipts. Min 32 chars. Generate: `openssl rand -hex 32` |
 | `ALETHEIA_API_KEYS` | Yes (active) | Comma-separated API keys for `/v1/audit` authentication |
+| `ALETHEIA_ADMIN_KEY` | Yes (production) | Admin key for `/v1/keys` and `/v1/rotate` endpoints |
 | `ALETHEIA_ALIAS_SALT` | Recommended | Salt for daily alias rotation. Generate: `openssl rand -hex 32` |
-| `ALETHEIA_ANCHOR_STATE_PATH` | Recommended | Path for persistent replay token state (survives restarts) |
+| `ALETHEIA_KEY_SALT` | Recommended | HMAC salt for key store hashing. Falls back to plain SHA-256 if unset |
+| `ALETHEIA_ANCHOR_STATE_PATH` | Optional | Path for proximity module identity anchor state persistence (requires `CONSCIOUSNESS_PROXIMITY_ENABLED=true`) |
 | `ALETHEIA_LOG_LEVEL` | Optional | `INFO` (default), `DEBUG`, `WARNING` |
-| `UPSTASH_REDIS_REST_URL` | Optional | Upstash Redis URL for distributed replay defense |
+| `ALETHEIA_AUDIT_LOG_PATH` | Optional | Path to audit log file. Default: `audit.log` |
+| `UPSTASH_REDIS_REST_URL` | Optional | Upstash Redis URL for distributed rate limiting and replay defense |
 | `UPSTASH_REDIS_REST_TOKEN` | Optional | Upstash Redis auth token |
-| `ALETHEIA_TRUSTED_PROXY_DEPTH` | Optional | Number of trusted proxy hops (default: 1) |
+| `ALETHEIA_TRUSTED_PROXY_DEPTH` | Optional | Number of trusted proxy hops (0–5, default: 1) |
 | `ALETHEIA_CORS_ORIGINS` | Optional | Comma-separated allowed CORS origins |
 | `ALETHEIA_MANIFEST_KEY_VERSION` | Optional | Key version tag for manifest signing (default: `v1`) |
+| `ALETHEIA_LOG_PII` | Optional | Set to `true` to disable PII redaction in audit logs (default: `false`) |
 
 ### Production checklist
 - `ALETHEIA_MODE=active` — required in production, refuses shadow mode
@@ -34,13 +38,13 @@ for a production Aletheia Core deployment.
 Aletheia Core requires writable paths for:
 
 1. **Audit log** — `audit.log` (configurable via `ALETHEIA_AUDIT_LOG_PATH`)
-2. **Anchor state** — `ALETHEIA_ANCHOR_STATE_PATH` for replay token persistence
-3. **SQLite decision store** — `/tmp/aletheia_decisions.sqlite3` (fallback when Redis unavailable)
+2. **SQLite decision store** — `data/aletheia_decisions.sqlite3` (configurable via `ALETHEIA_DECISION_DB_PATH`; falls back to `$TMPDIR/aletheia/decisions.sqlite3` when not set)
+3. **Anchor state** (proximity module only) — configurable via `ALETHEIA_ANCHOR_STATE_PATH`, requires `CONSCIOUSNESS_PROXIMITY_ENABLED=true`
 
 For Render: use a persistent disk mounted at `/data` and set:
 ```
-ALETHEIA_ANCHOR_STATE_PATH=/data/anchor_state.json
 ALETHEIA_AUDIT_LOG_PATH=/data/audit.log
+ALETHEIA_DECISION_DB_PATH=/data/decisions.sqlite3
 ```
 
 ---
@@ -77,7 +81,7 @@ python main.py sign-manifest
 On boot, Aletheia logs a self-check summary:
 
 ```
-STARTUP SELF-CHECK: version=1.6.0 manifest=VALID expires_at=2027-03-07T00:00:00+00:00
+STARTUP SELF-CHECK: version=1.6.2 manifest=VALID expires_at=2027-03-07T00:00:00+00:00
   decision_store=upstash(connected) anchor_path=/data/anchor_state.json
   receipt_signing=enabled mode=active endpoints=[/health, /ready, /v1/audit]
 ```
@@ -100,7 +104,7 @@ Used by load balancers and uptime monitors.
 curl https://your-app.onrender.com/health
 ```
 
-Expected: `{"status": "ok", "service": "aletheia-core", "version": "1.6.0", ...}`
+Expected: `{"status": "ok", "service": "aletheia-core", "version": "1.6.2", ...}`
 
 ### GET /ready
 Returns subsystem readiness: manifest, Redis, anchor, receipt signing.
@@ -111,6 +115,74 @@ curl https://your-app.onrender.com/ready
 ```
 
 Expected: `{"ready": true, "manifest_signature": "VALID", ...}`
+
+---
+
+## Metrics Endpoint
+
+### GET /metrics
+Returns Prometheus/OpenMetrics-format metrics for scraping. No auth required.
+
+```bash
+curl https://your-app.onrender.com/metrics
+```
+
+Exported metrics:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `aletheia_requests_total` | Counter | Total audit requests, labeled by `agent` and `verdict` |
+| `aletheia_latency_seconds` | Histogram | Request processing latency |
+| `aletheia_embedding_model_load_seconds` | Gauge | Time to load the embedding model at startup |
+| `aletheia_keys_total` | Gauge | Number of active API keys |
+| `aletheia_audit_log_bytes` | Counter | Total bytes written to the audit log |
+
+Configure your Prometheus scrape config to target `/metrics` on your deployment host.
+
+---
+
+## Secret Rotation
+
+### Hot rotation via API
+```bash
+curl -X POST https://your-app.onrender.com/v1/rotate \
+  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY"
+```
+
+Requires `ALETHEIA_ADMIN_KEY` to be set. Returns HTTP 200 on success, HTTP 429 if called within the 10-second cooldown window.
+
+On rotation:
+- Reloads `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_API_KEYS`, `ALETHEIA_ALIAS_SALT`, `ALETHEIA_ADMIN_KEY` from environment
+- Re-verifies the manifest signature
+- Rotates the Judge alias bank
+
+### Hot rotation via signal
+```bash
+kill -SIGUSR1 $(pidof python)
+```
+
+Performs the same rotation without HTTP. The handler is installed at startup.
+
+### Log rotation
+Log rotation is configured in `deploy/logrotate.conf` for containerized deployments:
+- Daily rotation, 30 days retention, compressed
+- Max size: 100 MB per file
+- Permissions: `0600` (owner read/write only)
+- Signals uvicorn to reopen log files after rotation
+
+### SQLite backups
+`scripts/backup_sqlite.sh` provides hourly SQLite backups with integrity verification:
+```bash
+# Manual run
+./scripts/backup_sqlite.sh /backups
+
+# Cron (hourly)
+0 * * * * /app/scripts/backup_sqlite.sh /backups
+```
+- Uses SQLite online backup API (safe with concurrent writers)
+- Compresses backups with gzip
+- Prunes backups older than `ALETHEIA_BACKUP_RETENTION_DAYS` (default: 7)
+- Set `ALETHEIA_DB_PATH` to override the database path (default: `data/aletheia_decisions.sqlite3`)
 
 ---
 
@@ -144,11 +216,12 @@ When Upstash Redis is unavailable:
 
 ## Replay Defense Behavior
 
-- Each audit request generates a unique `request_id` and `decision_token`
-- Tokens are claimed via NX (set-if-not-exists) — first claim wins
-- Duplicate claims return HTTP 409 with `reason: replay_detected`
-- TTL: 1 hour (default). After expiry, the token can be reused.
-- SQLite fallback: local replay defense only (no cross-worker protection)
+- Each audit request generates a unique `request_id` (UUID) on the server.
+- The decision token is derived as `SHA-256(request_id | timestamp_iso | policy_version | manifest_hash)`. The attacker cannot pre-compute a valid token without the server-issued `request_id`.
+- Tokens are claimed via NX (set-if-not-exists) in Upstash Redis or SQLite `INSERT OR FAIL`. First claim wins.
+- TTL: 1 hour (default). Expired tokens are pruned automatically.
+- With Upstash Redis: replay defense is cross-worker. Without: local SQLite only (single-node protection).
+- Bundle drift detection: on first request, policy version and manifest hash are registered. Subsequent requests from workers with a different policy version or manifest hash are rejected with `partial_deployment_drift`.
 
 ---
 

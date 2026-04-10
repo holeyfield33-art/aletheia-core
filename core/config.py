@@ -24,6 +24,28 @@ _CONFIG_SEARCH_PATHS = [
 
 _MAX_CONFIG_SIZE = 100_000  # 100 KB — prevents YAML bomb variants
 
+
+def _validate_config_ownership(config_path: Path) -> None:
+    """Reject config files that are world/group-writable by non-owners.
+
+    Prevents privilege escalation via tampered config on shared hosts.
+    """
+    import logging as _logging
+    import stat
+    _cfg_logger = _logging.getLogger("aletheia.config")
+    try:
+        st = config_path.stat()
+        if st.st_uid != os.getuid() and (st.st_mode & 0o022):
+            raise PermissionError(
+                f"Config {config_path} is writable by others (mode={oct(st.st_mode)}). "
+                f"Fix with: chmod go-w {config_path}"
+            )
+    except PermissionError:
+        raise
+    except OSError as exc:
+        _cfg_logger.warning("Could not stat config %s: %s", config_path, exc)
+
+
 def _load_yaml() -> dict:
     """Best-effort load of the first config file found on disk."""
     import logging as _logging
@@ -31,6 +53,7 @@ def _load_yaml() -> dict:
     for candidate in _CONFIG_SEARCH_PATHS:
         try:
             if candidate and candidate.is_file():
+                _validate_config_ownership(candidate)
                 raw = candidate.read_bytes()
                 if len(raw) > _MAX_CONFIG_SIZE:
                     _cfg_logger.error(

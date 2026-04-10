@@ -1,6 +1,6 @@
 # Launch Guide (Beginner Friendly)
 
-This guide covers every way to install, run, test, and deploy Aletheia Core v1.6.0.
+This guide covers every way to install, run, test, and deploy Aletheia Core v1.6.2.
 
 ---
 
@@ -90,7 +90,7 @@ PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ## 7) Run tests
 
 ```bash
-# Full test suite (588 tests, requires torch + sentence-transformers)
+# Full test suite (689 tests, requires torch + sentence-transformers)
 pytest tests/ -v
 
 # CI-lightweight (skip embedding-dependent tests)
@@ -117,7 +117,6 @@ Manual steps:
    - `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
    - `ALETHEIA_API_KEYS` — comma-separated keys
    - `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
-   - `ALETHEIA_ANCHOR_STATE_PATH` — file path for replay-token persistence across restarts (e.g. `/data/anchor_state.json`)
    - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — for distributed rate limiting
 4. Sign the manifest locally (`python main.py sign-manifest`) and commit the `.sig` file before deploying.
 5. Verify: `curl https://<your-app>.onrender.com/health`
@@ -143,7 +142,6 @@ docker run -d \
   -e ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32) \
   -e ALETHEIA_API_KEYS=your-api-key \
   -e ALETHEIA_POLICY_THRESHOLD=7.5 \
-  -e ALETHEIA_ANCHOR_STATE_PATH=/data/anchor_state.json \
   -v aletheia-data:/data \
   aletheia-core
 ```

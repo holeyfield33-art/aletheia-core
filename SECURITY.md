@@ -70,3 +70,32 @@ Aletheia is designed with the following principles:
 - **Fail closed:** Invalid signatures, missing manifests, and unverifiable actions result in hard denials.
 - **Defense in depth:** Multiple independent checks (Scout, Nitpicker, Judge, Sandbox) must all pass.
 - **Auditability:** Every decision is logged with a cryptographic receipt.
+
+## Controls Added in v1.6.2
+
+The following security hardening was applied in v1.6.2 (audit status: PASS, 689 tests passing, 89% core coverage):
+
+- **Config validation:** All security thresholds validated at startup with range checks and logical consistency.
+- **HMAC-keyed key hashing:** Key store uses HMAC-SHA256 with `ALETHEIA_KEY_SALT` instead of plain SHA-256.
+- **SQLite file permissions:** Decision store and key store databases enforce `0o600` on creation.
+- **Audit log hardening:** Path traversal (`..`) rejected; audit log file permissions set to `0o600`.
+- **Manifest fail-closed:** Missing `security_policy.json` in active mode raises `RuntimeError`.
+- **Timing oracle fix:** API key comparison evaluates all keys before returning (no short-circuit).
+- **Proxy depth validation:** `ALETHEIA_TRUSTED_PROXY_DEPTH` validated to 0–5 range at startup.
+- **Rate limiter hardening:** Circuit breaker adds random jitter; Redis URL no longer logged.
+- **Embedding input validation:** `encode()` rejects empty input, >1,000 texts, or >500 KB total.
+- **CSP + Permissions-Policy headers:** Added to FastAPI middleware and `vercel.json`.
+- **Sandbox response redaction:** Matched pattern names no longer leaked to clients.
+- **PROCEED response hardening:** `reasoning` field removed from PROCEED responses.
+- **YAML config bomb protection:** Config loader enforces 100 KB file size limit.
+- **Container hardening:** `HEALTHCHECK`, `--timeout-keep-alive`, `--no-create-home`, restrictive `/app/data` permissions.
+
+## Scope Limitations
+
+Aletheia is a **runtime enforcement layer**. It validates declared intents and policy compliance.
+It does **not**:
+
+- Intercept syscalls or sandbox process execution at the OS level.
+- Replace model alignment, RLHF, or other training-time safety measures.
+- Guarantee detection of all adversarial inputs — it raises the cost of attacks.
+- Constitute a compliance certification — consult qualified counsel for regulatory requirements.

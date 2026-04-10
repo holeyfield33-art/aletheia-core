@@ -7,8 +7,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import logging as _logging
+
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+
+_signing_logger = _logging.getLogger("aletheia.signing")
+
+# Grace period: manifests within this window of expiry produce a warning
+# but are still accepted. Beyond this, they are hard-rejected.
+_GRACE_PERIOD_DAYS = 7
 
 
 class ManifestTamperedError(RuntimeError):
@@ -209,8 +217,27 @@ def verify_manifest_signature(
         expiry = datetime.fromisoformat(str(signature_data["expires_at"]).replace("Z", "+00:00"))
     except Exception as exc:
         raise ManifestTamperedError("Manifest expiry is malformed.") from exc
-    if expiry <= datetime.now(timezone.utc):
-        raise ManifestTamperedError("Manifest has expired.")
+
+    now = datetime.now(timezone.utc)
+    from datetime import timedelta
+    grace_deadline = expiry + timedelta(days=_GRACE_PERIOD_DAYS)
+
+    if now > grace_deadline:
+        raise ManifestTamperedError(
+            f"Manifest expired on {expiry.isoformat()} and the "
+            f"{_GRACE_PERIOD_DAYS}-day grace period has elapsed."
+        )
+    if now > expiry:
+        days_past = (now - expiry).days
+        _signing_logger.warning(
+            "Manifest expired %d day(s) ago on %s. "
+            "Grace period: %d of %d days remaining. "
+            "Re-sign the manifest before the grace period ends.",
+            days_past,
+            expiry.isoformat(),
+            _GRACE_PERIOD_DAYS - days_past,
+            _GRACE_PERIOD_DAYS,
+        )
 
     if signature_data["payload_sha256"] != payload_hash:
         raise ManifestTamperedError("Manifest hash mismatch; file has been modified.")

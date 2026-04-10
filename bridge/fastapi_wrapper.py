@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.judge_v1 import AletheiaJudge
@@ -29,6 +29,11 @@ from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
 from core.runtime_security import classify_blocked_intent
 from core.key_store import key_store, DEFAULT_QUOTAS
+from core.secret_rotation import install_sigusr1_handler, rotate_secrets
+from core.metrics import (
+    REQUEST_COUNTER, LATENCY_HISTOGRAM, ACTIVE_KEYS,
+    metrics_response,
+)
 
 _logger = logging.getLogger("aletheia.api")
 
@@ -178,6 +183,13 @@ async def _on_startup() -> None:
         )
     warm_up()
 
+    # Install SIGUSR1 handler for hot secret rotation
+    install_sigusr1_handler(
+        reload_api_keys_fn=_reload_api_keys_live,
+        reload_judge_fn=judge.load_policy,
+    )
+    _logger.info("Secret rotation handler installed (kill -SIGUSR1 to rotate)")
+
 
 class AuditRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -233,6 +245,13 @@ def _load_api_keys() -> set[str]:
 
 
 _API_KEYS: set[str] = _load_api_keys()
+
+
+def _reload_api_keys_live() -> set[str]:
+    """Reload API keys from env and update the global set in-place."""
+    global _API_KEYS
+    _API_KEYS = _load_api_keys()
+    return _API_KEYS
 
 
 def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
@@ -405,6 +424,14 @@ async def readiness_check() -> JSONResponse:
     )
 
 
+@app.get("/metrics")
+async def prometheus_metrics() -> Response:
+    """Prometheus metrics endpoint. No auth required for scraping."""
+    from starlette.responses import Response as StarletteResponse
+    body, content_type = metrics_response()
+    return StarletteResponse(content=body, media_type=content_type)
+
+
 def _is_read_only_action(action: str) -> bool:
     """Return True if the action appears to be read-only / safe."""
     safe_tokens = ("read", "list", "get", "view", "query", "status", "health", "fetch")
@@ -522,6 +549,10 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
 
     decision = "DENIED" if is_blocked else "PROCEED"
 
+    # Record Prometheus metrics
+    REQUEST_COUNTER.labels(agent="pipeline", verdict=decision).inc()
+    LATENCY_HISTOGRAM.observe(latency / 1000)  # seconds
+
     # Shadow mode override: log the block but let the request through.
     # Safety: shadow mode is NEVER allowed when ENVIRONMENT=production,
     # even if settings.shadow_mode was toggled at runtime.
@@ -625,3 +656,18 @@ async def get_key_usage(key_id: str) -> JSONResponse:
             detail={"error": "key_not_found", "message": "Key not found."},
         )
     return JSONResponse(content=record.to_public_dict())
+
+
+# ---------------------------------------------------------------------------
+# Secret rotation endpoint
+# ---------------------------------------------------------------------------
+
+@app.post("/v1/rotate", dependencies=[Depends(_check_admin_key)])
+async def rotate_secrets_endpoint() -> JSONResponse:
+    """Hot-rotate secrets without restart. Admin-only, rate-limited by cooldown."""
+    result = rotate_secrets(
+        reload_api_keys_fn=_reload_api_keys_live,
+        reload_judge_fn=judge.load_policy,
+    )
+    status_code = 200 if result.get("status") == "rotated" else 429
+    return JSONResponse(content=result, status_code=status_code)

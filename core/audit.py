@@ -12,12 +12,42 @@ import hmac
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from core.config import settings
+
+# ---------------------------------------------------------------------------
+# PII redaction — applied before writing audit log entries
+# ---------------------------------------------------------------------------
+
+_PII_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")),
+    ("phone", re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")),
+    ("ssn", re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
+    ("credit_card", re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b")),
+]
+
+_LOG_PII = os.getenv("ALETHEIA_LOG_PII", "false").lower() == "true"
+
+
+def redact_pii(text: str) -> str:
+    """Replace PII patterns with redacted placeholders.
+
+    Preserves a SHA-256 fingerprint of the original value for replay
+    detection without exposing raw PII in logs.
+    """
+    if _LOG_PII:
+        return text
+    for label, pattern in _PII_PATTERNS:
+        def _replacer(m: re.Match[str], _label: str = label) -> str:
+            digest = hashlib.sha256(m.group(0).encode()).hexdigest()[:8]
+            return f"[REDACTED:{_label}:{digest}]"
+        text = pattern.sub(_replacer, text)
+    return text
 
 # ---------------------------------------------------------------------------
 # Structured JSON logger (writes one JSON object per line to audit.log)
@@ -163,6 +193,11 @@ def log_audit_event(
         record["status_code"] = status_code
     if extra:
         record["extra"] = extra
+
+    # PII redaction: scrub string fields before writing to audit log
+    for key in ("reason", "origin", "action"):
+        if isinstance(record.get(key), str):
+            record[key] = redact_pii(record[key])
 
     # Write structured JSON line
     _get_audit_logger().info(json.dumps(record, default=str))

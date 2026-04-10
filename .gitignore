@@ -26,3 +26,4 @@ audit.log
 .hypothesis/
 data/*.db
 data/*.sqlite3
+.coverage

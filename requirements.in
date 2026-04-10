@@ -1,0 +1,20 @@
+# Aletheia Core — source dependency declarations.
+# Compile with: pip-compile requirements.in --generate-hashes -o requirements.txt
+# Install with: pip install --require-hashes -r requirements.txt
+#
+# IMPORTANT: Use exact pins (==) only. No >= or ~= allowed.
+# The --generate-hashes flag in pip-compile will add SHA256 hashes
+# for supply-chain verification.
+
+fastapi==0.135.1
+uvicorn==0.41.0
+pydantic==2.12.5
+python-dotenv==1.0.0
+cryptography==46.0.5
+sentence-transformers==5.3.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.11.0
+pyyaml==6.0.3
+numpy==2.4.3
+httpx==0.28.1
+prometheus_client==0.25.0

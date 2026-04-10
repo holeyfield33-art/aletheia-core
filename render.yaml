@@ -22,6 +22,6 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
-      - key: HUGGING_FACE_HUB_TOKEN
-        sync: false
+      # HUGGING_FACE_HUB_TOKEN: Moved to Render secret store (never commit tokens).
+      # Add via: render secrets set HUGGING_FACE_HUB_TOKEN=<value>
     plan: free
