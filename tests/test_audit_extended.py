@@ -29,10 +29,22 @@ class TestPolicyHashManifestMissing(unittest.TestCase):
 
     def test_returns_manifest_missing_when_file_absent(self) -> None:
         from core.audit import _policy_hash
-        with patch("core.audit.Path") as mock_path_cls:
+        with patch("core.audit.Path") as mock_path_cls, \
+             patch("core.audit.settings") as mock_settings:
             mock_path_cls.return_value.read_bytes.side_effect = FileNotFoundError
+            mock_settings.mode = "shadow"
             result = _policy_hash()
         self.assertEqual(result, "MANIFEST_MISSING")
+
+    def test_raises_in_active_mode_when_manifest_missing(self) -> None:
+        """In active mode, missing manifest must raise RuntimeError (fail-closed)."""
+        from core.audit import _policy_hash
+        with patch("core.audit.Path") as mock_path_cls, \
+             patch("core.audit.settings") as mock_settings:
+            mock_path_cls.return_value.read_bytes.side_effect = FileNotFoundError
+            mock_settings.mode = "active"
+            with self.assertRaises(RuntimeError):
+                _policy_hash()
 
     def test_returns_hex_string_when_manifest_present(self) -> None:
         """When the manifest is readable, result must be a 64-char hex SHA-256."""

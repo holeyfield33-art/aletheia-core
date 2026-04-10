@@ -121,12 +121,15 @@ class TestXFFIPExtraction:
         assert result == "1.2.3.4"
 
     def test_no_proxy_uses_first_xff_entry(self) -> None:
+        """When depth=0 (no proxy), XFF is completely ignored — use network IP."""
         from bridge.fastapi_wrapper import _get_client_ip
 
         with patch("bridge.fastapi_wrapper._TRUSTED_PROXY_DEPTH", 0):
-            request = self._make_request(xff="1.2.3.4")
+            request = self._make_request(xff="1.2.3.4", client_host="10.10.10.10")
             result = _get_client_ip(request)
-        assert result == "1.2.3.4"
+        # XFF is attacker-controlled; depth=0 means no trusted proxy,
+        # so the network-layer IP must be used instead.
+        assert result == "10.10.10.10"
 
     def test_spoofed_xff_with_correct_depth(self) -> None:
         from bridge.fastapi_wrapper import _get_client_ip

@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
 import time
 from collections import OrderedDict
 
@@ -64,10 +65,7 @@ class UpstashRateLimiter:
         self._CIRCUIT_RESET_SECONDS: float = 30.0
         self.backend = "upstash"
         self.degraded = False
-        _logger.info(
-            "Rate limiter: Upstash Redis backend active at %s",
-            self._url.split("//")[-1],  # log host only, not full URL
-        )
+        _logger.info("Rate limiter: Upstash Redis backend active")
 
     async def _redis(self, client: httpx.AsyncClient, *command) -> object:
         """Execute a single Redis command via Upstash REST API."""
@@ -129,7 +127,9 @@ class UpstashRateLimiter:
             self._failure_count += 1
             self.degraded = True
             if self._failure_count >= self._FAILURE_THRESHOLD:
-                self._circuit_open_until = _t.monotonic() + self._CIRCUIT_RESET_SECONDS
+                # Add jitter to prevent thundering herd on recovery
+                jitter = random.uniform(0, 10)
+                self._circuit_open_until = _t.monotonic() + self._CIRCUIT_RESET_SECONDS + jitter
                 _logger.error(
                     "Redis rate limiter circuit opened after %d failures — "
                     "all requests blocked for %.0f seconds. "

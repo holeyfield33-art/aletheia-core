@@ -33,10 +33,14 @@ from core.key_store import key_store, DEFAULT_QUOTAS
 _logger = logging.getLogger("aletheia.api")
 
 _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
+if not (0 <= _TRUSTED_PROXY_DEPTH <= 5):
+    raise ValueError(
+        f"ALETHEIA_TRUSTED_PROXY_DEPTH must be 0–5, got {_TRUSTED_PROXY_DEPTH}"
+    )
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.6.1",
+    version="1.6.2",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
 )
 
@@ -71,6 +75,10 @@ async def add_security_and_rate_limit_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Cache-Control"] = "no-store"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), microphone=(), camera=(), payment=()"
+    )
     # Rate limit headers
     if hasattr(request.state, "rate_limit_remaining"):
         response.headers["X-RateLimit-Remaining"] = str(request.state.rate_limit_remaining)
@@ -203,7 +211,7 @@ def _get_client_ip(request: Request) -> str:
     from the right, or fall back to network-layer IP.
     """
     xff = request.headers.get("x-forwarded-for", "")
-    if xff:
+    if xff and _TRUSTED_PROXY_DEPTH > 0:
         parts = [p.strip() for p in xff.split(",") if p.strip()]
         if len(parts) > _TRUSTED_PROXY_DEPTH:
             # Real client is the entry just before the trusted proxy tail
@@ -247,7 +255,9 @@ def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
         )
 
     # 1. Check env-based keys (admin / demo — no quota)
-    if any(secrets.compare_digest(x_api_key, allowed) for allowed in _API_KEYS):
+    # Always compare against ALL keys to prevent timing oracle.
+    env_matches = [secrets.compare_digest(x_api_key, allowed) for allowed in _API_KEYS]
+    if any(env_matches):
         return
 
     # 2. Check key store (trial / pro — quota enforced)
@@ -560,8 +570,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         )
     elif is_blocked:
         response["reason"] = _sanitise_reason(reason)
-    else:
-        response["reasoning"] = veto_msg
 
     return response
 

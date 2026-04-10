@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import secrets
 import sqlite3
 import tempfile
 import time
@@ -36,34 +37,19 @@ class _SQLiteDecisionStore:
     def __init__(self, db_path: str | None = None) -> None:
         self._db_path = db_path or os.getenv(
             "ALETHEIA_DECISION_DB_PATH",
-            self._default_db_path(),
+            os.path.join(tempfile.gettempdir(), "aletheia", "decisions.sqlite3"),
         )
         self._lock = asyncio.Lock()
+        # Enforce restrictive permissions on decision DB file
+        from pathlib import Path as _Path
+        db_file = _Path(self._db_path)
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+        db_file.touch(exist_ok=True)
+        try:
+            os.chmod(self._db_path, 0o600)
+        except OSError:
+            pass  # best-effort
         self._init_db()
-
-    @staticmethod
-    def _default_db_path() -> str:
-        """Return a safe default path for the SQLite decision database.
-
-        Prefers an application-owned directory under the current working
-        directory (``./data/``) with restrictive permissions.  Falls back
-        to a user-private temp directory (``$TMPDIR/aletheia/``) on
-        permission errors.  Never writes to the shared ``/tmp`` directly.
-        """
-        candidates = [
-            os.path.join(os.getcwd(), "data"),
-            os.path.join(tempfile.gettempdir(), "aletheia"),
-        ]
-        for base in candidates:
-            try:
-                os.makedirs(base, mode=0o700, exist_ok=True)
-                return os.path.join(base, "aletheia_decisions.sqlite3")
-            except OSError:
-                continue
-        # Last resort — still better than bare /tmp
-        fallback = os.path.join(tempfile.gettempdir(), "aletheia")
-        os.makedirs(fallback, mode=0o700, exist_ok=True)
-        return os.path.join(fallback, "aletheia_decisions.sqlite3")
 
     @property
     def backend(self) -> str:
@@ -269,6 +255,9 @@ class DecisionStore:
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,
     ) -> ReplayCheckResult:
         # Deterministic token binding for replay defense.
+        # Token is derived from server-generated request_id (UUID) + timestamp +
+        # policy metadata. Attacker cannot pre-compute without the server-issued
+        # request_id — but identical replays are correctly detected.
         token_src = f"{request_id}|{timestamp_iso}|{policy_version}|{manifest_hash}"
         token = hashlib.sha256(token_src.encode("utf-8")).hexdigest()
         now_ts = int(time.time())

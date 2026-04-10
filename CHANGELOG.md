@@ -5,6 +5,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.2] — 2026-04-10
+
+### Security — Enterprise Hardening
+- **Config validation**: All security thresholds validated at startup (range checks,
+  logical consistency). Invalid thresholds now fail-fast with actionable errors.
+- **HMAC-keyed API key hashing**: key_store now uses HMAC-SHA256 with
+  `ALETHEIA_KEY_SALT` instead of plain SHA-256. Falls back with a logged warning.
+- **SQLite file permissions**: Decision store and key store databases enforce
+  `0o600` (owner read/write only) on creation.
+- **Audit log path traversal protection**: `..` components in audit_log_path are
+  rejected; audit log file permissions set to `0o600`.
+- **Manifest fail-closed**: Missing `security_policy.json` in active mode now raises
+  `RuntimeError` instead of silently returning `MANIFEST_MISSING`.
+- **Timing oracle fix**: API key comparison now evaluates ALL keys before returning
+  (no short-circuit) to prevent timing side-channel attacks.
+- **Proxy depth validation**: `ALETHEIA_TRUSTED_PROXY_DEPTH` validated to 0–5 range
+  at startup. XFF ignored entirely when depth=0.
+- **Rate limiter hardening**: Circuit breaker adds random jitter to prevent
+  thundering herd on recovery. Redis URL no longer logged.
+- **Embedding input validation**: `encode()` rejects empty input, >1000 texts,
+  or >500 KB total text to prevent OOM/hang.
+- **CSP + Permissions-Policy headers**: Added to FastAPI middleware and vercel.json.
+- **Sandbox response redaction**: Sandbox block responses no longer leak matched
+  pattern names to clients.
+- **PROCEED response hardening**: Removed `reasoning` field from PROCEED responses
+  to prevent veto-logic leakage.
+- **YAML config bomb protection**: Config loader enforces 100 KB file size limit.
+  YAML parse errors are now logged explicitly instead of silently swallowed.
+- **Container hardening**: Dockerfile adds HEALTHCHECK, `--timeout-keep-alive`,
+  `--no-create-home`, and restrictive `/app/data` permissions.
+- **Config type coercion**: Invalid env var types for floats/ints now logged with
+  actionable errors instead of crashing with bare ValueError.
+
+---
+
 ## [1.6.0] — 2026-04-08
 
 ### Added

@@ -22,15 +22,29 @@ _CONFIG_SEARCH_PATHS = [
 ]
 
 
+_MAX_CONFIG_SIZE = 100_000  # 100 KB — prevents YAML bomb variants
+
 def _load_yaml() -> dict:
     """Best-effort load of the first config file found on disk."""
+    import logging as _logging
+    _cfg_logger = _logging.getLogger("aletheia.config")
     for candidate in _CONFIG_SEARCH_PATHS:
         try:
             if candidate and candidate.is_file():
-                with open(candidate, "r", encoding="utf-8") as fh:
-                    data = yaml.safe_load(fh)
-                    return data if isinstance(data, dict) else {}
-        except Exception:
+                raw = candidate.read_bytes()
+                if len(raw) > _MAX_CONFIG_SIZE:
+                    _cfg_logger.error(
+                        "Config file %s exceeds %d bytes — skipped",
+                        candidate, _MAX_CONFIG_SIZE,
+                    )
+                    continue
+                data = yaml.safe_load(raw)
+                return data if isinstance(data, dict) else {}
+        except yaml.YAMLError as exc:
+            _cfg_logger.error("Invalid YAML in %s: %s", candidate, exc)
+            continue
+        except Exception as exc:
+            _cfg_logger.warning("Could not load config %s: %s", candidate, exc)
             continue
     return {}
 
@@ -73,6 +87,29 @@ class AletheiaSettings:
 
     def __post_init__(self) -> None:
         self.shadow_mode = self.mode == "shadow"
+        # --- Enterprise threshold validation ---
+        if not (0.0 <= self.intent_threshold <= 1.0):
+            raise ValueError(
+                f"intent_threshold must be in [0.0, 1.0], got {self.intent_threshold}"
+            )
+        if not (0.0 <= self.grey_zone_lower < self.intent_threshold):
+            raise ValueError(
+                f"grey_zone_lower ({self.grey_zone_lower}) must be in "
+                f"[0.0, intent_threshold={self.intent_threshold})"
+            )
+        if not (0.0 <= self.nitpicker_similarity_threshold <= 1.0):
+            raise ValueError(
+                f"nitpicker_similarity_threshold must be in [0.0, 1.0], "
+                f"got {self.nitpicker_similarity_threshold}"
+            )
+        if self.policy_threshold < 0:
+            raise ValueError(
+                f"policy_threshold must be >= 0, got {self.policy_threshold}"
+            )
+        if self.mode not in ("active", "shadow", "monitor"):
+            raise ValueError(
+                f"mode must be 'active', 'shadow', or 'monitor', got '{self.mode}'"
+            )
 
     # ------------------------------------------------------------------
     # Factory
@@ -97,7 +134,20 @@ class AletheiaSettings:
                 return env_val
             return yaml_cfg.get(key, default)
 
-        defaults = cls()
+        defaults = cls.__new__(cls)
+        # Set raw defaults without validation for the _get helper
+        defaults.embedding_model = "all-MiniLM-L6-v2"
+        defaults.intent_threshold = 0.55
+        defaults.grey_zone_lower = 0.40
+        defaults.nitpicker_similarity_threshold = 0.45
+        defaults.polymorphic_modes = ["LINEAGE", "INTENT", "SKEPTIC"]
+        defaults.mode = "active"
+        defaults.shadow_mode = False
+        defaults.log_level = "INFO"
+        defaults.audit_log_path = "audit.log"
+        defaults.policy_threshold = 7.5
+        defaults.rate_limit_per_second = 10
+        defaults.client_id = "ALETHEIA_ENTERPRISE"
         return cls(
             embedding_model=_get("embedding_model", defaults.embedding_model),
             intent_threshold=_get("intent_threshold", defaults.intent_threshold),

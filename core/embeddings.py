@@ -46,8 +46,21 @@ def warm_up() -> None:
     model.encode(["warmup"], normalize_embeddings=True, show_progress_bar=False)
 
 
+_MAX_ENCODE_TEXTS = 1000
+_MAX_TOTAL_TEXT_BYTES = 500_000  # 500 KB total
+
+
 def encode(texts: list[str]) -> NDArray[np.float32]:
     """Encode a batch of texts into normalized embeddings."""
+    if not texts:
+        raise ValueError("texts must be non-empty")
+    if len(texts) > _MAX_ENCODE_TEXTS:
+        raise ValueError(f"Too many texts to embed: {len(texts)} (max {_MAX_ENCODE_TEXTS})")
+    total_size = sum(len(t) for t in texts)
+    if total_size > _MAX_TOTAL_TEXT_BYTES:
+        raise ValueError(
+            f"Total text size {total_size} exceeds limit {_MAX_TOTAL_TEXT_BYTES}"
+        )
     model = _get_model()
     return model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
 

@@ -12,6 +12,7 @@ Default quotas (configurable via env):
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import os
 import secrets
@@ -28,16 +29,31 @@ _logger = logging.getLogger("aletheia.key_store")
 # Plan defaults — single config source
 # ---------------------------------------------------------------------------
 
-DEFAULT_QUOTAS: dict[str, int] = {
-    "trial": int(os.getenv("ALETHEIA_TRIAL_QUOTA", "1000")),
-    "pro": int(os.getenv("ALETHEIA_PRO_QUOTA", "100000")),
-}
+DEFAULT_QUOTAS: dict[str, int] = {}
+for _plan_name, _default_val in [("trial", "1000"), ("pro", "100000")]:
+    _quota = int(os.getenv(f"ALETHEIA_{_plan_name.upper()}_QUOTA", _default_val))
+    if _quota <= 0:
+        raise ValueError(f"ALETHEIA_{_plan_name.upper()}_QUOTA must be positive, got {_quota}")
+    DEFAULT_QUOTAS[_plan_name] = _quota
 
 _DB_PATH = os.getenv("ALETHEIA_KEYSTORE_PATH", "data/keys.db")
 
 
+# Key hashing — uses HMAC-SHA256 with a per-deployment salt.
+# If ALETHEIA_KEY_SALT is not set, falls back to plain SHA-256
+# (acceptable for dev, logged as a warning at module load time).
+_KEY_SALT = os.getenv("ALETHEIA_KEY_SALT", "").encode("utf-8")
+if not _KEY_SALT:
+    _logger.warning(
+        "ALETHEIA_KEY_SALT is not set — API key hashing uses plain SHA-256. "
+        "Set ALETHEIA_KEY_SALT for production (generate: openssl rand -hex 32)."
+    )
+
+
 def _hash_key(raw_key: str) -> str:
-    """SHA-256 hash of raw API key for storage."""
+    """HMAC-SHA256 hash of raw API key for storage (salted when salt is available)."""
+    if _KEY_SALT:
+        return hmac.new(_KEY_SALT, raw_key.encode("utf-8"), hashlib.sha256).hexdigest()
     return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
 
@@ -102,13 +118,22 @@ class KeyStore:
     def __init__(self, db_path: str | None = None) -> None:
         self._db_path = db_path or _DB_PATH
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
+        # Enforce restrictive permissions on DB file
+        db_file = Path(self._db_path)
+        db_file.touch(exist_ok=True)
+        try:
+            os.chmod(self._db_path, 0o600)
+        except OSError:
+            pass  # best-effort on platforms that don't support chmod
         self._lock = threading.Lock()
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path, timeout=5)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
+        mode = conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+        if mode.lower() != "wal":
+            _logger.warning("Failed to enable WAL mode; got %s", mode)
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 

@@ -37,11 +37,25 @@ def _get_audit_logger() -> logging.Logger:
     logger.propagate = False  # don't leak into root logger
 
     log_path = Path(settings.audit_log_path)
+    # Security: forbid path traversal in audit log path
+    if ".." in log_path.parts:
+        raise ValueError(
+            f"Invalid audit_log_path: '{settings.audit_log_path}' — "
+            "must not contain '..' components"
+        )
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     handler = logging.FileHandler(str(log_path), encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(message)s"))  # raw JSON lines
     logger.addHandler(handler)
+
+    # Restrict audit log file permissions (owner read/write only)
+    try:
+        import stat
+        log_path.touch(exist_ok=True)
+        log_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+    except OSError:
+        pass  # best-effort on platforms that don't support chmod
 
     _audit_logger = logger
     return logger
@@ -53,6 +67,11 @@ def _policy_hash() -> str:
         data = Path("manifest/security_policy.json").read_bytes()
         return hashlib.sha256(data).hexdigest()
     except FileNotFoundError:
+        if settings.mode == "active":
+            raise RuntimeError(
+                "FATAL: manifest/security_policy.json missing — "
+                "cannot produce audit records in active mode"
+            )
         return "MANIFEST_MISSING"
 
 
