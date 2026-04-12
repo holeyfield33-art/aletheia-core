@@ -6,6 +6,7 @@ helpers used by both Judge and Nitpicker.
 
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Optional
 
@@ -14,15 +15,23 @@ from numpy.typing import NDArray
 
 from core.config import settings
 
+_logger = logging.getLogger("aletheia.embeddings")
 _lock = threading.Lock()
 _model = None  # lazy singleton
+_LOCK_TIMEOUT_SECONDS = 120  # generous; model download may be slow
 
 
 def _get_model():
     """Thread-safe lazy load of the SentenceTransformer model."""
     global _model
     if _model is None:
-        with _lock:
+        acquired = _lock.acquire(timeout=_LOCK_TIMEOUT_SECONDS)
+        if not acquired:
+            raise RuntimeError(
+                f"Embedding model lock not acquired within {_LOCK_TIMEOUT_SECONDS}s. "
+                "Possible deadlock."
+            )
+        try:
             if _model is None:
                 import os
                 from sentence_transformers import SentenceTransformer
@@ -32,6 +41,8 @@ def _get_model():
                     settings.embedding_model,
                     use_auth_token=token if token else False,
                 )
+        finally:
+            _lock.release()
     return _model
 
 

@@ -12,6 +12,7 @@ Tests for red team remediation sprint v1.5.0:
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -180,6 +181,8 @@ class TestActiveModeMustHaveAPIKeys:
             ),
             patch("bridge.fastapi_wrapper.warm_up"),
         ):
+            # Ensure ALETHEIA_AUTH_DISABLED is not set (conftest sets it)
+            os.environ.pop("ALETHEIA_AUTH_DISABLED", None)
             with pytest.raises(SystemExit) as exc_info:
                 loop = asyncio.new_event_loop()
                 try:

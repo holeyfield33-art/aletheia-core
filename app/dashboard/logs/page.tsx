@@ -1,15 +1,59 @@
 "use client";
 
-/* ------------------------------------------------------------------ */
-/* Audit Logs — Placeholder for trial users                           */
-/* Audit log storage exists on the backend (core/audit.py writes      */
-/* structured JSON lines). Dashboard log viewing is being finalized   */
-/* for Hosted Pro. This page replaces the former mock-data display.   */
-/* ------------------------------------------------------------------ */
+import { useState, useEffect, useCallback } from "react";
 
-import { CTAS } from "@/lib/site-config";
+interface AuditLog {
+  id: string;
+  decision: string;
+  action: string;
+  origin: string | null;
+  threatLevel: string | null;
+  policyVersion: string | null;
+  receiptSignature: string | null;
+  createdAt: string;
+}
 
 export default function LogsPage() {
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [filterDecision, setFilterDecision] = useState("");
+  const pageSize = 25;
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(pageSize),
+      });
+      if (filterDecision) params.set("decision", filterDecision);
+      const res = await fetch(`/api/logs?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data.logs || []);
+        setTotal(data.total || 0);
+      }
+    } catch {
+      /* non-critical */
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterDecision]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const decisionColor = (d: string) => {
+    if (d === "PROCEED") return "var(--green)";
+    if (d === "DENIED" || d === "SANDBOX_BLOCKED") return "var(--crimson-hi)";
+    return "var(--muted)";
+  };
+
   return (
     <div>
       <div
@@ -36,122 +80,174 @@ export default function LogsPage() {
         Decision Receipts
       </h1>
 
-      {/* Placeholder notice */}
+      {/* Filters */}
       <div
         style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          padding: "2rem",
-          maxWidth: "640px",
-          marginBottom: "1.5rem",
+          display: "flex",
+          gap: "0.75rem",
+          marginBottom: "1.25rem",
+          alignItems: "center",
+          flexWrap: "wrap",
         }}
       >
-        <div
+        <select
+          value={filterDecision}
+          onChange={(e) => { setFilterDecision(e.target.value); setPage(1); }}
           style={{
-            fontFamily: "var(--font-head)",
-            fontSize: "1.05rem",
-            fontWeight: 700,
-            color: "var(--white)",
-            marginBottom: "0.75rem",
-          }}
-        >
-          Audit Logs — Coming with Hosted Pro
-        </div>
-        <p
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.82rem",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
             color: "var(--silver)",
-            lineHeight: 1.7,
-            marginBottom: "1rem",
-          }}
-        >
-          Audit Logs are being finalized for Hosted Pro. Trial users can
-          generate keys and test the API today while self-serve log viewing
-          is rolled out.
-        </p>
-        <p
-          style={{
+            padding: "0.4rem 0.65rem",
             fontFamily: "var(--font-mono)",
-            fontSize: "0.82rem",
-            color: "var(--silver)",
-            lineHeight: 1.7,
-            marginBottom: "1.25rem",
+            fontSize: "0.78rem",
           }}
         >
-          Every decision is already signed and logged on the backend. Hosted Pro
-          subscribers will get 30-day audit log retention with a dashboard viewer,
-          export to JSONL, and receipt verification.
-        </p>
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <a
-            href="/dashboard/keys"
-            className="btn-primary"
-            style={{ textAlign: "center", fontSize: "0.82rem" }}
-          >
-            Get Trial API Key
-          </a>
-          <a
-            href={CTAS.upgrade.href}
-            className="btn-secondary"
-            style={{ textAlign: "center", fontSize: "0.82rem" }}
-          >
-            Upgrade to Hosted Pro
-          </a>
-        </div>
+          <option value="">All decisions</option>
+          <option value="PROCEED">PROCEED</option>
+          <option value="DENIED">DENIED</option>
+          <option value="SANDBOX_BLOCKED">SANDBOX_BLOCKED</option>
+        </select>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--muted)" }}>
+          {total.toLocaleString()} total records
+        </span>
       </div>
 
-      {/* What's available now */}
-      <div
-        style={{
-          padding: "1rem 1.25rem",
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          maxWidth: "640px",
-        }}
-      >
-        <div
+      {/* Table */}
+      <div style={{ border: "1px solid var(--border)", overflow: "auto", marginBottom: "1rem" }}>
+        <table
           style={{
+            width: "100%",
+            borderCollapse: "collapse",
             fontFamily: "var(--font-mono)",
-            fontSize: "0.72rem",
-            color: "var(--muted)",
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            marginBottom: "0.5rem",
+            fontSize: "0.75rem",
           }}
         >
-          Available now
-        </div>
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-          }}
-        >
-          {[
-            "Generate trial API keys and call the hosted API",
-            "View usage and quota on the Usage page",
-            "Export signed audit evidence (JSONL) from the Evidence page",
-            "Inspect receipts on the Verify page",
-          ].map((item) => (
-            <li
-              key={item}
-              style={{
-                display: "flex",
-                gap: "0.5rem",
-                padding: "0.35rem 0",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.78rem",
-                color: "var(--silver)",
-              }}
-            >
-              <span style={{ color: "var(--green)", flexShrink: 0 }}>✓</span>
-              {item}
-            </li>
-          ))}
-        </ul>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border)" }}>
+              {["Time", "Decision", "Action", "Origin", "Threat", "Policy", "Signature"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    textAlign: "left",
+                    padding: "0.55rem 0.65rem",
+                    color: "var(--muted)",
+                    fontWeight: 500,
+                    fontSize: "0.68rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "var(--muted)" }}>
+                  Loading…
+                </td>
+              </tr>
+            ) : logs.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "var(--muted)" }}>
+                  No audit logs found. Make API requests to generate decision receipts.
+                </td>
+              </tr>
+            ) : (
+              logs.map((log) => (
+                <tr key={log.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    {new Date(log.createdAt).toLocaleString()}
+                  </td>
+                  <td style={{ padding: "0.45rem 0.65rem" }}>
+                    <span
+                      style={{
+                        padding: "0.12rem 0.45rem",
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        background: log.decision === "PROCEED" ? "rgba(46,184,122,0.12)" : "rgba(176,34,54,0.15)",
+                        color: decisionColor(log.decision),
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {log.decision}
+                    </span>
+                  </td>
+                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--white)" }}>
+                    {log.action}
+                  </td>
+                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--silver)" }}>
+                    {log.origin || "—"}
+                  </td>
+                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--silver)" }}>
+                    {log.threatLevel || "—"}
+                  </td>
+                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--muted)", fontSize: "0.68rem" }}>
+                    {log.policyVersion || "—"}
+                  </td>
+                  <td
+                    style={{
+                      padding: "0.45rem 0.65rem",
+                      color: "var(--muted)",
+                      fontSize: "0.65rem",
+                      maxWidth: "120px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={log.receiptSignature || ""}
+                  >
+                    {log.receiptSignature ? log.receiptSignature.slice(0, 16) + "…" : "—"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              color: page <= 1 ? "var(--muted)" : "var(--silver)",
+              padding: "0.35rem 0.75rem",
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.75rem",
+              cursor: page <= 1 ? "default" : "pointer",
+            }}
+          >
+            Prev
+          </button>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--muted)" }}>
+            {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              color: page >= totalPages ? "var(--muted)" : "var(--silver)",
+              padding: "0.35rem 0.75rem",
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.75rem",
+              cursor: page >= totalPages ? "default" : "pointer",
+            }}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

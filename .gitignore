@@ -8,6 +8,8 @@ build/
 .eggs/
 *.whl
 .env
+.env.local
+.env*.local
 .venv/
 venv/
 *.log
@@ -27,3 +29,5 @@ audit.log
 data/*.db
 data/*.sqlite3
 .coverage
+
+/lib/generated/prisma

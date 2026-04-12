@@ -59,6 +59,14 @@ _CORS_ORIGINS: list[str] = [
     ).split(",")
     if o.strip()
 ]
+# Block wildcard CORS in production
+if os.getenv("ENVIRONMENT", "").lower() == "production" and "*" in _CORS_ORIGINS:
+    _logger.critical(
+        "FATAL: ALETHEIA_CORS_ORIGINS contains '*' in production. "
+        "This allows any origin to make credentialed requests. "
+        "Set explicit origins. Refusing to start."
+    )
+    sys.exit(1)
 
 app.add_middleware(
     CORSMiddleware,
@@ -165,15 +173,32 @@ async def _on_startup() -> None:
         )
         sys.exit(1)
     if settings.mode == "active" and not _API_KEYS:
-        _logger.critical(
-            "FATAL: ALETHEIA_API_KEYS is not set and mode=active. "
-            "The /v1/audit endpoint is fully unauthenticated. "
-            "Set ALETHEIA_API_KEYS to a comma-separated list of API keys, "
-            "or switch to mode=shadow for development. "
-            "Refusing to start."
-        )
-        sys.exit(1)
+        _auth_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in ("true", "1", "yes")
+        if not _auth_disabled:
+            _logger.critical(
+                "FATAL: No API keys configured and ALETHEIA_AUTH_DISABLED is not set. "
+                "The /v1/audit endpoint requires authentication. "
+                "Set ALETHEIA_API_KEYS to a comma-separated list of API keys, "
+                "or set ALETHEIA_AUTH_DISABLED=true for development only. "
+                "Refusing to start."
+            )
+            sys.exit(1)
+    # Block ALETHEIA_AUTH_DISABLED in production
+    if os.getenv("ENVIRONMENT", "").lower() == "production":
+        if os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in ("true", "1", "yes"):
+            _logger.critical(
+                "FATAL: ALETHEIA_AUTH_DISABLED=true is not allowed in production. "
+                "Configure ALETHEIA_API_KEYS instead. Refusing to start."
+            )
+            sys.exit(1)
     if not os.getenv("ALETHEIA_ALIAS_SALT", "").strip():
+        if os.getenv("ENVIRONMENT", "").lower() == "production":
+            _logger.critical(
+                "FATAL: ALETHEIA_ALIAS_SALT is not set in production. "
+                "Daily alias bank rotation is predictable without a salt. "
+                "Generate: openssl rand -hex 32. Refusing to start."
+            )
+            sys.exit(1)
         _logger.warning(
             "WARNING: ALETHEIA_ALIAS_SALT is not set. "
             "Daily alias bank rotation is predictable — "
@@ -181,6 +206,14 @@ async def _on_startup() -> None:
             "enumerate the alias order. Set this in production. "
             "Generate: openssl rand -hex 32"
         )
+    if not os.getenv("ALETHEIA_KEY_SALT", "").strip():
+        if os.getenv("ENVIRONMENT", "").lower() == "production":
+            _logger.critical(
+                "FATAL: ALETHEIA_KEY_SALT is not set in production. "
+                "API key hashing is unsalted. "
+                "Generate: openssl rand -hex 32. Refusing to start."
+            )
+            sys.exit(1)
     warm_up()
 
     # Install SIGUSR1 handler for hot secret rotation
@@ -257,15 +290,17 @@ def _reload_api_keys_live() -> set[str]:
 def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
     """Dependency: validate X-API-Key header and enforce quota.
 
-    Auth is disabled when ALETHEIA_API_KEYS is not set (dev/open mode).
-    Auth is enabled when ALETHEIA_API_KEYS contains one or more keys.
+    Auth is REQUIRED by default. To explicitly disable (dev only),
+    set ALETHEIA_AUTH_DISABLED=true. This never works in production.
 
     Two key sources are checked in order:
     1. Environment keys (``ALETHEIA_API_KEYS``) — admin / demo keys, no quota.
     2. Key store (SQLite) — trial / pro keys with monthly quota enforcement.
     """
-    if not _API_KEYS:
-        return  # auth disabled — open mode
+    # Auth explicitly disabled (dev/testing only; blocked in production at startup)
+    _auth_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in ("true", "1", "yes")
+    if _auth_disabled and not _API_KEYS:
+        return
 
     if not x_api_key:
         raise HTTPException(
@@ -425,8 +460,17 @@ async def readiness_check() -> JSONResponse:
 
 
 @app.get("/metrics")
-async def prometheus_metrics() -> Response:
-    """Prometheus metrics endpoint. No auth required for scraping."""
+async def prometheus_metrics(request: Request) -> Response:
+    """Prometheus metrics endpoint. Requires auth in production."""
+    _metrics_token = os.getenv("ALETHEIA_METRICS_TOKEN", "").strip()
+    if _metrics_token:
+        auth_header = request.headers.get("authorization", "")
+        expected = f"Bearer {_metrics_token}"
+        if not auth_header or not secrets.compare_digest(auth_header, expected):
+            return JSONResponse(
+                status_code=401,
+                content={"error": "unauthorized", "message": "Valid metrics token required."},
+            )
     from starlette.responses import Response as StarletteResponse
     body, content_type = metrics_response()
     return StarletteResponse(content=body, media_type=content_type)

@@ -1,29 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
-/* ------------------------------------------------------------------ */
-/* Default policy                                                     */
-/* ------------------------------------------------------------------ */
-
-const DEFAULT_POLICY = `{
-  "policy_version": "1.6.1",
-  "restricted_actions": [
-    "Transfer_Funds",
-    "Approve_Loan_Disbursement",
-    "Modify_Auth_Registry",
-    "Initiate_ACH",
-    "Open_External_Socket",
-    "Bulk_Delete_Resource"
-  ],
-  "intent_threshold": 0.55,
-  "grey_zone_lower": 0.40,
-  "grey_zone_keyword_min": 2,
-  "rate_limit_per_second": 10,
-  "receipt_signing": "hmac-sha256",
-  "manifest_signing": "ed25519",
-  "mode": "active"
-}`;
+import { useState, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Policy field descriptions                                          */
@@ -46,32 +23,26 @@ const FIELD_DOCS: Record<string, string> = {
 /* ------------------------------------------------------------------ */
 
 export default function PolicyPage() {
-  const [editorContent, setEditorContent] = useState(DEFAULT_POLICY);
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [parsed, setParsed] = useState<Record<string, unknown> | null>(() => {
-    try {
-      return JSON.parse(DEFAULT_POLICY);
-    } catch {
-      return null;
-    }
-  });
+  const [policy, setPolicy] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [raw, setRaw] = useState("");
 
-  function handleEditorChange(value: string) {
-    setEditorContent(value);
-    setParseError(null);
-    try {
-      const obj = JSON.parse(value);
-      if (typeof obj !== "object" || obj === null) {
-        setParseError("Policy must be a JSON object.");
-        setParsed(null);
-        return;
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/policy");
+        if (res.ok) {
+          const data = await res.json();
+          setPolicy(data.policy);
+          setRaw(JSON.stringify(data.policy, null, 2));
+        }
+      } catch {
+        /* non-critical */
+      } finally {
+        setLoading(false);
       }
-      setParsed(obj as Record<string, unknown>);
-    } catch (e) {
-      setParseError(e instanceof Error ? e.message : "Invalid JSON");
-      setParsed(null);
-    }
-  }
+    })();
+  }, []);
 
   return (
     <div>
@@ -106,150 +77,142 @@ export default function PolicyPage() {
           marginBottom: "1.5rem",
         }}
       >
-        Edit the policy manifest. Changes require re-signing with Ed25519 before deployment.
+        Read-only view of the active security policy manifest. Changes require
+        re-signing with Ed25519 via the CLI.
       </p>
 
-      {/* Split screen */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "1px",
-          background: "var(--border)",
-          border: "1px solid var(--border)",
-          minHeight: "500px",
-        }}
-      >
-        {/* Editor pane */}
-        <div style={{ background: "#09090b", display: "flex", flexDirection: "column" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.68rem",
-              color: "var(--muted)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "0.6rem 1rem",
-              borderBottom: "1px solid var(--border)",
-              background: "var(--surface)",
-            }}
-          >
-            Editor
-          </div>
-          <textarea
-            value={editorContent}
-            onChange={(e) => handleEditorChange(e.target.value)}
-            spellCheck={false}
-            style={{
-              flex: 1,
-              background: "#09090b",
-              color: "var(--silver)",
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.82rem",
-              lineHeight: 1.7,
-              border: "none",
-              padding: "1rem",
-              resize: "none",
-              outline: "none",
-              width: "100%",
-              borderRadius: 0,
-            }}
-          />
-          {parseError && (
-            <div
-              style={{
-                padding: "0.5rem 1rem",
-                background: "rgba(176,34,54,0.1)",
-                borderTop: "1px solid var(--crimson-hi)",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.75rem",
-                color: "var(--crimson-hi)",
-              }}
-            >
-              Parse error: {parseError}
-            </div>
-          )}
+      {loading ? (
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", color: "var(--muted)", padding: "2rem 0" }}>
+          Loading policy…
         </div>
-
-        {/* Reference pane */}
-        <div style={{ background: "var(--surface)", display: "flex", flexDirection: "column" }}>
+      ) : (
+        <>
+          {/* Split screen */}
           <div
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.68rem",
-              color: "var(--muted)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "0.6rem 1rem",
-              borderBottom: "1px solid var(--border)",
-              background: "var(--surface)",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1px",
+              background: "var(--border)",
+              border: "1px solid var(--border)",
+              minHeight: "500px",
             }}
           >
-            Field Reference
-          </div>
-          <div style={{ flex: 1, padding: "1rem", overflowY: "auto" }}>
-            {parsed ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {Object.entries(parsed).map(([key, value]) => (
-                  <div
-                    key={key}
-                    style={{
-                      padding: "0.65rem 0.85rem",
-                      background: "#09090b",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.78rem",
-                        color: "var(--white)",
-                        marginBottom: "0.25rem",
-                      }}
-                    >
-                      {key}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.75rem",
-                        color: "var(--crimson-hi)",
-                        marginBottom: "0.35rem",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {JSON.stringify(value)}
-                    </div>
-                    {FIELD_DOCS[key] && (
-                      <div
-                        style={{
-                          fontSize: "0.75rem",
-                          color: "var(--muted)",
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {FIELD_DOCS[key]}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
+            {/* JSON view pane */}
+            <div style={{ background: "#09090b", display: "flex", flexDirection: "column" }}>
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "0.78rem",
+                  fontSize: "0.68rem",
                   color: "var(--muted)",
-                  padding: "2rem",
-                  textAlign: "center",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "0.6rem 1rem",
+                  borderBottom: "1px solid var(--border)",
+                  background: "var(--surface)",
                 }}
               >
-                Fix JSON syntax errors to see field reference.
+                security_policy.json (read-only)
               </div>
-            )}
+              <pre
+                style={{
+                  flex: 1,
+                  background: "#09090b",
+                  color: "var(--silver)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.82rem",
+                  lineHeight: 1.7,
+                  padding: "1rem",
+                  margin: 0,
+                  overflowY: "auto",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {raw || "Policy not found."}
+              </pre>
+            </div>
+
+            {/* Reference pane */}
+            <div style={{ background: "var(--surface)", display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.68rem",
+                  color: "var(--muted)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  padding: "0.6rem 1rem",
+                  borderBottom: "1px solid var(--border)",
+                  background: "var(--surface)",
+                }}
+              >
+                Field Reference
+              </div>
+              <div style={{ flex: 1, padding: "1rem", overflowY: "auto" }}>
+                {policy ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {Object.entries(policy).map(([key, value]) => (
+                      <div
+                        key={key}
+                        style={{
+                          padding: "0.65rem 0.85rem",
+                          background: "#09090b",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.78rem",
+                            color: "var(--white)",
+                            marginBottom: "0.25rem",
+                          }}
+                        >
+                          {key}
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.75rem",
+                            color: "var(--crimson-hi)",
+                            marginBottom: "0.35rem",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {JSON.stringify(value)}
+                        </div>
+                        {FIELD_DOCS[key] && (
+                          <div
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "var(--muted)",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {FIELD_DOCS[key]}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.78rem",
+                      color: "var(--muted)",
+                      padding: "2rem",
+                      textAlign: "center",
+                    }}
+                  >
+                    Policy not available.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       <div
         style={{

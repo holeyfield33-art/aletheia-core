@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+import crypto from "crypto";
 
 /**
- * Key management proxy — keeps ALETHEIA_ADMIN_KEY server-side only.
+ * Key management — user-scoped, session-protected.
  *
- * GET  /api/keys  → list all keys
- * POST /api/keys  → create a new trial key
+ * GET  /api/keys  → list current user's keys
+ * POST /api/keys  → create a new trial key for current user
  */
-
-const BACKEND_BASE = (process.env.ALETHEIA_BACKEND_URL ?? "").replace(/\/+$/, "");
-const ADMIN_KEY = process.env.ALETHEIA_ADMIN_KEY ?? "";
-const TIMEOUT_MS = 5_000;
 
 const securityHeaders: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -25,35 +25,62 @@ function secureJson(body: unknown, init?: { status?: number }) {
   });
 }
 
+const PLAN_QUOTAS: Record<string, number> = {
+  trial: 1_000,
+  pro: 100_000,
+};
+
+const MAX_KEYS_PER_USER = 10;
+
+function hashKey(raw: string): string {
+  const salt = process.env.ALETHEIA_KEY_SALT ?? "";
+  if (salt) {
+    return crypto.createHmac("sha256", salt).update(raw).digest("hex");
+  }
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
 export async function GET() {
-  if (!BACKEND_BASE || !ADMIN_KEY) {
-    return secureJson(
-      { keys: [], message: "Key management not configured on this instance." },
-      { status: 200 },
-    );
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return secureJson({ error: "unauthorized" }, { status: 401 });
   }
 
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const res = await fetch(`${BACKEND_BASE}/v1/keys`, {
-      method: "GET",
-      headers: { "X-Admin-Key": ADMIN_KEY },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    const data = await res.json();
-    return secureJson(data, { status: res.status });
-  } catch {
-    return secureJson({ keys: [] }, { status: 200 });
-  }
+  const keys = await prisma.apiKey.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      keyPrefix: true,
+      plan: true,
+      status: true,
+      monthlyQuota: true,
+      requestsUsed: true,
+      periodStart: true,
+      periodEnd: true,
+      createdAt: true,
+      lastUsedAt: true,
+    },
+  });
+
+  return secureJson({ keys });
 }
 
 export async function POST(request: NextRequest) {
-  if (!BACKEND_BASE || !ADMIN_KEY) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return secureJson({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // Enforce key limit
+  const existingCount = await prisma.apiKey.count({
+    where: { userId: session.user.id, status: "active" },
+  });
+  if (existingCount >= MAX_KEYS_PER_USER) {
     return secureJson(
-      { error: "key_management_unavailable", message: "Key management is not configured." },
-      { status: 503 },
+      { error: "limit_reached", message: `Maximum ${MAX_KEYS_PER_USER} active keys per account.` },
+      { status: 429 },
     );
   }
 
@@ -64,27 +91,47 @@ export async function POST(request: NextRequest) {
     return secureJson({ error: "invalid_json" }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name.slice(0, 64) : "Unnamed Key";
+  const name = typeof body.name === "string" ? body.name.slice(0, 64).trim() : "Unnamed Key";
+  const plan = "trial"; // users create trial keys; pro via billing upgrade
 
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const res = await fetch(`${BACKEND_BASE}/v1/keys`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Admin-Key": ADMIN_KEY,
-      },
-      body: JSON.stringify({ name, plan: "trial" }),
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    const data = await res.json();
-    return secureJson(data, { status: res.status });
-  } catch {
-    return secureJson(
-      { error: "request_failed", message: "Could not reach backend." },
-      { status: 502 },
-    );
-  }
+  const rawKey = `sk_${plan}_${crypto.randomBytes(24).toString("hex")}`;
+  const keyHash = hashKey(rawKey);
+  const keyPrefix = rawKey.slice(0, 12) + "..." + rawKey.slice(-4);
+  const quota = PLAN_QUOTAS[plan] ?? 1000;
+
+  const now = new Date();
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const record = await prisma.apiKey.create({
+    data: {
+      userId: session.user.id,
+      name,
+      keyHash,
+      keyPrefix,
+      plan,
+      status: "active",
+      monthlyQuota: quota,
+      requestsUsed: 0,
+      periodStart,
+      periodEnd,
+    },
+  });
+
+  return secureJson(
+    {
+      key: rawKey, // returned exactly once
+      id: record.id,
+      name: record.name,
+      keyPrefix: record.keyPrefix,
+      plan: record.plan,
+      status: record.status,
+      monthlyQuota: record.monthlyQuota,
+      requestsUsed: 0,
+      periodStart: record.periodStart.toISOString(),
+      periodEnd: record.periodEnd.toISOString(),
+      createdAt: record.createdAt.toISOString(),
+    },
+    { status: 201 },
+  );
 }

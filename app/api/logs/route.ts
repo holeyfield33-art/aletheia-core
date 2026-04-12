@@ -1,0 +1,71 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
+
+/**
+ * Audit logs API — user-scoped, session-protected.
+ *
+ * GET /api/logs?page=1&limit=50&decision=DENIED&action=Transfer_Funds
+ */
+
+const securityHeaders: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Cache-Control": "no-store",
+};
+
+function secureJson(body: unknown, init?: { status?: number }) {
+  return NextResponse.json(body, {
+    status: init?.status ?? 200,
+    headers: securityHeaders,
+  });
+}
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return secureJson({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = request.nextUrl;
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
+  const decision = searchParams.get("decision");
+  const action = searchParams.get("action");
+
+  const where: Record<string, unknown> = { userId: session.user.id };
+  if (decision) where.decision = decision;
+  if (action) where.action = action;
+
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+      select: {
+        id: true,
+        decision: true,
+        threatScore: true,
+        action: true,
+        origin: true,
+        reason: true,
+        latencyMs: true,
+        requestId: true,
+        createdAt: true,
+      },
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return secureJson({
+    logs,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  });
+}

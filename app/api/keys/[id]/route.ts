@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
 /**
- * Per-key management proxy.
+ * Per-key management — user-scoped, session-protected.
  *
- * GET    /api/keys/[id]  → get key usage
- * DELETE /api/keys/[id]  → revoke key
+ * GET    /api/keys/[id]  → get key usage (own keys only)
+ * DELETE /api/keys/[id]  → revoke key (own keys only)
  */
-
-const BACKEND_BASE = (process.env.ALETHEIA_BACKEND_URL ?? "").replace(/\/+$/, "");
-const ADMIN_KEY = process.env.ALETHEIA_ADMIN_KEY ?? "";
-const TIMEOUT_MS = 5_000;
 
 const securityHeaders: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
@@ -27,54 +26,69 @@ function secureJson(body: unknown, init?: { status?: number }) {
 
 function extractId(request: NextRequest): string | null {
   const parts = request.nextUrl.pathname.split("/");
-  // /api/keys/[id] → last segment
   const id = parts[parts.length - 1];
-  if (!id || id.length > 64 || !/^[a-f0-9]+$/.test(id)) return null;
+  if (!id || id.length > 64 || !/^[a-zA-Z0-9_-]+$/.test(id)) return null;
   return id;
 }
 
 export async function GET(request: NextRequest) {
-  const id = extractId(request);
-  if (!id) return secureJson({ error: "invalid_key_id" }, { status: 400 });
-  if (!BACKEND_BASE || !ADMIN_KEY) {
-    return secureJson({ error: "not_configured" }, { status: 503 });
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return secureJson({ error: "unauthorized" }, { status: 401 });
   }
 
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const res = await fetch(`${BACKEND_BASE}/v1/keys/${id}/usage`, {
-      method: "GET",
-      headers: { "X-Admin-Key": ADMIN_KEY },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    const data = await res.json();
-    return secureJson(data, { status: res.status });
-  } catch {
-    return secureJson({ error: "request_failed" }, { status: 502 });
+  const id = extractId(request);
+  if (!id) return secureJson({ error: "invalid_key_id" }, { status: 400 });
+
+  const key = await prisma.apiKey.findFirst({
+    where: { id, userId: session.user.id },
+    select: {
+      id: true,
+      name: true,
+      keyPrefix: true,
+      plan: true,
+      status: true,
+      monthlyQuota: true,
+      requestsUsed: true,
+      periodStart: true,
+      periodEnd: true,
+      createdAt: true,
+      lastUsedAt: true,
+    },
+  });
+
+  if (!key) {
+    return secureJson({ error: "key_not_found" }, { status: 404 });
   }
+
+  return secureJson(key);
 }
 
 export async function DELETE(request: NextRequest) {
-  const id = extractId(request);
-  if (!id) return secureJson({ error: "invalid_key_id" }, { status: 400 });
-  if (!BACKEND_BASE || !ADMIN_KEY) {
-    return secureJson({ error: "not_configured" }, { status: 503 });
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return secureJson({ error: "unauthorized" }, { status: 401 });
   }
 
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const res = await fetch(`${BACKEND_BASE}/v1/keys/${id}`, {
-      method: "DELETE",
-      headers: { "X-Admin-Key": ADMIN_KEY },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    const data = await res.json();
-    return secureJson(data, { status: res.status });
-  } catch {
-    return secureJson({ error: "request_failed" }, { status: 502 });
+  const id = extractId(request);
+  if (!id) return secureJson({ error: "invalid_key_id" }, { status: 400 });
+
+  // Only revoke own keys
+  const key = await prisma.apiKey.findFirst({
+    where: { id, userId: session.user.id },
+  });
+
+  if (!key) {
+    return secureJson(
+      { error: "key_not_found", message: "Key not found or already revoked." },
+      { status: 404 },
+    );
   }
+
+  await prisma.apiKey.update({
+    where: { id },
+    data: { status: "revoked" },
+  });
+
+  return secureJson({ status: "revoked", id });
 }

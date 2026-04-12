@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
+import os
 import re
 import threading
+import time
 from typing import Optional
 
 import numpy as np
@@ -51,9 +55,10 @@ class AletheiaNitpickerV2:
             "routine", "refactor", "maintenance", "housekeeping", "cleanup",
         ]
 
-        # Config-driven deterministic rotation counter (not random.choice)
+        # Config-driven rotation — HMAC-seeded when salt is available, counter fallback
         self._rotation_index: int = 0
         self._rotation_lock = threading.Lock()
+        self._rotation_salt: str = os.getenv("ALETHEIA_ROTATION_SALT", "").strip()
 
         # Semantic similarity threshold from config
         self._similarity_threshold: float = settings.nitpicker_similarity_threshold
@@ -102,9 +107,19 @@ class AletheiaNitpickerV2:
     # ------------------------------------------------------------------
 
     def sanitize_intent(self, text: str, source_origin: str) -> str:
-        # Config-driven deterministic rotation (cycles through modes list)
+        # HMAC-seeded rotation: use salt + timestamp to pick mode unpredictably
         with self._rotation_lock:
-            current_mode = self.modes[self._rotation_index % len(self.modes)]
+            if self._rotation_salt:
+                # HMAC-SHA256( salt, counter || epoch_minute ) → index
+                epoch_minute = str(int(time.time()) // 60)
+                msg = f"{self._rotation_index}:{epoch_minute}".encode()
+                digest = hmac.new(
+                    self._rotation_salt.encode(), msg, hashlib.sha256
+                ).digest()
+                idx = int.from_bytes(digest[:4], "big") % len(self.modes)
+                current_mode = self.modes[idx]
+            else:
+                current_mode = self.modes[self._rotation_index % len(self.modes)]
             self._rotation_index += 1
         _nitpicker_logger.debug("Rotating Logic... Current Mode: %s", current_mode)
 

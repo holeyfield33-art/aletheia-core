@@ -225,9 +225,21 @@ class InMemoryRateLimiter:
 
 
 def create_rate_limiter(max_per_second: int | None = None):
-    """Factory: return Redis limiter if configured, else in-memory fallback."""
+    """Factory: return Redis limiter if configured, else in-memory fallback.
+
+    In production (ENVIRONMENT=production), Redis is required.
+    In-memory fallback is single-node only — not suitable for production.
+    """
     if _upstash_configured():
         return UpstashRateLimiter(max_per_second)
+    if os.getenv("ENVIRONMENT", "").lower() == "production":
+        _logger.critical(
+            "FATAL: UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set "
+            "in production. Distributed rate limiting is required. "
+            "In-memory fallback is not safe for multi-worker deployments."
+        )
+        import sys
+        sys.exit(1)
     return InMemoryRateLimiter(max_per_second)
 
 
