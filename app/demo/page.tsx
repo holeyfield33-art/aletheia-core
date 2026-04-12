@@ -730,6 +730,53 @@ export default function DemoPage() {
         </div>
       )}
 
+      {/* Login CTA */}
+      <div
+        style={{
+          marginTop: "2.5rem",
+          background: "var(--surface)",
+          border: "1px solid var(--border-hi)",
+          borderRadius: "10px",
+          padding: "1.5rem 1.75rem",
+          textAlign: "center",
+        }}
+      >
+        <p
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.95rem",
+            marginBottom: "1rem",
+            lineHeight: 1.6,
+          }}
+        >
+          Want your own API key with monthly quota tracking?
+        </p>
+        <a
+          href="/auth/login"
+          className="btn-primary"
+          style={{
+            display: "inline-block",
+            fontSize: "0.92rem",
+            textDecoration: "none",
+            padding: "0.6rem 1.5rem",
+          }}
+        >
+          Login to get your trial key &rarr;
+        </a>
+        <p
+          style={{
+            marginTop: "0.75rem",
+            fontSize: "0.78rem",
+            color: "var(--muted)",
+          }}
+        >
+          Free trial &middot; 1,000 requests/month &middot;{" "}
+          <a href="/auth/register" style={{ color: "var(--silver-dim)" }}>
+            Create an account
+          </a>
+        </p>
+      </div>
+
       {/* Link to verify */}
       <p
         style={{
