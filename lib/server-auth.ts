@@ -7,16 +7,29 @@ import { redirect } from "next/navigation";
  * Use in server components and API routes that require authentication.
  */
 export async function requireAuth() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      redirect("/auth/login");
+    }
+    return session;
+  } catch (err: unknown) {
+    // Re-throw Next.js redirect (it throws a special NEXT_REDIRECT error)
+    if (err instanceof Error && "digest" in err) throw err;
+    // Auth misconfiguration (missing NEXTAUTH_SECRET, bad DB, etc.) — redirect safely
+    console.error("[requireAuth] session check failed:", err);
     redirect("/auth/login");
   }
-  return session;
 }
 
 /**
  * Server-side helper: get session without redirecting.
  */
 export async function getAuth() {
-  return getServerSession(authOptions);
+  try {
+    return await getServerSession(authOptions);
+  } catch (err) {
+    console.error("[getAuth] session check failed:", err);
+    return null;
+  }
 }
