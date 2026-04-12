@@ -27,7 +27,7 @@ export async function GET() {
   });
 
   const jsonl = logs
-    .map((log) =>
+    .map((log: Record<string, unknown>) =>
       JSON.stringify({
         event_id: log.id,
         timestamp: log.createdAt.toISOString(),
