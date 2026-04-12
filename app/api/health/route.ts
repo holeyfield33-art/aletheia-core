@@ -1,38 +1,45 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 /**
  * Health-check endpoint — reports which required env vars are set.
- * Visit /api/health on Vercel to diagnose configuration issues.
+ * Requires admin authentication in production.
+ * In development, accessible without auth for local debugging.
  */
-export async function GET() {
-  const required: Record<string, string | undefined> = {
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-    DATABASE_URL: process.env.DATABASE_URL,
-  };
+export async function GET(request: NextRequest) {
+  // In production, require admin auth
+  if (process.env.NODE_ENV === "production") {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || (session.user as any).role !== "ADMIN") {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+  }
 
-  const optional: Record<string, string | undefined> = {
-    DIRECT_URL: process.env.DIRECT_URL,
-    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-  };
+  const requiredKeys = ["NEXTAUTH_SECRET", "NEXTAUTH_URL", "DATABASE_URL"];
+  const optionalKeys = [
+    "DIRECT_URL",
+    "GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+  ];
 
   const status: Record<string, string> = {};
   let allOk = true;
 
-  for (const [key, val] of Object.entries(required)) {
-    if (val) {
-      status[key] = `SET (${val.slice(0, 4)}…)`;
+  // Only report SET/MISSING — never leak partial values
+  for (const key of requiredKeys) {
+    if (process.env[key]) {
+      status[key] = "SET";
     } else {
-      status[key] = "MISSING ❌";
+      status[key] = "MISSING";
       allOk = false;
     }
   }
 
-  for (const [key, val] of Object.entries(optional)) {
-    status[key] = val ? `SET (${val.slice(0, 4)}…)` : "not set";
+  for (const key of optionalKeys) {
+    status[key] = process.env[key] ? "SET" : "not set";
   }
 
   // Quick Prisma connectivity test
@@ -43,9 +50,9 @@ export async function GET() {
       const prisma = new PrismaClient();
       await prisma.$queryRaw`SELECT 1`;
       await prisma.$disconnect();
-      dbStatus = "connected ✅";
-    } catch (e: unknown) {
-      dbStatus = `error: ${e instanceof Error ? e.message.slice(0, 120) : String(e)}`;
+      dbStatus = "connected";
+    } catch {
+      dbStatus = "error";
     }
   }
 

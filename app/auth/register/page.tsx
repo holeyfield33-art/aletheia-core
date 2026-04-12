@@ -42,7 +42,7 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setError(data.message || "Registration failed.");
-        setErrorIsEmailTaken(data.error === "email_taken");
+        setErrorIsEmailTaken(data.error === "registration_failed");
         setLoading(false);
         return;
       }

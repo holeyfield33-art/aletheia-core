@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     });
     if (existing) {
       return NextResponse.json(
-        { error: "email_taken", message: "An account with this email already exists. Please sign in instead." },
-        { status: 409 },
+        { error: "registration_failed", message: "Unable to create account. If you already have an account, please sign in." },
+        { status: 400 },
       );
     }
 
