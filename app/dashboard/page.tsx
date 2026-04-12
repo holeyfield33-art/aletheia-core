@@ -11,15 +11,24 @@ export default async function DashboardIndex() {
   const session = await requireAuth();
   const userId = session.user.id;
 
-  // Sequential queries — avoids PgBouncer/Supavisor "prepared statement already exists" errors
-  const keyCount = await prisma.apiKey.count({ where: { userId, status: "active" } });
-  const totalRequests = await prisma.apiKey.aggregate({ where: { userId }, _sum: { requestsUsed: true } });
-  const recentLogs = await prisma.auditLog.count({ where: { userId } });
+  let keyCount = 0;
+  let totalRequests = 0;
+  let recentLogs = 0;
+
+  try {
+    // Sequential queries — avoids PgBouncer/Supavisor "prepared statement already exists" errors
+    keyCount = await prisma.apiKey.count({ where: { userId, status: "active" } });
+    const agg = await prisma.apiKey.aggregate({ where: { userId }, _sum: { requestsUsed: true } });
+    totalRequests = agg._sum.requestsUsed ?? 0;
+    recentLogs = await prisma.auditLog.count({ where: { userId } });
+  } catch (err) {
+    console.error("[Dashboard] Failed to load stats:", err);
+  }
 
   return (
     <DashboardOverview
       keyCount={keyCount}
-      totalRequests={totalRequests._sum.requestsUsed ?? 0}
+      totalRequests={totalRequests}
       logCount={recentLogs}
       plan={session.user.plan}
     />
