@@ -18,26 +18,26 @@ export async function GET() {
       decision: true,
       action: true,
       origin: true,
-      threatLevel: true,
-      policyVersion: true,
+      threatScore: true,
+      policyHash: true,
       payloadHash: true,
-      receiptSignature: true,
+      receipt: true,
       createdAt: true,
     },
   });
 
   const jsonl = logs
-    .map((log: Record<string, unknown>) =>
+    .map((log) =>
       JSON.stringify({
         event_id: log.id,
         timestamp: log.createdAt.toISOString(),
         decision: log.decision,
         action: log.action,
         origin: log.origin,
-        threat_level: log.threatLevel,
+        threat_score: log.threatScore,
         payload_sha256: log.payloadHash,
-        signature: log.receiptSignature,
-        policy_version: log.policyVersion,
+        receipt: log.receipt,
+        policy_hash: log.policyHash,
       })
     )
     .join("\n");

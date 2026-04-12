@@ -7,9 +7,9 @@ interface AuditLog {
   decision: string;
   action: string;
   origin: string | null;
-  threatLevel: string | null;
-  policyVersion: string | null;
-  receiptSignature: string | null;
+  threatScore: number | null;
+  reason: string | null;
+  requestId: string | null;
   createdAt: string;
 }
 
@@ -124,7 +124,7 @@ export default function LogsPage() {
         >
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Time", "Decision", "Action", "Origin", "Threat", "Policy", "Signature"].map((h) => (
+              {["Time", "Decision", "Action", "Origin", "Score", "Reason", "Request ID"].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -184,10 +184,10 @@ export default function LogsPage() {
                     {log.origin || "—"}
                   </td>
                   <td style={{ padding: "0.45rem 0.65rem", color: "var(--silver)" }}>
-                    {log.threatLevel || "—"}
+                    {log.threatScore != null ? log.threatScore.toFixed(2) : "—"}
                   </td>
                   <td style={{ padding: "0.45rem 0.65rem", color: "var(--muted)", fontSize: "0.68rem" }}>
-                    {log.policyVersion || "—"}
+                    {log.reason || "—"}
                   </td>
                   <td
                     style={{
@@ -199,9 +199,9 @@ export default function LogsPage() {
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
-                    title={log.receiptSignature || ""}
+                    title={log.requestId || ""}
                   >
-                    {log.receiptSignature ? log.receiptSignature.slice(0, 16) + "…" : "—"}
+                    {log.requestId ? log.requestId.slice(0, 16) + "…" : "—"}
                   </td>
                 </tr>
               ))

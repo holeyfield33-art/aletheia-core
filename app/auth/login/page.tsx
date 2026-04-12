@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
@@ -208,7 +208,20 @@ export default function LoginPage() {
           >
             GitHub
           </button>
-
+          <button
+            onClick={() => handleOAuth("google")}
+            style={{
+              flex: 1,
+              padding: "0.6rem",
+              background: "#09090b",
+              border: "1px solid var(--border)",
+              color: "var(--silver)",
+              fontSize: "0.82rem",
+              cursor: "pointer",
+            }}
+          >
+            Google
+          </button>
         </div>
 
         <p
@@ -229,5 +242,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

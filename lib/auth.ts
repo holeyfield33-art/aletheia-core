@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 
@@ -47,7 +48,15 @@ export const authOptions: NextAuthOptions = {
           }),
         ]
       : []),
-
+    // --- Google OAuth ---
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
   ],
   session: {
     strategy: "jwt",
@@ -79,11 +88,14 @@ export const authOptions: NextAuthOptions = {
   events: {
     async createUser({ user }) {
       // Auto-verify OAuth users (they already verified with provider)
-      if (user.email && !user.emailVerified) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { emailVerified: new Date() },
-        });
+      if (user.email) {
+        const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+        if (dbUser && !dbUser.emailVerified) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { emailVerified: new Date() },
+          });
+        }
       }
     },
   },

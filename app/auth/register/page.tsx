@@ -239,7 +239,20 @@ export default function RegisterPage() {
           >
             GitHub
           </button>
-
+          <button
+            onClick={() => handleOAuth("google")}
+            style={{
+              flex: 1,
+              padding: "0.6rem",
+              background: "#09090b",
+              border: "1px solid var(--border)",
+              color: "var(--silver)",
+              fontSize: "0.82rem",
+              cursor: "pointer",
+            }}
+          >
+            Google
+          </button>
         </div>
 
         <p
