@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getBaseUrl } from "@/lib/auth-config";
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -21,7 +22,7 @@ export async function POST() {
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" });
 
-  const appBase = process.env.NEXTAUTH_URL || "https://app.aletheia-core.com";
+  const appBase = getBaseUrl();
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",

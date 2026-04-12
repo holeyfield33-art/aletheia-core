@@ -16,8 +16,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const requiredKeys = ["NEXTAUTH_SECRET", "NEXTAUTH_URL", "DATABASE_URL"];
+  const requiredKeys = ["NEXTAUTH_SECRET", "DATABASE_URL"];
   const optionalKeys = [
+    "NEXTAUTH_URL",
     "DIRECT_URL",
     "GITHUB_CLIENT_ID",
     "GITHUB_CLIENT_SECRET",

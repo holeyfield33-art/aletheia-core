@@ -8,6 +8,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawCallback = searchParams.get("callbackUrl") ?? "/dashboard";
+  const oauthError = searchParams.get("error");
   // Prevent open redirect — only allow relative paths
   const callbackUrl =
     rawCallback.startsWith("/") && !rawCallback.startsWith("//")
@@ -18,6 +19,22 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Show debug info on non-production builds (preview + dev)
+  const isDebug =
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_VERCEL_ENV === "preview";
+
+  const oauthMessages: Record<string, string> = {
+    OAuthSignin: "Could not start OAuth sign-in. Check provider configuration.",
+    OAuthCallback: "OAuth callback error. The redirect URI may not match the provider's allowed list.",
+    OAuthCreateAccount: "Could not create account from OAuth provider.",
+    OAuthAccountNotLinked: "This email is already linked to another sign-in method. Sign in with the original method first.",
+    Callback: "OAuth callback error. Check server logs for details.",
+    AccessDenied: "Access denied. You may not have permission to sign in.",
+    Configuration: "Server configuration error. Check NEXTAUTH_URL and provider settings.",
+    Default: "An authentication error occurred. Please try again.",
+  };
 
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +114,45 @@ function LoginContent() {
             }}
           >
             {error}
+          </div>
+        )}
+
+        {oauthError && !error && (
+          <div
+            style={{
+              background: "rgba(220,38,38,0.12)",
+              border: "1px solid rgba(220,38,38,0.3)",
+              color: "#f87171",
+              padding: "0.75rem 1rem",
+              fontSize: "0.82rem",
+              marginBottom: "1rem",
+            }}
+          >
+            {oauthMessages[oauthError] ?? oauthMessages.Default}
+          </div>
+        )}
+
+        {isDebug && (
+          <div
+            style={{
+              background: "rgba(59,130,246,0.08)",
+              border: "1px solid rgba(59,130,246,0.25)",
+              color: "#93c5fd",
+              padding: "0.6rem 0.75rem",
+              fontSize: "0.72rem",
+              fontFamily: "var(--font-mono)",
+              marginBottom: "1rem",
+              lineHeight: 1.7,
+              wordBreak: "break-all",
+            }}
+          >
+            <div style={{ fontWeight: 600, marginBottom: "0.25rem", color: "#60a5fa" }}>
+              Debug (non-production only)
+            </div>
+            <div>callbackUrl: {callbackUrl}</div>
+            <div>NEXT_PUBLIC_VERCEL_ENV: {process.env.NEXT_PUBLIC_VERCEL_ENV ?? "(unset)"}</div>
+            <div>NEXT_PUBLIC_VERCEL_URL: {process.env.NEXT_PUBLIC_VERCEL_URL ?? "(unset)"}</div>
+            {oauthError && <div>OAuth error code: {oauthError}</div>}
           </div>
         )}
 

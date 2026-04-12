@@ -5,6 +5,7 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { getBaseUrl } from "@/lib/auth-config";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
@@ -68,6 +69,16 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allow relative paths
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allow same-origin redirects
+      try {
+        const urlOrigin = new URL(url).origin;
+        if (urlOrigin === baseUrl) return url;
+      } catch { /* invalid URL — fall through to baseUrl */ }
+      return baseUrl;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -100,4 +111,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Trust the Host header on Vercel (behind proxy/load balancer)
+  // Also enable via AUTH_TRUST_HOST=true env var
+  ...(process.env.VERCEL || process.env.AUTH_TRUST_HOST === "true"
+    ? { trustHost: true }
+    : {}),
 };
