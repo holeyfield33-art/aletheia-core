@@ -730,50 +730,65 @@ export default function DemoPage() {
         </div>
       )}
 
-      {/* Login CTA */}
+      {/* Conversion CTA */}
       <div
         style={{
           marginTop: "2.5rem",
           background: "var(--surface)",
           border: "1px solid var(--border-hi)",
           borderRadius: "10px",
-          padding: "1.5rem 1.75rem",
+          padding: "2rem 1.75rem",
           textAlign: "center",
         }}
       >
+        <h2
+          style={{
+            fontFamily: "var(--font-head)",
+            fontSize: "1.25rem",
+            fontWeight: 800,
+            color: "var(--white)",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Ready to protect your agents?
+        </h2>
         <p
           style={{
             color: "var(--silver)",
             fontSize: "0.95rem",
-            marginBottom: "1rem",
+            marginBottom: "1.25rem",
             lineHeight: 1.6,
+            maxWidth: "480px",
+            margin: "0 auto 1.25rem",
           }}
         >
-          Want your own API key with monthly quota tracking?
+          Get your own API key with 1,000 free requests/month.
+          No credit card required.
         </p>
-        <a
-          href="/auth/login"
-          className="btn-primary"
-          style={{
-            display: "inline-block",
-            fontSize: "0.92rem",
-            textDecoration: "none",
-            padding: "0.6rem 1.5rem",
-          }}
-        >
-          Login to get your trial key &rarr;
-        </a>
+        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+          <a
+            href="/auth/register"
+            className="btn-primary"
+            style={{ fontSize: "0.92rem", padding: "0.65rem 1.5rem" }}
+          >
+            Start Free Trial &rarr;
+          </a>
+          <a
+            href="/auth/login"
+            className="btn-secondary"
+            style={{ fontSize: "0.92rem", padding: "0.65rem 1.5rem" }}
+          >
+            Sign In
+          </a>
+        </div>
         <p
           style={{
-            marginTop: "0.75rem",
+            marginTop: "1rem",
             fontSize: "0.78rem",
             color: "var(--muted)",
           }}
         >
-          Free trial &middot; 1,000 requests/month &middot;{" "}
-          <a href="/auth/register" style={{ color: "var(--silver-dim)" }}>
-            Create an account
-          </a>
+          Free trial &middot; 1,000 requests/month &middot; Upgrade to Pro for 100K/month
         </p>
       </div>
 

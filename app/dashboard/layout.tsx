@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/server-auth";
 import DashboardSidebar from "./DashboardSidebar";
+import Breadcrumbs from "./Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -12,11 +13,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = session.user;
 
   return (
-    <div style={{ display: "flex", minHeight: "calc(100vh - 60px)" }}>
+    <div className="dashboard-layout" style={{ display: "flex", minHeight: "calc(100vh - 60px)" }}>
       {/* Sidebar */}
       <DashboardSidebar userName={user.name} userPlan={user.plan} />
       {/* Main content */}
       <div
+        className="dashboard-content"
         style={{
           flex: 1,
           background: "#09090b",
@@ -24,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           overflowX: "auto",
         }}
       >
+        <Breadcrumbs />
         {children}
       </div>
     </div>

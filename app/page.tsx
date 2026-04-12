@@ -441,10 +441,10 @@ function HowToUse() {
       priceDetail: "/ evaluation",
       color: "var(--silver)",
       description:
-        "Free evaluation key with limited monthly requests. No credit card required.",
+        "Free evaluation key with 1,000 requests/month. No credit card required.",
       features: [
         "Free evaluation key",
-        "Limited monthly requests",
+        "1,000 requests / month",
         "One API key",
         "Evaluation use only",
       ],
@@ -458,17 +458,17 @@ function HowToUse() {
       priceDetail: "/mo",
       color: "var(--crimson-hi)",
       description:
-        "Production API access with managed operations, retained audit logs, and priority support.",
+        "Production API access with 100,000 requests/month, retained audit logs, and priority support.",
       features: [
         "Production API access",
-        "Higher request volume",
+        "100,000 requests / month",
         "30-day audit logs",
-        "Managed operations",
+        "Up to 10 API keys",
         "Priority support",
       ],
       cta: {
         label: "Upgrade to Hosted Pro",
-        href: `mailto:${URLS.contactEmail}?subject=Hosted Pro`,
+        href: "/dashboard",
       },
       ctaStyle: "primary" as const,
       highlight: true,

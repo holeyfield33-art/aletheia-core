@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "Audit Logs", href: "/dashboard/logs" },
   { label: "Policy", href: "/dashboard/policy" },
   { label: "Evidence", href: "/dashboard/evidence" },
+  { label: "Settings", href: "/dashboard/settings" },
 ];
 
 export default function DashboardSidebar({
@@ -23,6 +24,7 @@ export default function DashboardSidebar({
 
   return (
     <aside
+      className="dashboard-sidebar"
       style={{
         width: "200px",
         flexShrink: 0,
