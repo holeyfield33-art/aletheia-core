@@ -38,26 +38,25 @@ export async function GET(request: NextRequest) {
   if (decision) where.decision = decision;
   if (action) where.action = action;
 
-  const [logs, total] = await Promise.all([
-    prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-      select: {
-        id: true,
-        decision: true,
-        threatScore: true,
-        action: true,
-        origin: true,
-        reason: true,
-        latencyMs: true,
-        requestId: true,
-        createdAt: true,
-      },
-    }),
-    prisma.auditLog.count({ where }),
-  ]);
+  // Sequential queries — avoids PgBouncer/Supavisor prepared statement collisions
+  const logs = await prisma.auditLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    skip: (page - 1) * limit,
+    take: limit,
+    select: {
+      id: true,
+      decision: true,
+      threatScore: true,
+      action: true,
+      origin: true,
+      reason: true,
+      latencyMs: true,
+      requestId: true,
+      createdAt: true,
+    },
+  });
+  const total = await prisma.auditLog.count({ where });
 
   return secureJson({
     logs,
