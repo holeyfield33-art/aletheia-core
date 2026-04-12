@@ -46,9 +46,8 @@ export async function POST(request: NextRequest) {
       where: { email: normalizedEmail },
     });
     if (existing) {
-      // Don't reveal whether email exists — generic message
       return NextResponse.json(
-        { error: "registration_failed", message: "Unable to create account. Please try again or sign in." },
+        { error: "email_taken", message: "An account with this email already exists. Please sign in instead." },
         { status: 409 },
       );
     }

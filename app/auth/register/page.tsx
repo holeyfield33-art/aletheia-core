@@ -12,11 +12,13 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [errorIsEmailTaken, setErrorIsEmailTaken] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorIsEmailTaken(false);
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
@@ -40,6 +42,7 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setError(data.message || "Registration failed.");
+        setErrorIsEmailTaken(data.error === "email_taken");
         setLoading(false);
         return;
       }
@@ -145,6 +148,20 @@ export default function RegisterPage() {
             }}
           >
             {error}
+            {errorIsEmailTaken && (
+              <div style={{ marginTop: "0.5rem" }}>
+                <a
+                  href="/auth/login"
+                  style={{
+                    color: "#f87171",
+                    textDecoration: "underline",
+                    fontWeight: 600,
+                  }}
+                >
+                  Go to Sign In &rarr;
+                </a>
+              </div>
+            )}
           </div>
         )}
 
