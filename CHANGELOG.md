@@ -5,6 +5,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.6.3] — 2026-04-12
+
+### Added — UX/UI Overhaul
+- **Stripe checkout integration**: `/api/stripe/checkout` endpoint creates Stripe
+  checkout sessions for Pro plan upgrades. `UpgradeButton` client component handles
+  redirect flow. `site-config.ts` upgrade CTA now points to checkout (was `mailto:`).
+- **Account settings page**: `/dashboard/settings` with display name editing,
+  plan/billing display, upgrade CTA for Trial users, and sign out.
+- **Settings API**: `PATCH /api/settings` for updating user display name.
+- **Onboarding**: Welcome banner for new dashboard users (0 keys, 0 requests) with
+  3-step guided flow (Generate Key → Try Demo → View Logs).
+- **Mobile navigation**: Hamburger menu at ≤768px with full-screen drawer overlay.
+- **Mobile dashboard**: Sidebar collapses to horizontal scrollable tabs on mobile;
+  content area uses responsive padding.
+- **Dashboard breadcrumbs**: Auto-generated from URL path segments.
+- **Upgrade banner**: Shown on dashboard when Trial users reach ≥80% of monthly
+  quota, with usage stats and one-click upgrade button.
+
+### Changed
+- **Pricing clarity**: Trial tier now shows "1,000 requests/month", Pro shows
+  "100,000 requests/month, up to 10 API keys" (were vague "limited" / "higher").
+- **Demo page CTAs**: Stronger conversion section with "Start Free Trial" primary
+  CTA, "Sign In" secondary, and specific quota details.
+- **WCAG contrast**: `--muted` color changed from `#6b7585` (3.5:1) to `#8b95a5`
+  (4.5:1+ AA compliant against dark background).
+- **Test count**: 689 → 697 (added security hardening and edge-case tests).
+
+---
+
 ## [1.6.2] — 2026-04-10
 
 ### Security — Enterprise Hardening

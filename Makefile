@@ -20,12 +20,12 @@ verify-launch:
 	@echo ""
 	@echo "3. Checking version consistency..."
 	python -c "import json; v=json.load(open('pyproject.toml')); print('pyproject.toml: OK')" 2>/dev/null || true
-	grep -q '"1.6.2"' lib/site-config.ts && echo "site-config.ts: OK" || echo "site-config.ts: MISMATCH"
-	grep -q '1.6.2' package.json && echo "package.json: OK" || echo "package.json: MISMATCH"
+	grep -q '"1.6.3"' lib/site-config.ts && echo "site-config.ts: OK" || echo "site-config.ts: MISMATCH"
+	grep -q '1.6.3' package.json && echo "package.json: OK" || echo "package.json: MISMATCH"
 	@echo ""
 	@echo "4. Test count check..."
 	@count=$$(grep -r -c "def test_" tests/*.py tests/test_proximity/*.py 2>/dev/null | awk -F: '{sum+=$$2} END{print sum}'); \
 	echo "Test functions: $$count"; \
-	if [ "$$count" -ge 689 ]; then echo "Test count: OK ($$count)"; else echo "Test count: MISMATCH (expected >=689, got $$count)"; fi
+	if [ "$$count" -ge 697 ]; then echo "Test count: OK ($$count)"; else echo "Test count: MISMATCH (expected >=697, got $$count)"; fi
 	@echo ""
 	@echo "=== Verification Complete ==="

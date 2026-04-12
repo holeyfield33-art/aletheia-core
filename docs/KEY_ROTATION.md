@@ -1,4 +1,4 @@
-# Key Rotation Runbook — Aletheia Core v1.6.2
+# Key Rotation Runbook — Aletheia Core v1.6.3
 
 Step-by-step procedure for rotating Ed25519 manifest signing keys and
 runtime secrets in production.

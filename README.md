@@ -17,10 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.2-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.6.3-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-689%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-697%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -47,22 +47,22 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.6.2
+## What's New in v1.6.3
 
-- **Config validation at startup:** All security thresholds (intent_threshold, grey_zone_lower, policy_threshold) validated for range and logical consistency. Invalid values fail-fast with actionable errors.
-- **HMAC-keyed API key hashing:** Key store uses HMAC-SHA256 with `ALETHEIA_KEY_SALT` instead of plain SHA-256.
-- **SQLite file permissions:** Decision store and key store databases enforce `0o600` on creation.
-- **Audit log hardening:** Path traversal (`..`) rejected; audit log file permissions set to `0o600`.
-- **Manifest fail-closed:** Missing `security_policy.json` in active mode raises `RuntimeError` instead of silently returning `MANIFEST_MISSING`.
-- **Timing oracle fix:** API key comparison evaluates ALL keys before returning (no short-circuit).
-- **Proxy depth validation:** `ALETHEIA_TRUSTED_PROXY_DEPTH` validated to 0–5 range at startup.
-- **Rate limiter hardening:** Circuit breaker adds random jitter; Redis URL no longer logged.
-- **Embedding input validation:** `encode()` rejects empty input, >1,000 texts, or >500 KB total.
-- **CSP + Permissions-Policy headers** added to FastAPI middleware and `vercel.json`.
-- **Sandbox response redaction:** Matched pattern names no longer leaked to clients.
-- **PROCEED response hardening:** `reasoning` field removed from PROCEED responses.
-- **YAML config bomb protection:** Config loader enforces 100 KB file size limit.
-- **Container hardening:** Dockerfile adds `HEALTHCHECK`, `--timeout-keep-alive`, `--no-create-home`, and restrictive `/app/data` permissions.
+### UX/UI Overhaul
+- **Stripe checkout**: Real payment flow via `/api/stripe/checkout`. Pro upgrade CTA now creates a Stripe Checkout session (was `mailto:` link).
+- **Account settings page**: `/dashboard/settings` — edit display name, view plan/billing, upgrade to Pro, sign out.
+- **Onboarding flow**: Welcome banner for new dashboard users with 3-step guide (Generate Key → Try Demo → View Logs).
+- **Mobile navigation**: Hamburger menu at ≤768px with full-screen drawer overlay.
+- **Mobile dashboard**: Sidebar collapses to horizontal scrollable tabs; responsive content padding.
+- **Dashboard breadcrumbs**: Auto-generated from URL path.
+- **Upgrade banner**: Shown when Trial users reach ≥80% of monthly quota.
+- **Pricing clarity**: Trial = 1,000 requests/month, Pro = 100,000 requests/month (were vague).
+- **Demo page CTAs**: Stronger conversion section with "Start Free Trial" and specific quota details.
+- **WCAG AA contrast**: `--muted` color updated to 4.5:1+ contrast ratio.
+
+### Previous: v1.6.2 — Security Hardening
+- Config validation at startup, HMAC-keyed API key hashing, SQLite file permissions, manifest fail-closed, timing oracle fix, sandbox response redaction, container hardening, and more.
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
@@ -73,7 +73,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 689 |
+| Tests passing | 697 |
 | Core coverage | 89% |
 | SAST findings | 0 |
 | Hardcoded secrets | 0 |
@@ -215,7 +215,7 @@ No auth required. Used by load balancers and uptime monitors.
 {
   "status": "ok",
   "service": "aletheia-core",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "uptime_seconds": 3600.0,
   "timestamp": "2026-04-10T12:00:00+00:00",
   "manifest_signature": "VALID"
@@ -320,7 +320,7 @@ aletheia-cyber-core/
 ├── scripts/
 │   ├── backup_sqlite.sh     # SQLite backup with 7-day retention
 │   └── smoke_test_live.py   # Post-deploy smoke tests
-├── tests/                   # 689 tests across core, agents, security, and API modules
+├── tests/                   # 697 tests across core, agents, security, and API modules
 ├── simulations/             # Adversarial simulation scripts
 ├── main.py                  # CLI entry point
 ├── AGENTS.md                # Agent communication protocol
@@ -503,7 +503,7 @@ curl http://localhost:8000/health
 # {
 #   "status": "ok",
 #   "service": "aletheia-core",
-#   "version": "1.6.2",
+#   "version": "1.6.3",
 #   "uptime_seconds": 12.34,
 #   "timestamp": "2026-04-10T12:00:00+00:00",
 #   "manifest_signature": "VALID"

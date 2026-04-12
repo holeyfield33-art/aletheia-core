@@ -1,6 +1,6 @@
 # Launch Guide (Beginner Friendly)
 
-This guide covers every way to install, run, test, and deploy Aletheia Core v1.6.2.
+This guide covers every way to install, run, test, and deploy Aletheia Core v1.6.3.
 
 ---
 
@@ -90,7 +90,7 @@ PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ## 7) Run tests
 
 ```bash
-# Full test suite (689 tests, requires torch + sentence-transformers)
+# Full test suite (697 tests, requires torch + sentence-transformers)
 pytest tests/ -v
 
 # CI-lightweight (skip embedding-dependent tests)

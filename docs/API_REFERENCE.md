@@ -1,4 +1,4 @@
-# API Reference — Aletheia Core v1.6.2
+# API Reference — Aletheia Core v1.6.3
 
 Complete reference for all HTTP endpoints exposed by `bridge/fastapi_wrapper.py`.
 
@@ -102,7 +102,7 @@ Public health endpoint. No auth required.
 {
   "status": "ok",
   "service": "aletheia-core",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "uptime_seconds": 3600.0,
   "timestamp": "2026-04-10T12:00:00+00:00",
   "manifest_signature": "VALID"
@@ -325,3 +325,83 @@ FastAPI auto-generates an OpenAPI 3.x schema at runtime:
 - **Raw schema:** `GET /openapi.json`
 
 These are available in development. In production, consider disabling them by setting `docs_url=None` and `redoc_url=None` in the FastAPI constructor.
+
+---
+
+## Next.js App Routes
+
+The web dashboard (`app.aletheia-core.com`) exposes the following API routes. All are served by Next.js App Router and are separate from the Python FastAPI backend.
+
+### POST `/api/stripe/checkout`
+
+Creates a Stripe Checkout session for upgrading to the Pro plan.
+
+**Auth:** NextAuth JWT session (cookie-based). Returns 401 if not authenticated.
+
+**Request:** No body required. Uses the authenticated user's session.
+
+**Response** (200 OK):
+
+```json
+{ "url": "https://checkout.stripe.com/c/pay/cs_..." }
+```
+
+The client should redirect the user to the returned URL. On success, the user is redirected to `/dashboard?upgraded=true`. On cancellation, to `/dashboard?upgrade=cancelled`.
+
+**Error responses:**
+- `401` — Not authenticated
+- `503` — Stripe not configured (missing `STRIPE_SECRET_KEY` or `STRIPE_PRO_PRICE_ID`)
+
+**Environment variables required:**
+- `STRIPE_SECRET_KEY` — Stripe secret key
+- `STRIPE_PRO_PRICE_ID` — Price ID for the Pro subscription
+
+---
+
+### POST `/api/webhooks/stripe`
+
+Stripe webhook endpoint for subscription lifecycle events.
+
+**Auth:** Stripe signature verification (`stripe-signature` header, HMAC-SHA256).
+
+**Handled events:**
+- `checkout.session.completed` — Upgrades user to PRO plan
+- `customer.subscription.deleted` — Downgrades user to TRIAL plan
+- `customer.subscription.updated` — Updates plan based on subscription status
+
+**Environment variables required:**
+- `STRIPE_WEBHOOK_SECRET` — Webhook signing secret (`whsec_...`)
+
+---
+
+### PATCH `/api/settings`
+
+Updates the authenticated user's display name.
+
+**Auth:** NextAuth JWT session (cookie-based).
+
+**Request body** (JSON):
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `name` | string | Yes | max 100 chars, trimmed |
+
+**Response** (200 OK):
+
+```json
+{ "ok": true }
+```
+
+---
+
+### Dashboard Pages
+
+| Path | Description |
+|------|-------------|
+| `/dashboard` | Overview with stats, onboarding banner (new users), upgrade banner (≥80% quota) |
+| `/dashboard/keys` | API key generation, viewing, and revocation |
+| `/dashboard/usage` | Per-key request usage and quota monitoring |
+| `/dashboard/logs` | Audit decision history with threat analysis |
+| `/dashboard/policy` | Security policy configuration viewer |
+| `/dashboard/evidence` | Signed audit evidence export (JSONL) |
+| `/dashboard/settings` | Account settings: profile, plan/billing, sign out |

@@ -1,4 +1,4 @@
-# Operations Runbook — Aletheia Core v1.6.2
+# Operations Runbook — Aletheia Core v1.6.3
 
 This document covers day-to-day operations, environment setup, and troubleshooting
 for a production Aletheia Core deployment.
@@ -81,7 +81,7 @@ python main.py sign-manifest
 On boot, Aletheia logs a self-check summary:
 
 ```
-STARTUP SELF-CHECK: version=1.6.2 manifest=VALID expires_at=2027-03-07T00:00:00+00:00
+STARTUP SELF-CHECK: version=1.6.3 manifest=VALID expires_at=2027-03-07T00:00:00+00:00
   decision_store=upstash(connected) anchor_path=/data/anchor_state.json
   receipt_signing=enabled mode=active endpoints=[/health, /ready, /v1/audit]
 ```
@@ -104,7 +104,7 @@ Used by load balancers and uptime monitors.
 curl https://your-app.onrender.com/health
 ```
 
-Expected: `{"status": "ok", "service": "aletheia-core", "version": "1.6.2", ...}`
+Expected: `{"status": "ok", "service": "aletheia-core", "version": "1.6.3", ...}`
 
 ### GET /ready
 Returns subsystem readiness: manifest, Redis, anchor, receipt signing.
