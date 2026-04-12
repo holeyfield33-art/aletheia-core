@@ -461,9 +461,19 @@ async def readiness_check() -> JSONResponse:
 
 @app.get("/metrics")
 async def prometheus_metrics(request: Request) -> Response:
-    """Prometheus metrics endpoint. Requires auth in production."""
+    """Prometheus metrics endpoint. Auth REQUIRED in production."""
     _metrics_token = os.getenv("ALETHEIA_METRICS_TOKEN", "").strip()
-    if _metrics_token:
+    if not _metrics_token:
+        # In production, refuse unauthenticated metrics
+        if os.getenv("ENVIRONMENT", "").lower() == "production":
+            return JSONResponse(
+                status_code=403,
+                content={"error": "metrics_disabled",
+                         "message": "ALETHEIA_METRICS_TOKEN not configured. Metrics disabled in production."},
+            )
+        # Non-production: allow unauthenticated access with a warning
+        _logger.warning("ALETHEIA_METRICS_TOKEN not set — /metrics is publicly accessible")
+    else:
         auth_header = request.headers.get("authorization", "")
         expected = f"Bearer {_metrics_token}"
         if not auth_header or not secrets.compare_digest(auth_header, expected):
@@ -581,7 +591,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     threat_score, report = scout.evaluate_threat_context(client_ip, clean_input)
 
     # 2. NITPICKER PHASE
-    clean_content = nitpicker.sanitize_intent(clean_input, req.origin)
+    clean_content = nitpicker.sanitize_intent(clean_input, req.origin, request_id=request_id)
 
     # 3. JUDGE PHASE — now includes payload for semantic veto
     is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)

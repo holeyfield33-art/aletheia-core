@@ -37,15 +37,15 @@ _LOG_PII = os.getenv("ALETHEIA_LOG_PII", "false").lower() == "true"
 def redact_pii(text: str) -> str:
     """Replace PII patterns with redacted placeholders.
 
-    Preserves a SHA-256 fingerprint of the original value for replay
-    detection without exposing raw PII in logs.
+    Uses a random nonce per redaction to prevent rainbow-table
+    reconstruction of the original value from the fingerprint.
     """
     if _LOG_PII:
         return text
     for label, pattern in _PII_PATTERNS:
         def _replacer(m: re.Match[str], _label: str = label) -> str:
-            digest = hashlib.sha256(m.group(0).encode()).hexdigest()[:8]
-            return f"[REDACTED:{_label}:{digest}]"
+            nonce = os.urandom(4).hex()
+            return f"[REDACTED:{_label}:{nonce}]"
         text = pattern.sub(_replacer, text)
     return text
 

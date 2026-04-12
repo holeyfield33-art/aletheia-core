@@ -76,6 +76,7 @@ class KeyRecord:
     period_end: str
     created_at: str
     last_used_at: Optional[str]
+    user_id: str | None = None
 
     def to_public_dict(self) -> dict:
         """Return a dict safe for API responses (omits key_hash)."""
@@ -154,14 +155,23 @@ class KeyStore:
                         period_start  TEXT NOT NULL,
                         period_end    TEXT NOT NULL,
                         created_at    TEXT NOT NULL,
-                        last_used_at  TEXT
+                        last_used_at  TEXT,
+                        user_id       TEXT
                     )
                 """)
+                # Migrate existing tables: add user_id column if missing
+                try:
+                    conn.execute("ALTER TABLE api_keys ADD COLUMN user_id TEXT")
+                except sqlite3.OperationalError:
+                    pass  # column already exists
                 conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)"
                 )
                 conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_api_keys_status ON api_keys(status)"
+                )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)"
                 )
                 conn.commit()
             finally:
@@ -171,7 +181,7 @@ class KeyStore:
     # Key lifecycle
     # ------------------------------------------------------------------
 
-    def create_key(self, name: str, plan: str = "trial") -> tuple[str, KeyRecord]:
+    def create_key(self, name: str, plan: str = "trial", user_id: str | None = None) -> tuple[str, KeyRecord]:
         """Create a new API key.
 
         Returns ``(raw_key, record)``.  The raw key is returned exactly
@@ -202,6 +212,7 @@ class KeyStore:
             period_end=period_end.isoformat(),
             created_at=now.isoformat(),
             last_used_at=None,
+            user_id=user_id,
         )
 
         with self._lock:
@@ -211,13 +222,13 @@ class KeyStore:
                     """INSERT INTO api_keys
                         (id, name, key_hash, key_prefix, plan, status,
                          monthly_quota, requests_used, period_start, period_end,
-                         created_at, last_used_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                         created_at, last_used_at, user_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         record.id, record.name, record.key_hash, record.key_prefix,
                         record.plan, record.status, record.monthly_quota,
                         record.requests_used, record.period_start, record.period_end,
-                        record.created_at, record.last_used_at,
+                        record.created_at, record.last_used_at, record.user_id,
                     ),
                 )
                 conn.commit()
@@ -373,6 +384,11 @@ class KeyStore:
 
     @staticmethod
     def _row_to_record(row: sqlite3.Row) -> KeyRecord:
+        # user_id may not exist on older schemas (before migration)
+        try:
+            uid = row["user_id"]
+        except (IndexError, KeyError):
+            uid = None
         return KeyRecord(
             id=row["id"],
             name=row["name"],
@@ -386,7 +402,21 @@ class KeyStore:
             period_end=row["period_end"],
             created_at=row["created_at"],
             last_used_at=row["last_used_at"],
+            user_id=uid,
         )
+
+    def list_keys_for_user(self, user_id: str) -> list[KeyRecord]:
+        """List key records belonging to a specific user."""
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC",
+                    (user_id,),
+                ).fetchall()
+                return [self._row_to_record(r) for r in rows]
+            finally:
+                conn.close()
 
     def reset_for_testing(self) -> None:
         """Drop and recreate the table.  **Tests only.**"""

@@ -106,21 +106,23 @@ class AletheiaNitpickerV2:
     # Public API (backward-compatible signature)
     # ------------------------------------------------------------------
 
-    def sanitize_intent(self, text: str, source_origin: str) -> str:
-        # HMAC-seeded rotation: use salt + timestamp to pick mode unpredictably
+    def sanitize_intent(self, text: str, source_origin: str, request_id: str = "") -> str:
+        # HMAC-seeded rotation: use salt + per-request entropy for unpredictable mode
         with self._rotation_lock:
-            if self._rotation_salt:
-                # HMAC-SHA256( salt, counter || epoch_minute ) → index
-                epoch_minute = str(int(time.time()) // 60)
-                msg = f"{self._rotation_index}:{epoch_minute}".encode()
-                digest = hmac.new(
-                    self._rotation_salt.encode(), msg, hashlib.sha256
-                ).digest()
-                idx = int.from_bytes(digest[:4], "big") % len(self.modes)
-                current_mode = self.modes[idx]
-            else:
-                current_mode = self.modes[self._rotation_index % len(self.modes)]
             self._rotation_index += 1
+            counter = self._rotation_index
+        if self._rotation_salt:
+            # HMAC-SHA256( salt, request_id || counter || epoch ) → index
+            # Per-request entropy prevents adaptive probing
+            epoch = str(int(time.time()))
+            msg = f"{request_id}:{counter}:{epoch}".encode()
+            digest = hmac.new(
+                self._rotation_salt.encode(), msg, hashlib.sha256
+            ).digest()
+            idx = int.from_bytes(digest[:4], "big") % len(self.modes)
+            current_mode = self.modes[idx]
+        else:
+            current_mode = self.modes[counter % len(self.modes)]
         _nitpicker_logger.debug("Rotating Logic... Current Mode: %s", current_mode)
 
         # Always run imperative-alias strip before mode logic

@@ -48,15 +48,23 @@ class TestPIIRedaction(unittest.TestCase):
         self.assertEqual(result.count("[REDACTED:"), 3)
 
     def test_hash_fingerprint_preserved(self):
-        """Same PII value produces same hash for replay detection."""
+        """Random nonces prevent rainbow-table reconstruction — same input produces different redactions."""
         text1 = "email: test@example.com"
         text2 = "email: test@example.com"
-        self.assertEqual(redact_pii(text1), redact_pii(text2))
+        r1 = redact_pii(text1)
+        r2 = redact_pii(text2)
+        # Both should be redacted
+        self.assertIn("[REDACTED:email:", r1)
+        self.assertIn("[REDACTED:email:", r2)
+        # Random nonces mean outputs differ
+        self.assertNotEqual(r1, r2)
 
     def test_different_pii_different_hash(self):
         r1 = redact_pii("email: a@example.com")
         r2 = redact_pii("email: b@example.com")
-        self.assertNotEqual(r1, r2)
+        # Both redacted but with different nonces
+        self.assertIn("[REDACTED:email:", r1)
+        self.assertIn("[REDACTED:email:", r2)
 
     @patch("core.audit._LOG_PII", True)
     def test_log_pii_mode_preserves_raw(self):
