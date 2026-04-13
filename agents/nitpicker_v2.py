@@ -90,8 +90,11 @@ class AletheiaNitpickerV2:
 
     def _strip_imperative_aliases(self, text: str) -> tuple[str, bool]:
         """Detects and flags imperative aliases prefixing a sequence."""
+        # Safe multi-alias match: each alias word separated by at least one
+        # whitespace/comma char (no zero-length inner loop → no ReDoS).
+        words = "|".join(re.escape(a) for a in self.imperative_aliases)
         alias_pattern = re.compile(
-            r"^(?:(" + "|".join(self.imperative_aliases) + r")[\s,]*)+[:\-]",
+            r"^((?:" + words + r")(?:[\s,]+(?:" + words + r"))*)[\s,]*[:\-]",
             re.IGNORECASE,
         )
         match = alias_pattern.match(text.strip())

@@ -412,11 +412,14 @@ class TestRedTeamAPIIntegration:
         assert resp["receipt"]["fallback_state"] in ("normal", "degraded")
 
     def test_health_endpoint_no_auth(self) -> None:
-        """Health endpoint must be accessible without API key."""
+        """Health endpoint must be accessible without API key (minimal response)."""
         resp = self.client.get("/health")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["manifest_signature"] == "VALID"
+        assert data["status"] in ("ok", "degraded")
+        assert data["service"] == "aletheia-core"
+        # Unauthenticated: no diagnostics exposed
+        assert "manifest_signature" not in data
 
     def test_coercive_payload_blocked(self) -> None:
         status, resp = _post(self.client, {

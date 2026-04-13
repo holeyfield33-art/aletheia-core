@@ -3,7 +3,7 @@ import re
 import threading
 import logging
 import hashlib
-from collections import deque
+from collections import deque, OrderedDict
 
 _scout_logger = logging.getLogger("aletheia.scout")
 
@@ -21,7 +21,8 @@ class AletheiaScoutV2:
             "high_risk_keywords": ["1Password", "local_file_exfil", "extension_hijack"]
         }
         # Cap at 10,000 entries to prevent memory exhaustion from unique source IDs
-        self._query_history: dict[str, list[float]] = {}
+        # OrderedDict provides O(1) LRU eviction (popitem(last=False))
+        self._query_history: OrderedDict[str, list[float]] = OrderedDict()
         self._query_history_max = 10_000
         self._query_history_lock = threading.Lock()
 
@@ -118,12 +119,12 @@ class AletheiaScoutV2:
             current_time = time.time()
             if source_id not in self._query_history:
                 if len(self._query_history) >= self._query_history_max:
-                    oldest_key = min(
-                        self._query_history,
-                        key=lambda k: self._query_history[k][-1] if self._query_history[k] else 0,
-                    )
-                    del self._query_history[oldest_key]
+                    # O(1) LRU eviction — remove oldest-inserted entry
+                    self._query_history.popitem(last=False)
                 self._query_history[source_id] = []
+            else:
+                # Move to end (most recently accessed)
+                self._query_history.move_to_end(source_id)
 
             self._query_history[source_id] = [
                 t for t in self._query_history[source_id]

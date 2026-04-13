@@ -42,7 +42,7 @@ _DANGER_PATTERNS: list[_DangerPattern] = [
     )),
     # Raw socket / network exfiltration
     _DangerPattern("RAW_SOCKET", re.compile(
-        r"\b(?:socket\.(?:socket|connect|bind|listen)|open.*external.*socket)\b", re.IGNORECASE,
+        r"\b(?:socket\.(?:socket|connect|bind|listen)|open.{0,40}external.{0,40}socket)\b", re.IGNORECASE,
     )),
     _DangerPattern("OUTBOUND_CONNECT", re.compile(
         r"\b(?:urllib\.request|http\.client|requests\.(?:get|post|put|delete)|curl\s|wget\s)\b",

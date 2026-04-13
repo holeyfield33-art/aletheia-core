@@ -55,6 +55,15 @@ def redact_pii(text: str) -> str:
 
 _audit_logger: Optional[logging.Logger] = None
 
+# ---------------------------------------------------------------------------
+# Hash-chain state — each audit record includes a hash of the prior record
+# so that deletion, reordering, or tampering is detectable.
+# ---------------------------------------------------------------------------
+_prev_record_hash: str = "GENESIS"
+_audit_seq: int = 0
+import threading as _threading
+_chain_lock = _threading.Lock()
+
 
 def _get_audit_logger() -> logging.Logger:
     """Lazy-init a dedicated file logger that emits raw JSON lines."""
@@ -165,11 +174,20 @@ def log_audit_event(
     extra: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Write a structured JSON audit record and return a TMR receipt."""
+    global _prev_record_hash, _audit_seq
     now = datetime.now(timezone.utc)
 
     manifest_hash = _policy_hash()
+
+    with _chain_lock:
+        _audit_seq += 1
+        seq = _audit_seq
+        prev_hash = _prev_record_hash
+
     record: dict[str, Any] = {
         "timestamp": now.isoformat(),
+        "seq": seq,
+        "prev_hash": prev_hash,
         "decision": decision,
         "threat_score": threat_score,
         "action": action,
@@ -198,6 +216,15 @@ def log_audit_event(
     for key in ("reason", "origin", "action"):
         if isinstance(record.get(key), str):
             record[key] = redact_pii(record[key])
+
+    # Compute record hash for chain integrity
+    record_json = json.dumps(record, sort_keys=True, default=str)
+    record_hash = hashlib.sha256(record_json.encode("utf-8")).hexdigest()
+    record["record_hash"] = record_hash
+
+    # Update chain state
+    with _chain_lock:
+        _prev_record_hash = record_hash
 
     # Write structured JSON line
     _get_audit_logger().info(json.dumps(record, default=str))

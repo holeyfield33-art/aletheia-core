@@ -172,3 +172,16 @@ export const authOptions: NextAuthOptions = {
     ? { trustHost: true }
     : {}),
 };
+
+// Runtime guard: refuse to start with a weak NEXTAUTH_SECRET in production
+// Skip during build (next build sets NODE_ENV=production but NEXTAUTH_URL is absent)
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXTAUTH_URL &&
+  (process.env.NEXTAUTH_SECRET || "").length < 32
+) {
+  throw new Error(
+    "NEXTAUTH_SECRET must be at least 32 characters in production. " +
+    "Generate with: openssl rand -base64 32"
+  );
+}

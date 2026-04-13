@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
+import unittest.mock
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -287,7 +289,25 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_health_returns_200_with_required_fields(self) -> None:
+        """Unauthenticated /health returns minimal response (no diagnostics)."""
         r = self.client.get("/health")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertIn(body["status"], ("ok", "degraded"))
+        self.assertEqual(body["service"], "aletheia-core")
+        # Unauthenticated: no version, uptime, or timestamp
+        self.assertNotIn("version", body)
+        self.assertNotIn("uptime_seconds", body)
+        self.assertNotIn("timestamp", body)
+        # Security headers
+        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
+        self.assertEqual(r.headers.get("x-frame-options"), "DENY")
+        self.assertIn("no-store", r.headers.get("cache-control", ""))
+
+    @unittest.mock.patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": "test-admin-key-1234"})
+    def test_health_authenticated_returns_full_diagnostics(self) -> None:
+        """Authenticated /health returns full diagnostics."""
+        r = self.client.get("/health", headers={"X-Admin-Key": "test-admin-key-1234"})
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertIn(body["status"], ("ok", "degraded"))
@@ -295,10 +315,6 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertIn("version", body)
         self.assertIn("uptime_seconds", body)
         self.assertIn("timestamp", body)
-        # Security headers
-        self.assertEqual(r.headers.get("x-content-type-options"), "nosniff")
-        self.assertEqual(r.headers.get("x-frame-options"), "DENY")
-        self.assertIn("no-store", r.headers.get("cache-control", ""))
 
     def test_ready_returns_readiness_status(self) -> None:
         r = self.client.get("/ready")

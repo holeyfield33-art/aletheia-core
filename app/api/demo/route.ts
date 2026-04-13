@@ -36,12 +36,14 @@ function validateBackendUrl(url: string): boolean {
     const parsed = new URL(url);
     // Must be HTTPS in production
     if (parsed.protocol !== "https:") return false;
-    // Must be a known Aletheia host — not localhost or internal IPs
+    // Must be a known Aletheia host — exact match or subdomain only
     const allowedHosts = (
       process.env.ALETHEIA_ALLOWED_BACKEND_HOSTS ??
       "onrender.com,aletheia-core.com"
     ).split(",").map((h) => h.trim());
-    return allowedHosts.some((h) => parsed.hostname.endsWith(h));
+    return allowedHosts.some((h) =>
+      parsed.hostname === h || parsed.hostname.endsWith(`.${h}`)
+    );
   } catch {
     return false;
   }

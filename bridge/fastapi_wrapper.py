@@ -214,6 +214,37 @@ async def _on_startup() -> None:
                 "Generate: openssl rand -hex 32. Refusing to start."
             )
             sys.exit(1)
+
+    # Manifest hash pinning: verify manifest hasn't drifted from expected hash
+    _pinned_hash = os.getenv("ALETHEIA_MANIFEST_HASH", "").strip()
+    if _pinned_hash:
+        try:
+            actual_hash = hashlib.sha256(
+                Path("manifest/security_policy.json").read_bytes()
+            ).hexdigest()
+            if not secrets.compare_digest(_pinned_hash, actual_hash):
+                _logger.critical(
+                    "FATAL: Manifest hash drift detected. "
+                    "Expected %s, got %s. The signed policy may have been "
+                    "tampered with or replaced. Refusing to start.",
+                    _pinned_hash[:16] + "...",
+                    actual_hash[:16] + "...",
+                )
+                sys.exit(1)
+            _logger.info("Manifest hash pinning verified: %s", actual_hash[:16] + "...")
+        except FileNotFoundError:
+            _logger.critical(
+                "FATAL: ALETHEIA_MANIFEST_HASH is set but "
+                "manifest/security_policy.json is missing. Refusing to start."
+            )
+            sys.exit(1)
+    elif os.getenv("ENVIRONMENT", "").lower() == "production":
+        _logger.warning(
+            "WARNING: ALETHEIA_MANIFEST_HASH is not set in production. "
+            "Manifest drift detection is disabled. "
+            "Pin the hash: sha256sum manifest/security_policy.json"
+        )
+
     warm_up()
 
     # Install SIGUSR1 handler for hot secret rotation
@@ -392,8 +423,8 @@ def _sanitise_reason(reason: str) -> str:
 
 
 @app.get("/health")
-async def health_check() -> dict:
-    """Public health endpoint. No auth required. Used by load balancers and status pages."""
+async def health_check(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> dict:
+    """Health endpoint. Public response is minimal; authenticated response includes diagnostics."""
     import datetime
 
     from manifest.signing import verify_manifest_signature
@@ -409,8 +440,18 @@ async def health_check() -> dict:
     except Exception:
         manifest_status = "INVALID"
 
+    status = "ok" if manifest_status == "VALID" else "degraded"
+
+    # Public response: minimal — no version, uptime, or manifest details
+    admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
+    is_admin = bool(admin_key and x_admin_key and secrets.compare_digest(x_admin_key, admin_key))
+
+    if not is_admin:
+        return {"status": status, "service": "aletheia-core"}
+
+    # Authenticated response: full diagnostics
     return {
-        "status": "ok" if manifest_status == "VALID" else "degraded",
+        "status": status,
         "service": "aletheia-core",
         "version": app.version,
         "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
