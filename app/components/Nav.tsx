@@ -39,6 +39,7 @@ export default function Nav() {
 
   const navLinks = [
     { label: "Demo", href: "/demo" },
+    { label: "Blog", href: "/blog" },
     { label: "Changelog", href: "/changelog" },
     { label: "CLI", href: "/cli" },
     { label: "Docs", href: "/docs" },

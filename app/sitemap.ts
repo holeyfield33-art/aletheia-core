@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { URLS } from "@/lib/site-config";
+import { BLOG_POSTS } from "@/app/blog/_posts";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const legalPages = [
@@ -49,6 +50,30 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    {
+      url: `${URLS.appBase}/blog`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${URLS.appBase}/changelog`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${URLS.appBase}/cli`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    ...BLOG_POSTS.map((post) => ({
+      url: `${URLS.appBase}/blog/${post.slug}`,
+      lastModified: new Date(post.publishedAt),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
     ...legalPages.map((slug) => ({
       url: `${URLS.appBase}/legal/${slug}`,
       lastModified: new Date(),
