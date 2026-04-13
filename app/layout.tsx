@@ -1,8 +1,30 @@
 import type { Metadata } from "next";
+import { Syne, JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { PRODUCT, URLS } from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
 import Nav from "@/app/components/Nav";
+
+const syne = Syne({
+  subsets: ["latin"],
+  weight: ["700", "800"],
+  variable: "--font-head",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -44,13 +66,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${syne.variable} ${jetbrainsMono.variable} ${inter.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
         <link rel="icon" href="/favicon.ico" />
         <link rel="canonical" href={URLS.appBase} />
       </head>

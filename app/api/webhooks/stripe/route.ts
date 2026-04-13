@@ -89,6 +89,24 @@ export async function POST(request: Request) {
       // Use client_reference_id (set server-side in checkout creation) — NOT metadata
       // which could be tampered with by intercepting the checkout URL.
       const userId = session.client_reference_id;
+
+      // Verify price matches expected amount to prevent price manipulation
+      const expectedAmount = parseInt(process.env.STRIPE_PRO_PRICE_AMOUNT || "4900", 10);
+      const expectedCurrency = (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+      const sessionAmount = session.amount_total as number | undefined;
+      const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
+
+      if (
+        sessionAmount !== undefined &&
+        sessionCurrency !== undefined &&
+        (sessionAmount !== expectedAmount || sessionCurrency !== expectedCurrency)
+      ) {
+        console.error(
+          `[stripe-webhook] Price mismatch: expected ${expectedAmount} ${expectedCurrency}, got ${sessionAmount} ${sessionCurrency}`,
+        );
+        break;
+      }
+
       if (userId && typeof userId === "string") {
         await prisma.user.update({
           where: { id: userId },
