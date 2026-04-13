@@ -523,6 +523,19 @@ export default function DemoPage() {
           >
             {loading ? "Analyzing\u2026" : "\u25B6 Run Audit"}
           </button>
+          {rateLimitRemaining !== null && !loading && (
+            <div
+              style={{
+                textAlign: "right",
+                fontSize: "0.72rem",
+                fontFamily: "var(--font-mono)",
+                color: rateLimitRemaining <= 2 ? "var(--crimson-hi)" : "var(--muted)",
+                marginTop: "0.25rem",
+              }}
+            >
+              {rateLimitRemaining} requests remaining
+            </div>
+          )}
         </div>
       </div>
 
@@ -530,13 +543,17 @@ export default function DemoPage() {
       {loading && !result && (
         <div
           style={{
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.75rem",
             padding: "2rem",
             color: "var(--silver)",
             fontFamily: "var(--font-mono)",
             fontSize: "0.88rem",
           }}
         >
+          <div className="spinner" />
           Analyzing payload\u2026
         </div>
       )}

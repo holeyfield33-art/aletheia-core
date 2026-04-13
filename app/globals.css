@@ -279,4 +279,112 @@ label {
   .dashboard-content {
     padding: 1.25rem 1rem !important;
   }
+  /* Stack policy split-view on mobile */
+  .dashboard-content div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Skeleton loading animation */
+@keyframes skeleton-pulse {
+  0%   { opacity: 0.06; }
+  50%  { opacity: 0.12; }
+  100% { opacity: 0.06; }
+}
+
+.skeleton {
+  background: var(--surface-2);
+  border-radius: 4px;
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+.skeleton-text {
+  height: 0.85rem;
+  margin-bottom: 0.6rem;
+  background: var(--surface-2);
+  border-radius: 3px;
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+}
+
+/* Toast notifications */
+@keyframes toast-in {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toast-out {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(120%); opacity: 0; }
+}
+
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  border: 1px solid var(--border-hi);
+  background: var(--surface);
+  color: var(--silver);
+  animation: toast-in 0.25s ease-out;
+  max-width: 360px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.toast[data-removing="true"] {
+  animation: toast-out 0.2s ease-in forwards;
+}
+
+.toast-success { border-color: var(--green); color: var(--green); }
+.toast-error   { border-color: var(--crimson-hi); color: var(--crimson-hi); }
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 0.25rem;
+  margin-left: auto;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .toast-container {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+  }
+  .toast {
+    max-width: 100%;
+  }
+}
+
+/* Spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border-hi);
+  border-top-color: var(--crimson-hi);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
 }

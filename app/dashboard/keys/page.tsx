@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { CTAS, URLS } from "@/lib/site-config";
+import { useToast } from "@/app/components/Toast";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -36,6 +37,7 @@ export default function KeysPage() {
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
   const [secretCopied, setSecretCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const toast = useToast();
 
   /* Fetch keys on mount */
   useEffect(() => {
@@ -73,6 +75,7 @@ export default function KeysPage() {
       }
       const data = await res.json();
       setGeneratedSecret(data.key);
+      toast.success("API key generated");
       /* Refresh key list */
       fetchKeys();
     } catch {
@@ -87,6 +90,7 @@ export default function KeysPage() {
       const res = await fetch(`/api/keys/${id}`, { method: "DELETE" });
       if (res.ok) {
         setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
+        toast.info("Key revoked");
       }
     } catch {
       /* silent */
@@ -105,6 +109,7 @@ export default function KeysPage() {
     if (generatedSecret) {
       navigator.clipboard.writeText(generatedSecret);
       setSecretCopied(true);
+      toast.success("Key copied to clipboard");
     }
   }, [generatedSecret]);
 
@@ -357,19 +362,15 @@ export default function KeysPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  style={{
-                    padding: "2rem",
-                    textAlign: "center",
-                    color: "var(--muted)",
-                    fontSize: "0.78rem",
-                  }}
-                >
-                  Loading keys…
-                </td>
-              </tr>
+              Array.from({ length: 3 }).map((_, i) => (
+                <tr key={`skel-${i}`} style={{ borderBottom: "1px solid var(--border)" }}>
+                  {Array.from({ length: 7 }).map((_, j) => (
+                    <td key={j} style={{ padding: "0.55rem 0.65rem" }}>
+                      <div className="skeleton-text" style={{ width: j === 0 ? "80%" : "55%" }} />
+                    </td>
+                  ))}
+                </tr>
+              ))
             ) : keys.length === 0 ? (
               <tr>
                 <td

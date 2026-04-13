@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useToast } from "@/app/components/Toast";
 
 /* ------------------------------------------------------------------ */
 /* Evidence Export — downloads real audit logs as JSONL                */
@@ -11,6 +12,7 @@ export default function EvidencePage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const handleExport = useCallback(async () => {
     setLoading(true);
@@ -35,8 +37,10 @@ export default function EvidencePage() {
       URL.revokeObjectURL(url);
       setExported(true);
       setPreview(text.split("\n").slice(0, 5).join("\n"));
+      toast.success("Evidence exported");
     } catch {
       setError("Network error. Please try again.");
+      toast.error("Export failed");
     } finally {
       setLoading(false);
     }

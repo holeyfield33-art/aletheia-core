@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signOut } from "next-auth/react";
 import UpgradeButton from "@/app/components/UpgradeButton";
+import { useToast } from "@/app/components/Toast";
 
 export default function SettingsClient({
   name,
@@ -25,6 +26,7 @@ export default function SettingsClient({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const toast = useToast();
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -37,9 +39,14 @@ export default function SettingsClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: displayName.trim() }),
       });
-      if (res.ok) setSaved(true);
+      if (res.ok) {
+        setSaved(true);
+        toast.success("Settings saved");
+      } else {
+        toast.error("Failed to save settings");
+      }
     } catch {
-      // Silently fail
+      toast.error("Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -52,7 +59,7 @@ export default function SettingsClient({
       const res = await fetch("/api/account/export", { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.message || "Export failed.");
+        toast.error(data.message || "Export failed.");
         return;
       }
       const blob = await res.blob();
@@ -64,8 +71,9 @@ export default function SettingsClient({
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      toast.success("Data exported");
     } catch {
-      alert("Export failed. Please try again.");
+      toast.error("Export failed. Please try again.");
     } finally {
       setExporting(false);
     }

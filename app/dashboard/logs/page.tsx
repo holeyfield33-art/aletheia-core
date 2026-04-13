@@ -145,11 +145,15 @@ export default function LogsPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "var(--muted)" }}>
-                  Loading…
-                </td>
-              </tr>
+              Array.from({ length: 6 }).map((_, i) => (
+                <tr key={`skel-${i}`} style={{ borderBottom: "1px solid var(--border)" }}>
+                  {[80, 50, 65, 55, 30, 70, 40].map((w, j) => (
+                    <td key={j} style={{ padding: "0.55rem 0.65rem" }}>
+                      <div className="skeleton-text" style={{ width: `${w}%` }} />
+                    </td>
+                  ))}
+                </tr>
+              ))
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "var(--muted)" }}>

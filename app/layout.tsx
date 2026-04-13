@@ -4,6 +4,7 @@ import "./globals.css";
 import { PRODUCT, URLS } from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
 import Nav from "@/app/components/Nav";
+import { ToastProvider } from "@/app/components/Toast";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -73,9 +74,11 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          <Nav />
-          <main>{children}</main>
-          <Footer />
+          <ToastProvider>
+            <Nav />
+            <main>{children}</main>
+            <Footer />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

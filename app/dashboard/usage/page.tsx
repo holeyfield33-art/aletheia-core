@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CTAS } from "@/lib/site-config";
+import { SkeletonStatCards } from "@/app/components/Skeleton";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -90,16 +91,7 @@ export default function UsagePage() {
       </p>
 
       {loading ? (
-        <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.82rem",
-            color: "var(--muted)",
-            padding: "2rem 0",
-          }}
-        >
-          Loading usage data…
-        </div>
+        <SkeletonStatCards count={3} />
       ) : keys.length === 0 ? (
         <div
           style={{

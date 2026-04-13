@@ -82,8 +82,29 @@ export default function PolicyPage() {
       </p>
 
       {loading ? (
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", color: "var(--muted)", padding: "2rem 0" }}>
-          Loading policy…
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "1px",
+            background: "var(--border)",
+            border: "1px solid var(--border)",
+            minHeight: "400px",
+          }}
+        >
+          <div style={{ background: "#09090b", padding: "1rem" }}>
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="skeleton-text" style={{ width: `${55 + (i % 3) * 15}%` }} />
+            ))}
+          </div>
+          <div style={{ background: "var(--surface)", padding: "1rem" }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} style={{ marginBottom: "0.75rem" }}>
+                <div className="skeleton-text" style={{ width: "35%" }} />
+                <div className="skeleton" style={{ height: "2rem", width: "80%", marginTop: "0.25rem" }} />
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <>
