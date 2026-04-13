@@ -146,7 +146,6 @@ export async function POST(request: NextRequest) {
     clearTimeout(timer);
 
     if (!upstream.ok) {
-      // Do not forward raw upstream error bodies — return sanitized message
       console.error(`[demo-proxy] upstream returned ${upstream.status}`);
       if (upstream.status === 429) {
         const retryAfter = upstream.headers.get("Retry-After") ?? "5";
@@ -154,6 +153,19 @@ export async function POST(request: NextRequest) {
           { error: "rate_limited" },
           { status: 429, headers: { "Retry-After": retryAfter } },
         );
+      }
+      // Forward 403 with the structured decision body so the demo UI
+      // can display educational security-block messaging.
+      if (upstream.status === 403) {
+        try {
+          const denied = await upstream.json();
+          return secureJson(denied, { status: 403 });
+        } catch {
+          return secureJson(
+            { decision: "DENIED", reason: "security_block" },
+            { status: 403 },
+          );
+        }
       }
       return secureJson(SANITIZED_ERROR, { status: 503 });
     }
