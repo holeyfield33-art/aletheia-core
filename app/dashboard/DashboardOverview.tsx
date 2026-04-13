@@ -9,7 +9,24 @@ const cardStyle: React.CSSProperties = {
   padding: "1.5rem",
 };
 
-function WelcomeBanner({ onDismiss }: { onDismiss: () => void }) {
+function WelcomeBanner({
+  onDismiss,
+  keyCount,
+  totalRequests,
+  logCount,
+}: {
+  onDismiss: () => void;
+  keyCount: number;
+  totalRequests: number;
+  logCount: number;
+}) {
+  const steps = [
+    { step: "1", label: "Generate API Key", href: "/dashboard/keys", done: keyCount > 0 },
+    { step: "2", label: "Try Live Demo", href: "/demo", done: totalRequests > 0 },
+    { step: "3", label: "View Audit Logs", href: "/dashboard/logs", done: logCount > 0 },
+  ];
+  const completed = steps.filter((s) => s.done).length;
+
   return (
     <div
       style={{
@@ -54,18 +71,34 @@ function WelcomeBanner({ onDismiss }: { onDismiss: () => void }) {
           color: "var(--silver)",
           fontSize: "0.9rem",
           lineHeight: 1.6,
-          marginBottom: "1rem",
+          marginBottom: "0.75rem",
           maxWidth: "560px",
         }}
       >
         Get started in 3 steps: generate an API key, send your first audit request, and review the signed receipt.
       </p>
+      {/* Progress bar */}
+      <div
+        style={{
+          height: "4px",
+          background: "var(--border)",
+          borderRadius: "2px",
+          marginBottom: "1rem",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${Math.round((completed / 3) * 100)}%`,
+            background: "var(--green)",
+            borderRadius: "2px",
+            transition: "width 0.3s ease",
+          }}
+        />
+      </div>
       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-        {[
-          { step: "1", label: "Generate API Key", href: "/dashboard/keys" },
-          { step: "2", label: "Try Live Demo", href: "/demo" },
-          { step: "3", label: "View Audit Logs", href: "/dashboard/logs" },
-        ].map(({ step, label, href }) => (
+        {steps.map(({ step, label, href, done }) => (
           <a
             key={step}
             href={href}
@@ -74,11 +107,12 @@ function WelcomeBanner({ onDismiss }: { onDismiss: () => void }) {
               alignItems: "center",
               gap: "0.5rem",
               background: "var(--surface)",
-              border: "1px solid var(--border-hi)",
+              border: `1px solid ${done ? "var(--green)" : "var(--border-hi)"}`,
               borderRadius: "6px",
               padding: "0.5rem 1rem",
               textDecoration: "none",
               transition: "border-color 0.15s",
+              opacity: done ? 0.7 : 1,
             }}
           >
             <span
@@ -86,8 +120,8 @@ function WelcomeBanner({ onDismiss }: { onDismiss: () => void }) {
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.75rem",
                 fontWeight: 700,
-                color: "var(--crimson-hi)",
-                background: "var(--crimson-glow)",
+                color: done ? "var(--green)" : "var(--crimson-hi)",
+                background: done ? "rgba(46,184,122,0.12)" : "var(--crimson-glow)",
                 width: "22px",
                 height: "22px",
                 borderRadius: "50%",
@@ -96,7 +130,7 @@ function WelcomeBanner({ onDismiss }: { onDismiss: () => void }) {
                 justifyContent: "center",
               }}
             >
-              {step}
+              {done ? "✓" : step}
             </span>
             <span
               style={{
@@ -143,7 +177,14 @@ export default function DashboardOverview({
 
   return (
     <div>
-      {showWelcome && <WelcomeBanner onDismiss={() => setShowWelcome(false)} />}
+      {showWelcome && (
+        <WelcomeBanner
+          onDismiss={() => setShowWelcome(false)}
+          keyCount={keyCount}
+          totalRequests={totalRequests}
+          logCount={logCount}
+        />
+      )}
       {showUpgradeBanner && (
         <div
           style={{

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { URLS } from "@/lib/site-config";
 
@@ -24,11 +24,23 @@ export default function Nav() {
   const isAuthed = status === "authenticated";
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Close mobile drawer on Escape key
+  const handleEscape = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setMobileOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (mobileOpen) {
+      document.addEventListener("keydown", handleEscape);
+      return () => document.removeEventListener("keydown", handleEscape);
+    }
+  }, [mobileOpen, handleEscape]);
+
   const navLinks = [
     { label: "Demo", href: "/demo" },
-    { label: "Docs", href: URLS.landingPage, external: true },
+    { label: "Docs", href: "/docs" },
     { label: "GitHub", href: URLS.github, external: true },
-    { label: "Pricing", href: "/#pricing" },
+    { label: "Pricing", href: "/pricing" },
   ];
 
   return (
@@ -126,6 +138,7 @@ export default function Nav() {
           className="nav-hamburger"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
           style={{
             display: "none",
             background: "none",
@@ -144,6 +157,9 @@ export default function Nav() {
       {mobileOpen && (
         <div
           className="nav-mobile-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
           style={{
             position: "fixed",
             top: "60px",

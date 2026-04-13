@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Syne, JetBrains_Mono, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { PRODUCT, URLS } from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
@@ -73,12 +75,20 @@ export default function RootLayout({
         <link rel="canonical" href={URLS.appBase} />
       </head>
       <body>
+        <a
+          href="#main-content"
+          className="skip-link"
+        >
+          Skip to main content
+        </a>
         <AuthProvider>
           <ToastProvider>
             <Nav />
-            <main>{children}</main>
+            <main id="main-content">{children}</main>
             <Footer />
           </ToastProvider>
+          <Analytics />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
@@ -105,9 +115,10 @@ function Footer() {
       >
         {[
           { label: "Demo", href: "/demo" },
-          { label: "Docs", href: URLS.landingPage },
-          { label: "Pricing", href: "/#pricing" },
+          { label: "Docs", href: "/docs" },
+          { label: "Pricing", href: "/pricing" },
           { label: "Services", href: "/#services" },
+          { label: "Status", href: "/status" },
           { label: "GitHub", href: URLS.github },
           { label: `${URLS.contactEmail}`, href: `mailto:${URLS.contactEmail}` },
         ].map(({ label, href }) => (

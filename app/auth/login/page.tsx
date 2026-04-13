@@ -9,6 +9,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const rawCallback = searchParams.get("callbackUrl") ?? "/dashboard";
   const oauthError = searchParams.get("error");
+  const verified = searchParams.get("verified") === "true";
   // Prevent open redirect — only allow relative paths
   const callbackUrl =
     rawCallback.startsWith("/") && !rawCallback.startsWith("//")
@@ -104,6 +105,7 @@ function LoginContent() {
 
         {error && (
           <div
+            role="alert"
             style={{
               background: "rgba(220,38,38,0.12)",
               border: "1px solid rgba(220,38,38,0.3)",
@@ -129,6 +131,21 @@ function LoginContent() {
             }}
           >
             {oauthMessages[oauthError] ?? oauthMessages.Default}
+          </div>
+        )}
+
+        {verified && !error && (
+          <div
+            style={{
+              background: "rgba(46,184,122,0.1)",
+              border: "1px solid rgba(46,184,122,0.3)",
+              color: "var(--green)",
+              padding: "0.75rem 1rem",
+              fontSize: "0.82rem",
+              marginBottom: "1rem",
+            }}
+          >
+            Email verified successfully. You can now sign in.
           </div>
         )}
 
@@ -158,6 +175,7 @@ function LoginContent() {
 
         <form onSubmit={handleCredentials}>
           <label
+            htmlFor="login-email"
             style={{
               display: "block",
               fontFamily: "var(--font-mono)",
@@ -171,6 +189,7 @@ function LoginContent() {
             Email
           </label>
           <input
+            id="login-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -190,6 +209,7 @@ function LoginContent() {
           />
 
           <label
+            htmlFor="login-password"
             style={{
               display: "block",
               fontFamily: "var(--font-mono)",
@@ -203,6 +223,7 @@ function LoginContent() {
             Password
           </label>
           <input
+            id="login-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

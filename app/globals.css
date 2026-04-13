@@ -46,6 +46,33 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Skip to content — CSS-only visibility toggle */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 10000;
+}
+
+.skip-link:focus {
+  position: fixed;
+  left: 1rem;
+  top: 0.5rem;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  background: var(--crimson-hi);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
 ::selection {
   background: var(--crimson);
   color: var(--white);
@@ -173,8 +200,9 @@ textarea, input, select {
 }
 
 textarea:focus, input:focus, select:focus {
-  outline: none;
-  border-color: var(--crimson-hi);
+  outline: 2px solid var(--crimson-hi) !important;
+  outline-offset: 1px;
+  border-color: var(--crimson-hi) !important;
 }
 
 label {
@@ -387,4 +415,13 @@ label {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
   display: inline-block;
+}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

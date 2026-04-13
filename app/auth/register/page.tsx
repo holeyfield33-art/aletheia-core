@@ -52,23 +52,8 @@ export default function RegisterPage() {
         return;
       }
 
-      // Auto-sign in after registration
-      const signInResult = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      setLoading(false);
-
-      if (signInResult?.error) {
-        // Registration succeeded but sign-in failed — redirect to login
-        router.push("/auth/login");
-        return;
-      }
-
-      router.push("/dashboard");
-      router.refresh();
+      // Redirect to verify-email page
+      router.push("/auth/verify-email");
     } catch {
       setError("An unexpected error occurred.");
       setLoading(false);
@@ -143,6 +128,7 @@ export default function RegisterPage() {
 
         {error && (
           <div
+            role="alert"
             style={{
               background: "rgba(220,38,38,0.12)",
               border: "1px solid rgba(220,38,38,0.3)",
@@ -171,8 +157,9 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <label style={labelStyle}>Name</label>
+          <label htmlFor="reg-name" style={labelStyle}>Name</label>
           <input
+            id="reg-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -181,8 +168,9 @@ export default function RegisterPage() {
             style={inputStyle}
           />
 
-          <label style={labelStyle}>Email</label>
+          <label htmlFor="reg-email" style={labelStyle}>Email</label>
           <input
+            id="reg-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -191,8 +179,9 @@ export default function RegisterPage() {
             style={inputStyle}
           />
 
-          <label style={labelStyle}>Password</label>
+          <label htmlFor="reg-password" style={labelStyle}>Password</label>
           <input
+            id="reg-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -203,8 +192,9 @@ export default function RegisterPage() {
             style={inputStyle}
           />
 
-          <label style={labelStyle}>Confirm Password</label>
+          <label htmlFor="reg-confirm" style={labelStyle}>Confirm Password</label>
           <input
+            id="reg-confirm"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

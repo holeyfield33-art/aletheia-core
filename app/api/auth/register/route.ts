@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { sendVerificationEmail } from "@/lib/email";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -105,18 +106,22 @@ export async function POST(request: NextRequest) {
         name: safeName,
         email: normalizedEmail,
         password: hashedPassword,
-        emailVerified: new Date(), // Auto-verify for now; add email flow later
+        // emailVerified left null — set when user clicks verification link
         role: "USER",
         plan: "TRIAL",
         tosAcceptedAt: new Date(),
       },
     });
 
+    // --- Send verification email ---
+    await sendVerificationEmail(normalizedEmail);
+
     return NextResponse.json(
       {
         success: true,
-        message: "Account created successfully. You can now sign in.",
+        message: "Account created. Please check your email to verify your address.",
         userId: user.id,
+        requiresVerification: true,
       },
       { status: 201 },
     );

@@ -37,6 +37,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 0.6,
     },
+    {
+      url: `${URLS.appBase}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${URLS.appBase}/docs`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
     ...legalPages.map((slug) => ({
       url: `${URLS.appBase}/legal/${slug}`,
       lastModified: new Date(),
