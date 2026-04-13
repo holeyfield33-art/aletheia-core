@@ -18,6 +18,19 @@
   --font-body:   'Inter', sans-serif;
 }
 
+[data-theme="light"] {
+  --black:       #f5f5f0;
+  --surface:     #eceae4;
+  --surface-2:   #e2e0da;
+  --border:      #d0cdc6;
+  --border-hi:   #bbb8b0;
+  --white:       #1a1a1a;
+  --muted:       #5a5a5a;
+  --silver:      #3a3a3a;
+  --silver-dim:  #7a7a7a;
+  --crimson-glow: rgba(139, 26, 42, 0.08);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

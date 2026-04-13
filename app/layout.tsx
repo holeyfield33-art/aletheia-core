@@ -7,6 +7,7 @@ import { PRODUCT, URLS } from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
 import Nav from "@/app/components/Nav";
 import { ToastProvider } from "@/app/components/Toast";
+import { ThemeProvider } from "@/app/components/ThemeToggle";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -73,6 +74,11 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="canonical" href={URLS.appBase} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("aletheia-theme");if(!t)t=matchMedia("(prefers-color-scheme:light)").matches?"light":"dark";document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`,
+          }}
+        />
       </head>
       <body>
         <a
@@ -82,11 +88,13 @@ export default function RootLayout({
           Skip to main content
         </a>
         <AuthProvider>
-          <ToastProvider>
-            <Nav />
-            <main id="main-content">{children}</main>
-            <Footer />
-          </ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <Nav />
+              <main id="main-content">{children}</main>
+              <Footer />
+            </ToastProvider>
+          </ThemeProvider>
           <Analytics />
           <SpeedInsights />
         </AuthProvider>
@@ -115,6 +123,8 @@ function Footer() {
       >
         {[
           { label: "Demo", href: "/demo" },
+          { label: "Changelog", href: "/changelog" },
+          { label: "CLI", href: "/cli" },
           { label: "Docs", href: "/docs" },
           { label: "Pricing", href: "/pricing" },
           { label: "Services", href: "/#services" },

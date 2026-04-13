@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { URLS } from "@/lib/site-config";
+import ThemeToggle from "@/app/components/ThemeToggle";
 
 const linkStyle: React.CSSProperties = {
   color: "var(--silver)",
@@ -38,6 +39,8 @@ export default function Nav() {
 
   const navLinks = [
     { label: "Demo", href: "/demo" },
+    { label: "Changelog", href: "/changelog" },
+    { label: "CLI", href: "/cli" },
     { label: "Docs", href: "/docs" },
     { label: "GitHub", href: URLS.github, external: true },
     { label: "Pricing", href: "/pricing" },
@@ -55,7 +58,7 @@ export default function Nav() {
           justifyContent: "space-between",
           padding: "0 2rem",
           height: "60px",
-          background: "rgba(8,10,12,0.94)",
+          background: "var(--surface)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--border)",
         }}
@@ -93,6 +96,7 @@ export default function Nav() {
               {label}
             </a>
           ))}
+          <ThemeToggle />
           {isAuthed ? (
             <a
               href="/dashboard"
@@ -166,7 +170,7 @@ export default function Nav() {
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(8,10,12,0.98)",
+            background: "var(--black)",
             zIndex: 99,
             padding: "1.5rem 2rem",
             overflowY: "auto",
@@ -184,6 +188,9 @@ export default function Nav() {
             </a>
           ))}
           <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <ThemeToggle />
+            </div>
             {isAuthed ? (
               <a
                 href="/dashboard"
