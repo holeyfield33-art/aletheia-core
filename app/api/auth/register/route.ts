@@ -46,7 +46,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password, tosAccepted } = body;
+
+    // --- Validate TOS acceptance ---
+    if (tosAccepted !== true) {
+      return NextResponse.json(
+        { error: "tos_required", message: "You must agree to the Terms of Service and Privacy Policy." },
+        { status: 400 },
+      );
+    }
 
     // --- Validate inputs ---
     if (!email || typeof email !== "string" || !EMAIL_RE.test(email)) {
@@ -100,6 +108,7 @@ export async function POST(request: NextRequest) {
         emailVerified: new Date(), // Auto-verify for now; add email flow later
         role: "USER",
         plan: "TRIAL",
+        tosAcceptedAt: new Date(),
       },
     });
 

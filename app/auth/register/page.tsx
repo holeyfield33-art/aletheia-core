@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorIsEmailTaken, setErrorIsEmailTaken] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +29,10 @@ export default function RegisterPage() {
       setError("Password must be at least 8 characters.");
       return;
     }
+    if (!tosAccepted) {
+      setError("You must agree to the Terms of Service and Privacy Policy.");
+      return;
+    }
 
     setLoading(true);
 
@@ -35,7 +40,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, tosAccepted }),
       });
 
       const data = await res.json();
@@ -207,6 +212,36 @@ export default function RegisterPage() {
             autoComplete="new-password"
             style={inputStyle}
           />
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.5rem",
+              fontSize: "0.8rem",
+              color: "var(--silver)",
+              marginBottom: "1.25rem",
+              cursor: "pointer",
+              lineHeight: 1.5,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={tosAccepted}
+              onChange={(e) => setTosAccepted(e.target.checked)}
+              style={{ marginTop: "0.2rem", accentColor: "var(--crimson)" }}
+            />
+            <span>
+              I agree to the{" "}
+              <a href="/legal/terms" target="_blank" style={{ color: "var(--crimson-hi)", textDecoration: "underline" }}>
+                Terms of Service
+              </a>{" "}
+              and{" "}
+              <a href="/legal/privacy" target="_blank" style={{ color: "var(--crimson-hi)", textDecoration: "underline" }}>
+                Privacy Policy
+              </a>
+            </span>
+          </label>
 
           <button
             type="submit"

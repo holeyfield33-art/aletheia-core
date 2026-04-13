@@ -121,6 +121,34 @@ function Footer() {
           </a>
         ))}
       </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: "1.25rem",
+          marginBottom: "1rem",
+        }}
+      >
+        {[
+          { label: "Privacy", href: "/legal/privacy" },
+          { label: "Terms", href: "/legal/terms" },
+          { label: "Security", href: "/legal/security" },
+          { label: "Accessibility", href: "/legal/accessibility" },
+        ].map(({ label, href }) => (
+          <a
+            key={label}
+            href={href}
+            style={{
+              color: "var(--muted)",
+              fontSize: "0.78rem",
+              textDecoration: "none",
+            }}
+          >
+            {label}
+          </a>
+        ))}
+      </div>
       <div style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
         &copy; {PRODUCT.copyrightYear} {PRODUCT.copyrightHolder} &mdash;{" "}
         {PRODUCT.license} License &nbsp;|&nbsp; v{PRODUCT.version}

@@ -2,6 +2,16 @@ import type { MetadataRoute } from "next";
 import { URLS } from "@/lib/site-config";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const legalPages = [
+    "privacy",
+    "terms",
+    "acceptable-use",
+    "billing",
+    "security",
+    "accessibility",
+    "cookies",
+  ];
+
   return [
     {
       url: URLS.appBase,
@@ -21,5 +31,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.7,
     },
+    ...legalPages.map((slug) => ({
+      url: `${URLS.appBase}/legal/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    })),
   ];
 }

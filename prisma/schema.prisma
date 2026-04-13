@@ -79,6 +79,9 @@ model User {
   role          UserRole  @default(USER)
   plan          UserPlan  @default(TRIAL)
 
+  tosAcceptedAt DateTime? // timestamp of TOS acceptance at registration
+  deletedAt     DateTime? // soft-delete timestamp; null = active
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

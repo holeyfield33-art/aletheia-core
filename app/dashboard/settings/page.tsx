@@ -12,10 +12,11 @@ export default async function SettingsPage() {
   const userId = session.user.id;
 
   let createdAt = "";
+  let hasPassword = false;
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { createdAt: true },
+      select: { createdAt: true, password: true },
     });
     if (user?.createdAt) {
       createdAt = user.createdAt.toLocaleDateString("en-US", {
@@ -24,6 +25,7 @@ export default async function SettingsPage() {
         day: "numeric",
       });
     }
+    hasPassword = !!user?.password;
   } catch {
     createdAt = "—";
   }
@@ -34,6 +36,7 @@ export default async function SettingsPage() {
       email={session.user.email ?? null}
       plan={session.user.plan}
       createdAt={createdAt}
+      hasPassword={hasPassword}
     />
   );
 }
