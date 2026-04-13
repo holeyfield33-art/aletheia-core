@@ -26,16 +26,18 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith("/api/webhooks/")
   ) {
     const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
     const host = request.headers.get("host");
-    if (origin && host) {
-      try {
-        const originHost = new URL(origin).host;
-        if (originHost !== host) {
-          return NextResponse.json({ error: "forbidden" }, { status: 403 });
-        }
-      } catch {
-        return NextResponse.json({ error: "forbidden" }, { status: 403 });
-      }
+
+    // Require at least one of Origin or Referer
+    const sourceHost = origin
+      ? (() => { try { return new URL(origin).host; } catch { return null; } })()
+      : referer
+        ? (() => { try { return new URL(referer).host; } catch { return null; } })()
+        : null;
+
+    if (!sourceHost || !host || sourceHost !== host) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
   }
 
@@ -47,6 +49,10 @@ export async function middleware(request: NextRequest) {
   response.headers.set(
     "Strict-Transport-Security",
     "max-age=31536000; includeSubDomains",
+  );
+  response.headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com; frame-ancestors 'none'",
   );
 
   return response;

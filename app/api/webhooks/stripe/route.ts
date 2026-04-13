@@ -86,7 +86,9 @@ export async function POST(request: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object;
-      const userId = session.metadata && (session.metadata as Record<string, string>).userId;
+      // Use client_reference_id (set server-side in checkout creation) — NOT metadata
+      // which could be tampered with by intercepting the checkout URL.
+      const userId = session.client_reference_id;
       if (userId && typeof userId === "string") {
         await prisma.user.update({
           where: { id: userId },

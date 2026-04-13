@@ -34,6 +34,16 @@ export async function GET(request: NextRequest) {
   const decision = searchParams.get("decision");
   const action = searchParams.get("action");
 
+  // Validate filter values to prevent query manipulation
+  const validDecisions = ["PROCEED", "DENIED", "SANDBOX_BLOCKED", "RATE_LIMITED"];
+  if (decision && !validDecisions.includes(decision)) {
+    return secureJson({ error: "invalid_decision" }, { status: 400 });
+  }
+  // Sanitize action: alphanumeric + underscores only, max 64 chars
+  if (action && (!/^[A-Za-z0-9_]{1,64}$/.test(action))) {
+    return secureJson({ error: "invalid_action" }, { status: 400 });
+  }
+
   const where: Record<string, unknown> = { userId: session.user.id };
   if (decision) where.decision = decision;
   if (action) where.action = action;

@@ -7,6 +7,44 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getBaseUrl } from "@/lib/auth-config";
 
+// In-memory login attempt tracker (per email, 5 failures per 15 min)
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_FAIL_LIMIT = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkLoginRateLimit(email: string): boolean {
+  const now = Date.now();
+  const entry = loginAttempts.get(email);
+  if (!entry || now > entry.resetAt) {
+    return true; // No failures yet or window expired
+  }
+  return entry.count < LOGIN_FAIL_LIMIT;
+}
+
+function recordLoginFailure(email: string): void {
+  const now = Date.now();
+  const entry = loginAttempts.get(email);
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(email, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+  } else {
+    entry.count++;
+  }
+}
+
+function clearLoginFailures(email: string): void {
+  loginAttempts.delete(email);
+}
+
+// Evict stale entries periodically (cap at 10k)
+setInterval(() => {
+  const now = Date.now();
+  if (loginAttempts.size > 10000) {
+    loginAttempts.forEach((val, key) => {
+      if (now > val.resetAt) loginAttempts.delete(key);
+    });
+  }
+}, 60_000);
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions["adapter"],
   providers: [
@@ -20,15 +58,28 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const email = credentials.email.toLowerCase().trim();
+
+        // Brute-force protection: block after 5 failed attempts in 15 min
+        if (!checkLoginRateLimit(email)) return null;
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
+          where: { email },
         });
-        if (!user?.password) return null;
+        if (!user?.password) {
+          recordLoginFailure(email);
+          return null;
+        }
 
         const valid = await bcrypt.compare(credentials.password, user.password);
-        if (!valid) return null;
+        if (!valid) {
+          recordLoginFailure(email);
+          return null;
+        }
 
         if (!user.emailVerified) return null;
+
+        clearLoginFailures(email);
 
         return {
           id: user.id,
@@ -61,7 +112,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 7 * 24 * 60 * 60, // 7 days (reduced from 30 for security)
   },
   pages: {
     signIn: "/auth/login",
@@ -70,13 +121,17 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Allow relative paths
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Allow same-origin redirects
-      try {
-        const urlOrigin = new URL(url).origin;
-        if (urlOrigin === baseUrl) return url;
-      } catch { /* invalid URL — fall through to baseUrl */ }
+      if (!url || typeof url !== "string") return baseUrl;
+      // Block protocol-relative redirects (//evil.com)
+      if (url.startsWith("//")) return baseUrl;
+      // Allow relative paths (no traversal)
+      if (url.startsWith("/")) {
+        const decoded = decodeURIComponent(url);
+        if (decoded.includes("//") || decoded.includes("\\")) return baseUrl;
+        return `${baseUrl}${decoded}`;
+      }
+      // Allow same-origin absolute URLs only
+      if (url.startsWith(baseUrl)) return url;
       return baseUrl;
     },
     async jwt({ token, user }) {

@@ -1,18 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = request.nextUrl;
+  const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit") ?? "1000", 10)));
+  const cursor = searchParams.get("cursor"); // last id for cursor-based pagination
+
+  const where: Record<string, unknown> = { userId: session.user.id };
+  if (cursor) {
+    where.id = { lt: cursor };
+  }
+
   const logs = await prisma.auditLog.findMany({
-    where: { userId: session.user.id },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 10000,
+    take: limit,
     select: {
       id: true,
       decision: true,

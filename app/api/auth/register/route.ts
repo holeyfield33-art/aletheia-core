@@ -7,7 +7,43 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_NAME_LENGTH = 64;
 const MAX_EMAIL_LENGTH = 255;
 
+// In-memory rate limiter for registration (per IP, 5 attempts per hour)
+const registerAttempts = new Map<string, { count: number; resetAt: number }>();
+const REGISTER_LIMIT = 5;
+const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkRegisterRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = registerAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    registerAttempts.set(ip, { count: 1, resetAt: now + REGISTER_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= REGISTER_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
+// Evict stale entries periodically (cap at 10k)
+setInterval(() => {
+  const now = Date.now();
+  if (registerAttempts.size > 10000) {
+    registerAttempts.forEach((val, key) => {
+      if (now > val.resetAt) registerAttempts.delete(key);
+    });
+  }
+}, 60_000);
+
 export async function POST(request: NextRequest) {
+  // Rate limit by IP
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!checkRegisterRateLimit(clientIp)) {
+    return NextResponse.json(
+      { error: "rate_limited", message: "Too many registration attempts. Try again later." },
+      { status: 429, headers: { "Retry-After": "3600" } },
+    );
+  }
+
   try {
     const body = await request.json();
     const { name, email, password } = body;
