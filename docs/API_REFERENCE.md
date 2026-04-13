@@ -1,4 +1,4 @@
-# API Reference — Aletheia Core v1.6.3
+# API Reference — Aletheia Core v1.7.0
 
 Complete reference for all HTTP endpoints exposed by `bridge/fastapi_wrapper.py`.
 
@@ -94,15 +94,27 @@ Extra fields are rejected (`extra="forbid"`).
 
 ### GET `/health`
 
-Public health endpoint. No auth required.
+Public health endpoint.
 
-**Response** (200 OK):
+- Without auth: returns minimal status for probes.
+- With valid `X-Admin-Key`: returns extended diagnostics.
+
+**Response (public, 200 OK):**
+
+```json
+{
+  "status": "ok",
+  "service": "aletheia-core"
+}
+```
+
+**Response (admin diagnostics, 200 OK):**
 
 ```json
 {
   "status": "ok",
   "service": "aletheia-core",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "uptime_seconds": 3600.0,
   "timestamp": "2026-04-10T12:00:00+00:00",
   "manifest_signature": "VALID"
@@ -112,7 +124,7 @@ Public health endpoint. No auth required.
 | Field | Values | Meaning |
 |-------|--------|---------|
 | `status` | `ok`, `degraded` | `degraded` when manifest signature verification fails |
-| `manifest_signature` | `VALID`, `INVALID` | Result of Ed25519 signature check |
+| `manifest_signature` | `VALID`, `INVALID` | Result of Ed25519 signature check (admin diagnostics only) |
 
 ### GET `/ready`
 

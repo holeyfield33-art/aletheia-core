@@ -17,10 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.3-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.7.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-697%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-698%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -47,22 +47,22 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.6.3
+## What's New in v1.7.0
 
-### UX/UI Overhaul
-- **Stripe checkout**: Real payment flow via `/api/stripe/checkout`. Pro upgrade CTA now creates a Stripe Checkout session (was `mailto:` link).
-- **Account settings page**: `/dashboard/settings` — edit display name, view plan/billing, upgrade to Pro, sign out.
-- **Onboarding flow**: Welcome banner for new dashboard users with 3-step guide (Generate Key → Try Demo → View Logs).
-- **Mobile navigation**: Hamburger menu at ≤768px with full-screen drawer overlay.
-- **Mobile dashboard**: Sidebar collapses to horizontal scrollable tabs; responsive content padding.
-- **Dashboard breadcrumbs**: Auto-generated from URL path.
-- **Upgrade banner**: Shown when Trial users reach ≥80% of monthly quota.
-- **Pricing clarity**: Trial = 1,000 requests/month, Pro = 100,000 requests/month (were vague).
-- **Demo page CTAs**: Stronger conversion section with "Start Free Trial" and specific quota details.
-- **WCAG AA contrast**: `--muted` color updated to 4.5:1+ contrast ratio.
+### Security Debt Burn-Down
+- **SSRF hardening**: backend host validation now requires exact host or real subdomain match.
+- **Manifest pinning**: startup verifies `ALETHEIA_MANIFEST_HASH` when set and refuses mismatches.
+- **Health endpoint hardening**: public `/health` is minimal; detailed diagnostics require `X-Admin-Key`.
+- **Tamper-evident audit chain**: each audit record now includes `seq`, `prev_hash`, and `record_hash`.
+- **Regex hardening**: removed nested-quantifier ReDoS vector and bounded high-risk sandbox patterns.
+- **Secret guardrails**: production `NEXTAUTH_SECRET` requires 32+ characters at runtime.
 
-### Previous: v1.6.2 — Security Hardening
-- Config validation at startup, HMAC-keyed API key hashing, SQLite file permissions, manifest fail-closed, timing oracle fix, sandbox response redaction, container hardening, and more.
+### Product Surface Expansion
+- **Theme toggle**: persistent dark/light mode across sessions.
+- **New docs surfaces**: `/changelog` and `/cli` pages.
+- **Engineering blog**: `/blog` index plus static post pages with metadata, robots, and sitemap entries.
+- **Navigation/footer updates**: user-facing links now include Blog, Changelog, and CLI.
+- **Dependency cleanup**: removed dead Supabase utility code from app runtime.
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
@@ -73,7 +73,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 697 |
+| Tests passing | 698 |
 | Core coverage | 89% |
 | SAST findings | 0 |
 | Hardcoded secrets | 0 |
@@ -209,20 +209,17 @@ Response:
 
 **GET** `/health`
 
-No auth required. Used by load balancers and uptime monitors.
+No auth required for the baseline probe. Detailed diagnostics require `X-Admin-Key`.
 
 ```json
 {
   "status": "ok",
-  "service": "aletheia-core",
-  "version": "1.6.3",
-  "uptime_seconds": 3600.0,
-  "timestamp": "2026-04-10T12:00:00+00:00",
-  "manifest_signature": "VALID"
+  "service": "aletheia-core"
 }
 ```
 
-`status` is `"degraded"` if manifest signature verification fails.
+With valid `X-Admin-Key`, `/health` additionally returns:
+`version`, `uptime_seconds`, `timestamp`, and `manifest_signature`.
 
 ---
 
@@ -429,7 +426,7 @@ The following controls are implemented and tested in the current codebase:
 - **No LLM-based classifier.** Semantic veto uses a static embedding model (`all-MiniLM-L6-v2`). A determined adversary with prolonged access could enumerate alias patterns. An LLM-based classifier is not yet implemented.
 - **No webhook / event streaming.** Audit decisions are logged to a local file. There is no built-in webhook, Kafka, or event-streaming integration.
 - **No multi-tenant isolation.** The key store supports trial/pro plans with quotas, but there is no tenant-level data isolation or per-tenant policy manifests.
-- **No dashboard audit log viewer.** The dashboard logs page is a placeholder. Audit logs are available as structured JSON lines in the configured log file.
+- **No live streaming log tail.** The dashboard now includes a paginated audit logs viewer, but it does not yet support real-time stream subscriptions.
 - **Single embedding model.** Only `all-MiniLM-L6-v2` is supported. Model selection is not yet configurable at runtime.
 - **In-memory rate limiter resets on restart** unless Upstash Redis is configured. SQLite fallback for the decision store does not synchronize across workers.
 
@@ -442,6 +439,11 @@ If this project is useful to your organization, consider reaching out about our 
 ---
 
 ## Environment Variables
+
+Comprehensive local + hosted configuration is documented in:
+**[docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)**
+
+Below is the quick-start subset.
 
 | Variable | Required | Description |
 |---|---|---|
@@ -499,14 +501,10 @@ echo "ALETHEIA_API_KEYS length: ${#ALETHEIA_API_KEYS}"
 
 ```bash
 curl http://localhost:8000/health
-# Expected response:
+# Expected unauthenticated response:
 # {
 #   "status": "ok",
-#   "service": "aletheia-core",
-#   "version": "1.6.3",
-#   "uptime_seconds": 12.34,
-#   "timestamp": "2026-04-10T12:00:00+00:00",
-#   "manifest_signature": "VALID"
+#   "service": "aletheia-core"
 # }
 ```
 

@@ -73,7 +73,7 @@ Aletheia is designed with the following principles:
 
 ## Controls Added in v1.6.2
 
-The following security hardening was applied in v1.6.2 (audit status: PASS, 697 tests passing, 89% core coverage):
+The following security hardening was applied in v1.7.0 (audit status: PASS, 698 tests passing, 89% core coverage):
 
 - **Config validation:** All security thresholds validated at startup with range checks and logical consistency.
 - **HMAC-keyed key hashing:** Key store uses HMAC-SHA256 with `ALETHEIA_KEY_SALT` instead of plain SHA-256.

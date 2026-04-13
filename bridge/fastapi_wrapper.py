@@ -45,7 +45,7 @@ if not (0 <= _TRUSTED_PROXY_DEPTH <= 5):
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.6.3",
+    version="1.7.0",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
 )
 

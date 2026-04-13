@@ -5,6 +5,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.7.0] — 2026-04-13
+
+### Added
+- **Engineering blog**: New `/blog` index and statically generated `/blog/[slug]` post pages.
+- **CLI docs page**: New `/cli` page covering manifest signing, operational commands, and troubleshooting.
+- **Changelog page**: New `/changelog` page surfaced in app navigation.
+- **Theme toggle**: Persistent dark/light mode selection in navigation and mobile drawer.
+- **Environment variable guide**: Added `docs/ENVIRONMENT_VARIABLES.md` with local vs hosted requirements.
+
+### Changed
+- **Security debt fixes (7 findings)**:
+  - SSRF host validation tightened in demo proxy.
+  - Startup manifest hash pinning (`ALETHEIA_MANIFEST_HASH`).
+  - Public `/health` minimized; admin diagnostics gated.
+  - Audit log hash chaining (`seq`, `prev_hash`, `record_hash`).
+  - ReDoS risk reduced in regex-heavy paths.
+  - Production `NEXTAUTH_SECRET` guard strengthened.
+  - Scout query history eviction improved with O(1) LRU behavior.
+- **SEO and discovery**: Updated `robots.txt` and `sitemap.xml` generation for blog/changelog/cli routes.
+- **Navigation/footer**: Added Blog/Changelog/CLI links across primary user-facing surfaces.
+- **Dependency cleanup**: Removed unused Supabase helper files and related package references.
+
+### Verified
+- `next build` passes with 49 routes.
+- Full test suite passes: **698 passed**.
+
 ## [1.6.3] — 2026-04-12
 
 ### Added — UX/UI Overhaul

@@ -1,7 +1,9 @@
-# Operations Runbook — Aletheia Core v1.6.3
+# Operations Runbook — Aletheia Core v1.7.0
 
 This document covers day-to-day operations, environment setup, and troubleshooting
 for a production Aletheia Core deployment.
+
+Canonical env matrix: `docs/ENVIRONMENT_VARIABLES.md`
 
 ---
 
@@ -81,7 +83,7 @@ python main.py sign-manifest
 On boot, Aletheia logs a self-check summary:
 
 ```
-STARTUP SELF-CHECK: version=1.6.3 manifest=VALID expires_at=2027-03-07T00:00:00+00:00
+STARTUP SELF-CHECK: version=1.7.0 manifest=VALID expires_at=2027-03-07T00:00:00+00:00
   decision_store=upstash(connected) anchor_path=/data/anchor_state.json
   receipt_signing=enabled mode=active endpoints=[/health, /ready, /v1/audit]
 ```
@@ -97,14 +99,23 @@ Verify startup succeeded by checking:
 ## Health and Readiness Endpoints
 
 ### GET /health
-Returns service status, version, uptime. No auth required.
+Returns minimal status without auth. Extended diagnostics require `X-Admin-Key`.
 Used by load balancers and uptime monitors.
 
 ```bash
 curl https://your-app.onrender.com/health
 ```
 
-Expected: `{"status": "ok", "service": "aletheia-core", "version": "1.6.3", ...}`
+Expected (public): `{"status": "ok", "service": "aletheia-core"}`
+
+Admin diagnostics:
+
+```bash
+curl https://your-app.onrender.com/health \
+  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY"
+```
+
+Expected (admin): `{"status":"ok","service":"aletheia-core","version":"1.7.0",...}`
 
 ### GET /ready
 Returns subsystem readiness: manifest, Redis, anchor, receipt signing.
