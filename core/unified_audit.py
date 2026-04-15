@@ -36,6 +36,7 @@ from monitoring.spectral_rigidity import (
     compute_drift_score,
     theta_bk,
 )
+from monitoring.swarm_detector import SwarmDetector, SwarmDetectorConfig
 
 _logger = logging.getLogger("aletheia.unified_audit")
 
@@ -64,6 +65,7 @@ class UnifiedSovereignRuntime:
         max_session_budget: int = 5_000,
         breaker_threshold: int = 5,
         breaker_cooldown: float = 60.0,
+        swarm_config: SwarmDetectorConfig | None = None,
     ) -> None:
         self._tpm = TPMAnchor()
         self._signer = ChainSigner(self._tpm)
@@ -78,6 +80,7 @@ class UnifiedSovereignRuntime:
             cooldown_sec=breaker_cooldown,
         )
         self._prev_activation: np.ndarray | None = None
+        self._swarm = SwarmDetector(swarm_config)
 
     # ------------------------------------------------------------------
     # Pre-execution gate
@@ -255,6 +258,43 @@ class UnifiedSovereignRuntime:
         return self.post_execution_sign(request, response)
 
     # ------------------------------------------------------------------
+    # Swarm aggregation
+    # ------------------------------------------------------------------
+    def aggregate_swarm_window(
+        self,
+        session_results: list[dict],
+    ) -> bool:
+        """Aggregate per-session results and run SPRT swarm detection.
+
+        Parameters
+        ----------
+        session_results : list of dicts, each with at least
+            ``drift_score`` (float; −1.0 = INCONCLUSIVE).
+
+        Returns
+        -------
+        True if a swarm attack is declared (circuit breaker tripped).
+        """
+        drifts = [
+            r["drift_score"]
+            for r in session_results
+            if r.get("drift_score", -1.0) >= 0
+        ]
+        inconclusive_count = sum(
+            1 for r in session_results if r.get("drift_score") == -1.0
+        )
+        attack, llr = self._swarm.update(
+            drifts, inconclusive_count, len(session_results),
+        )
+        if attack:
+            self._breaker.open()
+            _logger.error(
+                "Swarm attack declared (LLR=%.4f) — circuit breaker tripped",
+                llr,
+            )
+        return attack
+
+    # ------------------------------------------------------------------
     # Accessors
     # ------------------------------------------------------------------
     @property
@@ -270,3 +310,4 @@ class UnifiedSovereignRuntime:
         self._velocity.reset()
         self._breaker.reset()
         self._prev_activation = None
+        self._swarm.reset()

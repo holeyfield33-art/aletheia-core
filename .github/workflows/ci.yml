@@ -48,7 +48,8 @@ jobs:
             --ignore=tests/test_proximity \
             --ignore=tests/test_api.py \
             --ignore=tests/test_redteam_adversarial.py \
-            --ignore=tests/test_swarm_1000bot.py
+            --ignore=tests/test_swarm_1000bot.py \
+            --ignore=tests/test_distributed_state.py
         env:
           ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING

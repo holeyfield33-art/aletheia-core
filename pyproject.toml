@@ -71,6 +71,9 @@ proximity = [
 tpm = [
     "tpm2-pytss>=2.0.0",
 ]
+distributed = [
+    "redis>=5.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",

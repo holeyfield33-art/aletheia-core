@@ -9,8 +9,10 @@ Set ``ALETHEIA_REQUIRE_TPM=true`` in production to hard-fail without TPM.
 """
 from __future__ import annotations
 
+import fcntl
 import logging
 import os
+import time
 from typing import Protocol
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -22,6 +24,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 _logger = logging.getLogger("aletheia.crypto.tpm")
 
 _TPM_PERSISTENT_HANDLE = 0x81000001
+_NV_BASE = 0x01800000
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +130,18 @@ class _TPMBackend:
         pub = self._ctx.read_public(self._key_handle)
         return bytes(pub)
 
+    def nv_read_counter(self, counter_index: int) -> int:
+        """Read NV counter value."""
+        nv_index = _NV_BASE + counter_index
+        result = self._ctx.NV_Read(nv_index)
+        return int.from_bytes(result, byteorder="big")
+
+    def nv_increment_counter(self, counter_index: int) -> int:
+        """Atomically increment TPM NV counter via NV_Increment."""
+        nv_index = _NV_BASE + counter_index
+        self._ctx.NV_Increment(nv_index)
+        return self.nv_read_counter(counter_index)
+
 
 # ---------------------------------------------------------------------------
 # TPMAnchor — unified entry point
@@ -178,3 +193,101 @@ class TPMAnchor:
         if isinstance(self._backend, _TPMBackend):
             return "tpm"
         return "software"
+
+    # ------------------------------------------------------------------
+    # Monotonic counter (anti-rollback)
+    # ------------------------------------------------------------------
+    @property
+    def _counter_log_path(self) -> str:
+        return os.getenv(
+            "ALETHEIA_COUNTER_LOG_PATH", "/var/lib/aletheia/counter.log",
+        )
+
+    def get_monotonic_counter(self, counter_index: int = 0) -> int | None:
+        """Read monotonic counter from TPM NVRAM or signed log fallback.
+
+        Returns ``None`` only when TPM NV read fails (no safe fallback to
+        Ed25519 log from an ECDSA backend).
+        """
+        if self.backend_type == "tpm":
+            try:
+                return self._backend.nv_read_counter(counter_index)  # type: ignore[attr-defined]
+            except Exception as exc:
+                _logger.warning("TPM counter read failed: %s", exc)
+                return None
+        return self._get_counter_from_signed_log()
+
+    def increment_monotonic_counter(self, counter_index: int = 0) -> bool:
+        """Atomically increment monotonic counter.
+
+        TPM path uses ``NV_Increment`` (single atomic TPM command).
+        Software fallback uses a signed append-only log with file locking.
+        """
+        if self.backend_type == "tpm":
+            try:
+                self._backend.nv_increment_counter(counter_index)  # type: ignore[attr-defined]
+                return True
+            except Exception as exc:
+                _logger.error("TPM counter increment failed: %s", exc)
+                return False
+        return self._increment_counter_in_signed_log()
+
+    def _get_counter_from_signed_log(self) -> int:
+        """Read highest verified nonce from signed append-only log."""
+        log_path = self._counter_log_path
+        try:
+            with open(log_path, "r") as fh:
+                fcntl.flock(fh, fcntl.LOCK_SH)
+                try:
+                    return self._read_verified_counter(fh)
+                finally:
+                    fcntl.flock(fh, fcntl.LOCK_UN)
+        except FileNotFoundError:
+            return 0
+
+    def _increment_counter_in_signed_log(self) -> bool:
+        """Append signed counter entry under exclusive lock (atomic read+write)."""
+        log_path = self._counter_log_path
+        old_umask = os.umask(0o077)
+        try:
+            with open(log_path, "a+") as fh:
+                fcntl.flock(fh, fcntl.LOCK_EX)
+                try:
+                    fh.seek(0)
+                    highest = self._read_verified_counter(fh)
+                    new_value = highest + 1
+                    timestamp = int(time.time() * 1000)
+                    entry = f"{timestamp} {new_value}"
+                    signature = self._backend.sign(entry.encode())
+                    fh.write(f"{entry} {signature.hex()}\n")
+                    fh.flush()
+                finally:
+                    fcntl.flock(fh, fcntl.LOCK_UN)
+        except OSError as exc:
+            _logger.error("Counter log write failed: %s", exc)
+            return False
+        finally:
+            os.umask(old_umask)
+        return True
+
+    def _read_verified_counter(self, fh) -> int:
+        """Parse and verify counter entries from an open file handle."""
+        highest = 0
+        pub = self._backend.public_key_bytes()
+        vk = Ed25519PublicKey.from_public_bytes(pub)
+        for line in fh:
+            parts = line.strip().split()
+            if len(parts) != 3:
+                continue
+            try:
+                nonce = int(parts[1])
+                sig = bytes.fromhex(parts[2])
+            except (ValueError, IndexError):
+                continue
+            message = f"{parts[0]} {parts[1]}".encode()
+            try:
+                vk.verify(sig, message)
+                highest = max(highest, nonce)
+            except Exception:
+                _logger.debug("Skipping unverifiable counter entry")
+        return highest
