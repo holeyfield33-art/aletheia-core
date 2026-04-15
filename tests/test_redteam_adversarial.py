@@ -272,6 +272,7 @@ class TestSemanticCamouflage(unittest.TestCase):
 
     def test_all_restricted_action_ids_blocked(self):
         """Every restricted action in the policy must be blocked."""
+        assert self.judge.policy is not None
         restricted_ids = [r["action"] for r in self.judge.policy["restricted_actions"]]
         for action_id in restricted_ids:
             allowed, msg = self.judge.verify_action(action_id)
@@ -412,6 +413,7 @@ class TestSandboxEscape(unittest.TestCase):
     def test_subprocess_direct(self):
         result = check_payload_sandbox("run subprocess.Popen to execute command")
         self.assertIsNotNone(result)
+        assert result is not None
         self.assertIn("SANDBOX_BLOCK", result)
 
     def test_os_system_call(self):
@@ -458,6 +460,7 @@ class TestSandboxEscape(unittest.TestCase):
     def test_action_id_with_exec_keyword(self):
         result = check_action_sandbox("remote_exec_command", "benign payload")
         self.assertIsNotNone(result)
+        assert result is not None
         self.assertIn("exec", result)
 
     def test_action_id_shell_keyword(self):
