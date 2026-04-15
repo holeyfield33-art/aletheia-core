@@ -17,7 +17,14 @@ _runtime_logger = logging.getLogger("aletheia.runtime_security")
 
 
 _ZERO_WIDTH_RE = re.compile(r"[\u200b\u200c\u200d\ufeff]")
+# Bidi override / directional embedding characters (Unicode TR9)
+_BIDI_RE = re.compile(
+    r"[\u200e\u200f\u202a-\u202e\u2066-\u2069]"
+)
 _BASE64_RE = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
+_DATA_URI_RE = re.compile(
+    r"data:[\w/+.-]*;base64,([A-Za-z0-9+/=]+)", re.IGNORECASE,
+)
 _MARKDOWN_ESCAPE_RE = re.compile(r'\\([\\`*_{}\[\]()#+\-.!>"])')
 
 _ALLOWED_ORIGIN_RE = re.compile(r"^[A-Za-z0-9_.:/\-]{1,128}$")
@@ -26,8 +33,8 @@ _ALLOWED_ACTION_RE = re.compile(r"^[A-Za-z0-9_\-]{1,128}$")
 
 @dataclass(frozen=True)
 class NormalizationPolicy:
-    max_recursion_depth: int = 5
-    max_decode_budget: int = 24
+    max_recursion_depth: int = 10
+    max_decode_budget: int = 40
     max_text_size: int = 50_000
     max_base64_output_size: int = 80_000
     max_entropy: float = 5.2
@@ -78,6 +85,7 @@ def _shannon_entropy(text: str) -> float:
 
 def _strip_controls(text: str) -> str:
     text = _ZERO_WIDTH_RE.sub("", text)
+    text = _BIDI_RE.sub("", text)
     return "".join(ch for ch in text if unicodedata.category(ch)[0] != "C")
 
 
@@ -138,6 +146,25 @@ def _looks_like_base64(text: str) -> bool:
     if len(text) < 8 or len(text) % 4 != 0:
         return False
     return bool(_BASE64_RE.fullmatch(text))
+
+
+def _strip_data_uris(text: str, policy: NormalizationPolicy) -> tuple[str, int]:
+    """Inline-decode ``data:...;base64,...`` URIs in *text*."""
+    steps = 0
+
+    def _replace(m: re.Match[str]) -> str:
+        nonlocal steps
+        try:
+            raw = base64.b64decode(m.group(1), validate=True)
+            if len(raw) > policy.max_base64_output_size:
+                return m.group(0)  # leave oversized data URIs untouched
+            decoded = raw.decode("utf-8")
+            steps += 1
+            return decoded
+        except Exception:
+            return m.group(0)
+
+    return _DATA_URI_RE.sub(_replace, text), steps
 
 
 def _bounded_base64_decode(text: str, policy: NormalizationPolicy) -> tuple[str, int, int, bool]:
@@ -230,14 +257,15 @@ def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = Non
     stripped = _strip_controls(normalized)
 
     url_decoded, url_depth, url_steps, url_exhausted = _bounded_url_decode(stripped, policy)
-    b64_decoded, b64_depth, b64_steps, b64_exhausted = _bounded_base64_decode(url_decoded, policy)
+    data_uri_decoded, data_uri_steps = _strip_data_uris(url_decoded, policy)
+    b64_decoded, b64_depth, b64_steps, b64_exhausted = _bounded_base64_decode(data_uri_decoded, policy)
     unescaped, unescape_steps = _unescape_layers(b64_decoded)
     cleaned = _strip_controls(unescaped)
     # Confusable collapsing runs AFTER all decoding layers to avoid
     # mangling escape sequences (e.g. \x41 digits → confusable letters).
     final_text = _collapse_confusables(cleaned)
 
-    steps = url_steps + b64_steps + unescape_steps
+    steps = url_steps + data_uri_steps + b64_steps + unescape_steps
     depth = max(url_depth, b64_depth)
     flags: list[str] = []
 
@@ -249,6 +277,8 @@ def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = Non
         flags.append("confusables_collapsed")
     if url_steps > 0:
         flags.append("url_decoded")
+    if data_uri_steps > 0:
+        flags.append("data_uri_decoded")
     if b64_steps > 0:
         flags.append("base64_decoded")
     if unescape_steps > 0:
@@ -310,25 +340,25 @@ class IntentClassifier:
 
     _category_patterns: dict[str, list[re.Pattern[str]]] = {
         "malicious_capability": [
-            re.compile(r"\b(?:build|write|generate).{0,500}(?:malware|exploit|ransomware)\b", re.IGNORECASE),
+            re.compile(r"\b(?:build|write|generate).{0,120}(?:malware|exploit|ransomware)\b", re.IGNORECASE),
             re.compile(r"\b(?:weaponize|attack chain|zero.day)\b", re.IGNORECASE),
         ],
         "data_exfiltration": [
-            re.compile(r"\b(?:exfiltrat|export|dump|leak|copy).{0,500}(?:data|records|database|secrets)\b", re.IGNORECASE),
-            re.compile(r"\b(?:send|relay|transmit).{0,500}(?:external|outside|remote|offshore)\b", re.IGNORECASE),
+            re.compile(r"\b(?:exfiltrat|export|dump|leak|copy).{0,120}(?:data|records|database|secrets)\b", re.IGNORECASE),
+            re.compile(r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore)\b", re.IGNORECASE),
         ],
         "privilege_escalation": [
-            re.compile(r"\b(?:grant|elevate|escalat|promote).{0,500}(?:admin|root|privilege|role)\b", re.IGNORECASE),
-            re.compile(r"\b(?:bypass|disable|override).{0,500}(?:auth|access control|policy)\b", re.IGNORECASE),
+            re.compile(r"\b(?:grant|elevate|escalat|promote).{0,120}(?:admin|root|privilege|role)\b", re.IGNORECASE),
+            re.compile(r"\b(?:bypass|disable|override).{0,120}(?:auth|access control|policy)\b", re.IGNORECASE),
         ],
         "tool_abuse": [
-            re.compile(r"\b(?:run|execute|invoke).{0,500}(?:shell|subprocess|eval|socket|script)\b", re.IGNORECASE),
-            re.compile(r"\b(?:drop|truncate|delete).{0,500}(?:database|table|production)\b", re.IGNORECASE),
+            re.compile(r"\b(?:run|execute|invoke).{0,120}(?:shell|subprocess|eval|socket|script)\b", re.IGNORECASE),
+            re.compile(r"\b(?:drop|truncate|delete).{0,120}(?:database|table|production)\b", re.IGNORECASE),
         ],
         "policy_evasion": [
-            re.compile(r"\b(?:pretend|roleplay|simulate).{0,200}(?:ignore|bypass|override).{0,200}(?:policy|rules|safety)\b", re.IGNORECASE),
-            re.compile(r"\b(?:roleplay|simulate).{0,200}(?:ignore|bypass|override).{0,200}(?:guardrails?|controls?)\b", re.IGNORECASE),
-            re.compile(r"\b(?:as a game|hypothetical|for testing only).{0,200}(?:ignore|disable).{0,200}(?:guardrails|policy)\b", re.IGNORECASE),
+            re.compile(r"\b(?:pretend|roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:policy|rules|safety)\b", re.IGNORECASE),
+            re.compile(r"\b(?:roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:guardrails?|controls?)\b", re.IGNORECASE),
+            re.compile(r"\b(?:as a game|hypothetical|for testing only).{0,80}(?:ignore|disable).{0,80}(?:guardrails|policy)\b", re.IGNORECASE),
             re.compile(r"\b(?:do this secretly|without logging|without audit|avoid detection)\b", re.IGNORECASE),
         ],
     }

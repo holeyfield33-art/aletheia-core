@@ -74,15 +74,15 @@ class TestReDoSMitigation(unittest.TestCase):
 
     def test_separated_keywords_within_bound(self):
         """Keywords separated by moderate text should still match."""
-        payload = "build " + "harmless text " * 20 + "malware"
+        payload = "build " + "harmless text " * 6 + "malware"
         result = classify_blocked_intent(payload)
         self.assertTrue(result.blocked)
 
     def test_separated_keywords_beyond_bound(self):
-        """Keywords separated by > 500 chars should NOT match (bounded)."""
-        payload = "build " + "x" * 600 + " malware"
+        """Keywords separated by > 120 chars should NOT match (bounded)."""
+        payload = "build " + "x" * 200 + " malware"
         result = classify_blocked_intent(payload)
-        # With .{0,500} the gap is too large to match
+        # With .{0,120} the gap is too large to match
         self.assertFalse(result.blocked)
 
     def test_benign_input_passes(self):

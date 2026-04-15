@@ -112,7 +112,7 @@ export default function OgImage() {
             gap: "24px",
           }}
         >
-          {["MIT Licensed", "697 Tests", "Open Source", "Signed Receipts"].map(
+          {["MIT Licensed", "957 Tests", "Open Source", "Signed Receipts"].map(
             (badge) => (
               <div
                 key={badge}

@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/version-1.7.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-868%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-957%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -73,7 +73,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 698 |
+| Tests passing | 957 |
 | Core coverage | 89% |
 | SAST findings | 0 |
 | Hardcoded secrets | 0 |
@@ -317,7 +317,7 @@ aletheia-cyber-core/
 ├── scripts/
 │   ├── backup_sqlite.sh     # SQLite backup with 7-day retention
 │   └── smoke_test_live.py   # Post-deploy smoke tests
-├── tests/                   # 697 tests across core, agents, security, and API modules
+├── tests/                   # 957 tests across core, agents, security, and API modules
 ├── simulations/             # Adversarial simulation scripts
 ├── main.py                  # CLI entry point
 ├── AGENTS.md                # Agent communication protocol

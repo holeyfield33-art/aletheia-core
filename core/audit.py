@@ -265,8 +265,9 @@ def build_tmr_receipt(
     """
     secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
     issued_at = issued_at or datetime.now(timezone.utc).isoformat()
+    nonce = os.urandom(16).hex()
     decision_token = hashlib.sha256(
-        f"{request_id}|{issued_at}|{policy_version}|{policy_hash}".encode("utf-8")
+        f"{request_id}|{issued_at}|{policy_version}|{policy_hash}|{nonce}".encode("utf-8")
     ).hexdigest()
 
     if not secret:
@@ -280,6 +281,7 @@ def build_tmr_receipt(
             "request_id": request_id,
             "fallback_state": fallback_state,
             "decision_token": decision_token,
+            "nonce": nonce,
             "signature": "UNSIGNED_DEV_MODE",
             "issued_at": issued_at,
             "warning": "Set ALETHEIA_RECEIPT_SECRET for production receipt signing.",
@@ -287,7 +289,8 @@ def build_tmr_receipt(
 
     message = (
         f"{decision}|{policy_hash}|{policy_version}|{payload_sha256}|"
-        f"{action}|{origin}|{request_id}|{fallback_state}|{issued_at}|{decision_token}"
+        f"{action}|{origin}|{request_id}|{fallback_state}|"
+        f"{issued_at}|{decision_token}|{nonce}"
     ).encode("utf-8")
     sig = hmac.new(secret, message, hashlib.sha256).hexdigest()
 
@@ -301,6 +304,7 @@ def build_tmr_receipt(
         "request_id": request_id,
         "fallback_state": fallback_state,
         "decision_token": decision_token,
+        "nonce": nonce,
         "signature": sig,
         "issued_at": issued_at,
     }

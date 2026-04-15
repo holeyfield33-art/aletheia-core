@@ -164,10 +164,10 @@ class TestBase64Decoding(unittest.TestCase):
         self.assertEqual(result, payload)
 
     def test_depth_limit_stops_at_max_decode_depth(self) -> None:
-        """6 layers of base64 should stop at depth 5, not recurse infinitely."""
+        """11 layers of base64 should stop at depth 10, not recurse infinitely."""
         payload = "deep hidden payload"
         encoded = payload
-        for _ in range(6):  # one more than _MAX_DECODE_DEPTH=5
+        for _ in range(11):  # one more than max_recursion_depth=10
             encoded = self._b64_encode(encoded)
 
         # Must not raise RecursionError

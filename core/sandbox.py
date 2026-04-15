@@ -55,6 +55,11 @@ _DANGER_PATTERNS: list[_DangerPattern] = [
         r"\b(?:compile\s*\(|code\.interact|runpy\.run_module|importlib\.import_module)\b",
         re.IGNORECASE,
     )),
+    # Obfuscated imports / dynamic attribute access (model extraction / sandbox escape)
+    _DangerPattern("OBFUSCATED_IMPORT", re.compile(
+        r"(?:getattr\s*\(.{0,60}(?:import|exec|eval|system|popen))|(?:ctypes\s*\.\s*(?:CDLL|cdll|windll))",
+        re.IGNORECASE,
+    )),
     # File-system destruction
     _DangerPattern("FS_DESTROY", re.compile(
         r"\b(?:shutil\.rmtree|os\.remove|os\.unlink|rm\s+-rf|del\s+/[sS])\b", re.IGNORECASE,
