@@ -92,7 +92,7 @@ def rotate_secrets(
                 reload_api_keys_fn()
                 summary["api_keys_reloaded"] = True
             except Exception as exc:
-                _logger.error("Failed to reload API keys: %s", exc)
+                _logger.error("Failed to reload API keys")
                 summary["api_keys_reloaded"] = False
                 summary["api_keys_error"] = str(exc)
 
@@ -102,14 +102,14 @@ def rotate_secrets(
                 reload_judge_fn()
                 summary["judge_reloaded"] = True
             except Exception as exc:
-                _logger.error("Failed to reload judge: %s", exc)
+                _logger.error("Failed to reload judge")
                 summary["judge_reloaded"] = False
                 summary["judge_error"] = str(exc)
 
         _last_rotation_time = now
         summary["status"] = "rotated"
         summary["timestamp"] = time.time()
-        _logger.info("Secret rotation completed: %s", summary)
+        _logger.info("Secret rotation completed")
         return summary
 
 
