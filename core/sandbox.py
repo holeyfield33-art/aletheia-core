@@ -18,6 +18,8 @@ import re as _re
 from dataclasses import dataclass
 from typing import Optional
 
+from confusable_homoglyphs import confusables as _confusables
+
 
 # ---------------------------------------------------------------------------
 # Dangerous-action pattern registry
@@ -65,6 +67,41 @@ _DANGER_PATTERNS: list[_DangerPattern] = [
 
 
 # ---------------------------------------------------------------------------
+# Confusable homoglyph normalization (Unicode TR39)
+# ---------------------------------------------------------------------------
+
+def _collapse_confusables(text: str) -> str:
+    """Replace cross-script confusable characters with their Latin equivalents.
+
+    Uses Unicode TR39 confusable data to collapse Cyrillic/Greek/etc lookalikes
+    that NFKC normalization does not handle (e.g. Cyrillic 'а' U+0430 → Latin 'a').
+    Only affects non-ASCII characters — ASCII chars pass through unchanged.
+    """
+    result: list[str] = []
+    for ch in text:
+        # Skip ASCII characters — they are never replaced
+        if ord(ch) < 128:
+            result.append(ch)
+            continue
+        conf = _confusables.is_confusable(ch, preferred_aliases=["latin"], greedy=False)
+        if conf:
+            replaced = False
+            for entry in conf:
+                for homoglyph in entry.get("homoglyphs", []):
+                    if "LATIN" in homoglyph.get("n", "").upper():
+                        result.append(homoglyph["c"])
+                        replaced = True
+                        break
+                if replaced:
+                    break
+            if not replaced:
+                result.append(ch)
+        else:
+            result.append(ch)
+    return "".join(result)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -78,6 +115,8 @@ def _normalise_for_sandbox(text: str) -> str:
     text = _re.sub(r"[\u200b-\u200d\ufeff]", "", text)
     # Replace all Unicode whitespace/separator categories with ASCII space
     text = _re.sub(r"[\s\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+", " ", text)
+    # Collapse cross-script confusable characters (e.g. Cyrillic 'а' → Latin 'a')
+    text = _collapse_confusables(text)
     return text
 
 

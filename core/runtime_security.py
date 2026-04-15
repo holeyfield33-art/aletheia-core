@@ -10,6 +10,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any
 
+from confusable_homoglyphs import confusables as _confusables
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 _runtime_logger = logging.getLogger("aletheia.runtime_security")
@@ -78,6 +79,37 @@ def _shannon_entropy(text: str) -> float:
 def _strip_controls(text: str) -> str:
     text = _ZERO_WIDTH_RE.sub("", text)
     return "".join(ch for ch in text if unicodedata.category(ch)[0] != "C")
+
+
+def _collapse_confusables(text: str) -> str:
+    """Replace cross-script confusable characters with their Latin equivalents.
+
+    Uses Unicode TR39 confusable data to collapse Cyrillic/Greek/etc lookalikes
+    that NFKC normalization does not handle (e.g. Cyrillic 'а' U+0430 → Latin 'a').
+    Only affects non-ASCII characters — ASCII chars pass through unchanged.
+    """
+    result: list[str] = []
+    for ch in text:
+        # Skip ASCII characters — they are never replaced
+        if ord(ch) < 128:
+            result.append(ch)
+            continue
+        conf = _confusables.is_confusable(ch, preferred_aliases=["latin"], greedy=False)
+        if conf:
+            replaced = False
+            for entry in conf:
+                for homoglyph in entry.get("homoglyphs", []):
+                    if "LATIN" in homoglyph.get("n", "").upper():
+                        result.append(homoglyph["c"])
+                        replaced = True
+                        break
+                if replaced:
+                    break
+            if not replaced:
+                result.append(ch)
+        else:
+            result.append(ch)
+    return "".join(result)
 
 
 def _bounded_url_decode(text: str, policy: NormalizationPolicy) -> tuple[str, int, int, bool]:
@@ -200,7 +232,10 @@ def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = Non
     url_decoded, url_depth, url_steps, url_exhausted = _bounded_url_decode(stripped, policy)
     b64_decoded, b64_depth, b64_steps, b64_exhausted = _bounded_base64_decode(url_decoded, policy)
     unescaped, unescape_steps = _unescape_layers(b64_decoded)
-    final_text = _strip_controls(unescaped)
+    cleaned = _strip_controls(unescaped)
+    # Confusable collapsing runs AFTER all decoding layers to avoid
+    # mangling escape sequences (e.g. \x41 digits → confusable letters).
+    final_text = _collapse_confusables(cleaned)
 
     steps = url_steps + b64_steps + unescape_steps
     depth = max(url_depth, b64_depth)
@@ -210,6 +245,8 @@ def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = Non
         flags.append("nfkc_normalized")
     if stripped != normalized:
         flags.append("control_chars_stripped")
+    if final_text != cleaned:
+        flags.append("confusables_collapsed")
     if url_steps > 0:
         flags.append("url_decoded")
     if b64_steps > 0:

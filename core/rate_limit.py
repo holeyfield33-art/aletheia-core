@@ -164,7 +164,13 @@ class UpstashRateLimiter:
 
     def reset_sync(self, key: str | None = None) -> None:
         """Synchronous reset for test compatibility."""
-        asyncio.run(self.reset(key))
+        try:
+            loop = asyncio.get_running_loop()
+            # Event loop already running (e.g. pytest-asyncio) — schedule as task
+            loop.create_task(self.reset(key))
+        except RuntimeError:
+            # No running loop — safe to use asyncio.run()
+            asyncio.run(self.reset(key))
 
 
 class InMemoryRateLimiter:
