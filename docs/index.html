@@ -8,7 +8,7 @@
   Secondary CTA:      Book a Service → mailto:info@aletheia-core.com?subject=Service Inquiry
   GitHub:             https://github.com/holeyfield33-art/aletheia-core
   Contact email:      info@aletheia-core.com
-  Last updated:       2026-04-10
+  Last updated:       2026-04-15
 -->
 <html lang="en">
 <head>
@@ -405,7 +405,7 @@
       <div class="step">
         <div class="step-num">STAGE 1</div>
         <h3>Input Hardening</h3>
-        <p>NFKC homoglyph collapse, zero-width character strip, recursive Base64 decode (up to 5 layers, 10× size bomb protection), and URL percent-encoding decode — all applied before any agent sees the payload.</p>
+        <p>NFKC homoglyph collapse, zero-width and bidi/RTL character strip, recursive Base64 decode (up to 10 layers with budget cap), data-URI inline decode, and URL percent-encoding decode — all applied before any agent sees the payload.</p>
       </div>
       <div class="step">
         <div class="step-num">STAGE 2</div>
@@ -415,7 +415,7 @@
       <div class="step">
         <div class="step-num">STAGE 3</div>
         <h3>Cryptographic Receipt</h3>
-        <p>Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt binding the decision to the policy hash, payload fingerprint, action, and origin. Receipts are tamper-evident and auditable.</p>
+        <p>Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt with a unique 16-byte nonce, binding the decision to the policy hash, payload fingerprint, action, and origin. Receipts are tamper-evident, non-replayable, and auditable.</p>
       </div>
     </div>
   </div>
@@ -482,7 +482,7 @@ curl -X POST https://your-host/v1/audit \
       </div>
       <div class="guarantee-card">
         <h3>HMAC-Signed Receipts</h3>
-        <p>Every decision produces a receipt signed with <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ALETHEIA_RECEIPT_SECRET</code>. Includes payload SHA-256, action, and origin to prevent replay attacks.</p>
+        <p>Every decision produces a receipt signed with <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ALETHEIA_RECEIPT_SECRET</code>. Includes a unique 16-byte nonce, payload SHA-256, action, and origin to prevent replay attacks.</p>
       </div>
       <div class="guarantee-card">
         <h3>Distributed Rate Limiting</h3>
@@ -497,7 +497,7 @@ curl -X POST https://your-host/v1/audit \
       </div>
       <div class="guarantee-card">
         <h3>Action Sandbox</h3>
-        <p>Regex-based pre-dispatch scanner blocks subprocess, socket, eval, filesystem destruction, and privilege escalation patterns before the agent pipeline runs.</p>
+        <p>Regex-based pre-dispatch scanner blocks subprocess, socket, eval, obfuscated imports (getattr/ctypes), filesystem destruction, and privilege escalation patterns before the agent pipeline runs.</p>
       </div>
     </div>
   </div>
@@ -702,6 +702,35 @@ curl -X POST https://your-host/v1/audit \
       </table>
     </div>
 
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- Recent Security Updates -->
+<section style="background:var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <div class="hero-badge" style="margin-bottom:1rem;">April 2026</div>
+    <h2>Recent Security Updates</h2>
+    <p class="section-sub">Hardening round completed after independent adversarial review.</p>
+    <div class="guarantee-grid">
+      <div class="guarantee-card">
+        <h3>Deeper Input Decoding</h3>
+        <p>Base64 recursion depth increased from 5 to 10 layers with budget cap. Bidi/RTL override characters stripped. Data-URI payloads decoded inline before Base64 pass.</p>
+      </div>
+      <div class="guarantee-card">
+        <h3>Receipt Nonce Binding</h3>
+        <p>Every audit receipt now includes a 16-byte cryptographic nonce bound into both the HMAC signature and decision token. Identical requests produce unique receipts.</p>
+      </div>
+      <div class="guarantee-card">
+        <h3>Sandbox Obfuscation Detection</h3>
+        <p>Sandbox scanner now detects obfuscated imports via <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">getattr()</code> indirection and <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ctypes.CDLL</code> / <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ctypes.cdll</code> patterns.</p>
+      </div>
+      <div class="guarantee-card">
+        <h3>ReDoS Mitigation</h3>
+        <p>All intent-classifier regex quantifiers reduced to bounded ranges ({0,120} and {0,80}) to prevent catastrophic backtracking on adversarial inputs.</p>
+      </div>
+    </div>
   </div>
 </section>
 

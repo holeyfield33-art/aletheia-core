@@ -22,6 +22,8 @@ export default function HomePage() {
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <VerifyItYourself />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
+      <RecentSecurityUpdates />
+      <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <Services />
     </>
   );
@@ -154,7 +156,7 @@ function HowItWorks() {
     {
       num: "INPUT HARDENING",
       title: "Normalization",
-      body: "NFKC homoglyph collapse, zero-width strip, recursive Base64/URL decode. All applied before any agent evaluates the payload.",
+      body: "NFKC homoglyph collapse, bidi/RTL override strip, recursive Base64/URL decode (up to 10 layers with budget cap), data-URI inline decode. All applied before any agent evaluates the payload.",
     },
     {
       num: "SEMANTIC SCORING",
@@ -169,7 +171,7 @@ function HowItWorks() {
     {
       num: "HMAC RECEIPT",
       title: "Receipt Signing",
-      body: "Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt binding decision to policy hash, payload fingerprint, and origin.",
+      body: "Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt with a unique 16-byte nonce, binding decision to policy hash, payload fingerprint, and origin.",
     },
   ];
 
@@ -644,6 +646,117 @@ function HowToUse() {
               >
                 {opt.cta.label}
               </a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RecentSecurityUpdates() {
+  const updates = [
+    {
+      title: "Deeper Input Decoding",
+      body: "Base64 recursion depth increased from 5 to 10 layers with budget cap. Bidi/RTL override characters stripped. Data-URI payloads decoded inline before Base64 pass.",
+    },
+    {
+      title: "Receipt Nonce Binding",
+      body: "Every audit receipt now includes a 16-byte cryptographic nonce bound into both the HMAC signature and decision token. Identical requests produce unique receipts.",
+    },
+    {
+      title: "Sandbox Obfuscation Detection",
+      body: "Sandbox scanner now detects obfuscated imports via getattr() indirection and ctypes.CDLL / ctypes.cdll patterns.",
+    },
+    {
+      title: "ReDoS Mitigation",
+      body: "All intent-classifier regex quantifiers reduced to bounded ranges ({0,120} and {0,80}) to prevent catastrophic backtracking on adversarial inputs.",
+    },
+  ];
+
+  return (
+    <section
+      style={{
+        padding: "4rem 2rem",
+        background: "var(--surface-2)",
+        borderTop: "1px solid var(--border)",
+        borderBottom: "1px solid var(--border)",
+      }}
+    >
+      <div className="container">
+        <div
+          style={{
+            display: "inline-block",
+            background: "var(--crimson-glow)",
+            border: "1px solid var(--crimson)",
+            color: "var(--silver)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.77rem",
+            padding: "0.3rem 0.8rem",
+            borderRadius: "100px",
+            marginBottom: "1rem",
+            letterSpacing: "0.05em",
+          }}
+        >
+          April 2026
+        </div>
+        <h2
+          style={{
+            fontFamily: "var(--font-head)",
+            fontSize: "1.75rem",
+            fontWeight: 800,
+            color: "var(--white)",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Recent Security Updates
+        </h2>
+        <p
+          style={{
+            color: "var(--silver)",
+            marginBottom: "2.5rem",
+            fontSize: "1rem",
+          }}
+        >
+          Hardening round completed after independent adversarial review.
+        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "1.25rem",
+          }}
+        >
+          {updates.map(({ title, body }) => (
+            <div
+              key={title}
+              style={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderLeft: "3px solid var(--crimson)",
+                borderRadius: "8px",
+                padding: "1.25rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "0.95rem",
+                  color: "var(--white)",
+                  marginBottom: "0.4rem",
+                  fontWeight: 600,
+                }}
+              >
+                {title}
+              </h3>
+              <p
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--silver)",
+                  lineHeight: 1.55,
+                }}
+              >
+                {body}
+              </p>
             </div>
           ))}
         </div>
