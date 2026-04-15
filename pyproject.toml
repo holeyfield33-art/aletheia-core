@@ -46,6 +46,9 @@ dependencies = [
     "confusable-homoglyphs>=3.0.0",
     "torch>=2.0.0",
     "pyyaml>=6.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "click>=8.0",
 ]
 
 [project.urls]
@@ -59,11 +62,14 @@ Changelog = "https://github.com/holeyfield33-art/aletheia-core/releases"
 aletheia-audit = "main:run_aletheia_audit"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "bridge*", "simulations*", "manifest*", "core*", "proximity*"]
+include = ["agents*", "bridge*", "simulations*", "manifest*", "core*", "proximity*", "crypto*", "monitoring*", "economics*"]
 
 [project.optional-dependencies]
 proximity = [
     "httpx>=0.24.0",
+]
+tpm = [
+    "tpm2-pytss>=2.0.0",
 ]
 dev = [
     "pytest>=7.0.0",

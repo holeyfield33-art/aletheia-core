@@ -135,6 +135,19 @@ scout = AletheiaScoutV2()
 nitpicker = AletheiaNitpickerV2()
 judge = AletheiaJudge()
 
+# Unified Sovereign Runtime (v1.7.0) — three-anchor pipeline
+# Initialised lazily to avoid import-time TPM probing in tests.
+_sovereign_runtime = None
+
+
+def _get_sovereign_runtime():
+    """Lazy singleton for the Unified Sovereign Runtime."""
+    global _sovereign_runtime
+    if _sovereign_runtime is None:
+        from core.unified_audit import UnifiedSovereignRuntime
+        _sovereign_runtime = UnifiedSovereignRuntime()
+    return _sovereign_runtime
+
 
 @app.on_event("startup")
 async def _on_startup() -> None:
@@ -689,6 +702,18 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         },
         "receipt": audit_record["receipt"],
     }
+
+    # --- Unified Sovereign Runtime: chain signing (Gate C1) ---
+    try:
+        sovereign = _get_sovereign_runtime()
+        chain_request = {"action": req.action, "payload": req.payload, "origin": req.origin}
+        chain_result = sovereign.post_execution_sign(chain_request, dict(response))
+        if chain_result.status == "PROCEED":
+            response["metadata"]["chain_signature"] = chain_result.chain_signature
+            response["metadata"]["chain_nonce"] = chain_result.chain_nonce
+    except Exception as exc:
+        _logger.warning("Sovereign chain signing skipped: %s", exc)
+
     if shadow_verdict:
         # Shadow verdict logged internally only — never expose to client
         _logger.info(
