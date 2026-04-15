@@ -63,7 +63,7 @@ All agents are implemented and active. Claims here reflect the actual code.
 Request → Schema Validation (Pydantic strict, extra="forbid")
         → Bundle Drift Check (policy_version + manifest_hash)
         → Rate Limiting (Upstash Redis / in-memory fallback)
-        → Input Hardening (NFKC, URL/Base64 decode, unescape, entropy quarantine)
+        → Input Hardening (NFKC, URL/Base64 decode, unescape, confusable collapsing, entropy quarantine)
         → Degraded Mode Gate (fail-closed for privileged actions)
         → Semantic Intent Classification (5 categories + coercive detection)
         → Replay Defense (SHA256 decision token, NX-based claim)

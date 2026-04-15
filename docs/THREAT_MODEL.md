@@ -1,4 +1,4 @@
-# Threat Model — Aletheia Core v1.7.0
+# Threat Model — Aletheia Core v1.7.1
 
 Formal enumeration of attack surfaces, trust boundaries, and mitigations.
 
@@ -77,6 +77,7 @@ or URL encoding to evade pattern matching.
 
 **Mitigations:**
 - NFKC normalization collapses homoglyphs
+- Unicode TR39 confusable collapsing (Cyrillic/Greek lookalikes → Latin equivalents) via `confusable-homoglyphs`
 - Zero-width characters stripped before any agent processing
 - Recursive Base64 decode (up to 5 layers, 10× size bomb protection)
 - URL percent-encoding decode
