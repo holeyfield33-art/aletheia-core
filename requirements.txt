@@ -114,6 +114,9 @@ click==8.3.2 \
     # via
     #   typer
     #   uvicorn
+confusable-homoglyphs==3.3.1 \
+    --hash=sha256:84c92cb79dc7f55aa290d0762b2349abd8dee4c16fbe6f99eac978d394e2e6a1
+    # via aletheia-cyber-core (pyproject.toml)
 cryptography==46.0.5 \
     --hash=sha256:02f547fce831f5096c9a567fd41bc12ca8f11df260959ecc7c3202555cc47a72 \
     --hash=sha256:039917b0dc418bb9f6edce8a906572d69e74bd330b0b3fea4f79dab7f8ddd235 \
