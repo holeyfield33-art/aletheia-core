@@ -8,8 +8,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_BASE = process.env.ALETHEIA_BACKEND_URL ?? "";
 const DEMO_API_KEY = process.env.ALETHEIA_DEMO_API_KEY ?? "";
-const TIMEOUT_MS = 5_000;
+const TIMEOUT_MS = 25_000; // Render free-tier cold starts take 15-30s
 const ACTIVE_MODE = process.env.ACTIVE_MODE;
+
+/** Allow Vercel to keep the function alive long enough for cold starts. */
+export const maxDuration = 30;
 
 const SANITIZED_ERROR = { error: "request_failed" };
 

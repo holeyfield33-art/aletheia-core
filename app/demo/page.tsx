@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 
-const CLIENT_TIMEOUT_MS = 8_000;
+const CLIENT_TIMEOUT_MS = 35_000; // Render cold starts take 15-30s
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -544,6 +544,7 @@ export default function DemoPage() {
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
             gap: "0.75rem",
@@ -553,8 +554,13 @@ export default function DemoPage() {
             fontSize: "0.88rem",
           }}
         >
-          <div className="spinner" />
-          Analyzing payload\u2026
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div className="spinner" />
+            Analyzing payload&hellip;
+          </div>
+          <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+            First request may take 15-30s while the backend wakes up.
+          </div>
         </div>
       )}
 
