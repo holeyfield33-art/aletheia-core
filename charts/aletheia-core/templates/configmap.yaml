@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aletheia-core.fullname" . }}
+  labels:
+    {{- include "aletheia-core.labels" . | nindent 4 }}
+data:
+  ALETHEIA_MODE: {{ .Values.config.mode | quote }}
+  ALETHEIA_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  ALETHEIA_DATABASE_BACKEND: {{ .Values.config.databaseBackend | quote }}
+  ALETHEIA_MAX_PAYLOAD_SIZE: {{ .Values.config.maxPayloadSize | quote }}
+  ALETHEIA_TRUSTED_PROXY_DEPTH: {{ .Values.config.trustedProxyDepth | quote }}

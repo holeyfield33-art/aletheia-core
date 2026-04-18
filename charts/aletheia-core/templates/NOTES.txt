@@ -1,0 +1,23 @@
+{{/* Generate NOTES.txt for helm install output */}}
+Aletheia Core has been deployed!
+
+{{- if .Values.ingress.enabled }}
+Access the API at:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}
+{{- end }}
+{{- else }}
+Get the application URL by running:
+  kubectl port-forward svc/{{ include "aletheia-core.fullname" . }} {{ .Values.service.port }}:8000
+{{- end }}
+
+Verify deployment:
+  kubectl get pods -l app.kubernetes.io/name={{ include "aletheia-core.name" . }}
+  curl http://localhost:{{ .Values.service.port }}/health
+  curl http://localhost:{{ .Values.service.port }}/ready
+
+Configuration:
+  Mode:     {{ .Values.config.mode }}
+  Database: {{ .Values.config.databaseBackend }}
+  Redis:    {{ if or .Values.redis.enabled .Values.upstash.enabled }}enabled{{ else }}disabled{{ end }}
+  HPA:      {{ if .Values.autoscaling.enabled }}{{ .Values.autoscaling.minReplicas }}-{{ .Values.autoscaling.maxReplicas }} replicas{{ else }}{{ .Values.replicaCount }} replicas (fixed){{ end }}

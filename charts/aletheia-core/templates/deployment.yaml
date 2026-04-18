@@ -1,0 +1,161 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aletheia-core.fullname" . }}
+  labels:
+    {{- include "aletheia-core.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "aletheia-core.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "aletheia-core.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aletheia-core.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "aletheia-core.fullname" . }}
+            - secretRef:
+                name: {{ include "aletheia-core.secretName" . }}
+          env:
+            # Database URL from dedicated secret if configured
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aletheia-core.pgSecretName" . }}
+                  key: {{ .Values.postgresql.existingSecretKey | default "DATABASE_URL" }}
+            {{- end }}
+            # Redis URL from dedicated secret if configured
+            {{- if .Values.redis.enabled }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aletheia-core.redisSecretName" . }}
+                  key: {{ .Values.redis.existingSecretKey | default "REDIS_URL" }}
+            {{- end }}
+            # Upstash Redis (alternative)
+            {{- if .Values.upstash.enabled }}
+            {{- if .Values.upstash.existingSecret }}
+            - name: UPSTASH_REDIS_REST_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.upstash.existingSecret }}
+                  key: {{ .Values.upstash.existingSecretUrlKey }}
+            - name: UPSTASH_REDIS_REST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.upstash.existingSecret }}
+                  key: {{ .Values.upstash.existingSecretTokenKey }}
+            {{- end }}
+            {{- end }}
+            # Audit Exporters
+            {{- if .Values.exporters.elasticsearch.enabled }}
+            - name: ALETHEIA_ES_URL
+              value: {{ .Values.exporters.elasticsearch.url | quote }}
+            - name: ALETHEIA_ES_INDEX
+              value: {{ .Values.exporters.elasticsearch.index | default "aletheia-audit" | quote }}
+            {{- if .Values.exporters.elasticsearch.apiKey }}
+            - name: ALETHEIA_ES_API_KEY
+              value: {{ .Values.exporters.elasticsearch.apiKey | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.exporters.splunk.enabled }}
+            - name: ALETHEIA_SPLUNK_HEC_URL
+              value: {{ .Values.exporters.splunk.hecUrl | quote }}
+            - name: ALETHEIA_SPLUNK_HEC_TOKEN
+              value: {{ .Values.exporters.splunk.hecToken | quote }}
+            {{- end }}
+            {{- if .Values.exporters.webhook.enabled }}
+            - name: ALETHEIA_WEBHOOK_URL
+              value: {{ .Values.exporters.webhook.url | quote }}
+            {{- if .Values.exporters.webhook.secret }}
+            - name: ALETHEIA_WEBHOOK_SECRET
+              value: {{ .Values.exporters.webhook.secret | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.exporters.syslog.enabled }}
+            - name: ALETHEIA_SYSLOG_HOST
+              value: {{ .Values.exporters.syslog.host | quote }}
+            - name: ALETHEIA_SYSLOG_PORT
+              value: {{ .Values.exporters.syslog.port | default 514 | quote }}
+            - name: ALETHEIA_SYSLOG_PROTO
+              value: {{ .Values.exporters.syslog.proto | default "udp" | quote }}
+            {{- end }}
+            - name: ENVIRONMENT
+              value: "production"
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            # Writable directories for read-only root filesystem
+            - name: tmp
+              mountPath: /tmp
+            - name: audit-log
+              mountPath: /app/logs
+            - name: data
+              mountPath: /app/data
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: audit-log
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: data
+          emptyDir:
+            sizeLimit: 128Mi
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

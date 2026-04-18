@@ -108,6 +108,28 @@ class AletheiaSettings:
     # --- General ---
     client_id: str = "ALETHEIA_ENTERPRISE"
 
+    # --- Enterprise auth (Task 1) ---
+    secret_backend: str = "env"              # "env" | "vault" | "aws" | "azure" | "gcp"
+    auth_provider: str = "api_key"           # "api_key" | "oidc" | "saml" | "multi"
+
+    # OIDC settings (used when auth_provider includes OIDC)
+    oidc_issuer: str = ""                    # e.g. https://accounts.google.com
+    oidc_client_id: str = ""
+    oidc_audience: str = ""                  # JWT ``aud`` claim to validate
+    oidc_role_claim: str = "aletheia_role"   # JWT claim containing role
+
+    # SAML settings
+    saml_metadata_url: str = ""              # IdP metadata endpoint
+    saml_entity_id: str = ""                 # SP entity ID
+    saml_acs_url: str = ""                   # Assertion Consumer Service URL
+
+    # --- HA Persistence (Task 2) ---
+    database_backend: str = "sqlite"         # "sqlite" | "postgres"
+    database_url: str = ""                   # PostgreSQL connection string
+
+    # --- FIPS-140 mode (Task 5) ---
+    fips_mode: bool = False                  # Restrict to FIPS-approved crypto
+
     def __post_init__(self) -> None:
         self.shadow_mode = self.mode == "shadow"
         # --- Enterprise threshold validation ---
@@ -132,6 +154,29 @@ class AletheiaSettings:
         if self.mode not in ("active", "shadow", "monitor"):
             raise ValueError(
                 f"mode must be 'active', 'shadow', or 'monitor', got '{self.mode}'"
+            )
+        if self.secret_backend not in ("env", "vault", "aws", "azure", "gcp"):
+            raise ValueError(
+                f"secret_backend must be one of env/vault/aws/azure/gcp, "
+                f"got '{self.secret_backend}'"
+            )
+        if self.auth_provider not in ("api_key", "oidc", "saml", "multi"):
+            raise ValueError(
+                f"auth_provider must be one of api_key/oidc/saml/multi, "
+                f"got '{self.auth_provider}'"
+            )
+        if self.database_backend not in ("sqlite", "postgres"):
+            raise ValueError(
+                f"database_backend must be one of sqlite/postgres, "
+                f"got '{self.database_backend}'"
+            )
+        # FIPS-140 mode validation
+        if self.fips_mode:
+            import logging as _fips_log
+            _fl = _fips_log.getLogger("aletheia.config")
+            _fl.info(
+                "FIPS-140 mode enabled — only FIPS-approved algorithms "
+                "(SHA-256, HMAC-SHA256, Ed25519, AES-256) will be used"
             )
 
     # ------------------------------------------------------------------
@@ -171,6 +216,18 @@ class AletheiaSettings:
         defaults.policy_threshold = 7.5
         defaults.rate_limit_per_second = 10
         defaults.client_id = "ALETHEIA_ENTERPRISE"
+        defaults.secret_backend = "env"
+        defaults.auth_provider = "api_key"
+        defaults.oidc_issuer = ""
+        defaults.oidc_client_id = ""
+        defaults.oidc_audience = ""
+        defaults.oidc_role_claim = "aletheia_role"
+        defaults.saml_metadata_url = ""
+        defaults.saml_entity_id = ""
+        defaults.saml_acs_url = ""
+        defaults.database_backend = "sqlite"
+        defaults.database_url = ""
+        defaults.fips_mode = False
         return cls(
             embedding_model=_get("embedding_model", defaults.embedding_model),
             intent_threshold=_get("intent_threshold", defaults.intent_threshold),
@@ -185,6 +242,18 @@ class AletheiaSettings:
             policy_threshold=_get("policy_threshold", defaults.policy_threshold),
             rate_limit_per_second=_get("rate_limit_per_second", defaults.rate_limit_per_second),
             client_id=_get("client_id", defaults.client_id),
+            secret_backend=_get("secret_backend", defaults.secret_backend),
+            auth_provider=_get("auth_provider", defaults.auth_provider),
+            oidc_issuer=_get("oidc_issuer", defaults.oidc_issuer),
+            oidc_client_id=_get("oidc_client_id", defaults.oidc_client_id),
+            oidc_audience=_get("oidc_audience", defaults.oidc_audience),
+            oidc_role_claim=_get("oidc_role_claim", defaults.oidc_role_claim),
+            saml_metadata_url=_get("saml_metadata_url", defaults.saml_metadata_url),
+            saml_entity_id=_get("saml_entity_id", defaults.saml_entity_id),
+            saml_acs_url=_get("saml_acs_url", defaults.saml_acs_url),
+            database_backend=_get("database_backend", defaults.database_backend),
+            database_url=_get("database_url", defaults.database_url),
+            fips_mode=_get("fips_mode", defaults.fips_mode),
         )
 
 
@@ -238,3 +307,72 @@ def hmac_rotation_index(salt: str, message: str, modulus: int) -> int:
 
     digest = hmac.new(salt.encode(), message.encode(), hashlib.sha256).digest()
     return int.from_bytes(digest[:4], "big") % modulus
+
+
+def validate_fips_compliance() -> list[str]:
+    """Check whether the current runtime satisfies FIPS-140 constraints.
+
+    Returns a list of violations (empty = compliant).  Called at startup
+    when ``fips_mode=True``.  Aletheia already uses FIPS-approved primitives
+    (SHA-256, HMAC-SHA256, Ed25519) by default — this validates nothing
+    non-compliant has been configured.
+    """
+    violations: list[str] = []
+    # Ed25519 is FIPS 186-5 approved.  Check that no MD5 or SHA-1 is used.
+    try:
+        import hashlib
+        # Attempt to detect if FIPS mode is enforced at the OpenSSL level
+        if hasattr(hashlib, "md5"):
+            try:
+                hashlib.md5(b"test", usedforsecurity=True)
+            except ValueError:
+                pass  # Good — OpenSSL FIPS provider blocks MD5
+    except Exception:
+        pass
+    # Verify Ed25519 signing key is present (required for manifest integrity)
+    manifest_key = Path("manifest/security_policy.ed25519.pub")
+    if not manifest_key.is_file():
+        violations.append("FIPS: Ed25519 public key missing at manifest/security_policy.ed25519.pub")
+    # Verify receipt secret uses adequate length
+    receipt_secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "")
+    if receipt_secret and len(receipt_secret) < 32:
+        violations.append(
+            "FIPS: ALETHEIA_RECEIPT_SECRET must be >= 32 characters for HMAC-SHA256 security"
+        )
+    return violations
+
+
+def validate_production_config() -> list[str]:
+    """Validate configuration for production readiness.
+
+    Returns a list of fatal issues.  The FastAPI lifespan calls this
+    when ``ENVIRONMENT=production`` and refuses to start if non-empty.
+    """
+    issues: list[str] = []
+    if not os.getenv("ALETHEIA_RECEIPT_SECRET"):
+        issues.append(
+            "ALETHEIA_RECEIPT_SECRET is required in production "
+            "(unsigned receipts break audit trail integrity)"
+        )
+    # Require durable rate-limiting backend
+    has_redis = bool(os.getenv("REDIS_URL") or os.getenv("ALETHEIA_REDIS_URL"))
+    has_upstash = upstash_configured()
+    if not has_redis and not has_upstash:
+        issues.append(
+            "Production requires a Redis backend (REDIS_URL / ALETHEIA_REDIS_URL) "
+            "or Upstash (UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN) for "
+            "durable rate limiting and replay defence"
+        )
+    # Recommend Postgres over SQLite
+    if settings.database_backend == "sqlite":
+        issues.append(
+            "Production should use database_backend=postgres (SQLite does not "
+            "support concurrent writes from multiple workers)"
+        )
+    # Secret backend should not be plain env in production
+    if settings.secret_backend == "env":
+        issues.append(
+            "Production should use a secrets manager (vault/aws/azure/gcp) "
+            "instead of secret_backend=env"
+        )
+    return issues

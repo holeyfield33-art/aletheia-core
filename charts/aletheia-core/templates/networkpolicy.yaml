@@ -1,0 +1,51 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aletheia-core.fullname" . }}
+  labels:
+    {{- include "aletheia-core.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aletheia-core.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow traffic on the HTTP API port
+    - ports:
+        - port: 8000
+          protocol: TCP
+    {{- with .Values.networkPolicy.additionalIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # HTTPS outbound (Upstash, external APIs)
+    - ports:
+        - port: 443
+          protocol: TCP
+    {{- if .Values.postgresql.enabled }}
+    # PostgreSQL
+    - ports:
+        - port: 5432
+          protocol: TCP
+    {{- end }}
+    {{- if .Values.redis.enabled }}
+    # Redis
+    - ports:
+        - port: 6379
+          protocol: TCP
+        - port: 6380
+          protocol: TCP
+    {{- end }}
+    {{- with .Values.networkPolicy.additionalEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

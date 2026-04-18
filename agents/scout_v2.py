@@ -89,6 +89,22 @@ class AletheiaScoutV2:
         return False, ""
 
     def evaluate_threat_context(self, source_id, payload, file_sig=None):
+        """Score the threat level of a payload from *source_id*.
+
+        .. admonition:: Adversarial Limitation
+
+            This method relies on **pattern matching** (regex, keyword lists,
+            and frequency heuristics).  Sophisticated adversaries can evade
+            detection via synonym substitution, homoglyph injection, payload
+            fragmentation across multiple requests, or steganographic
+            encoding that defeats surface-level pattern checks.
+
+            **Mitigation:** For high-stakes environments, pair Scout with
+            a human-in-the-loop review for payloads in the
+            ``MEDIUM``–``HIGH`` threat band (score 4.0–7.5).  Consider
+            supplementing with external threat-intelligence feeds for
+            zero-day smuggling signatures.
+        """
         _scout_logger.debug("Scanning Grok X-Stream Intelligence for: %s", source_id)
         
         # 1. Signature Match (Instruction Smuggling) - Deep Scan (Global Search)

@@ -211,6 +211,22 @@ class AletheiaNitpickerV2:
         3. Symbolic narrowing → intent categories
         4. ``_safe_semantic_lookup()`` → Qdrant (fail-open on error)
         5. Compare top score against category-specific threshold from manifest
+
+        .. admonition:: Adversarial Limitation
+
+            Embedding-based similarity (both static and Qdrant) is vulnerable
+            to **adversarial rephrasing**: an attacker can craft semantically
+            equivalent prompts that fall below the cosine-similarity threshold
+            by using domain-specific jargon, multi-language mixing, or
+            distributing the malicious intent across multiple benign-looking
+            sentences.  Gradient-free black-box attacks can iteratively probe
+            the threshold boundary if response latency or error codes leak
+            information about the block decision.
+
+            **Mitigation:** Enable ``ALETHEIA_OPAQUE_DECISIONS=true`` to prevent
+            leaking similarity scores.  For regulated environments, pipe
+            ``MEDIUM``-band payloads to a human reviewer.  Periodically
+            augment the blocked-pattern bank with real-world evasion samples.
         """
         stripped, _ = self._strip_imperative_aliases(text)
 

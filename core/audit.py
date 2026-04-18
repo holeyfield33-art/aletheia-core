@@ -151,6 +151,27 @@ def safe_payload_preview(payload: str, max_len: int = 120) -> str:
     return sanitized
 
 
+def extract_trace_context() -> dict[str, str]:
+    """Extract OTel trace context if opentelemetry is available.
+
+    Returns a dict with ``trace_id`` and ``span_id`` (hex strings) when
+    an active OTel span exists, or an empty dict otherwise.
+    Lightweight — never raises, never imports heavy dependencies at module level.
+    """
+    try:
+        from opentelemetry import trace  # type: ignore[import-untyped]
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx and ctx.trace_id:
+            return {
+                "trace_id": format(ctx.trace_id, "032x"),
+                "span_id": format(ctx.span_id, "016x"),
+            }
+    except Exception:
+        pass
+    return {}
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -172,6 +193,9 @@ def log_audit_event(
     replay_token_outcome: str = "",
     status_code: int = 0,
     extra: Optional[dict[str, Any]] = None,
+    tenant_id: str = "default",
+    user_id: str = "",
+    auth_method: str = "",
 ) -> dict[str, Any]:
     """Write a structured JSON audit record and return a TMR receipt."""
     global _prev_record_hash, _audit_seq
@@ -188,6 +212,9 @@ def log_audit_event(
         "timestamp": now.isoformat(),
         "seq": seq,
         "prev_hash": prev_hash,
+        "tenant_id": tenant_id,
+        "user_id": user_id,
+        "auth_method": auth_method,
         "decision": decision,
         "threat_score": threat_score,
         "action": action,
@@ -212,6 +239,12 @@ def log_audit_event(
     if extra:
         record["extra"] = extra
 
+    # OTel trace context (when opentelemetry is installed)
+    trace_ctx = extract_trace_context()
+    if trace_ctx:
+        record["trace_id"] = trace_ctx["trace_id"]
+        record["span_id"] = trace_ctx["span_id"]
+
     # PII redaction: scrub string fields before writing to audit log
     for key in ("reason", "origin", "action"):
         if isinstance(record.get(key), str):
@@ -228,6 +261,25 @@ def log_audit_event(
 
     # Write structured JSON line
     _get_audit_logger().info(json.dumps(record, default=str))
+
+    # --- Task 4: Dispatch to external exporters + WebSocket broadcast ---
+    try:
+        from core.metrics import TENANT_REQUESTS
+        TENANT_REQUESTS.labels(tenant_id=tenant_id, verdict=decision).inc()
+    except Exception:
+        pass
+
+    try:
+        from core.exporters import enqueue_audit_record
+        enqueue_audit_record(record)
+    except Exception:
+        pass  # exporters are optional — never block the audit pipeline
+
+    try:
+        from core.ws_audit import audit_broadcast
+        audit_broadcast.publish(record)
+    except Exception:
+        pass  # WS broadcast is optional
 
     # Build TMR-style receipt
     receipt = build_tmr_receipt(

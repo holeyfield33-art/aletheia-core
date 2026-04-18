@@ -1,0 +1,284 @@
+# Aletheia Core Helm Chart — values.yaml
+# Override these values for your environment.
+
+# -- Number of replicas (ignored when HPA is enabled)
+replicaCount: 1
+
+image:
+  repository: ghcr.io/holeyfield33-art/aletheia-core
+  pullPolicy: IfNotPresent
+  # -- Override the image tag (defaults to chart appVersion)
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ---------------------------------------------------------------------------
+# Application configuration
+# ---------------------------------------------------------------------------
+config:
+  # -- Aletheia mode: "active" (production) or "shadow" (dry-run)
+  mode: "active"
+  # -- Log level: DEBUG, INFO, WARNING, ERROR
+  logLevel: "INFO"
+  # -- Database backend: "sqlite" (dev) or "postgres" (prod)
+  databaseBackend: "sqlite"
+  # -- Max payload size (bytes)
+  maxPayloadSize: "10000"
+  # -- Trusted proxy depth for X-Forwarded-For
+  trustedProxyDepth: "1"
+
+# ---------------------------------------------------------------------------
+# Secrets — configure via env vars, ExternalSecret, or sealed-secrets
+# ---------------------------------------------------------------------------
+secrets:
+  # -- Create Kubernetes Secret from values below (set false to use ExternalSecret)
+  create: true
+  # -- Name of an existing secret (overrides create)
+  existingSecret: ""
+  # -- Receipt signing secret (required in active mode, min 32 chars)
+  receiptSecret: ""
+  # -- API keys (comma-separated)
+  apiKeys: ""
+  # -- Admin key for key management endpoints
+  adminKey: ""
+  # -- Key hashing salt (openssl rand -hex 32)
+  keySalt: ""
+  # -- Alias rotation salt (openssl rand -hex 32)
+  aliasSalt: ""
+  # -- Pinned manifest SHA-256 hash
+  manifestHash: ""
+
+# ---------------------------------------------------------------------------
+# Database (Postgres) — only used when config.databaseBackend=postgres
+# ---------------------------------------------------------------------------
+postgresql:
+  # -- Enable external PostgreSQL
+  enabled: false
+  # -- Full connection URL (must include sslmode=require in prod)
+  url: ""
+  # -- If using ExternalSecret, name of the secret containing DATABASE_URL
+  existingSecret: ""
+  existingSecretKey: "DATABASE_URL"
+
+# ---------------------------------------------------------------------------
+# Redis — required in production for rate limiting and replay defense
+# ---------------------------------------------------------------------------
+redis:
+  # -- Enable external Redis
+  enabled: false
+  # -- Redis URL (use rediss:// for TLS in production)
+  url: ""
+  # -- If using ExternalSecret
+  existingSecret: ""
+  existingSecretKey: "REDIS_URL"
+
+# ---------------------------------------------------------------------------
+# Upstash Redis (alternative to standard Redis)
+# ---------------------------------------------------------------------------
+upstash:
+  enabled: false
+  restUrl: ""
+  restToken: ""
+  existingSecret: ""
+  existingSecretUrlKey: "UPSTASH_REDIS_REST_URL"
+  existingSecretTokenKey: "UPSTASH_REDIS_REST_TOKEN"
+
+# ---------------------------------------------------------------------------
+# Audit Exporters — pluggable backends for centralized log export
+# ---------------------------------------------------------------------------
+exporters:
+  # -- Elasticsearch / OpenSearch
+  elasticsearch:
+    enabled: false
+    url: ""
+    index: "aletheia-audit"
+    apiKey: ""
+    username: ""
+    password: ""
+  # -- Splunk HEC
+  splunk:
+    enabled: false
+    hecUrl: ""
+    hecToken: ""
+    index: ""
+    source: "aletheia-core"
+  # -- Generic HTTP webhook
+  webhook:
+    enabled: false
+    url: ""
+    secret: ""
+  # -- Syslog (RFC 5424)
+  syslog:
+    enabled: false
+    host: ""
+    port: 514
+    proto: "udp"
+
+# ---------------------------------------------------------------------------
+# ExternalSecrets Operator integration
+# ---------------------------------------------------------------------------
+externalSecret:
+  # -- Enable ExternalSecret CRD creation
+  enabled: false
+  # -- SecretStore/ClusterSecretStore reference
+  secretStoreRef:
+    name: "vault-backend"
+    kind: "ClusterSecretStore"
+  # -- Refresh interval
+  refreshInterval: "1h"
+  # -- Map of Vault/AWS/Azure/GCP paths to env var names
+  data: []
+    # - secretKey: ALETHEIA_RECEIPT_SECRET
+    #   remoteRef:
+    #     key: secret/data/aletheia
+    #     property: receipt_secret
+
+# ---------------------------------------------------------------------------
+# Service
+# ---------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: aletheia-core.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: aletheia-core-tls
+    #   hosts:
+    #     - aletheia-core.example.com
+
+# ---------------------------------------------------------------------------
+# Horizontal Pod Autoscaler
+# ---------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ---------------------------------------------------------------------------
+# Pod Disruption Budget
+# ---------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# ---------------------------------------------------------------------------
+# NetworkPolicy
+# ---------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  # -- Additional ingress rules (beyond the default API port)
+  additionalIngress: []
+  # -- Additional egress rules (beyond DNS, Postgres, Redis)
+  additionalEgress: []
+
+# ---------------------------------------------------------------------------
+# ServiceMonitor (Prometheus Operator)
+# ---------------------------------------------------------------------------
+serviceMonitor:
+  enabled: false
+  interval: "30s"
+  scrapeTimeout: "10s"
+  # -- Prometheus metrics bearer token (must match ALETHEIA_METRICS_TOKEN)
+  metricsToken: ""
+  additionalLabels: {}
+
+# ---------------------------------------------------------------------------
+# Pod configuration
+# ---------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65534
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# -- Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Startup probe configuration (allows slow model loading)
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 30
+
+# -- Volume mounts for writable directories (audit logs, temp, data)
+# Required because readOnlyRootFilesystem is true.
+extraVolumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- Topology spread for HA
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: topology.kubernetes.io/zone
+  #   whenUnsatisfiable: DoNotSchedule
+  #   labelSelector:
+  #     matchLabels:
+  #       app.kubernetes.io/name: aletheia-core

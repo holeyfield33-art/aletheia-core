@@ -1,0 +1,19 @@
+# Patterns to ignore when packaging Helm charts.
+.DS_Store
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.git/
+.gitignore
+.bzr/
+.bzrignore
+.hg/
+.hgignore
+.svn/
+*.pyc
+__pycache__/
+.venv/
+node_modules/
+tests/

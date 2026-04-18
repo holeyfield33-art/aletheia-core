@@ -177,7 +177,24 @@ class AletheiaJudge:
         user_context: str = "unknown",
         payload: Optional[str] = None,
     ) -> tuple[bool, str]:
-        """Checks if an action violates the HARD_VETO rules."""
+        """Checks if an action violates the HARD_VETO rules.
+
+        .. admonition:: Adversarial Limitation
+
+            The semantic-distance check (``_check_semantic_distance``) uses
+            cosine similarity against a finite alias bank.  An adversary with
+            knowledge of the embedding model (``all-MiniLM-L6-v2``) could craft
+            adversarial inputs that are semantically equivalent to restricted
+            actions but produce embeddings outside the veto radius.  The
+            grey-zone keyword heuristic provides a partial safety net, but it
+            cannot cover all paraphrase variants.
+
+            **Mitigation:** For all actions in the ``restricted_actions`` list,
+            require **dual-key human sign-off** (CEO_RELAY) regardless of
+            semantic score.  Rotate the alias bank daily via
+            ``ALETHEIA_ALIAS_SALT`` and monitor ``GREY-ZONE VETO`` audit events
+            for patterns that may indicate threshold probing.
+        """
         if not self.policy:
             return False, "CRITICAL: No policy loaded. All actions blocked."
 

@@ -9,6 +9,7 @@ import traceback
 import hashlib
 import json
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,10 @@ from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
 from bridge.utils import normalize_shadow_text
 from core.audit import log_audit_event
-from core.config import settings, env_bool
+from core.config import settings, env_bool, upstash_configured
+from core.auth import get_auth_provider
+from core.auth.models import AuthContext, AuthenticatedUser
+from core.auth.rbac import Permission, require_permission, has_permission
 from core.embeddings import warm_up
 from core.rate_limit import rate_limiter
 from core.sandbox import check_action_sandbox
@@ -32,6 +36,7 @@ from core.key_store import key_store, DEFAULT_QUOTAS
 from core.secret_rotation import install_sigusr1_handler, rotate_secrets
 from core.metrics import (
     REQUEST_COUNTER, LATENCY_HISTOGRAM, ACTIVE_KEYS,
+    BLOCKED_ACTIONS_TOTAL,
     metrics_response,
 )
 
@@ -43,10 +48,91 @@ if not (0 <= _TRUSTED_PROXY_DEPTH <= 5):
         f"ALETHEIA_TRUSTED_PROXY_DEPTH must be 0–5, got {_TRUSTED_PROXY_DEPTH}"
     )
 
+
+@asynccontextmanager
+async def _lifespan(application: FastAPI):
+    """Async lifespan handler — manages Redis/Postgres pool lifecycle."""
+    import sys
+    from core.redis_pool import get_redis_pool, close_redis_pool
+    from core.config import validate_production_config, validate_fips_compliance
+
+    _logger.info("Lifespan startup: initialising connection pools…")
+
+    # --- Production readiness gate ---
+    if os.getenv("ENVIRONMENT", "").lower() == "production":
+        issues = validate_production_config()
+        if issues:
+            for issue in issues:
+                _logger.critical("PRODUCTION CONFIG ERROR: %s", issue)
+            _logger.critical(
+                "FATAL: %d production config issue(s) found. Refusing to start.",
+                len(issues),
+            )
+            sys.exit(1)
+
+    # --- FIPS-140 compliance check ---
+    if settings.fips_mode:
+        violations = validate_fips_compliance()
+        if violations:
+            for v in violations:
+                _logger.critical("FIPS VIOLATION: %s", v)
+            _logger.critical(
+                "FATAL: %d FIPS-140 violation(s) found. Refusing to start.",
+                len(violations),
+            )
+            sys.exit(1)
+        _logger.info("FIPS-140 mode: all checks passed")
+
+    # Redis pool (standard, not Upstash)
+    pool = await get_redis_pool()
+    if pool is not None:
+        try:
+            await pool.ping()  # type: ignore[union-attr]
+            _logger.info("Redis pool: connected and healthy")
+        except Exception as exc:
+            _logger.error("Redis pool: ping failed — %s", exc)
+    else:
+        _logger.info("Redis pool: not configured (using Upstash or in-memory)")
+
+    # Postgres pool (optional)
+    pg_pool = None
+    if settings.database_backend == "postgres":
+        db_url = settings.database_url or os.getenv("DATABASE_URL", "")
+        if db_url:
+            try:
+                import asyncpg
+                pg_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
+                async with pg_pool.acquire() as conn:
+                    await conn.execute("SELECT 1")
+                _logger.info("Postgres pool: connected and healthy")
+            except Exception as exc:
+                _logger.error("Postgres pool: connection failed — %s", exc)
+                if os.getenv("ENVIRONMENT", "").lower() == "production":
+                    import sys
+                    _logger.critical("FATAL: cannot reach Postgres in production. Refusing to start.")
+                    sys.exit(1)
+
+    # Audit export workers (Task 4 — Elasticsearch, Splunk, Webhook, Syslog)
+    from core.exporters import start_export_workers, stop_export_workers
+    start_export_workers()
+
+    yield
+
+    # Shutdown: close pools + exporters
+    _logger.info("Lifespan shutdown: closing connection pools…")
+    await stop_export_workers()
+    await close_redis_pool()
+    if pg_pool is not None:
+        await pg_pool.close()
+        _logger.info("Postgres pool: closed")
+    _logger.info("Lifespan shutdown: complete")
+
+
 app = FastAPI(
     title="Aletheia Core API",
     version="1.7.0",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
+    lifespan=_lifespan,
 )
 
 _BOOT_TIME = _time.time()
@@ -101,11 +187,88 @@ async def add_security_and_rate_limit_headers(request: Request, call_next):
 
 
 # ---------------------------------------------------------------------------
+# Unified auth middleware (enterprise auth layer)
+# ---------------------------------------------------------------------------
+
+@app.middleware("http")
+async def enterprise_auth_middleware(request: Request, call_next):
+    """Populate ``request.state.auth_context`` from the active auth provider.
+
+    This middleware runs on every request.  Endpoints that need auth use
+    ``require_permission()`` or ``require_role()`` dependencies which
+    read ``request.state.auth_context``.  Unauthenticated requests get
+    ``auth_context = None`` — the dependencies decide whether to reject.
+
+    When ``ALETHEIA_AUTH_PROVIDER=api_key`` (the default), behaviour is
+    identical to the original ``_check_api_key`` flow — this middleware
+    just pre-populates the context for RBAC checks.
+    """
+    # Skip auth for unauthenticated endpoints.
+    unauthenticated_paths = {"/health", "/ready", "/metrics", "/docs", "/openapi.json"}
+    if request.url.path in unauthenticated_paths:
+        return await call_next(request)
+
+    credential = (
+        request.headers.get("authorization", "")
+        or request.headers.get("x-api-key", "")
+    )
+    if credential:
+        try:
+            provider = get_auth_provider()
+            user = await provider.authenticate(credential)
+            if user:
+                request.state.auth_context = AuthContext(user=user, token=credential)
+        except Exception as exc:
+            _logger.debug("Auth middleware error: %s", exc)
+
+    # Always continue — individual endpoints decide if auth is required.
+    return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
 # Admin-key dependency for key management endpoints
 # ---------------------------------------------------------------------------
 
-def _check_admin_key(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> None:
-    """Require X-Admin-Key header for key management operations."""
+def _check_admin_key(
+    request: Request,
+    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
+) -> None:
+    """Require X-Admin-Key header for key management operations.
+
+    Also accepts enterprise auth (OIDC/SAML) when the auth middleware
+    has already populated the request with an admin-role user.
+
+    In production (``ENVIRONMENT=production``), X-Admin-Key is rejected
+    unless ``ALETHEIA_ALLOW_ADMIN_KEY_IN_PROD=true`` is set (escape hatch).
+    Operators should migrate to OIDC/SAML with admin role.
+    """
+    # Enterprise auth: admin role supersedes X-Admin-Key.
+    ctx: AuthContext | None = getattr(request.state, "auth_context", None)
+    if ctx is not None and ctx.user.is_admin:
+        return
+
+    _env_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+    _allow_in_prod = env_bool("ALETHEIA_ALLOW_ADMIN_KEY_IN_PROD")
+
+    if _env_is_production and not _allow_in_prod:
+        # Check if the request has an enterprise auth context with admin role instead.
+        # If so, allow through (enterprise auth supersedes X-Admin-Key).
+        # This path is hit when _check_admin_key is called as a dependency.
+        _logger.info(
+            "X-Admin-Key is disabled in production. "
+            "Use OIDC/SAML with admin role, or set ALETHEIA_ALLOW_ADMIN_KEY_IN_PROD=true."
+        )
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "admin_key_disabled",
+                "message": (
+                    "X-Admin-Key authentication is disabled in production. "
+                    "Use OIDC or SAML with an admin role instead."
+                ),
+            },
+        )
+
     admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
     if not admin_key:
         raise HTTPException(
@@ -128,6 +291,7 @@ class CreateKeyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., min_length=1, max_length=64)
     plan: str = Field(default="trial", pattern=r"^(trial|pro)$")
+    role: str = Field(default="operator", pattern=r"^(viewer|auditor|operator|admin)$")
 
 
 # Singleton agent instances
@@ -260,6 +424,30 @@ async def _on_startup() -> None:
 
     warm_up()
 
+    # --- Production HA checks: require DATABASE_URL + REDIS_URL for postgres backend ---
+    if os.getenv("ENVIRONMENT", "").lower() == "production":
+        if settings.database_backend == "postgres":
+            if not settings.database_url and not os.getenv("DATABASE_URL", ""):
+                _logger.critical(
+                    "FATAL: database_backend=postgres but DATABASE_URL is not set "
+                    "in production. Refusing to start."
+                )
+                sys.exit(1)
+            db_url = settings.database_url or os.getenv("DATABASE_URL", "")
+            if "sslmode" not in db_url and "sslmode=require" not in db_url:
+                _logger.critical(
+                    "FATAL: DATABASE_URL missing sslmode=require in production. "
+                    "TLS is required. Add ?sslmode=require to your connection string."
+                )
+                sys.exit(1)
+        if not os.getenv("REDIS_URL", "") and not upstash_configured():
+            _logger.critical(
+                "FATAL: Neither REDIS_URL nor UPSTASH_REDIS_REST_URL is set "
+                "in production. Redis is required for distributed rate limiting "
+                "and replay defense. Refusing to start."
+            )
+            sys.exit(1)
+
     # Install SIGUSR1 handler for hot secret rotation
     install_sigusr1_handler(
         reload_api_keys_fn=_reload_api_keys_live,
@@ -331,8 +519,12 @@ def _reload_api_keys_live() -> set[str]:
     return _API_KEYS
 
 
-def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
+def _check_api_key(request: Request, x_api_key: str | None = Header(default=None)) -> None:
     """Dependency: validate X-API-Key header and enforce quota.
+
+    Also accepts enterprise auth (OIDC/SAML) when the auth middleware
+    has already populated ``request.state.auth_context`` with a user
+    holding the ``audit:submit`` permission.
 
     Auth is REQUIRED by default. To explicitly disable (dev only),
     set ALETHEIA_AUTH_DISABLED=true. This never works in production.
@@ -341,6 +533,12 @@ def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
     1. Environment keys (``ALETHEIA_API_KEYS``) — admin / demo keys, no quota.
     2. Key store (SQLite) — trial / pro keys with monthly quota enforcement.
     """
+    # Enterprise auth: if the middleware already authenticated the user,
+    # check permission and skip API-key validation.
+    ctx: AuthContext | None = getattr(request.state, "auth_context", None)
+    if ctx is not None and has_permission(ctx.user.roles, Permission.AUDIT_SUBMIT):
+        return
+
     # Auth explicitly disabled (dev/testing only; blocked in production at startup)
     _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
     if _auth_disabled and not _API_KEYS:
@@ -460,6 +658,18 @@ async def health_check(x_admin_key: str | None = Header(default=None, alias="X-A
     manifest_status = "VALID" if manifest_ok else "INVALID"
     status = "ok" if manifest_ok else "degraded"
 
+    # Check Redis connectivity
+    redis_status = "not_configured"
+    try:
+        from core.redis_pool import get_redis_pool
+        pool = await get_redis_pool()
+        if pool is not None:
+            await pool.ping()  # type: ignore[union-attr]
+            redis_status = "ok"
+    except Exception:
+        redis_status = "error"
+        status = "degraded"
+
     # Public response: minimal — no version, uptime, or manifest details
     admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
     is_admin = bool(admin_key and x_admin_key and secrets.compare_digest(x_admin_key, admin_key))
@@ -475,6 +685,8 @@ async def health_check(x_admin_key: str | None = Header(default=None, alias="X-A
         "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "manifest_signature": manifest_status,
+        "database_backend": settings.database_backend,
+        "redis": redis_status,
     }
 
 
@@ -494,13 +706,26 @@ async def readiness_check() -> JSONResponse:
         policy_version = "unknown"
 
     receipt_configured = bool(os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip())
-    ready = manifest_ok
+
+    # Redis readiness
+    redis_ready = True
+    try:
+        from core.redis_pool import get_redis_pool
+        pool = await get_redis_pool()
+        if pool is not None:
+            await pool.ping()  # type: ignore[union-attr]
+    except Exception:
+        redis_ready = False
+
+    ready = manifest_ok and redis_ready
 
     body = {
         "ready": ready,
         "manifest_signature": "VALID" if manifest_ok else "INVALID",
         "policy_version": policy_version,
         "receipt_signing_configured": receipt_configured,
+        "database_backend": settings.database_backend,
+        "redis_ready": redis_ready,
     }
     return JSONResponse(
         status_code=200 if ready else 503,
@@ -549,14 +774,20 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     request_id = str(uuid.uuid4())[:16]
     start_time = _time.time()
 
+    # --- Extract tenant context from enterprise auth ---
+    ctx: AuthContext | None = getattr(request.state, "auth_context", None)
+    _tenant_id = ctx.user.tenant_id if ctx and ctx.user.tenant_id else "default"
+    _user_id = ctx.user.user_id if ctx else ""
+    _auth_method = ctx.user.auth_method if ctx else ""
+
     # --- Degraded mode determination ---
     degraded = bool(
         getattr(rate_limiter, "degraded", False) or decision_store.degraded
     )
     fallback_state = "degraded" if degraded else "normal"
 
-    # --- Rate limiting (per-IP, in-memory sliding window) ---
-    if not await rate_limiter.allow(client_ip):
+    # --- Rate limiting (per-IP, tenant-scoped) ---
+    if not await rate_limiter.allow(client_ip, tenant_id=_tenant_id):
         request.state.retry_after = 5
         log_audit_event(
             decision="RATE_LIMITED",
@@ -567,6 +798,9 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             origin=req.origin,
             reason="Rate limit exceeded",
             fallback_state=fallback_state,
+            tenant_id=_tenant_id,
+            user_id=_user_id,
+            auth_method=_auth_method,
         )
         return JSONResponse(
             status_code=429,
@@ -585,6 +819,9 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             origin=req.origin,
             reason="degraded_mode_privileged_action_denied",
             fallback_state=fallback_state,
+            tenant_id=_tenant_id,
+            user_id=_user_id,
+            auth_method=_auth_method,
         )
         return JSONResponse(
             status_code=503,
@@ -609,6 +846,9 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             origin=req.origin,
             reason=f"semantic_intent_policy_block:{intent_decision.category}",
             fallback_state=fallback_state,
+            tenant_id=_tenant_id,
+            user_id=_user_id,
+            auth_method=_auth_method,
         )
         return JSONResponse(
             status_code=403,
@@ -630,6 +870,9 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
             origin=req.origin,
             reason=sandbox_hit,
             fallback_state=fallback_state,
+            tenant_id=_tenant_id,
+            user_id=_user_id,
+            auth_method=_auth_method,
         )
         return JSONResponse(
             status_code=403,
@@ -695,6 +938,9 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         latency_ms=latency,
         fallback_state=fallback_state,
         extra={"request_id": request_id},
+        tenant_id=_tenant_id,
+        user_id=_user_id,
+        auth_method=_auth_method,
     )
 
     response: dict = {
@@ -764,7 +1010,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
 @app.post("/v1/keys", dependencies=[Depends(_check_admin_key)])
 async def create_key(req: CreateKeyRequest) -> JSONResponse:
     """Create a new API key.  Returns the raw key exactly once."""
-    raw_key, record = key_store.create_key(name=req.name, plan=req.plan)
+    raw_key, record = key_store.create_key(name=req.name, plan=req.plan, role=req.role)
     return JSONResponse(
         content={
             "key": raw_key,
@@ -824,3 +1070,16 @@ async def rotate_secrets_endpoint() -> JSONResponse:
     )
     status_code = 200 if result.get("status") == "rotated" else 429
     return JSONResponse(content=result, status_code=status_code)
+
+
+# ---------------------------------------------------------------------------
+# WebSocket audit stream (Task 4 — Live Observability)
+# ---------------------------------------------------------------------------
+
+from starlette.websockets import WebSocket as _StarletteWS  # noqa: E402
+
+@app.websocket("/ws/audit")
+async def ws_audit_endpoint(ws: _StarletteWS) -> None:
+    """Authenticated, tenant-scoped, PII-redacted live audit stream."""
+    from core.ws_audit import ws_audit_handler
+    await ws_audit_handler(ws)

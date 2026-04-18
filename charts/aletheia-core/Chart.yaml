@@ -1,0 +1,16 @@
+apiVersion: v2
+name: aletheia-core
+description: Runtime audit and pre-execution block layer for autonomous AI agents
+type: application
+version: 0.1.0
+appVersion: "1.7.0"
+keywords:
+  - ai-safety
+  - audit
+  - security
+  - policy-enforcement
+maintainers:
+  - name: Aletheia Core Team
+home: https://aletheia-core.com
+sources:
+  - https://github.com/holeyfield33-art/aletheia-core

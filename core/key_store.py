@@ -23,6 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from core.persistence import DEFAULT_TENANT, tenant_scope
+
 _logger = logging.getLogger("aletheia.key_store")
 
 # ---------------------------------------------------------------------------
@@ -77,6 +79,7 @@ class KeyRecord:
     created_at: str
     last_used_at: Optional[str]
     user_id: str | None = None
+    role: str = "operator"                   # RBAC role (viewer/auditor/operator/admin)
 
     def to_public_dict(self) -> dict:
         """Return a dict safe for API responses (omits key_hash)."""
@@ -138,13 +141,28 @@ class KeyStore:
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
+    _SCHEMA_VERSION = 3  # bump when adding migrations
+
     def _init_db(self) -> None:
         with self._lock:
             conn = self._get_conn()
             try:
+                # Schema version tracking
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS _key_schema_version (
+                        id      INTEGER PRIMARY KEY CHECK (id = 1),
+                        version INTEGER NOT NULL
+                    )
+                """)
+                row = conn.execute(
+                    "SELECT version FROM _key_schema_version WHERE id = 1"
+                ).fetchone()
+                current = row[0] if row else 0
+
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS api_keys (
                         id            TEXT PRIMARY KEY,
+                        tenant_id     TEXT NOT NULL DEFAULT 'default',
                         name          TEXT NOT NULL,
                         key_hash      TEXT NOT NULL UNIQUE,
                         key_prefix    TEXT NOT NULL,
@@ -156,12 +174,32 @@ class KeyStore:
                         period_end    TEXT NOT NULL,
                         created_at    TEXT NOT NULL,
                         last_used_at  TEXT,
-                        user_id       TEXT
+                        user_id       TEXT,
+                        role          TEXT NOT NULL DEFAULT 'operator'
                     )
                 """)
                 # Migrate existing tables: add user_id column if missing
                 try:
                     conn.execute("ALTER TABLE api_keys ADD COLUMN user_id TEXT")
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+                # Migrate existing tables: add role column if missing
+                try:
+                    conn.execute(
+                        "ALTER TABLE api_keys ADD COLUMN role TEXT NOT NULL DEFAULT 'operator'"
+                    )
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+                # v3: add tenant_id column + backfill existing rows
+                try:
+                    conn.execute(
+                        "ALTER TABLE api_keys ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+                    )
+                    # Backfill any NULL rows (safety net)
+                    conn.execute(
+                        "UPDATE api_keys SET tenant_id = 'default' WHERE tenant_id IS NULL OR tenant_id = ''"
+                    )
+                    _logger.info("Migrated existing keys to tenant_id='default'")
                 except sqlite3.OperationalError:
                     pass  # column already exists
                 conn.execute(
@@ -173,6 +211,14 @@ class KeyStore:
                 conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)"
                 )
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id)"
+                )
+                # Upsert schema version
+                conn.execute(
+                    "INSERT OR REPLACE INTO _key_schema_version (id, version) VALUES (1, ?)",
+                    (self._SCHEMA_VERSION,),
+                )
                 conn.commit()
             finally:
                 conn.close()
@@ -181,12 +227,22 @@ class KeyStore:
     # Key lifecycle
     # ------------------------------------------------------------------
 
-    def create_key(self, name: str, plan: str = "trial", user_id: str | None = None) -> tuple[str, KeyRecord]:
+    def create_key(
+        self,
+        name: str,
+        plan: str = "trial",
+        user_id: str | None = None,
+        role: str = "operator",
+        tenant_id: str | None = None,
+    ) -> tuple[str, KeyRecord]:
         """Create a new API key.
 
         Returns ``(raw_key, record)``.  The raw key is returned exactly
         once — only the SHA-256 hash is persisted.
         """
+        tid = tenant_scope(tenant_id)
+        if role not in ("viewer", "auditor", "operator", "admin"):
+            role = "operator"
         if plan not in DEFAULT_QUOTAS:
             plan = "trial"
 
@@ -213,6 +269,7 @@ class KeyStore:
             created_at=now.isoformat(),
             last_used_at=None,
             user_id=user_id,
+            role=role,
         )
 
         with self._lock:
@@ -220,15 +277,16 @@ class KeyStore:
             try:
                 conn.execute(
                     """INSERT INTO api_keys
-                        (id, name, key_hash, key_prefix, plan, status,
+                        (id, tenant_id, name, key_hash, key_prefix, plan, status,
                          monthly_quota, requests_used, period_start, period_end,
-                         created_at, last_used_at, user_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                         created_at, last_used_at, user_id, role)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        record.id, record.name, record.key_hash, record.key_prefix,
+                        record.id, tid, record.name, record.key_hash, record.key_prefix,
                         record.plan, record.status, record.monthly_quota,
                         record.requests_used, record.period_start, record.period_end,
                         record.created_at, record.last_used_at, record.user_id,
+                        record.role,
                     ),
                 )
                 conn.commit()
@@ -238,51 +296,58 @@ class KeyStore:
         _logger.info("key_created id=%s plan=%s prefix=%s", key_id, plan, key_prefix)
         return raw_key, record
 
-    def lookup_by_hash(self, raw_key: str) -> Optional[KeyRecord]:
+    def lookup_by_hash(self, raw_key: str, *, tenant_id: str | None = None) -> Optional[KeyRecord]:
         """Look up a key record by raw key (hashes it internally)."""
+        tid = tenant_scope(tenant_id)
         key_hash = _hash_key(raw_key)
         with self._lock:
             conn = self._get_conn()
             try:
                 row = conn.execute(
-                    "SELECT * FROM api_keys WHERE key_hash = ?", (key_hash,)
+                    "SELECT * FROM api_keys WHERE key_hash = ? AND tenant_id = ?",
+                    (key_hash, tid),
                 ).fetchone()
                 return self._row_to_record(row) if row else None
             finally:
                 conn.close()
 
-    def get_by_id(self, key_id: str) -> Optional[KeyRecord]:
+    def get_by_id(self, key_id: str, *, tenant_id: str | None = None) -> Optional[KeyRecord]:
         """Get key record by ID (safe — no raw key needed)."""
+        tid = tenant_scope(tenant_id)
         with self._lock:
             conn = self._get_conn()
             try:
                 row = conn.execute(
-                    "SELECT * FROM api_keys WHERE id = ?", (key_id,)
+                    "SELECT * FROM api_keys WHERE id = ? AND tenant_id = ?",
+                    (key_id, tid),
                 ).fetchone()
                 return self._row_to_record(row) if row else None
             finally:
                 conn.close()
 
-    def list_keys(self) -> list[KeyRecord]:
+    def list_keys(self, *, tenant_id: str | None = None) -> list[KeyRecord]:
         """List all key records (ordered by creation date, newest first)."""
+        tid = tenant_scope(tenant_id)
         with self._lock:
             conn = self._get_conn()
             try:
                 rows = conn.execute(
-                    "SELECT * FROM api_keys ORDER BY created_at DESC"
+                    "SELECT * FROM api_keys WHERE tenant_id = ? ORDER BY created_at DESC",
+                    (tid,),
                 ).fetchall()
                 return [self._row_to_record(r) for r in rows]
             finally:
                 conn.close()
 
-    def revoke_key(self, key_id: str) -> bool:
+    def revoke_key(self, key_id: str, *, tenant_id: str | None = None) -> bool:
         """Set key status to ``revoked``.  Returns True if a key was modified."""
+        tid = tenant_scope(tenant_id)
         with self._lock:
             conn = self._get_conn()
             try:
                 cursor = conn.execute(
-                    "UPDATE api_keys SET status = 'revoked' WHERE id = ? AND status = 'active'",
-                    (key_id,),
+                    "UPDATE api_keys SET status = 'revoked' WHERE id = ? AND tenant_id = ? AND status = 'active'",
+                    (key_id, tid),
                 )
                 conn.commit()
                 if cursor.rowcount > 0:
@@ -295,12 +360,13 @@ class KeyStore:
     # Quota enforcement (called on every authenticated request)
     # ------------------------------------------------------------------
 
-    def check_and_increment(self, raw_key: str) -> QuotaCheck:
+    def check_and_increment(self, raw_key: str, *, tenant_id: str | None = None) -> QuotaCheck:
         """Validate key, enforce quota, and atomically increment usage.
 
         Handles billing period reset when the current period has expired.
         Returns ``QuotaCheck`` — the caller should inspect ``.allowed``.
         """
+        tid = tenant_scope(tenant_id)
         key_hash = _hash_key(raw_key)
         now = datetime.now(timezone.utc)
 
@@ -308,7 +374,8 @@ class KeyStore:
             conn = self._get_conn()
             try:
                 row = conn.execute(
-                    "SELECT * FROM api_keys WHERE key_hash = ?", (key_hash,)
+                    "SELECT * FROM api_keys WHERE key_hash = ? AND tenant_id = ?",
+                    (key_hash, tid),
                 ).fetchone()
 
                 if not row:
@@ -339,8 +406,8 @@ class KeyStore:
                            SET requests_used = 0,
                                period_start  = ?,
                                period_end    = ?
-                           WHERE key_hash = ?""",
-                        (new_start.isoformat(), new_end.isoformat(), key_hash),
+                           WHERE key_hash = ? AND tenant_id = ?""",
+                        (new_start.isoformat(), new_end.isoformat(), key_hash, tid),
                     )
                     conn.commit()
                     record.requests_used = 0
@@ -364,8 +431,8 @@ class KeyStore:
                     """UPDATE api_keys
                        SET requests_used = requests_used + 1,
                            last_used_at  = ?
-                       WHERE key_hash = ?""",
-                    (now.isoformat(), key_hash),
+                       WHERE key_hash = ? AND tenant_id = ?""",
+                    (now.isoformat(), key_hash, tid),
                 )
                 conn.commit()
 
@@ -389,6 +456,11 @@ class KeyStore:
             uid = row["user_id"]
         except (IndexError, KeyError):
             uid = None
+        # role may not exist on older schemas (before migration)
+        try:
+            role = row["role"]
+        except (IndexError, KeyError):
+            role = "operator"
         return KeyRecord(
             id=row["id"],
             name=row["name"],
@@ -403,16 +475,18 @@ class KeyStore:
             created_at=row["created_at"],
             last_used_at=row["last_used_at"],
             user_id=uid,
+            role=role,
         )
 
-    def list_keys_for_user(self, user_id: str) -> list[KeyRecord]:
+    def list_keys_for_user(self, user_id: str, *, tenant_id: str | None = None) -> list[KeyRecord]:
         """List key records belonging to a specific user."""
+        tid = tenant_scope(tenant_id)
         with self._lock:
             conn = self._get_conn()
             try:
                 rows = conn.execute(
-                    "SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC",
-                    (user_id,),
+                    "SELECT * FROM api_keys WHERE user_id = ? AND tenant_id = ? ORDER BY created_at DESC",
+                    (user_id, tid),
                 ).fetchall()
                 return [self._row_to_record(r) for r in rows]
             finally:

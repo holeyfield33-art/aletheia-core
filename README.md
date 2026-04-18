@@ -578,6 +578,170 @@ Required environment variables:
 
 ---
 
+## Kubernetes Deployment
+
+A production-ready Helm 3 chart is provided in `charts/aletheia-core/`.
+
+### Quick Start
+
+```bash
+# Development (SQLite, in-memory rate limiting)
+helm install aletheia charts/aletheia-core \
+  --set config.mode=shadow \
+  --set secrets.receiptSecret=$(openssl rand -hex 32)
+
+# Production (Postgres + Redis, 3 replicas, HPA, Ingress)
+helm install aletheia charts/aletheia-core \
+  -f charts/aletheia-core/values-production.yaml \
+  --set secrets.receiptSecret=$RECEIPT_SECRET \
+  --set secrets.apiKeys=$API_KEYS \
+  --set secrets.keySalt=$KEY_SALT \
+  --set secrets.aliasSalt=$ALIAS_SALT \
+  --set postgresql.url="$DATABASE_URL" \
+  --set redis.url="$REDIS_URL"
+```
+
+### What's Included
+
+| Resource | Purpose |
+|----------|---------|
+| Deployment | Non-root, read-only FS, all caps dropped, seccomp RuntimeDefault |
+| Service | ClusterIP on port 80 → 8000 |
+| Ingress | Optional, cert-manager + nginx annotations |
+| HPA | CPU/memory autoscaling (2–10 replicas in prod) |
+| PDB | minAvailable=1 (dev), minAvailable=2 (prod) |
+| NetworkPolicy | Restrict ingress to port 8000; egress to DNS, HTTPS, PG, Redis |
+| ServiceMonitor | Prometheus scraping via /metrics |
+| ExternalSecret | Vault/AWS/Azure/GCP secret injection via ESO |
+| ConfigMap | Non-sensitive config (mode, log level, DB backend) |
+| Secret | Sensitive values (receipt secret, API keys, salts) |
+
+### External Secrets
+
+For production, use the ExternalSecrets Operator instead of inline secret values:
+
+```yaml
+externalSecret:
+  enabled: true
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  data:
+    - secretKey: ALETHEIA_RECEIPT_SECRET
+      remoteRef:
+        key: secret/data/aletheia
+        property: receipt_secret
+```
+
+See `charts/aletheia-core/values.yaml` for all configuration options.
+
+---
+
+## Observability
+
+Aletheia Core ships with built-in observability hooks for production environments.
+
+### Prometheus Metrics
+
+All metrics are served at `GET /metrics` (requires authentication in production). Key metrics:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `aletheia_requests_total` | Counter | agent, verdict | Total audit requests by agent and verdict |
+| `aletheia_tenant_requests_total` | Counter | tenant_id, verdict | Per-tenant audit request counter |
+| `aletheia_latency_seconds` | Histogram | — | Request processing latency |
+| `aletheia_decision_latency_seconds` | Histogram | tenant_id | Per-tenant decision latency |
+| `aletheia_blocked_actions_total` | Counter | reason | Actions blocked, labelled by reason |
+| `aletheia_exporter_errors_total` | Counter | backend | Audit export backend failures |
+| `aletheia_exporter_retries_total` | Counter | backend | Retry attempts per export backend |
+| `aletheia_exporter_dlq_size` | Gauge | — | Records in the dead-letter queue |
+| `aletheia_audit_events_exported_total` | Counter | backend | Events dispatched to external exporters |
+| `aletheia_ws_audit_connections` | Gauge | — | Active WebSocket audit stream connections |
+
+### Audit Exporters
+
+Pluggable backends fan-out audit records in real time. Enable via environment variables:
+
+| Backend | Enable with | Notes |
+|---------|-------------|-------|
+| **Elasticsearch** | `ALETHEIA_ES_URL` | Supports API key and basic auth |
+| **Splunk HEC** | `ALETHEIA_SPLUNK_HEC_URL` + `ALETHEIA_SPLUNK_HEC_TOKEN` | HTTP Event Collector |
+| **HTTP Webhook** | `ALETHEIA_WEBHOOK_URL` | Optional `ALETHEIA_WEBHOOK_SECRET` header |
+| **Syslog** | `ALETHEIA_SYSLOG_HOST` | UDP/TCP, configurable port and protocol |
+
+**Retry & Dead-Letter Queue:** Exporters retry with exponential backoff (default: 3 attempts, 1s/2s/4s delays). Records that fail all retries are dead-lettered in-memory (default capacity: 1,000 records). Configure via:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALETHEIA_EXPORTER_MAX_RETRIES` | 3 | Max retry attempts per record |
+| `ALETHEIA_EXPORTER_RETRY_DELAY` | 1.0 | Base delay in seconds (exponential: delay × 2^attempt) |
+| `ALETHEIA_EXPORTER_DLQ_SIZE` | 1000 | Max dead-letter queue capacity |
+
+### WebSocket Audit Stream
+
+Connect to `ws://<host>/ws/audit?token=<api_key>` for a live, tenant-scoped, PII-redacted
+stream of audit events. Admin keys see all tenants.
+
+**Authentication modes:**
+1. **Admin key** — `?token=<ALETHEIA_ADMIN_KEY>` → sees all tenants
+2. **Short-lived JWT** — `?token=<jwt>` → signed with `ALETHEIA_WS_JWT_SECRET`, includes tenant scope and expiry
+3. **API key** — `?token=<api_key>` → tenant scoped via key_store
+
+**Connection limits:** Max `ALETHEIA_WS_MAX_PER_TENANT` (default: 10) WebSocket connections per tenant.  
+**Heartbeat:** Sends `{"type": "ping", "ts": <epoch>}` every `ALETHEIA_WS_HEARTBEAT_SECONDS` (default: 30s) to keep connections alive.
+
+### OTel Trace Context
+
+When [OpenTelemetry](https://opentelemetry.io/) is installed, audit records automatically include `trace_id` and `span_id` fields from the active span. This enables end-to-end trace correlation in Jaeger, Grafana Tempo, or Datadog.
+
+### Grafana Dashboard Example
+
+Import the following PromQL queries into a Grafana dashboard:
+
+```
+# Request rate by verdict (graph)
+sum(rate(aletheia_requests_total[5m])) by (verdict)
+
+# Blocked actions by reason (pie chart)
+sum(aletheia_blocked_actions_total) by (reason)
+
+# P99 decision latency per tenant (graph)
+histogram_quantile(0.99, sum(rate(aletheia_decision_latency_seconds_bucket[5m])) by (le, tenant_id))
+
+# Exporter health: errors vs successful exports (graph)
+sum(rate(aletheia_exporter_errors_total[5m])) by (backend)
+sum(rate(aletheia_audit_events_exported_total[5m])) by (backend)
+
+# DLQ depth (single stat — alert if > 0)
+aletheia_exporter_dlq_size
+
+# Active WebSocket connections (gauge)
+aletheia_ws_audit_connections
+
+# Per-tenant request volume (table)
+sum(rate(aletheia_tenant_requests_total[5m])) by (tenant_id, verdict)
+```
+
+**Recommended alerts:**
+- `aletheia_exporter_dlq_size > 0` — dead-letter queue is accumulating (exporter outage)
+- `rate(aletheia_blocked_actions_total[5m]) > 10` — spike in blocked actions (possible attack)
+- `aletheia_ws_audit_connections == 0` when expected — SOC dashboard disconnected
+
+### Log Retention & Rotation
+
+Audit log files (`audit.log` by default) grow unbounded. Configure rotation:
+
+1. **logrotate (Linux):** See `deploy/logrotate.conf` for a production-ready config
+2. **Elasticsearch ILM:** Set index lifecycle policies for automatic rollover and deletion
+3. **Splunk:** Configure retention policies in the target index
+
+**Recommended retention:**
+- Hot tier: 30 days (full fidelity, searchable)
+- Warm tier: 90 days (reduced replicas)
+- Cold/archive: 1–7 years (compliance-dependent, consult legal)
+
+---
+
 ## Architecture Decision Records
 
 **ADR-001: Two-tier rate limiting**
@@ -591,6 +755,121 @@ The service `sys.exit(1)` in `active` mode without `ALETHEIA_RECEIPT_SECRET`. An
 
 **ADR-004: Ed25519 for manifest signing**
 Ed25519 was chosen over RSA for manifest signing: smaller keys, faster verification, no padding oracle attacks, and deterministic signatures. The public key ships with the package; the private key never leaves the operator's control.
+
+---
+
+## Architecture Overview
+
+```mermaid
+flowchart TB
+    subgraph Client["Client Request"]
+        REQ["HTTP POST /decide"]
+    end
+
+    subgraph InputHardening["Input Hardening Layer"]
+        SCHEMA["Pydantic Schema Validation<br/>(strict, extra=forbid)"]
+        DRIFT["Bundle Drift Check<br/>(policy_version + manifest_hash)"]
+        RATE["Rate Limiting<br/>(Upstash Redis / in-memory)"]
+        NORM["Input Normalization<br/>(NFKC, URL/Base64 decode,<br/>confusable collapsing,<br/>entropy quarantine)"]
+        DEGRADE["Degraded Mode Gate<br/>(fail-closed for privileged)"]
+        INTENT["Semantic Intent Classification<br/>(5 categories + coercion detect)"]
+        REPLAY["Replay Defense<br/>(SHA256 token, NX claim)"]
+    end
+
+    subgraph TriAgent["Tri-Agent Pipeline"]
+        SANDBOX["Sandbox Check<br/>(regex pattern block)"]
+        SCOUT["Scout v2<br/>Threat Intelligence<br/>(pattern match, IP rep,<br/>swarm detection)"]
+        NITPICKER["Nitpicker v2<br/>Semantic Sanitizer<br/>(static patterns + Qdrant<br/>+ polymorphic rotation)"]
+        JUDGE["Judge v1<br/>Policy Enforcer<br/>(Ed25519 manifest +<br/>cosine-sim veto)"]
+    end
+
+    subgraph Observability["Observability & Audit"]
+        AUDIT["Structured Audit Log<br/>(chain-hashed JSON lines)"]
+        RECEIPT["TMR Receipt<br/>(HMAC-SHA256 signed)"]
+        EXPORT["Exporters<br/>(ES, Splunk, Webhook, Syslog)<br/>retry + backoff + DLQ"]
+        METRICS["Prometheus Metrics<br/>(/metrics endpoint)"]
+        WSSTREAM["WebSocket /ws/audit<br/>(JWT + tenant-scoped<br/>+ PII-redacted)"]
+    end
+
+    subgraph Decision["Decision Output"]
+        PROCEED["PROCEED"]
+        DENIED["DENIED"]
+    end
+
+    REQ --> SCHEMA --> DRIFT --> RATE --> NORM --> DEGRADE --> INTENT --> REPLAY
+    REPLAY --> SANDBOX --> SCOUT --> NITPICKER --> JUDGE
+    JUDGE --> PROCEED
+    JUDGE --> DENIED
+    SCOUT -->|"score ≥ 7.5"| DENIED
+    NITPICKER -->|"semantic block"| DENIED
+    PROCEED --> AUDIT
+    DENIED --> AUDIT
+    AUDIT --> RECEIPT
+    AUDIT --> EXPORT
+    AUDIT --> METRICS
+    AUDIT --> WSSTREAM
+```
+
+---
+
+## Adversarial Limitations & Transparency
+
+Aletheia Core uses **embedding-based semantic similarity** (cosine distance against known-bad patterns) as a core detection mechanism. This approach has inherent limitations:
+
+### Known Evasion Vectors
+
+| Vector | Description | Mitigation |
+|--------|-------------|------------|
+| **Adversarial rephrasing** | Semantically equivalent prompts crafted to fall below cosine-sim thresholds | Grey-zone keyword heuristic, daily alias rotation via `ALETHEIA_ALIAS_SALT` |
+| **Homoglyph injection** | Unicode confusables (e.g. Cyrillic 'а' vs Latin 'a') | NFKC normalization + confusable collapsing in input hardening |
+| **Payload fragmentation** | Splitting malicious intent across multiple benign-looking requests | Cross-source swarm detection (Scout), session correlation |
+| **Threshold probing** | Black-box iterative queries to map the veto boundary | Opaque decisions (discretised bands only), rate limiting, replay defence |
+| **Embedding model attacks** | Gradient-based adversarial examples targeting `all-MiniLM-L6-v2` | Model is local-only (no gradient access), periodic pattern bank augmentation |
+| **Multi-language mixing** | Combining languages to evade monolingual pattern banks | Partial — current patterns are English-centric; augment for your deployment language |
+
+### What Aletheia Is NOT
+
+- **Not a replacement for human review** — for high-stakes actions (financial transfers, auth changes), always require dual-key human sign-off (CEO_RELAY pattern)
+- **Not a model alignment layer** — validates declared intents, not runtime model behavior
+- **Not an OS-level sandbox** — does not intercept system calls; validates at the API boundary
+- **Not a compliance certification** — provides tooling for compliance, not certification itself
+
+### Recommended Defense-in-Depth Stack
+
+1. **Aletheia Core** (this layer) — semantic intent validation + policy enforcement
+2. **Infrastructure WAF** — network-level request filtering (Cloudflare, AWS WAF)
+3. **Runtime sandbox** — container isolation, seccomp profiles, gVisor
+4. **Human-in-the-loop** — mandatory for `MEDIUM`–`HIGH` band actions in regulated environments
+5. **Continuous red-teaming** — periodic adversarial testing of pattern banks
+
+---
+
+## SOC 2 Readiness Checklist
+
+The following table maps Aletheia Core capabilities to SOC 2 Trust Service Criteria (TSC):
+
+| TSC | Control | Aletheia Feature | Status |
+|-----|---------|-----------------|--------|
+| **CC6.1** | Logical access controls | Enterprise auth (OIDC/SAML/API key), RBAC, per-tenant isolation | ✅ Implemented |
+| **CC6.2** | Credential management | Secret rotation (SIGUSR1), Vault/AWS/Azure/GCP backends | ✅ Implemented |
+| **CC6.3** | Encryption in transit | HTTPS enforced, HSTS headers, CORS policy | ✅ Implemented |
+| **CC6.6** | Audit logging | Chain-hashed JSON audit log, TMR receipts, 4 export backends | ✅ Implemented |
+| **CC6.8** | Intrusion detection | Scout threat scoring, Nitpicker semantic block, swarm detection | ✅ Implemented |
+| **CC7.1** | Change management | Ed25519-signed policy manifest, drift detection across workers | ✅ Implemented |
+| **CC7.2** | Vulnerability management | Input hardening (NFKC, entropy quarantine), sandbox checks | ✅ Implemented |
+| **CC7.3** | Incident response | Adversarial ML warnings, opaque decisions, rate limiting | ✅ Implemented |
+| **CC8.1** | Availability | Kubernetes HPA, PDB, health/ready probes, circuit breaker | ✅ Implemented |
+| **A1.2** | Recovery | PostgreSQL persistence, Redis HA, graceful degradation | ✅ Implemented |
+| **PI1.1** | Processing integrity | Replay defence (NX token), chain-hashed audit, TMR receipts | ✅ Implemented |
+
+**Gaps requiring operator action:**
+- [ ] Configure a dedicated secrets manager (`vault`/`aws`/`azure`/`gcp`) — do not use `secret_backend=env` in production
+- [ ] Enable FIPS-140 mode (`ALETHEIA_FIPS_MODE=true`) if required by compliance
+- [ ] Set up audit log retention policies (see Log Retention section above)
+- [ ] Deploy behind a TLS-terminating load balancer with valid certificates
+- [ ] Enable external monitoring (Prometheus + Grafana or equivalent)
+- [ ] Establish incident response runbook (see `docs/INCIDENT_RESPONSE.md`)
+- [ ] Conduct annual penetration testing against the Aletheia API surface
 
 ---
 

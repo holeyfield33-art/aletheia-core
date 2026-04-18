@@ -25,6 +25,7 @@ from collections import OrderedDict
 import httpx
 
 from core.config import settings, upstash_configured
+from core.persistence import tenant_scope, redis_tenant_key
 
 _logger = logging.getLogger("aletheia.rate_limit")
 
@@ -84,7 +85,7 @@ class UpstashRateLimiter:
         )
         return [item.get("result") for item in resp.json()]
 
-    async def allow(self, key: str) -> bool:
+    async def allow(self, key: str, *, tenant_id: str | None = None) -> bool:
         """Return True if request is within limits, False to reject.
 
         Uses atomic pipeline: ZREMRANGEBYSCORE → ZCARD → ZADD → EXPIRE
@@ -96,7 +97,7 @@ class UpstashRateLimiter:
             )
             return False
 
-        redis_key = f"{_REDIS_KEY_PREFIX}{key}"
+        redis_key = redis_tenant_key(tenant_id, "rl", key)
         now = time.time()
         window_start = now - _REDIS_WINDOW_SECONDS
         member = str(now)  # unique member = timestamp string
@@ -189,7 +190,7 @@ class InMemoryRateLimiter:
             "distributed rate limiting."
         )
 
-    async def allow(self, key: str) -> bool:
+    async def allow(self, key: str, *, tenant_id: str | None = None) -> bool:
         now = time.monotonic()
         cutoff = now - 1.0
 

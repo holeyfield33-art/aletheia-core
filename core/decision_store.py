@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import httpx
 
 from core.config import upstash_configured
+from core.persistence import DEFAULT_TENANT, tenant_scope
 
 _logger = logging.getLogger("aletheia.decision_store")
 
@@ -57,25 +58,38 @@ class _SQLiteDecisionStore:
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS decision_tokens (
-                    token TEXT PRIMARY KEY,
+                    token TEXT NOT NULL,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     request_id TEXT NOT NULL,
                     issued_at INTEGER NOT NULL,
                     expires_at INTEGER NOT NULL,
                     policy_version TEXT NOT NULL,
-                    manifest_hash TEXT NOT NULL
+                    manifest_hash TEXT NOT NULL,
+                    PRIMARY KEY (token, tenant_id)
                 )
                 """
             )
             cur.execute(
                 """
                 CREATE TABLE IF NOT EXISTS deployment_bundle (
-                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    id INTEGER NOT NULL CHECK (id = 1),
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     policy_version TEXT NOT NULL,
                     manifest_hash TEXT NOT NULL,
-                    updated_at INTEGER NOT NULL
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (id, tenant_id)
                 )
                 """
             )
+            # Migration: add tenant_id if missing (old single-PK schema)
+            try:
+                cur.execute("ALTER TABLE decision_tokens ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'")
+            except sqlite3.OperationalError:
+                pass
+            try:
+                cur.execute("ALTER TABLE deployment_bundle ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'")
+            except sqlite3.OperationalError:
+                pass
             conn.commit()
         finally:
             conn.close()
@@ -89,21 +103,24 @@ class _SQLiteDecisionStore:
         manifest_hash: str,
         now_ts: int,
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+        tenant_id: str | None = None,
     ) -> ReplayCheckResult:
+        tid = tenant_scope(tenant_id)
         async with self._lock:
             conn = sqlite3.connect(self._db_path)
             try:
                 cur = conn.cursor()
-                cur.execute("DELETE FROM decision_tokens WHERE expires_at < ?", (now_ts,))
+                cur.execute("DELETE FROM decision_tokens WHERE expires_at < ? AND tenant_id = ?", (now_ts, tid))
                 try:
                     cur.execute(
                         """
                         INSERT INTO decision_tokens (
-                            token, request_id, issued_at, expires_at, policy_version, manifest_hash
-                        ) VALUES (?, ?, ?, ?, ?, ?)
+                            token, tenant_id, request_id, issued_at, expires_at, policy_version, manifest_hash
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             token,
+                            tid,
                             request_id,
                             now_ts,
                             now_ts + ttl_seconds,
@@ -118,18 +135,20 @@ class _SQLiteDecisionStore:
             finally:
                 conn.close()
 
-    async def verify_bundle(self, *, policy_version: str, manifest_hash: str, now_ts: int) -> ReplayCheckResult:
+    async def verify_bundle(self, *, policy_version: str, manifest_hash: str, now_ts: int, tenant_id: str | None = None) -> ReplayCheckResult:
+        tid = tenant_scope(tenant_id)
         async with self._lock:
             conn = sqlite3.connect(self._db_path)
             try:
                 cur = conn.cursor()
                 row = cur.execute(
-                    "SELECT policy_version, manifest_hash FROM deployment_bundle WHERE id = 1"
+                    "SELECT policy_version, manifest_hash FROM deployment_bundle WHERE id = 1 AND tenant_id = ?",
+                    (tid,),
                 ).fetchone()
                 if row is None:
                     cur.execute(
-                        "INSERT INTO deployment_bundle (id, policy_version, manifest_hash, updated_at) VALUES (1, ?, ?, ?)",
-                        (policy_version, manifest_hash, now_ts),
+                        "INSERT INTO deployment_bundle (id, tenant_id, policy_version, manifest_hash, updated_at) VALUES (1, ?, ?, ?, ?)",
+                        (tid, policy_version, manifest_hash, now_ts),
                     )
                     conn.commit()
                     return ReplayCheckResult(accepted=True, reason="bundle_registered")
@@ -174,8 +193,10 @@ class _UpstashDecisionStore:
         manifest_hash: str,
         now_ts: int,
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+        tenant_id: str | None = None,
     ) -> ReplayCheckResult:
-        redis_key = f"{_REDIS_PREFIX}{token}"
+        tid = tenant_scope(tenant_id)
+        redis_key = f"tenant:{tid}:decision:{token}"
         value = json.dumps(
             {
                 "request_id": request_id,
@@ -194,14 +215,16 @@ class _UpstashDecisionStore:
             return ReplayCheckResult(accepted=False, reason="replay_detected")
         return ReplayCheckResult(accepted=True, reason="accepted")
 
-    async def verify_bundle(self, *, policy_version: str, manifest_hash: str, now_ts: int) -> ReplayCheckResult:
+    async def verify_bundle(self, *, policy_version: str, manifest_hash: str, now_ts: int, tenant_id: str | None = None) -> ReplayCheckResult:
+        tid = tenant_scope(tenant_id)
+        bundle_key = f"tenant:{tid}:policy_bundle"
         expected = json.dumps(
             {"policy_version": policy_version, "manifest_hash": manifest_hash},
             sort_keys=True,
         )
         result = await self._pipeline([
-            ["SET", _BUNDLE_KEY, expected, "NX", "EX", str(24 * 3600)],
-            ["GET", _BUNDLE_KEY],
+            ["SET", bundle_key, expected, "NX", "EX", str(24 * 3600)],
+            ["GET", bundle_key],
         ])
         current = ""
         if len(result) > 1:
@@ -227,13 +250,14 @@ class DecisionStore:
     def degraded(self) -> bool:
         return self._degraded
 
-    async def verify_policy_bundle(self, policy_version: str, manifest_hash: str) -> ReplayCheckResult:
+    async def verify_policy_bundle(self, policy_version: str, manifest_hash: str, *, tenant_id: str | None = None) -> ReplayCheckResult:
         now_ts = int(time.time())
         try:
             return await self._store.verify_bundle(
                 policy_version=policy_version,
                 manifest_hash=manifest_hash,
                 now_ts=now_ts,
+                tenant_id=tenant_id,
             )
         except Exception as exc:
             _logger.error("Decision store bundle verification failure: %s", exc)
@@ -248,11 +272,9 @@ class DecisionStore:
         policy_version: str,
         manifest_hash: str,
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+        tenant_id: str | None = None,
     ) -> ReplayCheckResult:
         # Deterministic token binding for replay defense.
-        # Token is derived from server-generated request_id (UUID) + timestamp +
-        # policy metadata. Attacker cannot pre-compute without the server-issued
-        # request_id — but identical replays are correctly detected.
         token_src = f"{request_id}|{timestamp_iso}|{policy_version}|{manifest_hash}"
         token = hashlib.sha256(token_src.encode("utf-8")).hexdigest()
         now_ts = int(time.time())
@@ -264,6 +286,7 @@ class DecisionStore:
                 manifest_hash=manifest_hash,
                 now_ts=now_ts,
                 ttl_seconds=ttl_seconds,
+                tenant_id=tenant_id,
             )
         except Exception as exc:
             _logger.error("Decision store claim failure: %s", exc)

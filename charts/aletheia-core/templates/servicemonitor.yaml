@@ -1,0 +1,25 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aletheia-core.fullname" . }}
+  labels:
+    {{- include "aletheia-core.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aletheia-core.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      {{- if .Values.serviceMonitor.metricsToken }}
+      bearerTokenSecret:
+        name: {{ include "aletheia-core.secretName" . }}
+        key: ALETHEIA_METRICS_TOKEN
+      {{- end }}
+{{- end }}
