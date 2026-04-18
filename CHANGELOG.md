@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.7.1] — 2026-04-18
+
+### Fixed
+- **Nitpicker semantic block now feeds pipeline decision**: `check_semantic_block()` result
+  was computed but never consulted in PROCEED/DENIED gate. Payloads in the 0.45–0.55
+  cosine-similarity band slipped through on early attempts and were only caught later by
+  Scout's rotation-probing accumulator. All three agents now independently deny.
+- **AGENTS.md accuracy**: Corrected blocked pattern count (18 → 19), updated pipeline
+  flow diagram, and documented Nitpicker's deny capability.
+- **README.md**: Updated test badge (957 → 967).
+
+### Verified
+- Full test suite: **967 passed**.
+
 ## [1.7.0] — 2026-04-13
 
 ### Added

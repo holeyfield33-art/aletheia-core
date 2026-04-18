@@ -30,15 +30,18 @@ All agents are implemented and active. Claims here reflect the actual code.
 
 **What it actually does:**
 - Detects imperative-alias prefixes (`routine:`, `cleanup:`, `refactor:`) that camouflage command sequences
-- Runs cosine-similarity check against 18 blocked semantic patterns (e.g. "bypass authentication", "exfiltrate data externally") using `all-MiniLM-L6-v2` embeddings. Threshold: 0.45.
+- Runs cosine-similarity check against 19 blocked semantic patterns (e.g. "bypass authentication", "exfiltrate data externally") using `all-MiniLM-L6-v2` embeddings. Threshold: 0.45.
+- `check_semantic_block()` feeds the pipeline decision logic — a semantic block alone causes a DENIED decision
 - Applies one of three deterministic rotation modes (`LINEAGE`, `INTENT`, `SKEPTIC`) to vary sanitization behavior:
   - **LINEAGE:** Passes only if `source_origin == "trusted_admin"`, otherwise redacts
   - **INTENT:** Regex-redacts restricted verbs (`update`, `bypass`, `delete`, `override`)
   - **SKEPTIC:** Full redaction if `SYSTEM_UPDATE` appears in the payload
 
+**Output:** `check_semantic_block()` returns `(is_blocked: bool, reason: str)`. Block = DENIED decision.
+
 **What it does NOT do:**
-- Does not make final PROCEED/DENY decisions — that is the Judge's responsibility
-- Sanitized output is used for logging; the original payload is passed to the Judge for veto checks
+- Does not verify manifest signatures — that is the Judge's responsibility
+- Sanitized output from `sanitize_intent()` is used for logging; the original payload is passed to the Judge for veto checks
 
 ---
 
@@ -69,7 +72,8 @@ Request → Schema Validation (Pydantic strict, extra="forbid")
         → Replay Defense (SHA256 decision token, NX-based claim)
         → Sandbox check (check_action_sandbox)  ← blocks dangerous patterns
         → Scout.evaluate_threat_context()        ← threat scoring
-        → Nitpicker.sanitize_intent()            ← polymorphic sanitization
+        → Nitpicker.check_semantic_block()       ← semantic block check (can deny)
+        → Nitpicker.sanitize_intent()            ← polymorphic sanitization (logging)
         → Judge.verify_action()                  ← manifest + semantic veto
         → Decision (PROCEED / DENIED)
         → log_audit_event() + build_tmr_receipt()
@@ -81,7 +85,7 @@ Request → Schema Validation (Pydantic strict, extra="forbid")
 
 - **Zero-Trust Input:** All external data is untrusted by default. Input hardening runs before any agent sees the payload.
 - **Fail Closed:** Invalid manifest signature, missing policy, unverifiable actions, or unavailable dependencies → hard DENIED, no graceful degradation for privileged actions.
-- **Defense in Depth:** All three agents must pass independently. Scout score alone can deny. Judge veto alone can deny. Semantic intent classifier can deny before agents run.
+- **Defense in Depth:** All three agents must pass independently. Scout score alone can deny. Nitpicker semantic block alone can deny. Judge veto alone can deny. Semantic intent classifier can deny before agents run.
 - **Opaque Decisions:** Raw threat scores, similarity floats, and matched rule IDs are never returned to clients. Only discretised bands (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) are exposed.
 - **Replay Resistance:** Every decision is bound to a unique token derived from request_id, timestamp, policy_version, and manifest_hash. Duplicate tokens are rejected.
 - **Drift Detection:** Workers verify they use the same signed policy bundle. Version or hash mismatches across instances are rejected.
