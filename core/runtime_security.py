@@ -346,6 +346,8 @@ class IntentClassifier:
         "data_exfiltration": [
             re.compile(r"\b(?:exfiltrat|export|dump|leak|copy).{0,120}(?:data|records|database|secrets)\b", re.IGNORECASE),
             re.compile(r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore)\b", re.IGNORECASE),
+            re.compile(r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|credentials|secrets)\b", re.IGNORECASE),
+            re.compile(r"\b(?:send|email|transmit|forward).{0,120}(?:to ).{0,80}(?:\.com|\.io|\.net|\.org|external|outside)\b", re.IGNORECASE),
         ],
         "privilege_escalation": [
             re.compile(r"\b(?:grant|elevate|escalat|promote).{0,120}(?:admin|root|privilege|role)\b", re.IGNORECASE),
@@ -360,6 +362,7 @@ class IntentClassifier:
             re.compile(r"\b(?:roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:guardrails?|controls?)\b", re.IGNORECASE),
             re.compile(r"\b(?:as a game|hypothetical|for testing only).{0,80}(?:ignore|disable).{0,80}(?:guardrails|policy)\b", re.IGNORECASE),
             re.compile(r"\b(?:do this secretly|without logging|without audit|avoid detection)\b", re.IGNORECASE),
+            re.compile(r"\b(?:ignore|disregard|skip|override).{0,40}(?:all )?.{0,40}(?:rules|policy|safety|restrictions|guardrails)\b", re.IGNORECASE),
         ],
     }
 
