@@ -7,14 +7,30 @@ import os
 import re
 import threading
 import time
+from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
 
 from core.config import settings
 from core.embeddings import cosine_similarity, encode
+from core.symbolic_narrowing import _categorize_intent, _normalize_text
+from core.vector_store import SemanticMatch, query_semantic_patterns
 
 _nitpicker_logger = logging.getLogger("aletheia.nitpicker")
+
+
+@dataclass
+class NitpickerResult:
+    """Structured result from Nitpicker semantic block check."""
+
+    is_blocked: bool
+    reason: str
+    degraded: bool = False
+    categories: list[str] = field(default_factory=list)
+    top_match_id: Optional[str] = None
+    top_match_score: float = 0.0
+    source: str = "static"  # "static" | "qdrant" | "both"
 
 
 class AletheiaNitpickerV2:
@@ -71,6 +87,9 @@ class AletheiaNitpickerV2:
         # Pre-compute blocked pattern embeddings once at init
         self._blocked_embeddings: np.ndarray = encode(self.BLOCKED_PATTERNS)
 
+        # Last check_semantic_block result — used for pipeline metadata
+        self._last_result: Optional[NitpickerResult] = None
+
     # ------------------------------------------------------------------
     # Semantic check
     # ------------------------------------------------------------------
@@ -98,12 +117,84 @@ class AletheiaNitpickerV2:
 
         Applies imperative-alias stripping before the check, matching the
         normalization that ``sanitize_intent`` performs internally.
+
+        Execution order:
+        1. Normalize + alias-strip
+        2. Static pattern bank check (always runs — safety floor)
+        3. Symbolic narrowing → intent categories
+        4. Qdrant semantic lookup (if enabled, fail-open on error)
         """
         stripped, _ = self._strip_imperative_aliases(text)
-        msg = self._check_blocked_similarity(stripped)
-        if msg:
-            return True, msg
-        return False, ""
+
+        # ---- 1. Static pattern bank (always runs, never degraded) ----
+        static_msg = self._check_blocked_similarity(stripped)
+
+        # ---- 2. Symbolic narrowing ----
+        categories = _categorize_intent(text)
+
+        # ---- 3. Qdrant semantic lookup (fail-open) ----
+        qdrant_blocked = False
+        qdrant_reason = ""
+        degraded = False
+        top_match_id: Optional[str] = None
+        top_match_score: float = 0.0
+
+        if not static_msg:
+            # Only hit Qdrant if static rules didn't already block
+            try:
+                query_vec = encode([stripped])[0].tolist()
+                matches, degraded = query_semantic_patterns(
+                    query_vector=query_vec,
+                    categories=categories if categories else None,
+                    score_threshold=self._similarity_threshold,
+                    limit=3,
+                )
+                if matches:
+                    best = matches[0]
+                    top_match_id = best.pattern_id
+                    top_match_score = best.score
+                    if best.score >= 0.60:  # block threshold
+                        qdrant_blocked = True
+                        qdrant_reason = (
+                            f"[SEMANTIC_BLOCK] Qdrant match '{best.pattern_id}' "
+                            f"category={best.category} score={best.score:.2f} "
+                            f"(threshold: 0.60)"
+                        )
+            except Exception as exc:
+                _nitpicker_logger.warning(
+                    "Qdrant lookup failed (fail-open): %s", exc
+                )
+                degraded = True
+
+        # ---- Build result ----
+        is_blocked = bool(static_msg) or qdrant_blocked
+        if static_msg and qdrant_blocked:
+            reason = static_msg  # static takes precedence in messaging
+            source = "both"
+        elif static_msg:
+            reason = static_msg
+            source = "static"
+        elif qdrant_blocked:
+            reason = qdrant_reason
+            source = "qdrant"
+        else:
+            reason = ""
+            source = "static"
+
+        result = NitpickerResult(
+            is_blocked=is_blocked,
+            reason=reason,
+            degraded=degraded,
+            categories=categories,
+            top_match_id=top_match_id,
+            top_match_score=top_match_score,
+            source=source,
+        )
+
+        # Store last result for pipeline metadata
+        self._last_result = result
+
+        return is_blocked, reason
 
     # ------------------------------------------------------------------
     # Imperative‑alias strip (retained from Phase 1)

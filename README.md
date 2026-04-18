@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/version-1.7.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-967%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-1003%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -73,7 +73,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 967 |
+| Tests passing | 1003 |
 | Core coverage | 89% |
 | SAST findings | 0 |
 | Hardcoded secrets | 0 |

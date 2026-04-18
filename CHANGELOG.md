@@ -5,6 +5,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.8.0] — 2026-04-18
+
+### Added
+- **Qdrant Semantic Layer**: Nitpicker now queries Qdrant vector store for extended
+  pattern matches after static pattern check. Fail-open on Qdrant errors — static
+  patterns remain the safety floor. Block threshold: 0.60.
+- **Symbolic narrowing** (`core/symbolic_narrowing.py`): Pre-filters payloads into
+  coarse intent buckets (action × object) before vector search. Categories include
+  `direct_exfiltration`, `policy_evasion`, `data_destruction`, `privilege_escalation`,
+  `credential_theft`, `auth_bypass`, `code_execution`, `recon`, `hybrid_composite`.
+- **Vector store wrapper** (`core/vector_store.py`): Thread-safe lazy Qdrant client
+  with configurable timeout (120ms default), fail-open semantics, and payload-indexed
+  collection bootstrap.
+- **Semantic manifest schema** (`core/semantic_manifest.py`): Pydantic models for
+  the semantic pattern manifest with threshold validation (0.0–1.0).
+- **Index builder** (`scripts/build_semantic_index.py`): CLI to read manifest, verify
+  Ed25519 signature, generate embeddings (BAAI/bge-small-en-v1.5), upsert to Qdrant,
+  create snapshot, and output signed `index_receipt.json`.
+- **NitpickerResult dataclass**: Structured result with `is_blocked`, `reason`,
+  `degraded`, `categories`, `top_match_id`, `top_match_score`, `source`.
+- **Pipeline metadata**: Response now includes `semantic_degraded`,
+  `semantic_categories_checked`, and `semantic_top_match_id` fields.
+- **36 new tests**: Unit tests for symbolic narrowing, vector store (fail-open,
+  timeout, mock Qdrant), and semantic manifest schema validation.
+- **`qdrant-client>=1.9.0`** as optional dependency (`[semantic]`).
+
+### Changed
+- Nitpicker blocked pattern count: 19 → 24 (from v1.7.1 fix, now documented correctly).
+
+### Verified
+- Full test suite: **1003 passed** (967 existing + 36 new).
+
 ## [1.7.1] — 2026-04-18
 
 ### Fixed

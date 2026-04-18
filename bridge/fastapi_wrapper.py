@@ -715,6 +715,16 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         "receipt": audit_record["receipt"],
     }
 
+    # --- Semantic layer metadata (from Nitpicker Qdrant integration) ---
+    nit_result = getattr(nitpicker, "_last_result", None)
+    if nit_result is not None:
+        response["metadata"]["semantic_degraded"] = nit_result.degraded
+        response["metadata"]["semantic_categories_checked"] = nit_result.categories
+        if nit_result.top_match_id:
+            response["metadata"]["semantic_top_match_id"] = nit_result.top_match_id
+        if nit_result.degraded:
+            audit_record["receipt"]["semantic_error"] = "qdrant_unavailable"
+
     # --- Unified Sovereign Runtime: chain signing (Gate C1) ---
     try:
         sovereign = _get_sovereign_runtime()

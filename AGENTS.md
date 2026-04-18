@@ -30,18 +30,21 @@ All agents are implemented and active. Claims here reflect the actual code.
 
 **What it actually does:**
 - Detects imperative-alias prefixes (`routine:`, `cleanup:`, `refactor:`) that camouflage command sequences
-- Runs cosine-similarity check against 19 blocked semantic patterns (e.g. "bypass authentication", "exfiltrate data externally") using `all-MiniLM-L6-v2` embeddings. Threshold: 0.45.
+- Runs cosine-similarity check against 24 blocked semantic patterns (e.g. "bypass authentication", "exfiltrate data externally") using `all-MiniLM-L6-v2` embeddings. Threshold: 0.45.
 - `check_semantic_block()` feeds the pipeline decision logic — a semantic block alone causes a DENIED decision
+- **Qdrant Semantic Layer (v1.8):** After static pattern check, performs symbolic narrowing (`_categorize_intent`) to extract coarse action×object buckets, then queries Qdrant vector store for extended pattern matches. Block threshold: 0.60. Fail-open on Qdrant errors — static patterns are the safety floor.
+- Returns `NitpickerResult` dataclass with `is_blocked`, `reason`, `degraded`, `categories`, `top_match_id`, `top_match_score`, `source` (static/qdrant/both)
 - Applies one of three deterministic rotation modes (`LINEAGE`, `INTENT`, `SKEPTIC`) to vary sanitization behavior:
   - **LINEAGE:** Passes only if `source_origin == "trusted_admin"`, otherwise redacts
   - **INTENT:** Regex-redacts restricted verbs (`update`, `bypass`, `delete`, `override`)
   - **SKEPTIC:** Full redaction if `SYSTEM_UPDATE` appears in the payload
 
-**Output:** `check_semantic_block()` returns `(is_blocked: bool, reason: str)`. Block = DENIED decision.
+**Output:** `check_semantic_block()` returns `(is_blocked: bool, reason: str)`. Block = DENIED decision. `_last_result` stores the full `NitpickerResult` for pipeline metadata.
 
 **What it does NOT do:**
 - Does not verify manifest signatures — that is the Judge's responsibility
 - Sanitized output from `sanitize_intent()` is used for logging; the original payload is passed to the Judge for veto checks
+- Does NOT call external embedding APIs in the hot path — all embeddings are local
 
 ---
 
@@ -73,6 +76,9 @@ Request → Schema Validation (Pydantic strict, extra="forbid")
         → Sandbox check (check_action_sandbox)  ← blocks dangerous patterns
         → Scout.evaluate_threat_context()        ← threat scoring
         → Nitpicker.check_semantic_block()       ← semantic block check (can deny)
+          ├── Static pattern bank (24 patterns, cosine sim ≥ 0.45)
+          ├── Symbolic narrowing (_categorize_intent → action×object buckets)
+          └── Qdrant vector lookup (fail-open, block ≥ 0.60)
         → Nitpicker.sanitize_intent()            ← polymorphic sanitization (logging)
         → Judge.verify_action()                  ← manifest + semantic veto
         → Decision (PROCEED / DENIED)
