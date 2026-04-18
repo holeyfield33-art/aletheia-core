@@ -5,11 +5,42 @@ on:
     types: [published]
 
 permissions:
-  id-token: write
+  contents: read
 
 jobs:
+  test:
+    name: Test before publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py3.12-${{ hashFiles('requirements.txt', 'requirements-ci.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-ci.txt
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v --tb=short \
+            --ignore=tests/test_distributed_state.py
+        env:
+          ALETHEIA_MODE: shadow
+          ALETHEIA_LOG_LEVEL: WARNING
+
   build:
     name: Build distribution
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,10 +51,24 @@ jobs:
           python-version: "3.12"
 
       - name: Install build tools
-        run: pip install build
+        run: pip install build twine
+
+      - name: Verify version matches release tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          TAG="${TAG#v}"
+          PKG_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          if [ "$TAG" != "$PKG_VERSION" ]; then
+            echo "ERROR: Release tag ($TAG) does not match pyproject.toml version ($PKG_VERSION)"
+            exit 1
+          fi
+          echo "Version verified: $PKG_VERSION"
 
       - name: Build package
         run: python -m build
+
+      - name: Validate distributions
+        run: twine check dist/*
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
