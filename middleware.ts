@@ -4,19 +4,19 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protect dashboard routes at the middleware level
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/api/keys") || pathname.startsWith("/api/logs") || pathname.startsWith("/api/evidence")) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-
-    if (!token) {
-      const loginUrl = new URL("/auth/login", request.url);
-      loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
+  // AUTH DISABLED — Under construction, allow all routes
+  // To re-enable, uncomment the block below:
+  // if (pathname.startsWith("/dashboard") || pathname.startsWith("/api/keys") || pathname.startsWith("/api/logs") || pathname.startsWith("/api/evidence")) {
+  //   const token = await getToken({
+  //     req: request,
+  //     secret: process.env.NEXTAUTH_SECRET,
+  //   });
+  //   if (!token) {
+  //     const loginUrl = new URL("/auth/login", request.url);
+  //     loginUrl.searchParams.set("callbackUrl", pathname);
+  //     return NextResponse.redirect(loginUrl);
+  //   }
+  // }
 
   // CSRF protection for state-changing API routes
   if (

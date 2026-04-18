@@ -74,6 +74,40 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="canonical" href={URLS.appBase} />
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes constructionPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+          }
+          .construction-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: linear-gradient(90deg, #8B1A2A 0%, #B02236 50%, #8B1A2A 100%);
+            color: #f0eee8;
+            text-align: center;
+            padding: 0.55rem 1rem;
+            font-family: var(--font-mono), monospace;
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            border-bottom: 2px solid #B02236;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+          }
+          .construction-banner .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2eb87a;
+            animation: constructionPulse 2s ease-in-out infinite;
+          }
+          body { padding-top: 38px !important; }
+          nav[style] { top: 38px !important; }
+        ` }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("aletheia-theme");if(!t)t=matchMedia("(prefers-color-scheme:light)").matches?"light":"dark";document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`,
@@ -81,6 +115,11 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <div className="construction-banner">
+          <span className="pulse-dot" />
+          UNDER CONSTRUCTION — Full platform launch in progress. Demo is live.
+          <span className="pulse-dot" />
+        </div>
         <a
           href="#main-content"
           className="skip-link"

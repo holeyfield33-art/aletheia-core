@@ -657,20 +657,42 @@ function HowToUse() {
 function RecentSecurityUpdates() {
   const updates = [
     {
+      title: "Enterprise Auth & RBAC",
+      body: "OIDC, SAML, and API-key authentication with role-based access control (admin/operator/viewer). Per-tenant key store with quota enforcement.",
+      isNew: true,
+    },
+    {
+      title: "HA & Multi-Tenancy",
+      body: "PostgreSQL persistence backend with async pooling. Redis connection pool with Upstash fallback. Tenant-scoped audit, rate limiting, and decision store.",
+      isNew: true,
+    },
+    {
+      title: "Kubernetes & Helm Chart",
+      body: "Production-ready Helm 3 chart with HPA, PDB, NetworkPolicy, ServiceMonitor, and ExternalSecret integration. Non-root, read-only FS, seccomp enforced.",
+      isNew: true,
+    },
+    {
+      title: "Audit Export & Observability",
+      body: "4 pluggable exporters (Elasticsearch, Splunk, Webhook, Syslog) with retry/backoff/DLQ. WebSocket audit stream with JWT auth. 13 Prometheus metrics. OTel trace injection.",
+      isNew: true,
+    },
+    {
+      title: "Qdrant Semantic Layer",
+      body: "Extended pattern matching via Qdrant vector store with symbolic narrowing. Fail-open design — static patterns remain the safety floor.",
+      isNew: true,
+    },
+    {
+      title: "FIPS-140 & Production Gates",
+      body: "FIPS-140 compliance mode with startup validation. Production config gate enforces receipt secret, Redis, Postgres, and secret backend before launch.",
+      isNew: true,
+    },
+    {
       title: "Deeper Input Decoding",
       body: "Base64 recursion depth increased from 5 to 10 layers with budget cap. Bidi/RTL override characters stripped. Data-URI payloads decoded inline before Base64 pass.",
     },
     {
       title: "Receipt Nonce Binding",
       body: "Every audit receipt now includes a 16-byte cryptographic nonce bound into both the HMAC signature and decision token. Identical requests produce unique receipts.",
-    },
-    {
-      title: "Sandbox Obfuscation Detection",
-      body: "Sandbox scanner now detects obfuscated imports via getattr() indirection and ctypes.CDLL / ctypes.cdll patterns.",
-    },
-    {
-      title: "ReDoS Mitigation",
-      body: "All intent-classifier regex quantifiers reduced to bounded ranges ({0,120} and {0,80}) to prevent catastrophic backtracking on adversarial inputs.",
     },
   ];
 
@@ -698,7 +720,7 @@ function RecentSecurityUpdates() {
             letterSpacing: "0.05em",
           }}
         >
-          April 2026
+          v1.8 — April 2026
         </div>
         <h2
           style={{
@@ -709,7 +731,7 @@ function RecentSecurityUpdates() {
             marginBottom: "0.5rem",
           }}
         >
-          Recent Security Updates
+          What&apos;s New — Enterprise Edition
         </h2>
         <p
           style={{
@@ -718,7 +740,7 @@ function RecentSecurityUpdates() {
             fontSize: "1rem",
           }}
         >
-          Hardening round completed after independent adversarial review.
+          Enterprise auth, multi-tenancy, Kubernetes, and full observability stack — now production-ready.
         </p>
         <div
           style={{
@@ -727,17 +749,38 @@ function RecentSecurityUpdates() {
             gap: "1.25rem",
           }}
         >
-          {updates.map(({ title, body }) => (
+          {updates.map(({ title, body, isNew }) => (
             <div
               key={title}
               style={{
                 background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderLeft: "3px solid var(--crimson)",
+                border: isNew ? "1px solid var(--crimson)" : "1px solid var(--border)",
+                borderLeft: isNew ? "3px solid var(--green)" : "3px solid var(--crimson)",
                 borderRadius: "8px",
                 padding: "1.25rem",
+                position: "relative",
               }}
             >
+              {isNew && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "0.75rem",
+                    right: "0.75rem",
+                    background: "var(--green)",
+                    color: "var(--black)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.62rem",
+                    fontWeight: 700,
+                    padding: "0.15rem 0.5rem",
+                    borderRadius: "100px",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  NEW
+                </span>
+              )}
               <h3
                 style={{
                   fontSize: "0.95rem",
