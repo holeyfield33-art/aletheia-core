@@ -8,20 +8,56 @@ services:
       pip install -r requirements.txt
     startCommand: uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port $PORT
     envVars:
+      # --- Core runtime ---
+      - key: ENVIRONMENT
+        sync: false
+      - key: ACTIVE_MODE
+        sync: false
       - key: ALETHEIA_MODE
-        value: active
+        sync: false
       - key: ALETHEIA_LOG_LEVEL
-        value: INFO
-      - key: ALETHEIA_RECEIPT_SECRET
-        generateValue: true
+        sync: false
+      - key: ALETHEIA_LOG_PII
+        sync: false
+      # --- Authn / API keys ---
       - key: ALETHEIA_API_KEYS
+        sync: false
+      - key: ALETHEIA_ADMIN_KEY
+        sync: false
+      - key: SIGNING_SECRET
+        sync: false
+      # --- Cryptographic salts & secrets ---
+      - key: ALETHEIA_RECEIPT_SECRET
         sync: false
       - key: ALETHEIA_ALIAS_SALT
         sync: false
+      - key: ALETHEIA_ROTATION_SALT
+        sync: false
+      - key: ALETHEIA_KEY_SALT
+        sync: false
+      - key: ALETHEIA_MANIFEST_HASH
+        sync: false
+      # --- Backend / persistence ---
+      - key: ALETHEIA_DATABASE_BACKEND
+        sync: false
+      - key: ALETHEIA_ALLOW_ENV_SECRETS
+        sync: false
+      # --- Network / CORS / proxy ---
+      - key: ALETHEIA_CORS_ORIGINS
+        sync: false
+      - key: ALETHEIA_ALLOWED_BACKEND_HOSTS
+        sync: false
+      - key: ALETHEIA_TRUSTED_PROXY_DEPTH
+        sync: false
+      # --- Redis (Upstash) ---
       - key: UPSTASH_REDIS_REST_URL
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
-      # HUGGING_FACE_HUB_TOKEN: Moved to Render secret store (never commit tokens).
-      # Add via: render secrets set HUGGING_FACE_HUB_TOKEN=<value>
+      # --- Demo ---
+      - key: ALETHEIA_DEMO_ORIGINS
+        sync: false
+      # --- Model / AI ---
+      - key: HF_TOKEN
+        sync: false
     plan: free

@@ -28,6 +28,19 @@ Values marked "Hosted" are typically configured in Render/Vercel or your contain
 
 ---
 
+## 1b) Production Backend & Secrets
+
+| Variable | Required Local | Required Hosted | Purpose |
+|---|---|---|---|
+| `ALETHEIA_DATABASE_BACKEND` | Optional | Recommended | `sqlite` (default) or `postgres`. Production validations require `postgres` unless overridden. |
+| `DATABASE_URL` | Optional | Yes (if postgres) | PostgreSQL connection string for the audit backend. |
+| `ALETHEIA_SECRET_BACKEND` | Optional | Recommended | `env` (default), `vault`, `aws`, `azure`, or `gcp`. |
+| `ALETHEIA_ALLOW_ENV_SECRETS` | Optional | Set `true` if using `env` | Acknowledges the risk of using env-var secrets in production. |
+| `ALETHEIA_ALLOW_SQLITE_PRODUCTION` | Optional | Set `true` if using `sqlite` | Acknowledges SQLite single-writer limitation for single-worker deploys. |
+| `ALETHEIA_FIPS_MODE` | Optional | Optional | Enable FIPS-140 compliance checks at startup. |
+
+---
+
 ## 2) Core Runtime Behavior / Policy
 
 | Variable | Required Local | Required Hosted | Purpose |

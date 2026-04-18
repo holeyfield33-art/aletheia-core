@@ -364,15 +364,25 @@ def validate_production_config() -> list[str]:
             "durable rate limiting and replay defence"
         )
     # Recommend Postgres over SQLite
-    if settings.database_backend == "sqlite":
+    # Allow explicit opt-in via ALETHEIA_ALLOW_SQLITE_PRODUCTION=true for
+    # open-source / free-tier deployments with a single worker.
+    if settings.database_backend == "sqlite" and not env_bool(
+        "ALETHEIA_ALLOW_SQLITE_PRODUCTION"
+    ):
         issues.append(
             "Production should use database_backend=postgres (SQLite does not "
-            "support concurrent writes from multiple workers)"
+            "support concurrent writes from multiple workers). "
+            "Set ALETHEIA_ALLOW_SQLITE_PRODUCTION=true to acknowledge this risk."
         )
     # Secret backend should not be plain env in production
-    if settings.secret_backend == "env":
+    # Allow explicit opt-in via ALETHEIA_ALLOW_ENV_SECRETS=true for
+    # open-source / free-tier deployments that don't run Vault.
+    if settings.secret_backend == "env" and not env_bool(
+        "ALETHEIA_ALLOW_ENV_SECRETS"
+    ):
         issues.append(
             "Production should use a secrets manager (vault/aws/azure/gcp) "
-            "instead of secret_backend=env"
+            "instead of secret_backend=env. Set ALETHEIA_ALLOW_ENV_SECRETS=true "
+            "to acknowledge this risk."
         )
     return issues
