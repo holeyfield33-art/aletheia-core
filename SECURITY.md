@@ -4,10 +4,11 @@
 
 | Version | Supported |
 |---------|-----------|
+| 1.8.x   | ✅ Yes    |
+| 1.7.x   | ✅ Yes    |
 | 1.6.x   | ✅ Yes    |
 | 1.5.x   | ✅ Yes    |
-| 1.4.x   | ✅ Yes    |
-| < 1.4.0 | ❌ No     |
+| < 1.5.0 | ❌ No     |
 
 ## Reporting a Vulnerability
 
@@ -71,9 +72,22 @@ Aletheia is designed with the following principles:
 - **Defense in depth:** Multiple independent checks (Scout, Nitpicker, Judge, Sandbox) must all pass.
 - **Auditability:** Every decision is logged with a cryptographic receipt.
 
-## Controls Added in v1.6.2
+## Controls Added in v1.8.0
 
-The following security hardening was applied in v1.7.0 (audit status: PASS, 698 tests passing, 89% core coverage):
+The following security hardening was applied in v1.8.0 (audit status: PASS, 1018 tests passing, 89% core coverage):
+
+- **Qdrant semantic layer**: Extended pattern matching via vector store after static pattern check. Fail-open on Qdrant errors — static patterns are the safety floor. Block threshold: 0.60.
+- **Symbolic narrowing**: Intent bucket pre-filter (action × object) reduces vector search space and improves precision.
+- **Per-category thresholds**: `ThresholdsConfig` with tuned cosine-similarity thresholds per intent category (0.82–0.88).
+- **Semantic manifest schema**: Pydantic models with threshold validation (0.0–1.0) and duplicate-ID detection.
+- **`NitpickerResult` dataclass**: Structured result with `source` field tracking whether block came from static patterns, Qdrant, or both.
+- **Production config opt-ins**: `ALETHEIA_ALLOW_SQLITE_PRODUCTION` and `ALETHEIA_ALLOW_ENV_SECRETS` for flexible deployment without bypassing security defaults.
+- **Pre-commit hooks**: ruff lint/format, trailing-whitespace, detect-private-key, version-sync consistency check.
+- **51 new tests** covering symbolic narrowing, vector store, semantic manifest schema, thresholds, and duplicate ID validation.
+
+## Controls Added in v1.7.0
+
+The following security hardening was applied in v1.7.0 (audit status: PASS, 967 tests passing, 89% core coverage):
 
 - **Config validation:** All security thresholds validated at startup with range checks and logical consistency.
 - **HMAC-keyed key hashing:** Key store uses HMAC-SHA256 with `ALETHEIA_KEY_SALT` instead of plain SHA-256.

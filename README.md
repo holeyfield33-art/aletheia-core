@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.7.0-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.8.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-1018%20passing-brightgreen" alt="Tests"/>
@@ -47,22 +47,29 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.7.0
+## What's New in v1.8.0
 
-### Security Debt Burn-Down
-- **SSRF hardening**: backend host validation now requires exact host or real subdomain match.
-- **Manifest pinning**: startup verifies `ALETHEIA_MANIFEST_HASH` when set and refuses mismatches.
-- **Health endpoint hardening**: public `/health` is minimal; detailed diagnostics require `X-Admin-Key`.
-- **Tamper-evident audit chain**: each audit record now includes `seq`, `prev_hash`, and `record_hash`.
-- **Regex hardening**: removed nested-quantifier ReDoS vector and bounded high-risk sandbox patterns.
-- **Secret guardrails**: production `NEXTAUTH_SECRET` requires 32+ characters at runtime.
+### Qdrant Semantic Layer
+- **Extended vector search**: Nitpicker now queries a Qdrant vector store for pattern matches after the static pattern check. Fail-open on Qdrant errors — static patterns remain the safety floor.
+- **Symbolic narrowing** (`core/symbolic_narrowing.py`): Pre-filters payloads into coarse action × object buckets before vector search (direct_exfiltration, policy_evasion, data_destruction, privilege_escalation, credential_theft, auth_bypass, code_execution, recon, hybrid_composite).
+- **Vector store wrapper** (`core/vector_store.py`): Thread-safe lazy Qdrant client with 120ms timeout and fail-open semantics.
+- **Semantic manifest schema** (`core/semantic_manifest.py`): Pydantic models with threshold validation (0.0–1.0) and duplicate-ID detection.
+- **`ThresholdsConfig`**: Per-category cosine-similarity block thresholds (direct_exfiltration=0.86, policy_evasion=0.84, hybrid_composite=0.82, recon_alias=0.88).
+- **Index builder** (`scripts/build_semantic_index.py`): CLI to generate embeddings, upsert to Qdrant, create snapshot, and output signed `index_receipt.json`.
 
-### Product Surface Expansion
-- **Theme toggle**: persistent dark/light mode across sessions.
-- **New docs surfaces**: `/changelog` and `/cli` pages.
-- **Engineering blog**: `/blog` index plus static post pages with metadata, robots, and sitemap entries.
-- **Navigation/footer updates**: user-facing links now include Blog, Changelog, and CLI.
-- **Dependency cleanup**: removed dead Supabase utility code from app runtime.
+### Pipeline Improvements
+- **`NitpickerResult` dataclass**: Structured result with `is_blocked`, `reason`, `degraded`, `categories`, `top_match_id`, `top_match_score`, `source` (static/qdrant/both).
+- **Response metadata**: Now includes `semantic_degraded`, `semantic_categories_checked`, and `semantic_top_match_id` fields.
+- **`semantic_engine` audit block**: Receipts include `enabled`, `degraded`, `manifest_version`, `categories_checked`, and `top_match` detail.
+- **Nitpicker blocked patterns**: 19 → 24.
+- **51 new tests** for the semantic layer (symbolic narrowing, vector store, semantic manifest schema, thresholds, duplicate ID validation).
+
+### Developer Experience
+- **Pre-commit hooks**: ruff lint/format, trailing whitespace, detect-private-key, version-sync check.
+- **Release drafter**: Auto-generated changelog from PR labels.
+- **Dependabot auto-merge**: Approve minor, auto-squash patch dependency PRs.
+- **Stale bot**: Mark inactive issues/PRs after 30 days, close after 14 more.
+- **Production config opt-ins**: `ALETHEIA_ALLOW_SQLITE_PRODUCTION` and `ALETHEIA_ALLOW_ENV_SECRETS` for flexible deployment.
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
@@ -73,7 +80,9 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 1018 |
+| Tests passing | 1018 (967 + 51 semantic layer) |
+| Blocked semantic patterns | 24 (static) + Qdrant extended |
+| Semantic alias phrases (Judge) | 60+ across 6 restricted categories |
 | Core coverage | 89% |
 | SAST findings | 0 |
 | Hardcoded secrets | 0 |
@@ -147,7 +156,8 @@ Incoming Request
          ▼
 ┌─────────────────┐
 │    Nitpicker    │  Polymorphic intent analysis, lineage tracing,
-│                 │  semantic blocked-pattern detection
+│                 │  semantic blocked-pattern detection,
+│                 │  Qdrant vector store (fail-open)
 └────────┬────────┘
          │
          ▼
@@ -289,40 +299,53 @@ curl -X POST http://localhost:8000/v1/rotate \
 ```
 aletheia-cyber-core/
 ├── agents/
-│   ├── scout_v2.py          # Threat intelligence + swarm detection
-│   ├── nitpicker_v2.py      # Polymorphic intent sanitization + embeddings
-│   └── judge_v1.py          # Policy enforcement + semantic veto
+│   ├── scout_v2.py            # Threat intelligence + swarm detection
+│   ├── nitpicker_v2.py        # Polymorphic intent sanitization + Qdrant semantic layer
+│   ├── judge_v1.py            # Policy enforcement + semantic veto
+│   └── sovereignty_proof.py   # Sovereignty attestation
 ├── bridge/
-│   ├── fastapi_wrapper.py   # Production REST API (rate-limited, audited)
-│   ├── config.py            # Legacy config shim
-│   └── utils.py             # Input hardening (homoglyphs, Base64, URL)
+│   ├── fastapi_wrapper.py     # Production REST API (rate-limited, audited)
+│   └── utils.py               # Input hardening (homoglyphs, Base64, URL)
 ├── core/
-│   ├── config.py            # Centralized settings (env / yaml / defaults)
-│   ├── embeddings.py        # Shared SentenceTransformer service
-│   ├── audit.py             # Structured JSON logging + TMR receipts + PII redaction
-│   ├── rate_limit.py        # Sliding-window rate limiter (Upstash Redis / in-memory)
-│   ├── sandbox.py           # Action sandbox pattern scanner
-│   ├── runtime_security.py  # Input normalization + semantic intent classification
-│   ├── key_store.py         # SQLite-backed API key store with quota enforcement
-│   ├── decision_store.py    # Decision replay defense store
-│   ├── metrics.py           # Prometheus metrics definitions
-│   └── secret_rotation.py   # Hot secret rotation (SIGUSR1 + /v1/rotate)
+│   ├── config.py              # Centralized settings (env / yaml / defaults)
+│   ├── embeddings.py          # Shared SentenceTransformer service
+│   ├── audit.py               # Structured JSON logging + TMR receipts + PII redaction
+│   ├── rate_limit.py          # Sliding-window rate limiter (Upstash Redis / in-memory)
+│   ├── sandbox.py             # Action sandbox pattern scanner
+│   ├── runtime_security.py    # Input normalization + semantic intent classification
+│   ├── key_store.py           # SQLite-backed API key store with quota enforcement
+│   ├── decision_store.py      # Decision replay defense store
+│   ├── metrics.py             # Prometheus metrics definitions
+│   ├── secret_rotation.py     # Hot secret rotation (SIGUSR1 + /v1/rotate)
+│   ├── symbolic_narrowing.py  # Intent bucket pre-filter for vector search
+│   ├── vector_store.py        # Thread-safe Qdrant client wrapper (fail-open)
+│   └── semantic_manifest.py   # Pydantic schema for semantic pattern manifest
+├── economics/
+│   ├── circuit_breaker.py     # Economic circuit breaker
+│   ├── token_velocity.py      # Token velocity monitoring
+│   └── zero_standing_privileges.py  # ZSP enforcement
+├── crypto/
+│   ├── chain_signer.py        # Chain-of-custody signing
+│   └── tpm_interface.py       # TPM integration (optional)
 ├── manifest/
 │   ├── security_policy.json        # Ground truth veto rules
 │   ├── security_policy.json.sig    # Ed25519 detached signature
 │   ├── security_policy.ed25519.pub # Public verification key
-│   └── signing.py           # Manifest signing and verification
+│   └── signing.py             # Manifest signing and verification
 ├── deploy/
-│   └── logrotate.conf       # Log rotation config for container deployments
+│   └── logrotate.conf         # Log rotation config for container deployments
 ├── scripts/
-│   ├── backup_sqlite.sh     # SQLite backup with 7-day retention
-│   └── smoke_test_live.py   # Post-deploy smoke tests
-├── tests/                   # 957 tests across core, agents, security, and API modules
-├── simulations/             # Adversarial simulation scripts
-├── main.py                  # CLI entry point
-├── AGENTS.md                # Agent communication protocol
-├── Dockerfile               # Production container with HEALTHCHECK, non-root user
-└── requirements.txt         # Hash-pinned dependencies
+│   ├── backup_sqlite.sh       # SQLite backup with 7-day retention
+│   ├── smoke_test_live.py     # Post-deploy smoke tests
+│   ├── build_semantic_index.py  # Qdrant index builder + signed receipt
+│   └── check_version_sync.py # Pre-commit version consistency check
+├── tests/                     # 1018 tests across core, agents, security, and semantic modules
+├── simulations/               # Adversarial simulation scripts
+├── main.py                    # CLI entry point
+├── AGENTS.md                  # Agent communication protocol
+├── Dockerfile                 # Production container with HEALTHCHECK, non-root user
+├── .pre-commit-config.yaml    # Pre-commit hooks (ruff, version-sync, etc.)
+└── requirements.txt           # Hash-pinned dependencies
 ```
 
 ---
@@ -687,7 +710,7 @@ stream of audit events. Admin keys see all tenants.
 2. **Short-lived JWT** — `?token=<jwt>` → signed with `ALETHEIA_WS_JWT_SECRET`, includes tenant scope and expiry
 3. **API key** — `?token=<api_key>` → tenant scoped via key_store
 
-**Connection limits:** Max `ALETHEIA_WS_MAX_PER_TENANT` (default: 10) WebSocket connections per tenant.  
+**Connection limits:** Max `ALETHEIA_WS_MAX_PER_TENANT` (default: 10) WebSocket connections per tenant.
 **Heartbeat:** Sends `{"type": "ping", "ts": <epoch>}` every `ALETHEIA_WS_HEARTBEAT_SECONDS` (default: 30s) to keep connections alive.
 
 ### OTel Trace Context
