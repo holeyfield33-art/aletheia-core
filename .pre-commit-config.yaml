@@ -1,0 +1,40 @@
+# See https://pre-commit.com for docs
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: version-sync
+        name: Check version consistency
+        entry: python -c "
+          import re, pathlib, json, sys;
+          v_pyproject = re.search(r'^version\\s*=\\s*\"([^\"]+)\"', pathlib.Path('pyproject.toml').read_text(), re.M).group(1);
+          v_fastapi = re.search(r'version\\s*=\\s*\"([^\"]+)\"', pathlib.Path('bridge/fastapi_wrapper.py').read_text()).group(1);
+          v_main = re.search(r'v(\\d+\\.\\d+\\.\\d+)', pathlib.Path('main.py').read_text()).group(1);
+          v_pkg = json.loads(pathlib.Path('package.json').read_text())['version'];
+          versions = {'pyproject.toml': v_pyproject, 'fastapi_wrapper.py': v_fastapi, 'main.py': v_main, 'package.json': v_pkg};
+          mismatches = {k: v for k, v in versions.items() if v != v_pyproject};
+          sys.exit(0) if not mismatches else (print(f'Version mismatch: {mismatches} (expected {v_pyproject})'), sys.exit(1))
+          "
+        language: python
+        files: "(pyproject\\.toml|package\\.json|main\\.py|bridge/fastapi_wrapper\\.py)$"
+        pass_filenames: false
