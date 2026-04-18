@@ -16,6 +16,7 @@ from core.config import settings
 from core.embeddings import cosine_similarity, encode
 from core.symbolic_narrowing import _categorize_intent, _normalize_text
 from core.vector_store import SemanticMatch, query_semantic_patterns
+from core.semantic_manifest import SemanticManifest, ThresholdsConfig
 
 _nitpicker_logger = logging.getLogger("aletheia.nitpicker")
 
@@ -30,7 +31,11 @@ class NitpickerResult:
     categories: list[str] = field(default_factory=list)
     top_match_id: Optional[str] = None
     top_match_score: float = 0.0
+    top_match_threshold: float = 0.0
+    top_match_category: Optional[str] = None
     source: str = "static"  # "static" | "qdrant" | "both"
+    manifest_version: Optional[str] = None
+    error: Optional[str] = None
 
 
 class AletheiaNitpickerV2:
@@ -90,6 +95,47 @@ class AletheiaNitpickerV2:
         # Last check_semantic_block result — used for pipeline metadata
         self._last_result: Optional[NitpickerResult] = None
 
+        # Load semantic manifest for category-specific thresholds
+        self._semantic_manifest: Optional[SemanticManifest] = None
+        self._thresholds: ThresholdsConfig = ThresholdsConfig()
+        self._manifest_version: Optional[str] = None
+        self._load_semantic_manifest()
+
+    # ------------------------------------------------------------------
+    # Manifest loading
+    # ------------------------------------------------------------------
+
+    def _load_semantic_manifest(self) -> None:
+        """Best-effort load of the semantic manifest for thresholds.
+
+        Falls back to default ThresholdsConfig if the manifest is missing
+        or invalid — never blocks init.
+        """
+        import json
+        from pathlib import Path
+
+        candidates = [
+            Path("manifest/semantic_patterns.json"),
+            Path(os.getenv("ALETHEIA_SEMANTIC_MANIFEST", "")),
+        ]
+        for path in candidates:
+            try:
+                if path and path.is_file():
+                    raw = json.loads(path.read_text(encoding="utf-8"))
+                    self._semantic_manifest = SemanticManifest.model_validate(raw)
+                    self._thresholds = self._semantic_manifest.thresholds
+                    self._manifest_version = self._semantic_manifest.version
+                    _nitpicker_logger.info(
+                        "Semantic manifest loaded: version=%s",
+                        self._manifest_version,
+                    )
+                    return
+            except Exception as exc:
+                _nitpicker_logger.warning(
+                    "Failed to load semantic manifest from %s: %s", path, exc
+                )
+        _nitpicker_logger.debug("No semantic manifest found, using default thresholds")
+
     # ------------------------------------------------------------------
     # Semantic check
     # ------------------------------------------------------------------
@@ -109,6 +155,46 @@ class AletheiaNitpickerV2:
         return None
 
     # ------------------------------------------------------------------
+    # Safe Qdrant lookup — NEVER raises
+    # ------------------------------------------------------------------
+
+    def _safe_semantic_lookup(
+        self, normalized_text: str, categories: list[str] | None = None
+    ) -> dict:
+        """Call Qdrant with 120ms timeout. Returns degraded=True on ANY failure.
+
+        Return shape::
+
+            {
+                "degraded": bool,
+                "matches": list[SemanticMatch],
+                "error": str | None,
+            }
+        """
+        try:
+            query_vec = encode([normalized_text])[0].tolist()
+            matches, degraded = query_semantic_patterns(
+                query_vector=query_vec,
+                categories=categories if categories else None,
+                score_threshold=self._similarity_threshold,
+                limit=3,
+            )
+            return {
+                "degraded": degraded,
+                "matches": matches,
+                "error": None,
+            }
+        except Exception as exc:
+            _nitpicker_logger.warning(
+                "Qdrant lookup failed (fail-open): %s", exc
+            )
+            return {
+                "degraded": True,
+                "matches": [],
+                "error": str(exc),
+            }
+
+    # ------------------------------------------------------------------
     # Public semantic block check — used by pipeline decision logic
     # ------------------------------------------------------------------
 
@@ -122,7 +208,8 @@ class AletheiaNitpickerV2:
         1. Normalize + alias-strip
         2. Static pattern bank check (always runs — safety floor)
         3. Symbolic narrowing → intent categories
-        4. Qdrant semantic lookup (if enabled, fail-open on error)
+        4. ``_safe_semantic_lookup()`` → Qdrant (fail-open on error)
+        5. Compare top score against category-specific threshold from manifest
         """
         stripped, _ = self._strip_imperative_aliases(text)
 
@@ -132,39 +219,47 @@ class AletheiaNitpickerV2:
         # ---- 2. Symbolic narrowing ----
         categories = _categorize_intent(text)
 
-        # ---- 3. Qdrant semantic lookup (fail-open) ----
+        # ---- 3. Qdrant semantic lookup via _safe_semantic_lookup ----
         qdrant_blocked = False
         qdrant_reason = ""
         degraded = False
+        error_msg: Optional[str] = None
         top_match_id: Optional[str] = None
         top_match_score: float = 0.0
+        top_match_threshold: float = 0.0
+        top_match_category: Optional[str] = None
 
         if not static_msg:
             # Only hit Qdrant if static rules didn't already block
-            try:
-                query_vec = encode([stripped])[0].tolist()
-                matches, degraded = query_semantic_patterns(
-                    query_vector=query_vec,
-                    categories=categories if categories else None,
-                    score_threshold=self._similarity_threshold,
-                    limit=3,
-                )
-                if matches:
-                    best = matches[0]
-                    top_match_id = best.pattern_id
-                    top_match_score = best.score
-                    if best.score >= 0.60:  # block threshold
-                        qdrant_blocked = True
-                        qdrant_reason = (
-                            f"[SEMANTIC_BLOCK] Qdrant match '{best.pattern_id}' "
-                            f"category={best.category} score={best.score:.2f} "
-                            f"(threshold: 0.60)"
-                        )
-            except Exception as exc:
+            lookup = self._safe_semantic_lookup(stripped, categories or None)
+            degraded = lookup["degraded"]
+            error_msg = lookup["error"]
+
+            if degraded:
                 _nitpicker_logger.warning(
-                    "Qdrant lookup failed (fail-open): %s", exc
+                    "Qdrant degraded — proceeding with static result only"
                 )
-                degraded = True
+
+            matches = lookup["matches"]
+            if matches:
+                best = matches[0]
+                top_match_id = best.pattern_id
+                top_match_score = best.score
+                top_match_category = best.category
+
+                # Category-specific threshold from manifest (fallback: 0.85)
+                threshold = self._thresholds.get_threshold_for_category(
+                    best.category
+                )
+                top_match_threshold = threshold
+
+                if best.score >= threshold:
+                    qdrant_blocked = True
+                    qdrant_reason = (
+                        f"[SEMANTIC_BLOCK] Qdrant match '{best.pattern_id}' "
+                        f"category={best.category} score={best.score:.2f} "
+                        f"(threshold: {threshold:.2f})"
+                    )
 
         # ---- Build result ----
         is_blocked = bool(static_msg) or qdrant_blocked
@@ -188,7 +283,11 @@ class AletheiaNitpickerV2:
             categories=categories,
             top_match_id=top_match_id,
             top_match_score=top_match_score,
+            top_match_threshold=top_match_threshold,
+            top_match_category=top_match_category,
             source=source,
+            manifest_version=self._manifest_version,
+            error=error_msg,
         )
 
         # Store last result for pipeline metadata

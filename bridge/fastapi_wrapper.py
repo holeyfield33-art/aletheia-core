@@ -715,15 +715,33 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         "receipt": audit_record["receipt"],
     }
 
-    # --- Semantic layer metadata (from Nitpicker Qdrant integration) ---
+    # --- Semantic engine block (from Nitpicker Qdrant integration) ---
     nit_result = getattr(nitpicker, "_last_result", None)
+    semantic_engine: dict = {
+        "enabled": False,
+        "degraded": False,
+        "manifest_version": None,
+        "categories_checked": [],
+        "top_match": None,
+        "error": None,
+    }
     if nit_result is not None:
-        response["metadata"]["semantic_degraded"] = nit_result.degraded
-        response["metadata"]["semantic_categories_checked"] = nit_result.categories
+        semantic_engine["enabled"] = True
+        semantic_engine["degraded"] = nit_result.degraded
+        semantic_engine["manifest_version"] = nit_result.manifest_version
+        semantic_engine["categories_checked"] = nit_result.categories
         if nit_result.top_match_id:
-            response["metadata"]["semantic_top_match_id"] = nit_result.top_match_id
-        if nit_result.degraded:
-            audit_record["receipt"]["semantic_error"] = "qdrant_unavailable"
+            semantic_engine["top_match"] = {
+                "id": nit_result.top_match_id,
+                "score": round(nit_result.top_match_score, 4),
+                "threshold": round(nit_result.top_match_threshold, 4),
+                "category": nit_result.top_match_category,
+            }
+        if nit_result.error:
+            semantic_engine["error"] = nit_result.error
+
+    response["metadata"]["semantic_engine"] = semantic_engine
+    audit_record["receipt"]["semantic_engine"] = semantic_engine
 
     # --- Unified Sovereign Runtime: chain signing (Gate C1) ---
     try:

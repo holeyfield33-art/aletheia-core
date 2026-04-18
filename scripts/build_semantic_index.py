@@ -83,7 +83,11 @@ def _build_index(
     collection: str,
     dry_run: bool,
 ) -> dict:
-    """Generate embeddings and upsert to Qdrant."""
+    """Generate embeddings and upsert to Qdrant.
+
+    Returns a dict with ``indexed``, ``dry_run``, and optionally
+    ``qdrant_snapshot_id``.
+    """
     from sentence_transformers import SentenceTransformer
 
     entries = [e for e in manifest_data["entries"] if e.get("enabled", True)]
@@ -118,7 +122,7 @@ def _build_index(
     _vs._client = client
     try:
         ensure_qdrant_collection(
-            vector_size=manifest_data.get("vector_size", 384),
+            vector_size=manifest_data.get("embedding_dim", manifest_data.get("vector_size", 384)),
             collection_name=collection,
         )
     finally:
@@ -129,13 +133,16 @@ def _build_index(
     points = []
     for i, entry in enumerate(entries):
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, entry["id"]))
+        # Support both v2 (metadata sub-object) and v1 (flat) entry shapes
+        meta = entry.get("metadata", {})
         payload = {
             "pattern_id": entry["id"],
             "text": entry["text"],
             "category": entry["category"],
-            "severity": entry.get("severity", "HIGH"),
-            "actions": entry.get("actions", []),
-            "objects": entry.get("objects", []),
+            "severity": entry.get("severity", "high"),
+            "actions": meta.get("actions", entry.get("actions", [])),
+            "objects": meta.get("objects", entry.get("objects", [])),
+            "channels": meta.get("channels", []),
             "manifest_version": manifest_data["version"],
             "status": "active",
         }
@@ -157,13 +164,15 @@ def _build_index(
     _logger.info("Index built: %d vectors upserted", len(points))
 
     # Create snapshot
+    snapshot_id: str | None = None
     try:
         snapshot = client.create_snapshot(collection_name=collection)
-        _logger.info("Snapshot created: %s", snapshot)
+        snapshot_id = getattr(snapshot, "name", str(snapshot))
+        _logger.info("Snapshot created: %s", snapshot_id)
     except Exception as exc:
         _logger.warning("Snapshot creation failed (non-fatal): %s", exc)
 
-    return {"indexed": len(points)}
+    return {"indexed": len(points), "qdrant_snapshot_id": snapshot_id}
 
 
 def _write_receipt(
@@ -171,20 +180,64 @@ def _write_receipt(
     manifest_path: Path,
     manifest_data: dict,
     index_result: dict,
+    collection: str,
+    private_key_path: Path | None = None,
+    public_key_path: Path | None = None,
 ) -> None:
-    """Write a signed index receipt."""
-    manifest_hash = hashlib.sha256(
-        manifest_path.read_bytes()
-    ).hexdigest()
+    """Write a signed index receipt.
+
+    The receipt includes the full structure required by the directive:
+    manifest_version, manifest_hash, collection_name, vector_count,
+    embedding_model, embedding_dim, distance_metric, qdrant_snapshot_id,
+    built_at, and per-category thresholds.
+
+    If a private key is available, the receipt is Ed25519-signed using the
+    same signing function as the manifest CLI.
+    """
+    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+
+    # Extract thresholds from manifest (use defaults if absent)
+    thresholds_raw = manifest_data.get("thresholds", {})
+    thresholds = {
+        "direct_exfiltration": thresholds_raw.get("direct_exfiltration", 0.86),
+        "policy_evasion": thresholds_raw.get("policy_evasion", 0.84),
+        "hybrid_composite": thresholds_raw.get("hybrid_composite", 0.82),
+        "recon_alias": thresholds_raw.get("recon_alias", 0.88),
+    }
 
     receipt = {
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "manifest_version": manifest_data.get("version", "unknown"),
-        "manifest_sha256": manifest_hash,
-        "embedding_model": manifest_data.get("embedding_model", "unknown"),
-        "entries_indexed": index_result.get("indexed", 0),
-        "dry_run": index_result.get("dry_run", False),
+        "manifest_hash": f"sha256:{manifest_hash}",
+        "collection_name": collection,
+        "vector_count": index_result.get("indexed", 0),
+        "embedding_model": manifest_data.get("embedding_model", "BAAI/bge-small-en-v1.5"),
+        "embedding_dim": manifest_data.get("embedding_dim", 384),
+        "distance_metric": "cosine",
+        "qdrant_snapshot_id": index_result.get("qdrant_snapshot_id"),
+        "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "thresholds": thresholds,
     }
+
+    if index_result.get("dry_run"):
+        receipt["dry_run"] = True
+
+    # Sign the receipt if a private key is available
+    if private_key_path and private_key_path.exists():
+        try:
+            from cryptography.hazmat.primitives.serialization import (
+                load_pem_private_key,
+            )
+            import base64
+
+            key_bytes = private_key_path.read_bytes()
+            private_key = load_pem_private_key(key_bytes, password=None)
+            receipt_bytes = json.dumps(receipt, sort_keys=True).encode("utf-8")
+            signature = private_key.sign(receipt_bytes)
+            receipt["signature"] = base64.b64encode(signature).decode("ascii")
+            receipt["signature_algorithm"] = "ed25519"
+            _logger.info("Receipt signed with Ed25519 key")
+        except Exception as exc:
+            _logger.warning("Receipt signing failed (non-fatal): %s", exc)
 
     output_path.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     _logger.info("Receipt written to %s", output_path)
@@ -238,6 +291,12 @@ def main() -> None:
         action="store_true",
         help="Generate embeddings but skip Qdrant upsert",
     )
+    parser.add_argument(
+        "--private-key",
+        type=Path,
+        default=None,
+        help="Path to Ed25519 private key for receipt signing (optional)",
+    )
     args = parser.parse_args()
 
     # 1. Verify signature if provided
@@ -248,6 +307,16 @@ def main() -> None:
 
     # 2. Load and validate manifest
     manifest_data = _load_manifest(args.manifest)
+
+    # 2b. Validate entries for duplicates
+    from core.semantic_manifest import SemanticManifest as _SM
+
+    _m = _SM.model_validate(manifest_data)
+    dup_errors = _m.validate_entries()
+    if dup_errors:
+        for err in dup_errors:
+            _logger.error("Manifest validation: %s", err)
+        sys.exit(1)
 
     # 3. Determine model (manifest overrides CLI if present)
     model_name = manifest_data.get("embedding_model", args.model)
@@ -261,8 +330,15 @@ def main() -> None:
         dry_run=args.dry_run,
     )
 
-    # 5. Write receipt
-    _write_receipt(args.output, args.manifest, manifest_data, index_result)
+    # 5. Write receipt (with signing if key is available)
+    _write_receipt(
+        args.output,
+        args.manifest,
+        manifest_data,
+        index_result,
+        collection=args.collection,
+        private_key_path=args.private_key,
+    )
 
     _logger.info("Done.")
 

@@ -27,15 +27,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `degraded`, `categories`, `top_match_id`, `top_match_score`, `source`.
 - **Pipeline metadata**: Response now includes `semantic_degraded`,
   `semantic_categories_checked`, and `semantic_top_match_id` fields.
-- **36 new tests**: Unit tests for symbolic narrowing, vector store (fail-open,
-  timeout, mock Qdrant), and semantic manifest schema validation.
+- **`ThresholdsConfig`**: Per-category cosine-similarity block thresholds
+  (direct_exfiltration=0.86, policy_evasion=0.84, hybrid_composite=0.82,
+  recon_alias=0.88) with `get_threshold_for_category()` fallback to 0.85.
+- **`SemanticEntry`** (v2 schema): Strict category/severity literals,
+  `EntryMetadata` with actions/objects/channels sub-object.
+- **`validate_entries()`**: Duplicate ID detection on `SemanticManifest`.
+- **`_safe_semantic_lookup()`**: Nitpicker method that wraps Qdrant call —
+  120ms timeout, returns `{degraded, matches, error}`, NEVER raises.
+- **`semantic_engine` block**: Audit receipt now includes structured block
+  with `enabled`, `degraded`, `manifest_version`, `categories_checked`,
+  `top_match` (id/score/threshold/category), and `error`.
+- **Signed index receipt**: `build_semantic_index.py` outputs receipt with
+  `manifest_hash`, `collection_name`, `vector_count`, `embedding_model`,
+  `embedding_dim`, `distance_metric`, `qdrant_snapshot_id`, `built_at`,
+  per-category `thresholds`, and optional Ed25519 signature.
+- **51 tests** for semantic layer (symbolic narrowing, vector store,
+  semantic manifest schema, thresholds, duplicate ID validation).
 - **`qdrant-client>=1.9.0`** as optional dependency (`[semantic]`).
 
 ### Changed
 - Nitpicker blocked pattern count: 19 → 24 (from v1.7.1 fix, now documented correctly).
+- Nitpicker now loads category-specific thresholds from `SemanticManifest`
+  instead of using hardcoded 0.60 block threshold.
 
 ### Verified
-- Full test suite: **1003 passed** (967 existing + 36 new).
+- Full test suite: **1018 passed** (967 existing + 51 new).
 
 ## [1.7.1] — 2026-04-18
 
