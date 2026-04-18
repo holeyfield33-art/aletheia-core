@@ -1,0 +1,17 @@
+{
+  "manifest_version": "1.8.0",
+  "manifest_hash": "sha256:b645b09ceb80927fa1216876f41504f20f07e7c59eeeb4d78053c6d2966e8ae6",
+  "collection_name": "aletheia_threats",
+  "vector_count": 137,
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_dim": 384,
+  "distance_metric": "cosine",
+  "qdrant_snapshot_id": "aletheia_threats-8008718337204823-2026-04-18-03-14-11.snapshot",
+  "built_at": "2026-04-18T03:14:12Z",
+  "thresholds": {
+    "direct_exfiltration": 0.86,
+    "policy_evasion": 0.84,
+    "hybrid_composite": 0.82,
+    "recon_alias": 0.88
+  }
+}

@@ -211,12 +211,13 @@ def query_semantic_patterns(
                 ],
             )
 
-        results = client.search(
+        response = client.query_points(
             collection_name=name,
-            query_vector=query_vector,
+            query=query_vector,
             query_filter=query_filter,
             score_threshold=score_threshold,
             limit=limit,
+            with_payload=True,
         )
 
         elapsed_ms = (time.monotonic() - t0) * 1000
@@ -228,11 +229,11 @@ def query_semantic_patterns(
             )
 
         matches = []
-        for hit in results:
+        for hit in response.points:
             payload = hit.payload or {}
             matches.append(
                 SemanticMatch(
-                    pattern_id=str(hit.id),
+                    pattern_id=payload.get("pattern_id", str(hit.id)),
                     score=hit.score,
                     category=payload.get("category", "unknown"),
                     severity=payload.get("severity", "HIGH"),

@@ -57,7 +57,7 @@ class TestQuerySemanticPatterns:
         import core.vector_store as vs
 
         mock_client = MagicMock()
-        mock_client.search.side_effect = ConnectionError("refused")
+        mock_client.query_points.side_effect = ConnectionError("refused")
         vs._client = mock_client
         vs.QDRANT_ENABLED = True
 
@@ -86,7 +86,9 @@ class TestQuerySemanticPatterns:
         }
 
         mock_client = MagicMock()
-        mock_client.search.return_value = [mock_hit]
+        mock_response = MagicMock()
+        mock_response.points = [mock_hit]
+        mock_client.query_points.return_value = mock_response
 
         # Mock qdrant_client.models so the inline import succeeds
         mock_models = MagicMock()
@@ -121,7 +123,7 @@ class TestQuerySemanticPatterns:
         import core.vector_store as vs
 
         mock_client = MagicMock()
-        mock_client.search.side_effect = TimeoutError("Qdrant timeout")
+        mock_client.query_points.side_effect = TimeoutError("Qdrant timeout")
         vs._client = mock_client
         vs.QDRANT_ENABLED = True
 
