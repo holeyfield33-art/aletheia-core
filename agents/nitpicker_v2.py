@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
 import os
 import re
@@ -12,7 +10,7 @@ from typing import Optional
 
 import numpy as np
 
-from core.config import settings
+from core.config import settings, hmac_rotation_index
 from core.embeddings import cosine_similarity, encode
 from core.symbolic_narrowing import _categorize_intent, _normalize_text
 from core.vector_store import SemanticMatch, query_semantic_patterns
@@ -84,7 +82,10 @@ class AletheiaNitpickerV2:
         # Config-driven rotation — HMAC-seeded when salt is available, counter fallback
         self._rotation_index: int = 0
         self._rotation_lock = threading.Lock()
-        self._rotation_salt: str = os.getenv("ALETHEIA_ROTATION_SALT", "").strip()
+        self._rotation_salt: str = (
+            os.getenv("ALETHEIA_ROTATION_SALT", "").strip()
+            or os.getenv("ALETHEIA_ALIAS_SALT", "").strip()
+        )
 
         # Semantic similarity threshold from config
         self._similarity_threshold: float = settings.nitpicker_similarity_threshold
@@ -326,14 +327,9 @@ class AletheiaNitpickerV2:
             self._rotation_index += 1
             counter = self._rotation_index
         if self._rotation_salt:
-            # HMAC-SHA256( salt, request_id || counter || epoch ) → index
-            # Per-request entropy prevents adaptive probing
             epoch = str(int(time.time()))
-            msg = f"{request_id}:{counter}:{epoch}".encode()
-            digest = hmac.new(
-                self._rotation_salt.encode(), msg, hashlib.sha256
-            ).digest()
-            idx = int.from_bytes(digest[:4], "big") % len(self.modes)
+            msg = f"{request_id}:{counter}:{epoch}"
+            idx = hmac_rotation_index(self._rotation_salt, msg, len(self.modes))
             current_mode = self.modes[idx]
         else:
             current_mode = self.modes[counter % len(self.modes)]

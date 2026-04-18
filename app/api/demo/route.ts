@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { secureJson as _baseSecureJson } from "@/lib/api-utils";
 
 /**
  * Demo proxy route — keeps ALETHEIA_DEMO_API_KEY server-side only.
@@ -16,11 +17,8 @@ export const maxDuration = 30;
 
 const SANITIZED_ERROR = { error: "request_failed" };
 
-/** Security headers applied to every response. */
+/** CORS headers specific to the demo proxy. */
 const corsHeaders: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
   "X-XSS-Protection": "0",
   "Access-Control-Allow-Origin": process.env.ALETHEIA_CORS_ORIGIN ?? "https://aletheia-core.com",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -28,10 +26,9 @@ const corsHeaders: Record<string, string> = {
   "Access-Control-Max-Age": "600",
 };
 
-/** Wrap NextResponse.json with security headers. */
+/** Wrap base secureJson with demo CORS headers. */
 function secureJson(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
-  const merged = { ...corsHeaders, ...(init?.headers ?? {}) };
-  return NextResponse.json(body, { status: init?.status ?? 200, headers: merged });
+  return _baseSecureJson(body, { ...init, headers: { ...corsHeaders, ...(init?.headers ?? {}) } });
 }
 
 function validateBackendUrl(url: string): boolean {

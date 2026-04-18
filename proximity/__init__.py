@@ -6,10 +6,9 @@ Shutdown is always privileged and instant.
 Nothing in this module executes on import.
 """
 from __future__ import annotations
-import os
 
-PROXIMITY_ENABLED: bool = os.getenv(
-    "CONSCIOUSNESS_PROXIMITY_ENABLED", "false"
-).lower() in ("1", "true", "yes")
+from core.config import env_bool
+
+PROXIMITY_ENABLED: bool = env_bool("CONSCIOUSNESS_PROXIMITY_ENABLED")
 
 __all__ = ["PROXIMITY_ENABLED"]

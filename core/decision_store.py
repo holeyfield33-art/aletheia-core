@@ -13,18 +13,13 @@ from dataclasses import dataclass
 
 import httpx
 
+from core.config import upstash_configured
+
 _logger = logging.getLogger("aletheia.decision_store")
 
 _REDIS_PREFIX = "aletheia:decision:"
 _BUNDLE_KEY = "aletheia:policy_bundle"
 _DEFAULT_TTL_SECONDS = 3600
-
-
-def _upstash_configured() -> bool:
-    return bool(
-        os.getenv("UPSTASH_REDIS_REST_URL", "").strip()
-        and os.getenv("UPSTASH_REDIS_REST_TOKEN", "").strip()
-    )
 
 
 @dataclass(frozen=True)
@@ -220,7 +215,7 @@ class DecisionStore:
     """Distributed replay and deployment-drift guard with fail-closed degraded mode."""
 
     def __init__(self) -> None:
-        self._central_available = _upstash_configured()
+        self._central_available = upstash_configured()
         self._store = _UpstashDecisionStore() if self._central_available else _SQLiteDecisionStore()
         self._degraded = False
 

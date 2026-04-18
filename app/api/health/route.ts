@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   // In production, require admin auth
   if (process.env.NODE_ENV === "production") {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id || (session.user as any).role !== "ADMIN") {
+    if (!session?.user?.id || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
   }

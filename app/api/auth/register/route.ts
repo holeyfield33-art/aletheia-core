@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (err) {
-    console.error("Registration error:", err);
+    console.error("[register]", err instanceof Error ? err.message : "unknown error");
     return NextResponse.json(
       { error: "internal_error", message: "An unexpected error occurred." },
       { status: 500 },

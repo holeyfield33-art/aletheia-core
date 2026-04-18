@@ -15,6 +15,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+from core.config import env_bool
+
 _logger = logging.getLogger("aletheia.vector_store")
 
 # ---------------------------------------------------------------------------
@@ -25,11 +27,7 @@ QDRANT_URL: str = os.getenv("ALETHEIA_QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY: Optional[str] = os.getenv("ALETHEIA_QDRANT_API_KEY")
 QDRANT_COLLECTION: str = os.getenv("ALETHEIA_QDRANT_COLLECTION", "aletheia_semantic_patterns")
 QDRANT_TIMEOUT_MS: int = int(os.getenv("ALETHEIA_QDRANT_TIMEOUT_MS", "120"))
-QDRANT_ENABLED: bool = os.getenv("ALETHEIA_SEMANTIC_ENABLED", "false").lower() in (
-    "1",
-    "true",
-    "yes",
-)
+QDRANT_ENABLED: bool = env_bool("ALETHEIA_SEMANTIC_ENABLED")
 
 # ---------------------------------------------------------------------------
 # Lazy Qdrant client singleton

@@ -7,7 +7,7 @@ import { getBaseUrl } from "@/lib/auth-config";
 export async function POST() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -15,7 +15,7 @@ export async function POST() {
 
   if (!stripeKey || !priceId) {
     return NextResponse.json(
-      { error: "Stripe is not configured. Contact support." },
+      { error: "configuration_error" },
       { status: 503 },
     );
   }

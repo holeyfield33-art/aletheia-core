@@ -22,7 +22,7 @@ from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
 from bridge.utils import normalize_shadow_text
 from core.audit import log_audit_event
-from core.config import settings
+from core.config import settings, env_bool
 from core.embeddings import warm_up
 from core.rate_limit import rate_limiter
 from core.sandbox import check_action_sandbox
@@ -186,7 +186,7 @@ async def _on_startup() -> None:
         )
         sys.exit(1)
     if settings.mode == "active" and not _API_KEYS:
-        _auth_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in ("true", "1", "yes")
+        _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
         if not _auth_disabled:
             _logger.critical(
                 "FATAL: No API keys configured and ALETHEIA_AUTH_DISABLED is not set. "
@@ -198,7 +198,7 @@ async def _on_startup() -> None:
             sys.exit(1)
     # Block ALETHEIA_AUTH_DISABLED in production
     if os.getenv("ENVIRONMENT", "").lower() == "production":
-        if os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in ("true", "1", "yes"):
+        if env_bool("ALETHEIA_AUTH_DISABLED"):
             _logger.critical(
                 "FATAL: ALETHEIA_AUTH_DISABLED=true is not allowed in production. "
                 "Configure ALETHEIA_API_KEYS instead. Refusing to start."
@@ -342,7 +342,7 @@ def _check_api_key(x_api_key: str | None = Header(default=None)) -> None:
     2. Key store (SQLite) — trial / pro keys with monthly quota enforcement.
     """
     # Auth explicitly disabled (dev/testing only; blocked in production at startup)
-    _auth_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in ("true", "1", "yes")
+    _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
     if _auth_disabled and not _API_KEYS:
         return
 
@@ -437,25 +437,28 @@ def _sanitise_reason(reason: str) -> str:
     return first_line.split(":")[0].strip() if ":" in first_line else "Action denied."
 
 
-@app.get("/health")
-async def health_check(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> dict:
-    """Health endpoint. Public response is minimal; authenticated response includes diagnostics."""
-    import datetime
-
+def _verify_manifest() -> bool:
+    """Check manifest signature integrity. Returns True if valid."""
     from manifest.signing import verify_manifest_signature
-
-    # Check manifest integrity
     try:
         verify_manifest_signature(
             manifest_path="manifest/security_policy.json",
             signature_path="manifest/security_policy.json.sig",
             public_key_path="manifest/security_policy.ed25519.pub",
         )
-        manifest_status = "VALID"
+        return True
     except Exception:
-        manifest_status = "INVALID"
+        return False
 
-    status = "ok" if manifest_status == "VALID" else "degraded"
+
+@app.get("/health")
+async def health_check(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> dict:
+    """Health endpoint. Public response is minimal; authenticated response includes diagnostics."""
+    import datetime
+
+    manifest_ok = _verify_manifest()
+    manifest_status = "VALID" if manifest_ok else "INVALID"
+    status = "ok" if manifest_ok else "degraded"
 
     # Public response: minimal — no version, uptime, or manifest details
     admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
@@ -480,17 +483,7 @@ async def readiness_check() -> JSONResponse:
     """Readiness probe. Returns 200 if all subsystems are healthy, 503 otherwise."""
     import json as _json
 
-    from manifest.signing import verify_manifest_signature
-
-    try:
-        verify_manifest_signature(
-            manifest_path="manifest/security_policy.json",
-            signature_path="manifest/security_policy.json.sig",
-            public_key_path="manifest/security_policy.ed25519.pub",
-        )
-        manifest_ok = True
-    except Exception:
-        manifest_ok = False
+    manifest_ok = _verify_manifest()
 
     # Load policy version from manifest
     try:

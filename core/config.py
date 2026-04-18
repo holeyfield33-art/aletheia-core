@@ -190,3 +190,51 @@ class AletheiaSettings:
 
 # Module-level singleton — import and use directly.
 settings: AletheiaSettings = AletheiaSettings.load()
+
+
+def upstash_configured() -> bool:
+    """True when both UPSTASH_REDIS_REST_URL and
+    UPSTASH_REDIS_REST_TOKEN are set."""
+    return bool(
+        os.getenv("UPSTASH_REDIS_REST_URL")
+        and os.getenv("UPSTASH_REDIS_REST_TOKEN")
+    )
+
+
+def env_bool(key: str, default: bool = False) -> bool:
+    """Parse a boolean environment variable."""
+    val = os.getenv(key, "")
+    if not val:
+        return default
+    return val.lower() in ("true", "1", "yes")
+
+
+def compute_daily_rotation_seed(
+    secret: str,
+    date_str: str | None = None,
+) -> str:
+    """Compute a daily HMAC rotation seed.
+
+    Uses ALETHEIA_ROTATION_SALT env var as the secret key.
+    Falls back to ALETHEIA_ALIAS_SALT for compatibility.
+    """
+    import hashlib
+    import hmac
+    from datetime import date
+
+    key = (
+        os.getenv("ALETHEIA_ROTATION_SALT")
+        or os.getenv("ALETHEIA_ALIAS_SALT")
+        or secret
+    ).encode()
+    day = (date_str or date.today().isoformat()).encode()
+    return hmac.new(key, day, hashlib.sha256).hexdigest()
+
+
+def hmac_rotation_index(salt: str, message: str, modulus: int) -> int:
+    """Compute an HMAC-SHA256-based index for polymorphic rotation."""
+    import hashlib
+    import hmac
+
+    digest = hmac.new(salt.encode(), message.encode(), hashlib.sha256).digest()
+    return int.from_bytes(digest[:4], "big") % modulus

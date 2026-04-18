@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json(
-      { error: "Stripe webhook not configured" },
+      { error: "configuration_error" },
       { status: 503 },
     );
   }
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   const sig = headers().get("stripe-signature");
   if (!sig) {
     return NextResponse.json(
-      { error: "Missing stripe-signature header" },
+      { error: "missing_signature" },
       { status: 400 },
     );
   }
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   // Verify signature — reject unsigned or tampered events
   if (!verifyStripeSignature(body, sig, secret)) {
     return NextResponse.json(
-      { error: "Invalid signature" },
+      { error: "invalid_signature" },
       { status: 400 },
     );
   }
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   try {
     event = JSON.parse(body);
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
   switch (event.type) {
@@ -104,7 +104,10 @@ export async function POST(request: Request) {
         console.error(
           `[stripe-webhook] Price mismatch: expected ${expectedAmount} ${expectedCurrency}, got ${sessionAmount} ${sessionCurrency}`,
         );
-        break;
+        return NextResponse.json(
+          { error: "price_mismatch", message: "No matching price found" },
+          { status: 400 },
+        );
       }
 
       if (userId && typeof userId === "string") {

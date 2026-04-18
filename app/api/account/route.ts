@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const body = await request.json().catch(() => null);
@@ -19,7 +19,7 @@ export async function DELETE(request: NextRequest) {
   });
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
   // If user has a password (credentials-based), require confirmation

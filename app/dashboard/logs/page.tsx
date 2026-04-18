@@ -16,6 +16,7 @@ interface AuditLog {
 export default function LogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [filterDecision, setFilterDecision] = useState("");
@@ -23,6 +24,7 @@ export default function LogsPage() {
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -34,9 +36,11 @@ export default function LogsPage() {
         const data = await res.json();
         setLogs(data.logs || []);
         setTotal(data.total || 0);
+      } else {
+        setFetchError("Failed to load audit logs.");
       }
     } catch {
-      /* non-critical */
+      setFetchError("Unable to reach the server.");
     } finally {
       setLoading(false);
     }
@@ -113,6 +117,11 @@ export default function LogsPage() {
       </div>
 
       {/* Table */}
+      {fetchError && (
+        <div style={{ color: "var(--crimson-hi)", marginBottom: "1rem", fontSize: "0.85rem" }}>
+          {fetchError}
+        </div>
+      )}
       <div style={{ border: "1px solid var(--border)", overflow: "auto", marginBottom: "1rem" }}>
         <table
           style={{

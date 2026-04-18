@@ -24,7 +24,7 @@ from collections import OrderedDict
 
 import httpx
 
-from core.config import settings
+from core.config import settings, upstash_configured
 
 _logger = logging.getLogger("aletheia.rate_limit")
 
@@ -32,12 +32,6 @@ _MAX_TRACKED_IPS = 50_000  # in-memory fallback cap
 _REDIS_KEY_PREFIX = "aletheia:rl:"
 _REDIS_WINDOW_SECONDS = 1  # sliding window size
 _REDIS_TTL_SECONDS = 10    # key expiry — cleanup after inactivity
-
-
-def _upstash_configured() -> bool:
-    url = os.getenv("UPSTASH_REDIS_REST_URL", "").strip()
-    token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "").strip()
-    return bool(url and token)
 
 
 class UpstashRateLimiter:
@@ -236,7 +230,7 @@ def create_rate_limiter(max_per_second: int | None = None):
     In production (ENVIRONMENT=production), Redis is required.
     In-memory fallback is single-node only — not suitable for production.
     """
-    if _upstash_configured():
+    if upstash_configured():
         return UpstashRateLimiter(max_per_second)
     if os.getenv("ENVIRONMENT", "").lower() == "production":
         _logger.critical(

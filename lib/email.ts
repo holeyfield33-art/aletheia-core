@@ -31,7 +31,9 @@ export async function sendVerificationEmail(email: string): Promise<boolean> {
 
   if (!resend) {
     // Dev mode: skip sending, auto-verify
-    console.log(`[DEV] Verification link for ${email}: ${verifyUrl}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[DEV] Verify: ${verifyUrl}`);
+    }
     await prisma.user.update({
       where: { email },
       data: { emailVerified: new Date() },

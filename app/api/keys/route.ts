@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
+import { secureJson } from "@/lib/api-utils";
 
 /**
  * Key management — user-scoped, session-protected.
@@ -10,20 +11,6 @@ import crypto from "crypto";
  * GET  /api/keys  → list current user's keys
  * POST /api/keys  → create a new trial key for current user
  */
-
-const securityHeaders: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Cache-Control": "no-store",
-};
-
-function secureJson(body: unknown, init?: { status?: number }) {
-  return NextResponse.json(body, {
-    status: init?.status ?? 200,
-    headers: securityHeaders,
-  });
-}
 
 const PLAN_QUOTAS: Record<string, number> = {
   trial: 1_000,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { secureJson } from "@/lib/api-utils";
 
 /**
  * Per-key management — user-scoped, session-protected.
@@ -9,20 +10,6 @@ import prisma from "@/lib/prisma";
  * GET    /api/keys/[id]  → get key usage (own keys only)
  * DELETE /api/keys/[id]  → revoke key (own keys only)
  */
-
-const securityHeaders: Record<string, string> = {
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Cache-Control": "no-store",
-};
-
-function secureJson(body: unknown, init?: { status?: number }) {
-  return NextResponse.json(body, {
-    status: init?.status ?? 200,
-    headers: securityHeaders,
-  });
-}
 
 function extractId(request: NextRequest): string | null {
   const parts = request.nextUrl.pathname.split("/");

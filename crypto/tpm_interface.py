@@ -13,6 +13,8 @@ import fcntl
 import logging
 import os
 import time
+
+from core.config import env_bool
 from typing import Protocol
 
 from cryptography.hazmat.primitives import hashes, serialization
@@ -153,7 +155,7 @@ class TPMAnchor:
     """
 
     def __init__(self) -> None:
-        require_tpm = os.getenv("ALETHEIA_REQUIRE_TPM", "").lower() in ("true", "1", "yes")
+        require_tpm = env_bool("ALETHEIA_REQUIRE_TPM")
         tpm_dev = os.getenv("ALETHEIA_TPM_DEVICE", "/dev/tpm0")
 
         backend: SigningBackend | None = None

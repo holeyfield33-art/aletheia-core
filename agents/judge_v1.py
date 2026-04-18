@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import hmac as _hmac
 import json
 import logging
 import os
@@ -12,33 +11,18 @@ from typing import Optional
 
 import numpy as np
 
-_judge_logger = logging.getLogger("aletheia.judge")
+from core.config import compute_daily_rotation_seed
 
-_ALIAS_SALT = os.getenv("ALETHEIA_ALIAS_SALT", "").encode("utf-8")
+_judge_logger = logging.getLogger("aletheia.judge")
 
 
 def _daily_rotation_seed(date_str: str, manifest_hash: str) -> int:
-    """Compute daily rotation seed using HMAC-SHA256 with a secret salt.
-
-    Without ALETHEIA_ALIAS_SALT, falls back to plain SHA-256 with a
-    logged warning — this is insecure for production deployments.
-    """
-    if _ALIAS_SALT:
-        digest = _hmac.new(
-            _ALIAS_SALT,
-            f"{date_str}{manifest_hash}".encode("utf-8"),
-            "sha256",
-        ).hexdigest()
-    else:
-        import logging
-        logging.getLogger("aletheia.scout").warning(
-            "ALETHEIA_ALIAS_SALT not set — alias rotation is predictable. "
-            "Set this in production."
-        )
-        digest = hashlib.sha256(f"{date_str}{manifest_hash}".encode("utf-8")).hexdigest()
+    """Compute daily rotation seed using the shared HMAC utility."""
+    digest = compute_daily_rotation_seed(
+        secret=manifest_hash,
+        date_str=f"{date_str}{manifest_hash}",
+    )
     return int(digest, 16)
-
-import numpy as np
 
 from core.config import settings
 from core.embeddings import cosine_similarity, encode

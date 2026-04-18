@@ -10,7 +10,7 @@ const EXPORT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 export async function POST() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const user = await prisma.user.findUnique({
@@ -62,7 +62,7 @@ export async function POST() {
   });
 
   if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
   // Rate limit: 1 export per 24h
