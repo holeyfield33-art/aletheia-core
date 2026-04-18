@@ -85,6 +85,22 @@ class AletheiaNitpickerV2:
         return None
 
     # ------------------------------------------------------------------
+    # Public semantic block check — used by pipeline decision logic
+    # ------------------------------------------------------------------
+
+    def check_semantic_block(self, text: str) -> tuple[bool, str]:
+        """Return (is_blocked, reason) if *text* is semantically close to any blocked pattern.
+
+        Applies imperative-alias stripping before the check, matching the
+        normalization that ``sanitize_intent`` performs internally.
+        """
+        stripped, _ = self._strip_imperative_aliases(text)
+        msg = self._check_blocked_similarity(stripped)
+        if msg:
+            return True, msg
+        return False, ""
+
+    # ------------------------------------------------------------------
     # Imperative‑alias strip (retained from Phase 1)
     # ------------------------------------------------------------------
 

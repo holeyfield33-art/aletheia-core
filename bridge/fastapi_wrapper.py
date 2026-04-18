@@ -423,6 +423,8 @@ def _sanitise_reason(reason: str) -> str:
         return "Action denied by policy manifest."
     if "SEMANTIC VETO" in first_line or "GREY-ZONE VETO" in first_line:
         return "Action denied: semantic policy violation."
+    if "SEMANTIC_BLOCK" in first_line:
+        return "Action denied: semantic policy violation."
     if "SANDBOX_BLOCK" in first_line:
         return "Action denied: dangerous pattern detected."
     if "SHADOW-RISK" in first_line or "Smuggling Signature" in first_line:
@@ -644,15 +646,25 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     # 1. SCOUT PHASE
     threat_score, report = scout.evaluate_threat_context(client_ip, clean_input)
 
-    # 2. NITPICKER PHASE
+    # 2. NITPICKER PHASE — semantic block check feeds the decision
+    nitpicker_blocked, nitpicker_reason = nitpicker.check_semantic_block(clean_input)
     clean_content = nitpicker.sanitize_intent(clean_input, req.origin, request_id=request_id)
 
     # 3. JUDGE PHASE — now includes payload for semantic veto
     is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)
 
-    # DECISION: block if threat score exceeds threshold OR Judge veto
-    is_blocked = (threat_score >= settings.policy_threshold) or (not is_allowed)
-    reason = report if threat_score >= settings.policy_threshold else veto_msg
+    # DECISION: block if ANY agent denies (defense-in-depth)
+    is_blocked = (
+        (threat_score >= settings.policy_threshold)
+        or (not is_allowed)
+        or nitpicker_blocked
+    )
+    if nitpicker_blocked:
+        reason = nitpicker_reason
+    elif threat_score >= settings.policy_threshold:
+        reason = report
+    else:
+        reason = veto_msg
     latency = (_time.time() - start_time) * 1000
 
     decision = "DENIED" if is_blocked else "PROCEED"
