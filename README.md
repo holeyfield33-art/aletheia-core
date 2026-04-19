@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.8.0-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.9.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-1018%20passing-brightgreen" alt="Tests"/>
@@ -47,7 +47,7 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.8.0
+## What's New in v1.9.0
 
 ### Qdrant Semantic Layer
 - **Extended vector search**: Nitpicker now queries a Qdrant vector store for pattern matches after the static pattern check. Fail-open on Qdrant errors — static patterns remain the safety floor.
@@ -172,6 +172,20 @@ Incoming Request
          ▼
    Audit Log + TMR Receipt
 ```
+
+### Deployment Architecture
+
+Aletheia Core is deployed as a split architecture:
+
+| Component | Platform | Purpose |
+|-----------|----------|---------|
+| **API Backend** | Render | FastAPI service handling audit requests, policy enforcement, and cryptographic operations |
+| **Frontend** | Vercel | Next.js application providing demo UI, authentication, and billing |
+| **Database** | Neon/Supabase | PostgreSQL for user data, sessions, and decision storage |
+| **Cache** | Upstash | Redis for distributed rate limiting and replay defense |
+| **Vector Store** | Qdrant Cloud | Semantic pattern matching for advanced threat detection |
+
+For local development, run `docker-compose up` to start PostgreSQL, Redis, and Qdrant.
 
 ---
 

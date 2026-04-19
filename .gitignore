@@ -19,7 +19,6 @@ manifest/*.ed25519.key
 node_modules/
 .next/
 next-env.d.ts
-package-lock.json
 
 # Runtime artifacts — never commit
 audit.log

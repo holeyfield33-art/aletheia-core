@@ -20,8 +20,8 @@ verify-launch:
 	@echo ""
 	@echo "3. Checking version consistency..."
 	python -c "import json; v=json.load(open('pyproject.toml')); print('pyproject.toml: OK')" 2>/dev/null || true
-	grep -q '"1.7.0"' lib/site-config.ts && echo "site-config.ts: OK" || echo "site-config.ts: MISMATCH"
-	grep -q '1.7.0' package.json && echo "package.json: OK" || echo "package.json: MISMATCH"
+	grep -q '"1.9.0"' lib/site-config.ts && echo "site-config.ts: OK" || echo "site-config.ts: MISMATCH"
+	grep -q '1.9.0' package.json && echo "package.json: OK" || echo "package.json: MISMATCH"
 	@echo ""
 	@echo "4. Test count check..."
 	@count=$$(grep -r -c "def test_" tests/*.py tests/test_proximity/*.py 2>/dev/null | awk -F: '{sum+=$$2} END{print sum}'); \
