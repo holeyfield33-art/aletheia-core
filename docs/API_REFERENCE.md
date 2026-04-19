@@ -1,4 +1,4 @@
-# API Reference — Aletheia Core v1.7.0
+# API Reference — Aletheia Core v1.9.0
 
 Complete reference for all HTTP endpoints exposed by `bridge/fastapi_wrapper.py`.
 
@@ -8,15 +8,16 @@ Base URL: `http://localhost:8000` (local) or your deployment host.
 
 ## Authentication
 
-Two authentication mechanisms are used:
+Two authentication mechanisms are supported:
 
 | Header | Used by | Source |
 |--------|---------|--------|
-| `X-API-Key` | `/v1/audit` | `ALETHEIA_API_KEYS` (env, no quota) or key store (SQLite, quota-enforced) |
-| `X-Admin-Key` | `/v1/keys/*`, `/v1/rotate` | `ALETHEIA_ADMIN_KEY` (env) |
+| `X-API-Key` | `/v1/audit` | KeyStore (SQLite/Postgres, quota-enforced) |
+| `Authorization: Bearer <token>` | All endpoints | OIDC/SAML provider (RBAC permissions) |
 
-When `ALETHEIA_API_KEYS` is unset, `/v1/audit` operates in open mode (no auth required).
-Admin endpoints always require `X-Admin-Key`.
+API keys are created via `POST /v1/keys` and authenticated exclusively through the KeyStore.
+Admin endpoints (`/v1/keys/*`, `/v1/rotate`) require RBAC permissions (e.g. `KEYS_CREATE`, `SECRETS_ROTATE`).
+To disable auth in development, set `ALETHEIA_AUTH_DISABLED=true` (blocked in production).
 
 ---
 
@@ -97,7 +98,7 @@ Extra fields are rejected (`extra="forbid"`).
 Public health endpoint.
 
 - Without auth: returns minimal status for probes.
-- With valid `X-Admin-Key`: returns extended diagnostics.
+- With valid RBAC credentials (admin role): returns extended diagnostics.
 
 **Response (public, 200 OK):**
 
@@ -165,17 +166,15 @@ Prometheus/OpenMetrics-format metrics endpoint. No auth required.
 
 ### POST `/v1/rotate`
 
-Hot-rotate secrets without restart. Admin-only.
+Hot-rotate secrets without restart. Requires RBAC `SECRETS_ROTATE` permission.
 
-**Auth:** `X-Admin-Key` header required.
+**Auth:** `Authorization: Bearer <token>` header with `SECRETS_ROTATE` permission.
 
 **Cooldown:** 10 seconds between rotations. Returns HTTP 429 with `retry_after_seconds` if called within cooldown.
 
 **On rotation, reloads from environment:**
 - `ALETHEIA_RECEIPT_SECRET`
-- `ALETHEIA_API_KEYS`
 - `ALETHEIA_ALIAS_SALT`
-- `ALETHEIA_ADMIN_KEY`
 - Re-verifies the manifest signature
 - Rotates the Judge alias bank
 
@@ -211,8 +210,14 @@ Hot-rotate secrets without restart. Admin-only.
 
 ## Key Management
 
-All key management endpoints require `X-Admin-Key` header.
-Returns HTTP 503 if `ALETHEIA_ADMIN_KEY` is not configured.
+All key management endpoints require RBAC permissions via `Authorization: Bearer <token>` header.
+
+| Endpoint | Required Permission |
+|----------|--------------------|
+| `POST /v1/keys` | `KEYS_CREATE` |
+| `GET /v1/keys` | `KEYS_LIST` |
+| `DELETE /v1/keys/{id}` | `KEYS_REVOKE` |
+| `GET /v1/keys/{id}/usage` | `KEYS_USAGE` |
 
 ### POST `/v1/keys`
 

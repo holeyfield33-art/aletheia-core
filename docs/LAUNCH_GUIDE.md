@@ -1,6 +1,6 @@
 # Launch Guide (Beginner Friendly)
 
-This guide covers every way to install, run, test, and deploy Aletheia Core v1.7.0.
+This guide covers every way to install, run, test, and deploy Aletheia Core v1.9.0.
 
 ---
 
@@ -90,7 +90,7 @@ PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ## 7) Run tests
 
 ```bash
-# Full test suite (697 tests, requires torch + sentence-transformers)
+# Full test suite (1028 tests, requires torch + sentence-transformers)
 pytest tests/ -v
 
 # CI-lightweight (skip embedding-dependent tests)
@@ -115,9 +115,9 @@ Manual steps:
 3. Set env vars in the Render dashboard:
    - `ALETHEIA_RECEIPT_SECRET` — `openssl rand -hex 32`
    - `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
-   - `ALETHEIA_API_KEYS` — comma-separated keys
+   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
    - `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
-   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — for distributed rate limiting
+   - API keys are created via `POST /v1/keys` after deployment
 4. Sign the manifest locally (`python main.py sign-manifest`) and commit the `.sig` file before deploying.
 5. Verify: `curl https://<your-app>.onrender.com/health`
 
@@ -140,7 +140,8 @@ docker run -d \
   -e ALETHEIA_MODE=active \
   -e ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32) \
   -e ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32) \
-  -e ALETHEIA_API_KEYS=your-api-key \
+  -e UPSTASH_REDIS_REST_URL=<your-upstash-url> \
+  -e UPSTASH_REDIS_REST_TOKEN=<your-upstash-token> \
   -e ALETHEIA_POLICY_THRESHOLD=7.5 \
   -v aletheia-data:/data \
   aletheia-core

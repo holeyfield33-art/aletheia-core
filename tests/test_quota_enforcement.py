@@ -5,11 +5,12 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 from fastapi.testclient import TestClient
 
 from core.key_store import KeyStore, _hash_key
+from core.auth.models import AuthenticatedUser
 
 
 _SAFE_PAYLOAD = "Generate the Q1 revenue report for the board"
@@ -26,13 +27,32 @@ def _safe_body(ip: str = "10.99.0.1") -> dict:
     }
 
 
-def _post(client: TestClient, body: dict, api_key: str | None = None) -> tuple[int, dict]:
+def _post(
+    client: TestClient, body: dict, api_key: str | None = None
+) -> tuple[int, dict]:
     ip = body.pop("_ip", "10.99.0.1")
     headers: dict[str, str] = {"X-Forwarded-For": f"{ip}, 10.0.0.1"}
     if api_key:
         headers["X-API-Key"] = api_key
     r = client.post("/v1/audit", json=body, headers=headers)
     return r.status_code, r.json()
+
+
+def _admin_headers() -> dict[str, str]:
+    """Return headers that simulate an authenticated admin via OIDC bearer token."""
+    return {"Authorization": "Bearer admin-test-token"}
+
+
+def _admin_auth_mock():
+    """Return a mock auth provider that authenticates admin users."""
+    admin_user = AuthenticatedUser(
+        user_id="test-admin",
+        roles=frozenset({"admin", "operator"}),
+        auth_method="oidc",
+    )
+    mock_provider = AsyncMock()
+    mock_provider.authenticate.return_value = admin_user
+    return mock_provider
 
 
 class TestApiKeyAuth(unittest.TestCase):
@@ -47,16 +67,16 @@ class TestApiKeyAuth(unittest.TestCase):
         # Create a trial key
         cls._raw_key, cls._record = cls._store.create_key("Test Trial Key")
 
-        # Patch key store and API keys into the wrapper module
-        cls._patches = []
-
+        # Patch key store into the wrapper module (no env keys)
+        # Also disable the global auth-disabled flag so key auth is enforced
         p1 = patch("bridge.fastapi_wrapper.key_store", cls._store)
-        p2 = patch("bridge.fastapi_wrapper._API_KEYS", {"env_admin_key_12345"})
+        p2 = patch.dict(os.environ, {"ALETHEIA_AUTH_DISABLED": "false"})
         cls._patches = [p1, p2]
         for p in cls._patches:
             p.start()
 
         from bridge.fastapi_wrapper import app
+
         cls.client = TestClient(app, raise_server_exceptions=False)
 
     @classmethod
@@ -72,6 +92,7 @@ class TestApiKeyAuth(unittest.TestCase):
     def setUp(self) -> None:
         from core.rate_limit import rate_limiter
         from bridge.fastapi_wrapper import scout
+
         rate_limiter.reset()
         scout._query_history.clear()
 
@@ -85,13 +106,6 @@ class TestApiKeyAuth(unittest.TestCase):
             self.client, _safe_body("10.99.1.2"), api_key="sk_trial_bogus_key"
         )
         self.assertEqual(status, 401)
-
-    def test_env_key_bypasses_quota(self) -> None:
-        status, body = _post(
-            self.client, _safe_body("10.99.1.3"), api_key="env_admin_key_12345"
-        )
-        # Env keys bypass key store — should succeed
-        self.assertIn(status, (200, 403))  # 403 possible if Judge vetoes action
 
     def test_valid_trial_key_succeeds(self) -> None:
         status, body = _post(
@@ -113,15 +127,14 @@ class TestApiKeyAuth(unittest.TestCase):
     def test_revoked_key_returns_403(self) -> None:
         raw, record = self._store.create_key("Revoke Test")
         self._store.revoke_key(record.id)
-        status, body = _post(
-            self.client, _safe_body("10.99.1.6"), api_key=raw
-        )
+        status, body = _post(self.client, _safe_body("10.99.1.6"), api_key=raw)
         self.assertEqual(status, 403)
 
     def test_quota_exceeded_returns_429(self) -> None:
         raw, record = self._store.create_key("Quota Test")
         # Max out the quota
         import sqlite3
+
         conn = sqlite3.connect(self._tmp.name)
         conn.execute(
             "UPDATE api_keys SET requests_used = monthly_quota WHERE key_hash = ?",
@@ -130,9 +143,7 @@ class TestApiKeyAuth(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        status, body = _post(
-            self.client, _safe_body("10.99.1.7"), api_key=raw
-        )
+        status, body = _post(self.client, _safe_body("10.99.1.7"), api_key=raw)
         self.assertEqual(status, 429)
         detail = body.get("detail", {})
         self.assertEqual(detail.get("error"), "quota_exceeded")
@@ -140,7 +151,7 @@ class TestApiKeyAuth(unittest.TestCase):
 
 
 class TestKeyManagementEndpoints(unittest.TestCase):
-    """Tests for /v1/keys management endpoints."""
+    """Tests for /v1/keys management endpoints (RBAC-based auth)."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -148,16 +159,14 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         cls._tmp.close()
         cls._store = KeyStore(db_path=cls._tmp.name)
 
-        cls._admin_key = "test_admin_key_secret"
-
         cls._patches = [
             patch("bridge.fastapi_wrapper.key_store", cls._store),
-            patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": cls._admin_key}),
         ]
         for p in cls._patches:
             p.start()
 
         from bridge.fastapi_wrapper import app
+
         cls.client = TestClient(app, raise_server_exceptions=False)
 
     @classmethod
@@ -174,12 +183,15 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         r = self.client.post("/v1/keys", json={"name": "No Auth"})
         self.assertEqual(r.status_code, 401)
 
-    def test_create_key_with_admin_key(self) -> None:
-        r = self.client.post(
-            "/v1/keys",
-            json={"name": "Admin Created"},
-            headers={"X-Admin-Key": self._admin_key},
-        )
+    def test_create_key_with_admin_auth(self) -> None:
+        with patch(
+            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+        ):
+            r = self.client.post(
+                "/v1/keys",
+                json={"name": "Admin Created"},
+                headers=_admin_headers(),
+            )
         self.assertEqual(r.status_code, 201)
         data = r.json()
         self.assertIn("key", data)
@@ -190,14 +202,17 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         r = self.client.get("/v1/keys")
         self.assertEqual(r.status_code, 401)
 
-    def test_list_keys_with_admin_key(self) -> None:
-        # Create a key first
-        self.client.post(
-            "/v1/keys",
-            json={"name": "Listed"},
-            headers={"X-Admin-Key": self._admin_key},
-        )
-        r = self.client.get("/v1/keys", headers={"X-Admin-Key": self._admin_key})
+    def test_list_keys_with_admin_auth(self) -> None:
+        with patch(
+            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+        ):
+            # Create a key first
+            self.client.post(
+                "/v1/keys",
+                json={"name": "Listed"},
+                headers=_admin_headers(),
+            )
+            r = self.client.get("/v1/keys", headers=_admin_headers())
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn("keys", data)
@@ -206,38 +221,47 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         for key in data["keys"]:
             self.assertNotIn("key_hash", key)
 
-    def test_revoke_key_with_admin_key(self) -> None:
-        r = self.client.post(
-            "/v1/keys",
-            json={"name": "To Revoke"},
-            headers={"X-Admin-Key": self._admin_key},
-        )
-        key_id = r.json()["id"]
-        r = self.client.delete(
-            f"/v1/keys/{key_id}",
-            headers={"X-Admin-Key": self._admin_key},
-        )
+    def test_revoke_key_with_admin_auth(self) -> None:
+        with patch(
+            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+        ):
+            r = self.client.post(
+                "/v1/keys",
+                json={"name": "To Revoke"},
+                headers=_admin_headers(),
+            )
+            key_id = r.json()["id"]
+            r = self.client.delete(
+                f"/v1/keys/{key_id}",
+                headers=_admin_headers(),
+            )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["status"], "revoked")
 
     def test_revoke_nonexistent_key_returns_404(self) -> None:
-        r = self.client.delete(
-            "/v1/keys/nonexistent_id",
-            headers={"X-Admin-Key": self._admin_key},
-        )
+        with patch(
+            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+        ):
+            r = self.client.delete(
+                "/v1/keys/nonexistent_id",
+                headers=_admin_headers(),
+            )
         self.assertEqual(r.status_code, 404)
 
     def test_get_key_usage(self) -> None:
-        r = self.client.post(
-            "/v1/keys",
-            json={"name": "Usage Check"},
-            headers={"X-Admin-Key": self._admin_key},
-        )
-        key_id = r.json()["id"]
-        r = self.client.get(
-            f"/v1/keys/{key_id}/usage",
-            headers={"X-Admin-Key": self._admin_key},
-        )
+        with patch(
+            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+        ):
+            r = self.client.post(
+                "/v1/keys",
+                json={"name": "Usage Check"},
+                headers=_admin_headers(),
+            )
+            key_id = r.json()["id"]
+            r = self.client.get(
+                f"/v1/keys/{key_id}/usage",
+                headers=_admin_headers(),
+            )
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["name"], "Usage Check")

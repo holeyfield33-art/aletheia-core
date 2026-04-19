@@ -7,41 +7,37 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getBaseUrl } from "@/lib/auth-config";
 
-// In-memory login attempt tracker (per email, 5 failures per 15 min)
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+// Distributed login attempt tracking via Prisma (PostgreSQL).
+// Replaces the previous in-memory Map so brute-force protection
+// works across all server instances.
 const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-function checkLoginRateLimit(email: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(email);
-  if (!entry || now > entry.resetAt) {
-    return true; // No failures yet or window expired
-  }
-  return entry.count < LOGIN_FAIL_LIMIT;
+async function checkLoginRateLimit(email: string): Promise<boolean> {
+  const windowStart = new Date(Date.now() - LOGIN_WINDOW_MS);
+  const count = await prisma.loginAttempt.count({
+    where: { email, createdAt: { gte: windowStart } },
+  });
+  return count < LOGIN_FAIL_LIMIT;
 }
 
-function recordLoginFailure(email: string): void {
-  const now = Date.now();
-  const entry = loginAttempts.get(email);
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(email, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
-  } else {
-    entry.count++;
-  }
+async function recordLoginFailure(email: string): Promise<void> {
+  await prisma.loginAttempt.create({ data: { email } });
 }
 
-function clearLoginFailures(email: string): void {
-  loginAttempts.delete(email);
+async function clearLoginFailures(email: string): Promise<void> {
+  await prisma.loginAttempt.deleteMany({ where: { email } });
 }
 
-// Evict stale entries periodically (cap at 10k)
-setInterval(() => {
-  const now = Date.now();
-  if (loginAttempts.size > 10000) {
-    loginAttempts.forEach((val, key) => {
-      if (now > val.resetAt) loginAttempts.delete(key);
+// Periodic cleanup of expired attempts (runs every 60s, deletes rows older than window)
+setInterval(async () => {
+  try {
+    const cutoff = new Date(Date.now() - LOGIN_WINDOW_MS);
+    await prisma.loginAttempt.deleteMany({
+      where: { createdAt: { lt: cutoff } },
     });
+  } catch {
+    // Silently ignore cleanup errors — stale rows are harmless
   }
 }, 60_000);
 
@@ -61,25 +57,25 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.toLowerCase().trim();
 
         // Brute-force protection: block after 5 failed attempts in 15 min
-        if (!checkLoginRateLimit(email)) return null;
+        if (!(await checkLoginRateLimit(email))) return null;
 
         const user = await prisma.user.findUnique({
           where: { email },
         });
         if (!user?.password) {
-          recordLoginFailure(email);
+          await recordLoginFailure(email);
           return null;
         }
 
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) {
-          recordLoginFailure(email);
+          await recordLoginFailure(email);
           return null;
         }
 
         if (!user.emailVerified) return null;
 
-        clearLoginFailures(email);
+        await clearLoginFailures(email);
 
         return {
           id: user.id,

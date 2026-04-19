@@ -13,7 +13,6 @@ import json
 import logging
 import os
 import re
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -31,23 +30,23 @@ _PII_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("credit_card", re.compile(r"\b(?:\d{4}[-\s]?){3}\d{4}\b")),
 ]
 
-_LOG_PII = os.getenv("ALETHEIA_LOG_PII", "false").lower() == "true"
-
 
 def redact_pii(text: str) -> str:
     """Replace PII patterns with redacted placeholders.
 
+    PII is always redacted — no override is permitted.
     Uses a random nonce per redaction to prevent rainbow-table
     reconstruction of the original value from the fingerprint.
     """
-    if _LOG_PII:
-        return text
     for label, pattern in _PII_PATTERNS:
+
         def _replacer(m: re.Match[str], _label: str = label) -> str:
             nonce = os.urandom(4).hex()
             return f"[REDACTED:{_label}:{nonce}]"
+
         text = pattern.sub(_replacer, text)
     return text
+
 
 # ---------------------------------------------------------------------------
 # Structured JSON logger (writes one JSON object per line to audit.log)
@@ -61,7 +60,8 @@ _audit_logger: Optional[logging.Logger] = None
 # ---------------------------------------------------------------------------
 _prev_record_hash: str = "GENESIS"
 _audit_seq: int = 0
-import threading as _threading
+import threading as _threading  # noqa: E402
+
 _chain_lock = _threading.Lock()
 
 
@@ -91,6 +91,7 @@ def _get_audit_logger() -> logging.Logger:
     # Restrict audit log file permissions (owner read/write only)
     try:
         import stat
+
         log_path.touch(exist_ok=True)
         log_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
     except OSError:
@@ -116,7 +117,9 @@ def _policy_hash() -> str:
 
 def _policy_version() -> str:
     try:
-        data = json.loads(Path("manifest/security_policy.json").read_text(encoding="utf-8"))
+        data = json.loads(
+            Path("manifest/security_policy.json").read_text(encoding="utf-8")
+        )
         return str(data.get("version", "UNKNOWN"))
     except Exception:
         return "UNKNOWN"
@@ -147,7 +150,7 @@ def safe_payload_preview(payload: str, max_len: int = 120) -> str:
     sanitized = payload.replace("\n", " ").replace("\r", "").replace("\t", " ")
     if len(sanitized) > max_len:
         suffix = "...[TRUNCATED]"
-        return sanitized[:max_len - len(suffix)] + suffix
+        return sanitized[: max_len - len(suffix)] + suffix
     return sanitized
 
 
@@ -160,6 +163,7 @@ def extract_trace_context() -> dict[str, str]:
     """
     try:
         from opentelemetry import trace  # type: ignore[import-untyped]
+
         span = trace.get_current_span()
         ctx = span.get_span_context()
         if ctx and ctx.trace_id:
@@ -175,6 +179,7 @@ def extract_trace_context() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def log_audit_event(
     *,
@@ -265,18 +270,21 @@ def log_audit_event(
     # --- Task 4: Dispatch to external exporters + WebSocket broadcast ---
     try:
         from core.metrics import TENANT_REQUESTS
+
         TENANT_REQUESTS.labels(tenant_id=tenant_id, verdict=decision).inc()
     except Exception:
         pass
 
     try:
         from core.exporters import enqueue_audit_record
+
         enqueue_audit_record(record)
     except Exception:
         pass  # exporters are optional — never block the audit pipeline
 
     try:
         from core.ws_audit import audit_broadcast
+
         audit_broadcast.publish(record)
     except Exception:
         pass  # WS broadcast is optional
@@ -319,7 +327,9 @@ def build_tmr_receipt(
     issued_at = issued_at or datetime.now(timezone.utc).isoformat()
     nonce = os.urandom(16).hex()
     decision_token = hashlib.sha256(
-        f"{request_id}|{issued_at}|{policy_version}|{policy_hash}|{nonce}".encode("utf-8")
+        f"{request_id}|{issued_at}|{policy_version}|{policy_hash}|{nonce}".encode(
+            "utf-8"
+        )
     ).hexdigest()
 
     if not secret:

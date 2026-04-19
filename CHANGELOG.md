@@ -5,6 +5,62 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.9.0] — 2026-04-19
+
+### Security Hardening (Enterprise)
+- **Remove `ALETHEIA_API_KEYS` env-var fallback**: API key authentication is now
+  exclusively via KeyStore (SQLite/Postgres). Setting `ALETHEIA_API_KEYS` in
+  production causes a hard startup failure (`RuntimeError`); in development it
+  logs a warning and is ignored.
+- **Remove `X-Admin-Key` bypass**: All admin endpoints (`/v1/keys`, `/v1/rotate`,
+  `/health` diagnostics) now use RBAC permission checks (`require_permission()`).
+  The `X-Admin-Key` header and `ALETHEIA_ADMIN_KEY` env var are no longer used.
+- **CORS wildcard pre-commit hook**: New `no-cors-wildcard` hook prevents
+  `allow_origins = ["*"]` from reaching production code.
+- **AST-based string concatenation bypass detection**: Sandbox now parses Python
+  payloads as AST and detects `getattr(obj, 'sys' + 'tem')`, f-string attribute
+  construction, and dynamic subscript patterns. Regex fallback for non-Python text.
+- **Strict Base64 validation**: Rejects whitespace-fragmented Base64, validates
+  charset/padding, and calls `base64.b64decode(validate=True)` as final check.
+- **Enforce distributed decision store**: Production now requires Upstash Redis
+  for the decision store. SQLite fallback is blocked with `sys.exit(1)`.
+- **Remove PII logging override**: `ALETHEIA_LOG_PII` env var removed. PII is
+  always redacted — no override path exists.
+- **Proxy depth configuration warning**: Logs warning when `ENVIRONMENT=production`
+  and `ALETHEIA_TRUSTED_PROXY_DEPTH` is at the default value of 1.
+
+### Resilience
+- **Rate limiter circuit breaker probe-through**: When the Redis circuit is open,
+  ~10% of requests are allowed through as probes to detect recovery. Successful
+  probes automatically close the circuit and clear degraded state.
+- **Distributed login failure tracking**: Brute-force protection in the Next.js
+  auth layer now uses PostgreSQL (`LoginAttempt` Prisma model) instead of an
+  in-memory `Map`. Works across all server instances. Periodic cleanup of
+  expired attempts every 60 seconds.
+
+### Added
+- **Prisma `LoginAttempt` model**: Tracks per-email login failures with
+  `@@index([email, createdAt])` for efficient sliding-window queries.
+- **19 new Phase 3 tests**: String concatenation bypass patterns (9 tests),
+  malformed/invalid Base64 payloads (5 tests), X-Forwarded-For IP rotation
+  detection (2 tests), circuit breaker probe-through (3 tests).
+
+### Changed
+- RBAC permissions: `KEYS_CREATE`, `KEYS_LIST`, `KEYS_REVOKE`, `KEYS_USAGE`,
+  `SECRETS_ROTATE` now gate admin endpoints (previously `X-Admin-Key` header).
+- CORS `allow_headers` changed from `X-Admin-Key` to `Authorization`.
+- Test suite deduplicated: removed 5 duplicate tests across `test_hardening.py`
+  and `test_swarm_1000bot.py`.
+
+### Removed
+- `ALETHEIA_API_KEYS` env-var authentication path
+- `ALETHEIA_ADMIN_KEY` / `X-Admin-Key` header authentication
+- `ALETHEIA_LOG_PII` env-var override
+- `ALETHEIA_ALLOW_SQLITE_PRODUCTION` production opt-in for SQLite decision store
+
+### Verified
+- Full test suite: **1028 passed**, 16 skipped.
+
 ## [1.8.0] — 2026-04-18
 
 ### Added

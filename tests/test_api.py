@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import unittest
 import unittest.mock
 from unittest.mock import patch
@@ -27,28 +26,38 @@ _BLOCKED_ACTION = "Transfer_Funds"
 
 # Each test class uses a distinct IP prefix to avoid Scout's per-IP
 # "Rapid Meta-Querying" counter firing across test cases.
-_IP_BASIC = "192.0.2."      # TEST-NET-1 — basic tests
-_IP_DENIED = "192.0.3."     # denied tests
-_IP_SANDBOX = "192.0.4."    # sandbox tests
-_IP_RATE = "192.0.5."       # rate-limit tests
-_IP_SHADOW = "192.0.6."     # shadow-mode tests
-_IP_VALIDATION = "192.0.7." # validation tests
-_IP_ERROR = "192.0.8."      # error-handler tests
+_IP_BASIC = "192.0.2."  # TEST-NET-1 — basic tests
+_IP_DENIED = "192.0.3."  # denied tests
+_IP_SANDBOX = "192.0.4."  # sandbox tests
+_IP_RATE = "192.0.5."  # rate-limit tests
+_IP_SHADOW = "192.0.6."  # shadow-mode tests
+_IP_VALIDATION = "192.0.7."  # validation tests
+_IP_ERROR = "192.0.8."  # error-handler tests
 
 
 def _safe_body(ip: str) -> dict:
-    return {"payload": _SAFE_PAYLOAD, "origin": _SAFE_ORIGIN,
-            "action": _SAFE_ACTION, "_ip": ip}
+    return {
+        "payload": _SAFE_PAYLOAD,
+        "origin": _SAFE_ORIGIN,
+        "action": _SAFE_ACTION,
+        "_ip": ip,
+    }
 
 
 def _blocked_body(ip: str) -> dict:
-    return {"payload": _BLOCKED_PAYLOAD, "origin": _BLOCKED_ORIGIN,
-            "action": _BLOCKED_ACTION, "_ip": ip}
+    return {
+        "payload": _BLOCKED_PAYLOAD,
+        "origin": _BLOCKED_ORIGIN,
+        "action": _BLOCKED_ACTION,
+        "_ip": ip,
+    }
 
 
 def _post(client: TestClient, body: dict) -> tuple[int, dict]:
     ip = body.pop("_ip", body.pop("ip", "127.0.0.1"))
-    r = client.post("/v1/audit", json=body, headers={"X-Forwarded-For": f"{ip}, 10.0.0.1"})
+    r = client.post(
+        "/v1/audit", json=body, headers={"X-Forwarded-For": f"{ip}, 10.0.0.1"}
+    )
     return r.status_code, r.json()
 
 
@@ -196,6 +205,7 @@ class TestAuditEndpointRateLimit(unittest.TestCase):
 
     def test_rate_limit_returns_429(self) -> None:
         from bridge.fastapi_wrapper import rate_limiter as api_limiter
+
         limited_body = _safe_body(f"{_IP_RATE}1")
         with patch.object(api_limiter, "allow", return_value=False):
             status, resp = _post(self.client, limited_body)
@@ -204,6 +214,7 @@ class TestAuditEndpointRateLimit(unittest.TestCase):
 
     def test_rate_limited_response_has_reason(self) -> None:
         from bridge.fastapi_wrapper import rate_limiter as api_limiter
+
         limited_body = _safe_body(f"{_IP_RATE}2")
         with patch.object(api_limiter, "allow", return_value=False):
             _, resp = _post(self.client, limited_body)
@@ -220,6 +231,7 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
 
     def test_shadow_mode_overrides_deny_to_proceed(self) -> None:
         import bridge.fastapi_wrapper as wrapper_mod
+
         original = wrapper_mod.settings.shadow_mode
         try:
             wrapper_mod.settings.shadow_mode = True
@@ -274,7 +286,10 @@ class TestAuditEndpointGlobalExceptionHandler(unittest.TestCase):
 
     def test_internal_error_returns_500(self) -> None:
         from bridge.fastapi_wrapper import scout
-        with patch.object(scout, "evaluate_threat_context", side_effect=RuntimeError("boom")):
+
+        with patch.object(
+            scout, "evaluate_threat_context", side_effect=RuntimeError("boom")
+        ):
             status, resp = _post(self.client, _safe_body(f"{_IP_ERROR}1"))
         self.assertEqual(status, 500)
         self.assertEqual(resp["decision"], "ERROR")
@@ -304,17 +319,47 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertEqual(r.headers.get("x-frame-options"), "DENY")
         self.assertIn("no-store", r.headers.get("cache-control", ""))
 
-    @unittest.mock.patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": "test-admin-key-1234"})
     def test_health_authenticated_returns_full_diagnostics(self) -> None:
-        """Authenticated /health returns full diagnostics."""
-        r = self.client.get("/health", headers={"X-Admin-Key": "test-admin-key-1234"})
-        self.assertEqual(r.status_code, 200)
-        body = r.json()
-        self.assertIn(body["status"], ("ok", "degraded"))
-        self.assertEqual(body["service"], "aletheia-core")
-        self.assertIn("version", body)
-        self.assertIn("uptime_seconds", body)
-        self.assertIn("timestamp", body)
+        """Authenticated /health (admin via auth context) returns full diagnostics."""
+        from core.auth.models import AuthenticatedUser, AuthContext
+        from unittest.mock import AsyncMock
+
+        admin_user = AuthenticatedUser(
+            user_id="test-admin",
+            roles=frozenset({"admin", "operator"}),
+            auth_method="oidc",
+        )
+        admin_ctx = AuthContext(user=admin_user, token="test")  # noqa: F841
+
+        # Patch the auth middleware to inject admin context for this request
+        original_auth = None  # noqa: F841
+        for i, m in enumerate(app.user_middleware):
+            if (
+                hasattr(m, "kwargs")
+                and m.kwargs.get("dispatch")
+                and getattr(m.kwargs["dispatch"], "__name__", "")
+                == "enterprise_auth_middleware"
+            ):
+                original_auth = m  # noqa: F841
+                break
+
+        with unittest.mock.patch(
+            "bridge.fastapi_wrapper.get_auth_provider"
+        ) as mock_provider:
+            mock_prov_inst = AsyncMock()
+            mock_prov_inst.authenticate.return_value = admin_user
+            mock_provider.return_value = mock_prov_inst
+
+            r = self.client.get(
+                "/health", headers={"Authorization": "Bearer test-admin-token"}
+            )
+            self.assertEqual(r.status_code, 200)
+            body = r.json()
+            self.assertIn(body["status"], ("ok", "degraded"))
+            self.assertEqual(body["service"], "aletheia-core")
+            self.assertIn("version", body)
+            self.assertIn("uptime_seconds", body)
+            self.assertIn("timestamp", body)
 
     def test_ready_returns_readiness_status(self) -> None:
         r = self.client.get("/ready")

@@ -25,14 +25,14 @@ from collections import OrderedDict
 import httpx
 
 from core.config import settings, upstash_configured
-from core.persistence import tenant_scope, redis_tenant_key
+from core.persistence import redis_tenant_key
 
 _logger = logging.getLogger("aletheia.rate_limit")
 
 _MAX_TRACKED_IPS = 50_000  # in-memory fallback cap
 _REDIS_KEY_PREFIX = "aletheia:rl:"
 _REDIS_WINDOW_SECONDS = 1  # sliding window size
-_REDIS_TTL_SECONDS = 10    # key expiry — cleanup after inactivity
+_REDIS_TTL_SECONDS = 10  # key expiry — cleanup after inactivity
 
 
 class UpstashRateLimiter:
@@ -91,7 +91,15 @@ class UpstashRateLimiter:
         Uses atomic pipeline: ZREMRANGEBYSCORE → ZCARD → ZADD → EXPIRE
         """
         import time as _t
+
         if self._circuit_open_until > _t.monotonic():
+            # Allow ~10% of requests through to probe for recovery
+            # and prevent complete self-DoS during Redis outages.
+            if random.random() < 0.10:
+                _logger.info(
+                    "Redis circuit open — allowing probe request for key: %s", key
+                )
+                return True
             _logger.warning(
                 "Redis circuit open — rate limiter blocking request for key: %s", key
             )
@@ -104,18 +112,25 @@ class UpstashRateLimiter:
 
         try:
             async with httpx.AsyncClient() as client:
-                results = await self._pipeline(client, [
-                    # 1. Remove members outside the sliding window
-                    ["ZREMRANGEBYSCORE", redis_key, "-inf", str(window_start)],
-                    # 2. Count current members (requests in window)
-                    ["ZCARD", redis_key],
-                    # 3. Add this request
-                    ["ZADD", redis_key, str(now), member],
-                    # 4. Set expiry so keys auto-cleanup
-                    ["EXPIRE", redis_key, str(_REDIS_TTL_SECONDS)],
-                ])
+                results = await self._pipeline(
+                    client,
+                    [
+                        # 1. Remove members outside the sliding window
+                        ["ZREMRANGEBYSCORE", redis_key, "-inf", str(window_start)],
+                        # 2. Count current members (requests in window)
+                        ["ZCARD", redis_key],
+                        # 3. Add this request
+                        ["ZADD", redis_key, str(now), member],
+                        # 4. Set expiry so keys auto-cleanup
+                        ["EXPIRE", redis_key, str(_REDIS_TTL_SECONDS)],
+                    ],
+                )
                 current_count = results[1]  # ZCARD result
                 self._failure_count = 0
+                if self.degraded:
+                    self._circuit_open_until = 0.0
+                    self.degraded = False
+                    _logger.info("Redis rate limiter recovered — circuit closed")
                 return int(current_count) < self._max
 
         except Exception as exc:
@@ -124,7 +139,9 @@ class UpstashRateLimiter:
             if self._failure_count >= self._FAILURE_THRESHOLD:
                 # Add jitter to prevent thundering herd on recovery
                 jitter = random.uniform(0, 10)
-                self._circuit_open_until = _t.monotonic() + self._CIRCUIT_RESET_SECONDS + jitter
+                self._circuit_open_until = (
+                    _t.monotonic() + self._CIRCUIT_RESET_SECONDS + jitter
+                )
                 _logger.error(
                     "Redis rate limiter circuit opened after %d failures — "
                     "all requests blocked for %.0f seconds. "
@@ -147,9 +164,7 @@ class UpstashRateLimiter:
             async with httpx.AsyncClient() as client:
                 if key is None:
                     # Scan and delete all aletheia rate limit keys
-                    result = await self._redis(
-                        client, "KEYS", f"{_REDIS_KEY_PREFIX}*"
-                    )
+                    result = await self._redis(client, "KEYS", f"{_REDIS_KEY_PREFIX}*")
                     if result:
                         await self._redis(client, "DEL", *result)
                 else:
@@ -240,6 +255,7 @@ def create_rate_limiter(max_per_second: int | None = None):
             "In-memory fallback is not safe for multi-worker deployments."
         )
         import sys
+
         sys.exit(1)
     return InMemoryRateLimiter(max_per_second)
 

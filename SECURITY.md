@@ -81,9 +81,22 @@ The following security hardening was applied in v1.8.0 (audit status: PASS, 1018
 - **Per-category thresholds**: `ThresholdsConfig` with tuned cosine-similarity thresholds per intent category (0.82–0.88).
 - **Semantic manifest schema**: Pydantic models with threshold validation (0.0–1.0) and duplicate-ID detection.
 - **`NitpickerResult` dataclass**: Structured result with `source` field tracking whether block came from static patterns, Qdrant, or both.
-- **Production config opt-ins**: `ALETHEIA_ALLOW_SQLITE_PRODUCTION` and `ALETHEIA_ALLOW_ENV_SECRETS` for flexible deployment without bypassing security defaults.
+- **Production config opt-ins**: `ALETHEIA_ALLOW_ENV_SECRETS` for flexible secret backend deployment. (`ALETHEIA_ALLOW_SQLITE_PRODUCTION` removed in v1.9.0 — production now requires Upstash Redis.)
 - **Pre-commit hooks**: ruff lint/format, trailing-whitespace, detect-private-key, version-sync consistency check.
 - **51 new tests** covering symbolic narrowing, vector store, semantic manifest schema, thresholds, and duplicate ID validation.
+
+## Controls Added in v1.9.0
+
+The following enterprise hardening was applied in v1.9.0 (audit status: PASS, 1028 tests passing):
+
+- **KeyStore-only authentication**: `ALETHEIA_API_KEYS` env var removed; all API keys managed via encrypted KeyStore with RBAC permissions.
+- **RBAC enforcement**: `X-Admin-Key` header removed; admin operations gated by `SECRETS_ROTATE`, `HEALTH_FULL`, `AUDIT_READ` permissions.
+- **SQLite blocked in production**: Decision store requires Upstash Redis; `ALETHEIA_ALLOW_SQLITE_PRODUCTION` removed.
+- **PII always redacted**: `ALETHEIA_LOG_PII` removed; audit logs never contain PII.
+- **AST-based sandbox hardening**: String concatenation bypass detection in code sandbox.
+- **Strict Base64 validation**: Rejects non-canonical padding in input hardening.
+- **Login failure tracking**: PostgreSQL-backed via Prisma `LoginAttempt` model.
+- **Rate limiter circuit breaker**: Allows ~10% probe requests during Redis outages.
 
 ## Controls Added in v1.7.0
 

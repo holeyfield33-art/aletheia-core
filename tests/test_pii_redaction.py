@@ -1,4 +1,5 @@
 """Tests for PII redaction in core/audit.py."""
+
 from __future__ import annotations
 
 import unittest
@@ -66,12 +67,12 @@ class TestPIIRedaction(unittest.TestCase):
         self.assertIn("[REDACTED:email:", r1)
         self.assertIn("[REDACTED:email:", r2)
 
-    @patch("core.audit._LOG_PII", True)
-    def test_log_pii_mode_preserves_raw(self):
-        """When ALETHEIA_LOG_PII=true, PII is preserved (debug mode)."""
+    def test_log_pii_override_removed(self):
+        """PII is always redacted — no override is permitted."""
         text = "User at john@example.com"
         result = redact_pii(text)
-        self.assertIn("john@example.com", result)
+        self.assertNotIn("john@example.com", result)
+        self.assertIn("[REDACTED:email:", result)
 
 
 class TestPIIInAuditLog(unittest.TestCase):
@@ -82,6 +83,7 @@ class TestPIIInAuditLog(unittest.TestCase):
     @patch("core.audit._policy_version", return_value="1.0")
     def test_audit_event_redacts_pii_in_reason(self, _ph, _pv, mock_logger):
         from core.audit import log_audit_event
+
         mock_logger.return_value.info = lambda x: None
 
         record = log_audit_event(

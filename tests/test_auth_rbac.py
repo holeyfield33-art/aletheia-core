@@ -12,14 +12,13 @@ from __future__ import annotations
 import os
 import pytest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 from core.auth import get_auth_provider, reset_auth_provider
 from core.auth.api_key import APIKeyAuthProvider
-from core.auth.models import AuthenticatedUser, AuthContext, VALID_ROLES
+from core.auth.models import AuthenticatedUser, AuthContext
 from core.auth.rbac import (
     Permission,
-    ROLE_PERMISSIONS,
     has_permission,
     require_permission,
     require_role,
@@ -30,13 +29,14 @@ from core.auth.rbac import (
 # APIKeyAuthProvider
 # ---------------------------------------------------------------------------
 
-class TestAPIKeyAuthProvider:
 
+class TestAPIKeyAuthProvider:
     @pytest.fixture(autouse=True)
     def _env(self):
         orig = os.environ.copy()
-        os.environ["ALETHEIA_API_KEYS"] = "test-key-1,test-key-2"
-        os.environ["ALETHEIA_ADMIN_KEY"] = "test-key-1"
+        # Env keys are no longer supported; ensure they're not set
+        os.environ.pop("ALETHEIA_API_KEYS", None)
+        os.environ.pop("ALETHEIA_ADMIN_KEY", None)
         yield
         os.environ.clear()
         os.environ.update(orig)
@@ -46,18 +46,49 @@ class TestAPIKeyAuthProvider:
         return APIKeyAuthProvider()
 
     @pytest.mark.asyncio
-    async def test_env_key_authenticates(self, provider):
-        user = await provider.authenticate("test-key-2")
+    async def test_keystore_key_authenticates(self, provider):
+        """KeyStore keys authenticate successfully."""
+        from unittest.mock import MagicMock
+
+        mock_quota = MagicMock(allowed=True)
+        mock_record = MagicMock(id="key-123", role="operator")
+        with patch("core.key_store.key_store") as ks:
+            ks.check_and_increment.return_value = mock_quota
+            ks.lookup_by_hash.return_value = mock_record
+            user = await provider.authenticate("sk_trial_some_key")
         assert user is not None
         assert user.auth_method == "api_key"
         assert "operator" in user.roles
 
     @pytest.mark.asyncio
-    async def test_admin_key_promoted(self, provider):
-        user = await provider.authenticate("test-key-1")
+    async def test_admin_role_from_keystore(self, provider):
+        """KeyStore key with admin role gets admin access."""
+        from unittest.mock import MagicMock
+
+        mock_quota = MagicMock(allowed=True)
+        mock_record = MagicMock(id="key-admin", role="admin")
+        with patch("core.key_store.key_store") as ks:
+            ks.check_and_increment.return_value = mock_quota
+            ks.lookup_by_hash.return_value = mock_record
+            user = await provider.authenticate("sk_pro_admin_key")
         assert user is not None
         assert "admin" in user.roles
-        assert "operator" in user.roles
+
+    @pytest.mark.asyncio
+    async def test_env_keys_rejected_in_production(self):
+        """Setting ALETHEIA_API_KEYS in production raises RuntimeError."""
+        os.environ["ALETHEIA_API_KEYS"] = "key1,key2"
+        os.environ["ENVIRONMENT"] = "production"
+        with pytest.raises(RuntimeError, match="ALETHEIA_API_KEYS"):
+            APIKeyAuthProvider()
+
+    @pytest.mark.asyncio
+    async def test_env_keys_ignored_in_dev(self):
+        """Env keys are silently ignored in non-production mode."""
+        os.environ["ALETHEIA_API_KEYS"] = "key1,key2"
+        os.environ["ENVIRONMENT"] = "development"
+        provider = APIKeyAuthProvider()
+        assert provider is not None
 
     @pytest.mark.asyncio
     async def test_empty_credential_returns_none(self, provider):
@@ -77,8 +108,8 @@ class TestAPIKeyAuthProvider:
 # Auth factory
 # ---------------------------------------------------------------------------
 
-class TestAuthFactory:
 
+class TestAuthFactory:
     @pytest.fixture(autouse=True)
     def _reset(self):
         reset_auth_provider()
@@ -102,6 +133,7 @@ class TestAuthFactory:
 
     def test_invalid_provider_raises(self):
         from core.config import settings
+
         orig = settings.auth_provider
         try:
             settings.auth_provider = "nosuch"
@@ -115,6 +147,7 @@ class TestAuthFactory:
 # RBAC — Permission matrix
 # ---------------------------------------------------------------------------
 
+
 class TestPermissionMatrix:
     """Exhaustive check: every role / permission combination."""
 
@@ -125,8 +158,9 @@ class TestPermissionMatrix:
     def test_viewer_has_only_keys_list(self):
         for perm in Permission:
             expected = perm == Permission.KEYS_LIST
-            assert has_permission(frozenset({"viewer"}), perm) == expected, \
-                f"viewer + {perm} should be {expected}"
+            assert (
+                has_permission(frozenset({"viewer"}), perm) == expected
+            ), f"viewer + {perm} should be {expected}"
 
     def test_auditor_permissions(self):
         expected = {
@@ -137,8 +171,9 @@ class TestPermissionMatrix:
             Permission.HEALTH_FULL,
         }
         for perm in Permission:
-            assert has_permission(frozenset({"auditor"}), perm) == (perm in expected), \
-                f"auditor + {perm}"
+            assert has_permission(frozenset({"auditor"}), perm) == (
+                perm in expected
+            ), f"auditor + {perm}"
 
     def test_operator_permissions(self):
         expected = {
@@ -150,8 +185,9 @@ class TestPermissionMatrix:
             Permission.HEALTH_FULL,
         }
         for perm in Permission:
-            assert has_permission(frozenset({"operator"}), perm) == (perm in expected), \
-                f"operator + {perm}"
+            assert has_permission(frozenset({"operator"}), perm) == (
+                perm in expected
+            ), f"operator + {perm}"
 
     def test_combined_roles_union(self):
         """Multiple roles → union of their permissions."""
@@ -167,8 +203,8 @@ class TestPermissionMatrix:
 # RBAC — FastAPI dependencies
 # ---------------------------------------------------------------------------
 
-class TestRBACDependencies:
 
+class TestRBACDependencies:
     def _make_request(self, user: AuthenticatedUser | None):
         """Create a mock Request with auth_context."""
         request = MagicMock()
@@ -180,7 +216,9 @@ class TestRBACDependencies:
 
     @pytest.mark.asyncio
     async def test_require_permission_passes(self):
-        user = AuthenticatedUser(user_id="u1", roles=frozenset({"admin"}), auth_method="api_key")
+        user = AuthenticatedUser(
+            user_id="u1", roles=frozenset({"admin"}), auth_method="api_key"
+        )
         request = self._make_request(user)
         dep = require_permission(Permission.KEYS_CREATE)
         await dep(request)  # should not raise
@@ -188,7 +226,10 @@ class TestRBACDependencies:
     @pytest.mark.asyncio
     async def test_require_permission_denies(self):
         from fastapi import HTTPException
-        user = AuthenticatedUser(user_id="u1", roles=frozenset({"viewer"}), auth_method="api_key")
+
+        user = AuthenticatedUser(
+            user_id="u1", roles=frozenset({"viewer"}), auth_method="api_key"
+        )
         request = self._make_request(user)
         dep = require_permission(Permission.KEYS_CREATE)
         with pytest.raises(HTTPException) as exc_info:
@@ -198,6 +239,7 @@ class TestRBACDependencies:
     @pytest.mark.asyncio
     async def test_require_permission_unauthenticated(self):
         from fastapi import HTTPException
+
         request = self._make_request(None)
         dep = require_permission(Permission.AUDIT_SUBMIT)
         with pytest.raises(HTTPException) as exc_info:
@@ -206,7 +248,9 @@ class TestRBACDependencies:
 
     @pytest.mark.asyncio
     async def test_require_role_passes(self):
-        user = AuthenticatedUser(user_id="u1", roles=frozenset({"operator"}), auth_method="api_key")
+        user = AuthenticatedUser(
+            user_id="u1", roles=frozenset({"operator"}), auth_method="api_key"
+        )
         request = self._make_request(user)
         dep = require_role("operator", "admin")
         await dep(request)  # should not raise
@@ -214,7 +258,10 @@ class TestRBACDependencies:
     @pytest.mark.asyncio
     async def test_require_role_denies(self):
         from fastapi import HTTPException
-        user = AuthenticatedUser(user_id="u1", roles=frozenset({"viewer"}), auth_method="api_key")
+
+        user = AuthenticatedUser(
+            user_id="u1", roles=frozenset({"viewer"}), auth_method="api_key"
+        )
         request = self._make_request(user)
         dep = require_role("admin")
         with pytest.raises(HTTPException) as exc_info:
@@ -226,21 +273,29 @@ class TestRBACDependencies:
 # AuthenticatedUser model
 # ---------------------------------------------------------------------------
 
-class TestAuthenticatedUser:
 
+class TestAuthenticatedUser:
     def test_primary_role_picks_highest_privilege(self):
-        user = AuthenticatedUser(user_id="u", roles=frozenset({"viewer", "admin"}), auth_method="x")
+        user = AuthenticatedUser(
+            user_id="u", roles=frozenset({"viewer", "admin"}), auth_method="x"
+        )
         assert user.primary_role == "admin"
 
     def test_is_admin(self):
-        user = AuthenticatedUser(user_id="u", roles=frozenset({"admin"}), auth_method="x")
+        user = AuthenticatedUser(
+            user_id="u", roles=frozenset({"admin"}), auth_method="x"
+        )
         assert user.is_admin
 
     def test_is_not_admin(self):
-        user = AuthenticatedUser(user_id="u", roles=frozenset({"operator"}), auth_method="x")
+        user = AuthenticatedUser(
+            user_id="u", roles=frozenset({"operator"}), auth_method="x"
+        )
         assert not user.is_admin
 
     def test_frozen(self):
-        user = AuthenticatedUser(user_id="u", roles=frozenset({"viewer"}), auth_method="x")
+        user = AuthenticatedUser(
+            user_id="u", roles=frozenset({"viewer"}), auth_method="x"
+        )
         with pytest.raises(AttributeError):
             user.user_id = "changed"

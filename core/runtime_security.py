@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import json
 import logging
 import math
 import re
@@ -10,7 +9,6 @@ import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any
 
-from confusable_homoglyphs import confusables as _confusables
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from core.text_normalization import collapse_confusables
@@ -20,12 +18,11 @@ _runtime_logger = logging.getLogger("aletheia.runtime_security")
 
 _ZERO_WIDTH_RE = re.compile(r"[\u200b\u200c\u200d\ufeff]")
 # Bidi override / directional embedding characters (Unicode TR9)
-_BIDI_RE = re.compile(
-    r"[\u200e\u200f\u202a-\u202e\u2066-\u2069]"
-)
+_BIDI_RE = re.compile(r"[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
 _BASE64_RE = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
 _DATA_URI_RE = re.compile(
-    r"data:[\w/+.-]*;base64,([A-Za-z0-9+/=]+)", re.IGNORECASE,
+    r"data:[\w/+.-]*;base64,([A-Za-z0-9+/=]+)",
+    re.IGNORECASE,
 )
 _MARKDOWN_ESCAPE_RE = re.compile(r'\\([\\`*_{}\[\]()#+\-.!>"])')
 
@@ -94,7 +91,9 @@ def _strip_controls(text: str) -> str:
     return "".join(ch for ch in text if unicodedata.category(ch)[0] != "C")
 
 
-def _bounded_url_decode(text: str, policy: NormalizationPolicy) -> tuple[str, int, int, bool]:
+def _bounded_url_decode(
+    text: str, policy: NormalizationPolicy
+) -> tuple[str, int, int, bool]:
     current = text
     steps = 0
     depth = 0
@@ -117,9 +116,25 @@ def _bounded_url_decode(text: str, policy: NormalizationPolicy) -> tuple[str, in
 
 
 def _looks_like_base64(text: str) -> bool:
-    if len(text) < 8 or len(text) % 4 != 0:
+    """Strict Base64 validation: must be valid length, charset, and padding."""
+    stripped = text.strip()
+    if len(stripped) < 8:
         return False
-    return bool(_BASE64_RE.fullmatch(text))
+    # Reject whitespace-fragmented Base64 (spaces, newlines within the string)
+    if any(c in stripped for c in (" ", "\t", "\n", "\r")):
+        return False
+    # Must match strict Base64 charset with valid padding
+    if not _BASE64_RE.fullmatch(stripped):
+        return False
+    # Padding validation: length must be multiple of 4
+    if len(stripped) % 4 != 0:
+        return False
+    # Verify it actually decodes (catches invalid padding combinations)
+    try:
+        base64.b64decode(stripped, validate=True)
+    except Exception:
+        return False
+    return True
 
 
 def _strip_data_uris(text: str, policy: NormalizationPolicy) -> tuple[str, int]:
@@ -141,7 +156,9 @@ def _strip_data_uris(text: str, policy: NormalizationPolicy) -> tuple[str, int]:
     return _DATA_URI_RE.sub(_replace, text), steps
 
 
-def _bounded_base64_decode(text: str, policy: NormalizationPolicy) -> tuple[str, int, int, bool]:
+def _bounded_base64_decode(
+    text: str, policy: NormalizationPolicy
+) -> tuple[str, int, int, bool]:
     current = text
     steps = 0
     depth = 0
@@ -153,6 +170,11 @@ def _bounded_base64_decode(text: str, policy: NormalizationPolicy) -> tuple[str,
         try:
             decoded_bytes = base64.b64decode(current, validate=True)
         except Exception:
+            # Invalid Base64: do NOT pass through — keep original and flag
+            exhausted = True
+            _runtime_logger.warning(
+                "Invalid Base64 rejected: payload failed strict validation"
+            )
             break
         if len(decoded_bytes) > policy.max_base64_output_size:
             exhausted = True
@@ -173,11 +195,15 @@ def _bounded_base64_decode(text: str, policy: NormalizationPolicy) -> tuple[str,
     return current, depth, steps, exhausted
 
 
-_JSON_UNESCAPE_RE = re.compile(r'\\u([0-9a-fA-F]{4})')
-_HEX_UNESCAPE_RE = re.compile(r'\\x([0-9a-fA-F]{2})')
+_JSON_UNESCAPE_RE = re.compile(r"\\u([0-9a-fA-F]{4})")
+_HEX_UNESCAPE_RE = re.compile(r"\\x([0-9a-fA-F]{2})")
 _SIMPLE_ESCAPES = {
-    '\\n': '\n', '\\r': '\r', '\\t': '\t',
-    '\\\\': '\\', '\\\'': '\'', '\\"': '"',
+    "\\n": "\n",
+    "\\r": "\r",
+    "\\t": "\t",
+    "\\\\": "\\",
+    "\\'": "'",
+    '\\"': '"',
 }
 
 
@@ -186,7 +212,7 @@ def _unescape_layers(text: str) -> tuple[str, int]:
     steps = 0
 
     # JSON-style \uXXXX and \xXX escapes only (safe for non-ASCII text).
-    if '\\' in current:
+    if "\\" in current:
         changed = False
         for escaped, replacement in _SIMPLE_ESCAPES.items():
             if escaped in current:
@@ -204,7 +230,7 @@ def _unescape_layers(text: str) -> tuple[str, int]:
             steps += 1
 
     # Markdown-style escapes
-    md_unescaped = _MARKDOWN_ESCAPE_RE.sub(r'\1', current)
+    md_unescaped = _MARKDOWN_ESCAPE_RE.sub(r"\1", current)
     if md_unescaped != current:
         current = md_unescaped
         steps += 1
@@ -212,14 +238,16 @@ def _unescape_layers(text: str) -> tuple[str, int]:
     return current, steps
 
 
-def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = None) -> NormalizationResult:
+def normalize_untrusted_text(
+    text: str, policy: NormalizationPolicy | None = None
+) -> NormalizationResult:
     policy = policy or NormalizationPolicy()
     raw = text if isinstance(text, str) else str(text)
 
     if len(raw) > policy.max_text_size:
         return NormalizationResult(
             text=raw,
-            normalized_form=raw[:policy.max_text_size],
+            normalized_form=raw[: policy.max_text_size],
             recursion_depth=0,
             decode_steps=0,
             quarantined=True,
@@ -230,9 +258,13 @@ def normalize_untrusted_text(text: str, policy: NormalizationPolicy | None = Non
     normalized = unicodedata.normalize("NFKC", raw)
     stripped = _strip_controls(normalized)
 
-    url_decoded, url_depth, url_steps, url_exhausted = _bounded_url_decode(stripped, policy)
+    url_decoded, url_depth, url_steps, url_exhausted = _bounded_url_decode(
+        stripped, policy
+    )
     data_uri_decoded, data_uri_steps = _strip_data_uris(url_decoded, policy)
-    b64_decoded, b64_depth, b64_steps, b64_exhausted = _bounded_base64_decode(data_uri_decoded, policy)
+    b64_decoded, b64_depth, b64_steps, b64_exhausted = _bounded_base64_decode(
+        data_uri_decoded, policy
+    )
     unescaped, unescape_steps = _unescape_layers(b64_decoded)
     cleaned = _strip_controls(unescaped)
     # Confusable collapsing runs AFTER all decoding layers to avoid
@@ -314,35 +346,82 @@ class IntentClassifier:
 
     _category_patterns: dict[str, list[re.Pattern[str]]] = {
         "malicious_capability": [
-            re.compile(r"\b(?:build|write|generate).{0,120}(?:malware|exploit|ransomware)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:build|write|generate).{0,120}(?:malware|exploit|ransomware)\b",
+                re.IGNORECASE,
+            ),
             re.compile(r"\b(?:weaponize|attack chain|zero.day)\b", re.IGNORECASE),
         ],
         "data_exfiltration": [
-            re.compile(r"\b(?:exfiltrat|export|dump|leak|copy).{0,120}(?:data|records|database|secrets)\b", re.IGNORECASE),
-            re.compile(r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore)\b", re.IGNORECASE),
-            re.compile(r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|credentials|secrets)\b", re.IGNORECASE),
-            re.compile(r"\b(?:send|email|transmit|forward).{0,120}(?:to ).{0,80}(?:\.com|\.io|\.net|\.org|external|outside)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:exfiltrat|export|dump|leak|copy).{0,120}(?:data|records|database|secrets)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|credentials|secrets)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:send|email|transmit|forward).{0,120}(?:to ).{0,80}(?:\.com|\.io|\.net|\.org|external|outside)\b",
+                re.IGNORECASE,
+            ),
         ],
         "privilege_escalation": [
-            re.compile(r"\b(?:grant|elevate|escalat|promote).{0,120}(?:admin|root|privilege|role)\b", re.IGNORECASE),
-            re.compile(r"\b(?:bypass|disable|override).{0,120}(?:auth|access control|policy)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:grant|elevate|escalat|promote).{0,120}(?:admin|root|privilege|role)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:bypass|disable|override).{0,120}(?:auth|access control|policy)\b",
+                re.IGNORECASE,
+            ),
         ],
         "tool_abuse": [
-            re.compile(r"\b(?:run|execute|invoke).{0,120}(?:shell|subprocess|eval|socket|script)\b", re.IGNORECASE),
-            re.compile(r"\b(?:drop|truncate|delete).{0,120}(?:database|table|production)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:run|execute|invoke).{0,120}(?:shell|subprocess|eval|socket|script)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:drop|truncate|delete).{0,120}(?:database|table|production)\b",
+                re.IGNORECASE,
+            ),
         ],
         "policy_evasion": [
-            re.compile(r"\b(?:pretend|roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:policy|rules|safety)\b", re.IGNORECASE),
-            re.compile(r"\b(?:roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:guardrails?|controls?)\b", re.IGNORECASE),
-            re.compile(r"\b(?:as a game|hypothetical|for testing only).{0,80}(?:ignore|disable).{0,80}(?:guardrails|policy)\b", re.IGNORECASE),
-            re.compile(r"\b(?:do this secretly|without logging|without audit|avoid detection)\b", re.IGNORECASE),
-            re.compile(r"\b(?:ignore|disregard|skip|override).{0,40}(?:all )?.{0,40}(?:rules|policy|safety|restrictions|guardrails)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:pretend|roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:policy|rules|safety)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:guardrails?|controls?)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:as a game|hypothetical|for testing only).{0,80}(?:ignore|disable).{0,80}(?:guardrails|policy)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:do this secretly|without logging|without audit|avoid detection)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:ignore|disregard|skip|override).{0,40}(?:all )?.{0,40}(?:rules|policy|safety|restrictions|guardrails)\b",
+                re.IGNORECASE,
+            ),
         ],
     }
 
     _coercive_patterns: list[re.Pattern[str]] = [
-        re.compile(r"\b(?:you must|you are required|comply now|do not refuse)\b", re.IGNORECASE),
-        re.compile(r"\b(?:this is authorized|i am admin|ceo override|emergency override)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(?:you must|you are required|comply now|do not refuse)\b", re.IGNORECASE
+        ),
+        re.compile(
+            r"\b(?:this is authorized|i am admin|ceo override|emergency override)\b",
+            re.IGNORECASE,
+        ),
     ]
 
     def classify(self, normalized_text: str) -> IntentDecision:
@@ -368,7 +447,9 @@ class IntentClassifier:
                     best_pattern = pattern.pattern
                     score = max(score, 0.94)
 
-        coercive_hits = sum(1 for pattern in self._coercive_patterns if pattern.search(text))
+        coercive_hits = sum(
+            1 for pattern in self._coercive_patterns if pattern.search(text)
+        )
         if coercive_hits:
             score = max(score, min(0.75 + 0.1 * coercive_hits, 0.95))
             if not best_category:

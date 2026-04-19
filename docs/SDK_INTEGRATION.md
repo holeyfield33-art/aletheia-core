@@ -1,4 +1,4 @@
-# SDK Integration Guide — Aletheia Core v1.7.0
+# SDK Integration Guide — Aletheia Core v1.9.0
 
 How to call the Aletheia Core audit API from your application code.
 
@@ -7,7 +7,7 @@ How to call the Aletheia Core audit API from your application code.
 ## Prerequisites
 
 - A running Aletheia Core instance (self-hosted or hosted API)
-- An API key (set via `ALETHEIA_API_KEYS` env var, or created via `POST /v1/keys`)
+- An API key (created via `POST /v1/keys` with RBAC admin credentials)
 - Base URL of your deployment (e.g. `https://your-app.onrender.com`)
 
 ---
@@ -285,14 +285,14 @@ curl https://your-app.onrender.com/health
 # Readiness check
 curl https://your-app.onrender.com/ready
 
-# Rotate secrets (admin)
+# Rotate secrets (admin — requires SECRETS_ROTATE permission)
 curl -X POST https://your-app.onrender.com/v1/rotate \
-  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY"
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # Create API key (admin)
 curl -X POST https://your-app.onrender.com/v1/keys \
   -H "Content-Type: application/json" \
-  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   -d '{"name":"my-agent","plan":"trial"}'
 ```
 

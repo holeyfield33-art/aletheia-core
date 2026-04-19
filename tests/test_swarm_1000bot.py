@@ -16,10 +16,8 @@ a randomised conflicting payload.  The swarm is designed to stress:
 from __future__ import annotations
 
 import base64
-import hashlib
 import random
 import string
-import time
 import unittest
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -27,9 +25,6 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from agents.judge_v1 import AletheiaJudge
-from agents.nitpicker_v2 import AletheiaNitpickerV2
-from agents.scout_v2 import AletheiaScoutV2
 from bridge.fastapi_wrapper import app, scout, nitpicker, judge
 from core.rate_limit import rate_limiter
 from core.sandbox import check_action_sandbox
@@ -41,13 +36,23 @@ from core.runtime_security import normalize_untrusted_text
 _RNG = random.Random(42)  # deterministic for reproducibility
 
 SAFE_ACTIONS = [
-    "Read_Report", "View_Dashboard", "List_Users", "Fetch_Logs",
-    "Get_Status", "Query_Metrics", "Ping_Health", "Check_Config",
+    "Read_Report",
+    "View_Dashboard",
+    "List_Users",
+    "Fetch_Logs",
+    "Get_Status",
+    "Query_Metrics",
+    "Ping_Health",
+    "Check_Config",
 ]
 
 RESTRICTED_ACTIONS = [
-    "Transfer_Funds", "Approve_Loan_Disbursement", "Modify_Auth_Registry",
-    "Initiate_ACH", "Open_External_Socket", "Bulk_Delete_Resource",
+    "Transfer_Funds",
+    "Approve_Loan_Disbursement",
+    "Modify_Auth_Registry",
+    "Initiate_ACH",
+    "Open_External_Socket",
+    "Bulk_Delete_Resource",
 ]
 
 BENIGN_FRAGMENTS = [
@@ -82,18 +87,20 @@ MALICIOUS_FRAGMENTS = [
 ]
 
 HOMOGLYPH_FRAGMENTS = [
-    "trаnsfer funds",               # Cyrillic а
-    "bуpass аuthenticаtion",         # Cyrillic у, а
-    "ехecute shеll",                 # Cyrillic е, х
-    "dеlеtе аll rеcоrds",           # mixed Cyrillic
-    "оpen sоcket cоnnection",       # Cyrillic о
+    "trаnsfer funds",  # Cyrillic а
+    "bуpass аuthenticаtion",  # Cyrillic у, а
+    "ехecute shеll",  # Cyrillic е, х
+    "dеlеtе аll rеcоrds",  # mixed Cyrillic
+    "оpen sоcket cоnnection",  # Cyrillic о
 ]
 
 ENCODING_WRAPPERS = [
     lambda t: t,  # plain
     lambda t: urllib.parse.quote(t, safe=""),  # URL-encoded
     lambda t: base64.b64encode(t.encode()).decode(),  # base64
-    lambda t: urllib.parse.quote(base64.b64encode(t.encode()).decode(), safe=""),  # double
+    lambda t: urllib.parse.quote(
+        base64.b64encode(t.encode()).decode(), safe=""
+    ),  # double
 ]
 
 
@@ -136,14 +143,21 @@ def _schema_fuzz_body() -> dict[str, Any]:
     if case == 1:  # illegal action chars
         return {"payload": "test", "origin": "fuzz", "action": "drop;table--"}
     if case == 2:  # extra field
-        return {"payload": "test", "origin": "fuzz", "action": "Read_Report", "admin": True}
+        return {
+            "payload": "test",
+            "origin": "fuzz",
+            "action": "Read_Report",
+            "admin": True,
+        }
     if case == 3:  # missing required field
         return {"payload": "test", "origin": "fuzz"}
     # case 4: empty payload
     return {"payload": "", "origin": "fuzz", "action": "Read_Report"}
 
 
-def _make_body(payload: str, action: str | None = None, origin: str = "test_agent") -> dict:
+def _make_body(
+    payload: str, action: str | None = None, origin: str = "test_agent"
+) -> dict:
     if action is None:
         action = _RNG.choice(SAFE_ACTIONS)
     return {"payload": payload, "origin": origin, "action": action}
@@ -286,30 +300,18 @@ class TestSwarm1000Bots(unittest.TestCase):
 
         allowed, blocked = asyncio.run(_burst())
 
-        self.assertEqual(allowed, 10, "Exactly max_per_second requests should be allowed")
+        self.assertEqual(
+            allowed, 10, "Exactly max_per_second requests should be allowed"
+        )
         self.assertEqual(blocked, 20, "Remaining requests must be blocked")
-        self.assertGreater(blocked, 0, "Rate limiter must block some requests in a burst")
+        self.assertGreater(
+            blocked, 0, "Rate limiter must block some requests in a burst"
+        )
         self.assertGreater(allowed, 0, "First few requests in burst must pass")
 
     # ------------------------------------------------------------------
-    # 3. Source rotation probing — many source_ids, same payload
+    # 3. Source rotation probing — moved to test_enterprise_hardening_phase3.py
     # ------------------------------------------------------------------
-    def test_rotation_probing_detection(self) -> None:
-        """Rapid requests from the same source should trigger Scout rotation probing."""
-        source = "rotation_probe_bot"
-        scores: list[float] = []
-
-        for i in range(10):
-            score, report = scout.evaluate_threat_context(
-                source, f"routine maintenance check #{i}"
-            )
-            scores.append(score)
-
-        # After >5 requests in 60s, Scout should flag rotation probing
-        self.assertTrue(
-            any(s >= 7.5 for s in scores),
-            f"Scout must detect rotation probing; got scores: {scores}"
-        )
 
     # ------------------------------------------------------------------
     # 4. Conflicting prompt pairs — same payload, alternating action IDs
@@ -327,13 +329,17 @@ class TestSwarm1000Bots(unittest.TestCase):
             rate_limiter.reset_sync()
             body = _make_body(payload, action=action)
             status, data = _post(self.client, body, ip=_rand_ip())
-            if status in (403,) or data.get("decision") in ("DENIED", "SANDBOX_BLOCKED"):
+            if status in (403,) or data.get("decision") in (
+                "DENIED",
+                "SANDBOX_BLOCKED",
+            ):
                 denied_count += 1
 
         # The payload is clearly malicious — should be blocked for every action
         self.assertGreaterEqual(
-            denied_count, len(RESTRICTED_ACTIONS),
-            "Malicious payload must be blocked for at least all restricted actions"
+            denied_count,
+            len(RESTRICTED_ACTIONS),
+            "Malicious payload must be blocked for at least all restricted actions",
         )
 
     # ------------------------------------------------------------------
@@ -349,12 +355,16 @@ class TestSwarm1000Bots(unittest.TestCase):
             encoded = wrapper(raw)
             body = _make_body(encoded)
             status, data = _post(self.client, body, ip=_rand_ip())
-            if status in (403,) or data.get("decision") in ("DENIED", "SANDBOX_BLOCKED"):
+            if status in (403,) or data.get("decision") in (
+                "DENIED",
+                "SANDBOX_BLOCKED",
+            ):
                 blocked += 1
 
         self.assertEqual(
-            blocked, len(ENCODING_WRAPPERS),
-            "Malicious payload must be blocked in every encoding variant"
+            blocked,
+            len(ENCODING_WRAPPERS),
+            "Malicious payload must be blocked in every encoding variant",
         )
 
     # ------------------------------------------------------------------
@@ -368,7 +378,7 @@ class TestSwarm1000Bots(unittest.TestCase):
             rate_limiter.reset_sync()
             payload = _homoglyph_payload()
             # Verify normalization collapses confusables
-            result = normalize_untrusted_text(payload)
+            result = normalize_untrusted_text(payload)  # noqa: F841
             # The homoglyph fragments contain Cyrillic letters that look Latin
             # After normalisation they should contain only ASCII/Latin
             for ch in HOMOGLYPH_FRAGMENTS[0]:
@@ -377,7 +387,9 @@ class TestSwarm1000Bots(unittest.TestCase):
                     caught += 1
                     break
 
-        self.assertGreater(caught, 0, "Homoglyph fragments must contain non-ASCII to test")
+        self.assertGreater(
+            caught, 0, "Homoglyph fragments must contain non-ASCII to test"
+        )
 
     # ------------------------------------------------------------------
     # 7. Semantic scattershot — one payload per restricted category
@@ -396,8 +408,7 @@ class TestSwarm1000Bots(unittest.TestCase):
         for action_id, payload in category_payloads.items():
             allowed, msg = judge.verify_action(action_id, payload=payload)
             self.assertFalse(
-                allowed,
-                f"Judge must veto {action_id} with payload '{payload}': {msg}"
+                allowed, f"Judge must veto {action_id} with payload '{payload}': {msg}"
             )
 
     # ------------------------------------------------------------------
@@ -414,8 +425,9 @@ class TestSwarm1000Bots(unittest.TestCase):
             )
             # In every mode, sensitive content should be redacted or blocked
             self.assertNotEqual(
-                sanitised, payload,
-                f"Nitpicker mode {mode} must not pass malicious payload unchanged"
+                sanitised,
+                payload,
+                f"Nitpicker mode {mode} must not pass malicious payload unchanged",
             )
 
     # ------------------------------------------------------------------
@@ -437,8 +449,9 @@ class TestSwarm1000Bots(unittest.TestCase):
         # The later requests should trigger distributed probing detection
         high_scores = [s for s in final_scores if s >= 7.0]
         self.assertGreater(
-            len(high_scores), 0,
-            f"Scout should detect global distributed probing; max score: {max(final_scores)}"
+            len(high_scores),
+            0,
+            f"Scout should detect global distributed probing; max score: {max(final_scores)}",
         )
 
     # ------------------------------------------------------------------
@@ -452,8 +465,9 @@ class TestSwarm1000Bots(unittest.TestCase):
             rate_limiter.reset_sync()
             status, _ = _post(self.client, body, ip=ip)
             self.assertIn(
-                status, (200, 400, 403, 422, 429),
-                f"Unexpected status {status} for fuzzed body: {body}"
+                status,
+                (200, 400, 403, 422, 429),
+                f"Unexpected status {status} for fuzzed body: {body}",
             )
 
     # ------------------------------------------------------------------
@@ -475,7 +489,9 @@ class TestSwarm1000Bots(unittest.TestCase):
             results = []
             for i in range(reqs_per_thread):
                 ip = f"10.{thread_id}.{i}.1"
-                payload = _conflicting_payload() if i % 2 == 0 else _pure_benign_payload()
+                payload = (
+                    _conflicting_payload() if i % 2 == 0 else _pure_benign_payload()
+                )
                 body = _make_body(payload)
                 try:
                     status, data = _post(local_client, body, ip=ip)
@@ -534,8 +550,9 @@ class TestSwarm1000Bots(unittest.TestCase):
         # The bot must be caught well before the last payload
         self.assertIsNotNone(blocked_from, "Escalating bot must be caught by Scout")
         self.assertLess(
-            blocked_from, 15,
-            f"Scout should catch escalation by turn 15, caught at turn {blocked_from}"
+            blocked_from,
+            15,
+            f"Scout should catch escalation by turn 15, caught at turn {blocked_from}",
         )
 
     # ------------------------------------------------------------------
@@ -562,7 +579,7 @@ class TestSwarm1000Bots(unittest.TestCase):
                 result = check_action_sandbox("Test_Action", norm.normalized_form)
                 self.assertIsNotNone(
                     result,
-                    f"Sandbox must catch '{payload}' encoded as '{encoded[:80]}...'"
+                    f"Sandbox must catch '{payload}' encoded as '{encoded[:80]}...'",
                 )
 
     # ------------------------------------------------------------------
@@ -576,7 +593,9 @@ class TestSwarm1000Bots(unittest.TestCase):
 
         # Judge semantic check should still catch the malicious suffix
         allowed, msg = judge.verify_action("Transfer_Funds", payload=full)
-        self.assertFalse(allowed, f"Long benign prefix must not hide malicious suffix: {msg}")
+        self.assertFalse(
+            allowed, f"Long benign prefix must not hide malicious suffix: {msg}"
+        )
 
     # ------------------------------------------------------------------
     # 15. Entropy bomb swarm — high-entropy random payloads
@@ -594,8 +613,7 @@ class TestSwarm1000Bots(unittest.TestCase):
 
         # At least some should trigger entropy quarantine
         self.assertGreater(
-            quarantined, 0,
-            "High-entropy payloads should trigger quarantine"
+            quarantined, 0, "High-entropy payloads should trigger quarantine"
         )
 
 

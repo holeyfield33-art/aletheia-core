@@ -17,17 +17,23 @@ def _validate_production_env() -> None:
             sys.exit(1)
         signing_secret = os.getenv("SIGNING_SECRET") or ""
         if len(signing_secret) < 32:
-            print("FATAL: Production missing SIGNING_SECRET (min 32 chars)", file=sys.stderr)
+            print(
+                "FATAL: Production missing SIGNING_SECRET (min 32 chars)",
+                file=sys.stderr,
+            )
             sys.exit(1)
 
 
 _validate_production_env()
 
-def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file_sig=None):
-    print("\n" + "="*40)
-    print("ALETHEIA CORE v1.8.0")
-    print("="*40)
-    
+
+def run_aletheia_audit(
+    user_payload, source_origin, action_type, source_ip, file_sig=None
+):
+    print("\n" + "=" * 40)
+    print("ALETHEIA CORE v1.9.0")
+    print("=" * 40)
+
     scout = AletheiaScoutV2()
     nitpicker = AletheiaNitpickerV2()
     judge = AletheiaJudge()
@@ -36,9 +42,11 @@ def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file
     user_payload = normalize_shadow_text(user_payload)
 
     # 1. SCOUT PHASE (V2: Grok-Enhanced)
-    threat_score, scout_report = scout.evaluate_threat_context(source_ip, user_payload, file_sig)
+    threat_score, scout_report = scout.evaluate_threat_context(
+        source_ip, user_payload, file_sig
+    )
     print(f"[STAGE 1] Scout Score: {threat_score} - {scout_report}")
-    
+
     # 2. NITPICKER PHASE (V2: Polymorphic)
     clean_payload = nitpicker.sanitize_intent(user_payload, source_origin)
     print(f"[STAGE 2] Sanitized Payload: {clean_payload}")
@@ -48,15 +56,15 @@ def run_aletheia_audit(user_payload, source_origin, action_type, source_ip, file
 
     # 4. DECISION
     veto_was_triggered = not is_safe or threat_score >= 5.0
-    
+
     print("\n--- AUDIT RESULTS ---")
     if not veto_was_triggered:
-        print(f"STATUS: ✅ PROCEED")
+        print("STATUS: ✅ PROCEED")
     else:
         status = "🛑 BLOCKED BY SCOUT" if threat_score >= 5.0 else "🛑 BLOCKED BY JUDGE"
         print(f"STATUS: {status}")
         print(f"REASON: {scout_report if threat_score >= 5.0 else veto_msg}")
-    print("="*40)
+    print("=" * 40)
 
 
 def sign_manifest_command() -> int:
@@ -78,6 +86,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("sign-manifest", help="Sign manifest/security_policy.json")
 
     return parser
+
 
 if __name__ == "__main__":
     parser = _build_parser()

@@ -10,6 +10,7 @@ from core.sandbox import check_action_sandbox, check_payload_sandbox
 # Subprocess / action sandbox
 # ---------------------------------------------------------------------------
 
+
 class TestSandboxPayload(unittest.TestCase):
     """Pattern-based sandbox blocks dangerous syscall patterns in payloads."""
 
@@ -40,7 +41,9 @@ class TestSandboxPayload(unittest.TestCase):
         self.assertIn("FS_DESTROY", result)
 
     def test_safe_payload_passes(self) -> None:
-        result = check_payload_sandbox("Generate quarterly revenue report for the board")
+        result = check_payload_sandbox(
+            "Generate quarterly revenue report for the board"
+        )
         self.assertIsNone(result)
 
     def test_safe_process_noun_passes(self) -> None:
@@ -93,6 +96,7 @@ class TestJudgeSandboxIntegration(unittest.TestCase):
 # Grey-zone second-pass classifier
 # ---------------------------------------------------------------------------
 
+
 class TestGreyZoneClassifier(unittest.TestCase):
     """Payloads in the ambiguous similarity band (0.40–0.55) that contain
     high-risk keywords should be escalated to a veto."""
@@ -122,6 +126,7 @@ class TestGreyZoneClassifier(unittest.TestCase):
 # Alias bank rotation
 # ---------------------------------------------------------------------------
 
+
 class TestAliasBankRotation(unittest.TestCase):
     """Alias phrases should be shuffled deterministically per day."""
 
@@ -145,16 +150,19 @@ class TestAliasBankRotation(unittest.TestCase):
 # Embedding pre-warming
 # ---------------------------------------------------------------------------
 
+
 class TestEmbeddingPreWarm(unittest.TestCase):
     """warm_up() should load the model without errors."""
 
     def test_warm_up_succeeds(self) -> None:
         from core.embeddings import warm_up
+
         # Should not raise
         warm_up()
 
     def test_encode_after_warm_up(self) -> None:
         from core.embeddings import encode, warm_up
+
         warm_up()
         result = encode(["test sentence"])
         self.assertEqual(result.shape[0], 1)
@@ -165,100 +173,60 @@ class TestEmbeddingPreWarm(unittest.TestCase):
 # Enterprise hardening tests — appended
 # ---------------------------------------------------------------------------
 
-import os
-from unittest.mock import patch, MagicMock
-
-from fastapi.testclient import TestClient
+import os  # noqa: E402
+from unittest.mock import patch  # noqa: E402
 
 
 class TestClientIPExtraction(unittest.TestCase):
     """IP must come from network layer, never from request body."""
 
-    def setUp(self):
-        # Import here to avoid embedding model load at module level
-        from bridge.fastapi_wrapper import app, _get_client_ip
-        self.app = app
-        self._get_client_ip = _get_client_ip
-
-    def test_get_client_ip_from_x_forwarded_for(self):
-        mock_request = MagicMock()
-        mock_request.headers = {"x-forwarded-for": "203.0.113.5, 10.0.0.1"}
-        mock_request.client = None
-        from bridge.fastapi_wrapper import _get_client_ip
-        assert _get_client_ip(mock_request) == "203.0.113.5"
-
-    def test_get_client_ip_from_client_host(self):
-        mock_request = MagicMock()
-        mock_request.headers = {}
-        mock_request.client = MagicMock()
-        mock_request.client.host = "198.51.100.1"
-        from bridge.fastapi_wrapper import _get_client_ip
-        assert _get_client_ip(mock_request) == "198.51.100.1"
-
-    def test_get_client_ip_unknown_fallback(self):
-        mock_request = MagicMock()
-        mock_request.headers = {}
-        mock_request.client = None
-        from bridge.fastapi_wrapper import _get_client_ip
-        assert _get_client_ip(mock_request) == "unknown"
+    # IP extraction tests (_get_client_ip) are in test_security_hardening_v2.py
+    # TestXFFIPExtraction — kept here are AuditRequest schema validation tests.
 
     def test_audit_request_has_no_ip_field(self):
         from bridge.fastapi_wrapper import AuditRequest
+
         fields = AuditRequest.model_fields
         assert "ip" not in fields, "ip field must be removed from AuditRequest"
 
     def test_audit_request_accepts_client_ip_claim(self):
         from bridge.fastapi_wrapper import AuditRequest
+
         req = AuditRequest(
-            payload="test", origin="test_origin",
-            action="test_action", client_ip_claim="1.2.3.4"
+            payload="test",
+            origin="test_origin",
+            action="test_action",
+            client_ip_claim="1.2.3.4",
         )
         assert req.client_ip_claim == "1.2.3.4"
 
     def test_audit_request_action_pattern_rejects_invalid(self):
         from bridge.fastapi_wrapper import AuditRequest
         from pydantic import ValidationError
+
         with self.assertRaises(ValidationError):
             AuditRequest(payload="x", origin="o", action="bad action with spaces")
 
     def test_audit_request_action_pattern_accepts_valid(self):
         from bridge.fastapi_wrapper import AuditRequest
+
         req = AuditRequest(payload="x", origin="o", action="summarize_doc-v2")
         assert req.action == "summarize_doc-v2"
 
     def test_audit_request_action_pattern_rejects_colon(self):
         from bridge.fastapi_wrapper import AuditRequest
+
         with self.assertRaises(Exception):
             AuditRequest(payload="x", origin="o", action="ns:action")
 
     def test_audit_request_action_pattern_rejects_dot(self):
         from bridge.fastapi_wrapper import AuditRequest
+
         with self.assertRaises(Exception):
             AuditRequest(payload="x", origin="o", action="summarize_doc.v2")
 
 
-class TestApiKeyAuth(unittest.TestCase):
-    """API key enforcement must block unauthenticated requests when keys are configured."""
-
-    def test_auth_disabled_when_no_keys_set(self):
-        with patch.dict(os.environ, {"ALETHEIA_API_KEYS": ""}, clear=False):
-            from bridge.fastapi_wrapper import _load_api_keys
-            keys = _load_api_keys()
-            assert len(keys) == 0
-
-    def test_auth_enabled_when_keys_set(self):
-        with patch.dict(os.environ, {"ALETHEIA_API_KEYS": "key1,key2"}, clear=False):
-            from bridge.fastapi_wrapper import _load_api_keys
-            keys = _load_api_keys()
-            assert "key1" in keys
-            assert "key2" in keys
-
-    def test_keys_are_stripped(self):
-        with patch.dict(os.environ, {"ALETHEIA_API_KEYS": " key1 , key2 "}, clear=False):
-            from bridge.fastapi_wrapper import _load_api_keys
-            keys = _load_api_keys()
-            assert "key1" in keys
-            assert "key2" in keys
+# TestApiKeyAuth env-key tests moved to test_auth_rbac.py::TestAPIKeyAuthProvider
 
 
 class TestReceiptSigning(unittest.TestCase):
@@ -267,27 +235,37 @@ class TestReceiptSigning(unittest.TestCase):
     def test_dev_mode_when_no_secret(self):
         with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
             from core.audit import build_tmr_receipt
+
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
             assert receipt["signature"] == "UNSIGNED_DEV_MODE"
             assert "warning" in receipt
 
     def test_signed_when_secret_set(self):
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret-key"}, clear=False):
+        with patch.dict(
+            os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret-key"}, clear=False
+        ):
             from core.audit import build_tmr_receipt
+
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
             assert receipt["signature"] != "UNSIGNED_DEV_MODE"
             assert len(receipt["signature"]) == 64  # SHA-256 hex
 
     def test_different_decisions_different_signatures(self):
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}, clear=False):
+        with patch.dict(
+            os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}, clear=False
+        ):
             from core.audit import build_tmr_receipt
+
             r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
             r2 = build_tmr_receipt(decision="DENIED", policy_hash="abc")
             assert r1["signature"] != r2["signature"]
 
     def test_no_warning_when_secret_set(self):
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "real-secret"}, clear=False):
+        with patch.dict(
+            os.environ, {"ALETHEIA_RECEIPT_SECRET": "real-secret"}, clear=False
+        ):
             from core.audit import build_tmr_receipt
+
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
             assert "warning" not in receipt
 
@@ -299,6 +277,7 @@ class TestPayloadHashing(unittest.TestCase):
         with patch("core.audit.settings") as mock_settings:
             mock_settings.mode = "active"
             from core.audit import _hash_payload
+
             result = _hash_payload("sensitive user input")
             assert "payload_sha256" in result
             assert "payload_length" in result
@@ -309,17 +288,20 @@ class TestPayloadHashing(unittest.TestCase):
         with patch("core.audit.settings") as mock_settings:
             mock_settings.mode = "shadow"
             from core.audit import _hash_payload
+
             result = _hash_payload("test payload")
             assert "payload_preview" in result
 
     def test_hash_is_deterministic(self):
         from core.audit import _hash_payload
+
         r1 = _hash_payload("same input")
         r2 = _hash_payload("same input")
         assert r1["payload_sha256"] == r2["payload_sha256"]
 
     def test_length_is_accurate(self):
         from core.audit import _hash_payload
+
         payload = "exactly twenty chars"
         result = _hash_payload(payload)
         assert result["payload_length"] == len(payload)
@@ -329,9 +311,7 @@ class TestPayloadHashing(unittest.TestCase):
 # Red-team fix tests — appended
 # ---------------------------------------------------------------------------
 
-import os
-import unittest
-from unittest.mock import patch
+import unittest  # noqa: E402
 
 
 class TestReceiptReplayProtection(unittest.TestCase):
@@ -340,6 +320,7 @@ class TestReceiptReplayProtection(unittest.TestCase):
     def test_receipt_includes_payload_sha256(self):
         with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}):
             from core.audit import build_tmr_receipt
+
             receipt = build_tmr_receipt(
                 decision="PROCEED",
                 policy_hash="abc123",
@@ -352,26 +333,40 @@ class TestReceiptReplayProtection(unittest.TestCase):
     def test_different_actions_different_signatures(self):
         with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}):
             from core.audit import build_tmr_receipt
+
             r1 = build_tmr_receipt(
-                decision="PROCEED", policy_hash="abc",
-                payload_sha256="xyz", action="summarize", origin="admin"
+                decision="PROCEED",
+                policy_hash="abc",
+                payload_sha256="xyz",
+                action="summarize",
+                origin="admin",
             )
             r2 = build_tmr_receipt(
-                decision="PROCEED", policy_hash="abc",
-                payload_sha256="xyz", action="transfer_funds", origin="admin"
+                decision="PROCEED",
+                policy_hash="abc",
+                payload_sha256="xyz",
+                action="transfer_funds",
+                origin="admin",
             )
             assert r1["signature"] != r2["signature"]
 
     def test_different_origins_different_signatures(self):
         with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}):
             from core.audit import build_tmr_receipt
+
             r1 = build_tmr_receipt(
-                decision="PROCEED", policy_hash="abc",
-                payload_sha256="xyz", action="summarize", origin="trusted_admin"
+                decision="PROCEED",
+                policy_hash="abc",
+                payload_sha256="xyz",
+                action="summarize",
+                origin="trusted_admin",
             )
             r2 = build_tmr_receipt(
-                decision="PROCEED", policy_hash="abc",
-                payload_sha256="xyz", action="summarize", origin="untrusted"
+                decision="PROCEED",
+                policy_hash="abc",
+                payload_sha256="xyz",
+                action="summarize",
+                origin="untrusted",
             )
             assert r1["signature"] != r2["signature"]
 
@@ -381,22 +376,27 @@ class TestThreatLevelDiscretisation(unittest.TestCase):
 
     def test_low_score_returns_band(self):
         from bridge.fastapi_wrapper import _discretise_threat
+
         assert _discretise_threat(1.0) == "LOW"
 
     def test_medium_score_returns_band(self):
         from bridge.fastapi_wrapper import _discretise_threat
+
         assert _discretise_threat(4.5) == "MEDIUM"
 
     def test_high_score_returns_band(self):
         from bridge.fastapi_wrapper import _discretise_threat
+
         assert _discretise_threat(7.0) == "HIGH"
 
     def test_critical_score_returns_band(self):
         from bridge.fastapi_wrapper import _discretise_threat
+
         assert _discretise_threat(9.5) == "CRITICAL"
 
     def test_returns_string_not_float(self):
         from bridge.fastapi_wrapper import _discretise_threat
+
         result = _discretise_threat(5.0)
         assert isinstance(result, str)
         assert "." not in result
@@ -408,13 +408,16 @@ class TestShadowModeOracle(unittest.TestCase):
     def test_shadow_verdict_not_in_response_keys(self):
         # This is a structural test — if shadow_verdict is in the response
         # schema, this test catches it before deployment
-        import ast, inspect
+        import inspect
+
         try:
             from bridge import fastapi_wrapper
+
             source = inspect.getsource(fastapi_wrapper.secure_audit)
             # shadow_verdict should not be added to the response dict
-            assert 'response["shadow_verdict"]' not in source, \
-                "shadow_verdict must not be returned to client"
+            assert (
+                'response["shadow_verdict"]' not in source
+            ), "shadow_verdict must not be returned to client"
         except ImportError:
             self.skipTest("fastapi_wrapper not importable without model")
 
@@ -425,9 +428,11 @@ class TestUtilsNoStdoutLeakage(unittest.TestCase):
     def test_homoglyph_detection_uses_logger_not_print(self):
         import inspect
         from bridge import utils
+
         source = inspect.getsource(utils.normalize_shadow_text)
-        assert "print(" not in source, \
-            "normalize_shadow_text must use logging not print()"
+        assert (
+            "print(" not in source
+        ), "normalize_shadow_text must use logging not print()"
 
 
 class TestBase64SizeLimit(unittest.TestCase):
@@ -436,6 +441,7 @@ class TestBase64SizeLimit(unittest.TestCase):
     def test_normal_base64_decodes(self):
         import base64
         from bridge.utils import normalize_shadow_text
+
         payload = "hello world"
         encoded = base64.b64encode(payload.encode()).decode()
         result = normalize_shadow_text(encoded)
@@ -445,6 +451,7 @@ class TestBase64SizeLimit(unittest.TestCase):
         """A payload that decodes to 10x+ its size should not be processed."""
         import base64
         from bridge.utils import normalize_shadow_text
+
         # Create a string that when base64 decoded would be much larger
         # We test that the function doesn't crash and returns something safe
         large = "A" * 100
@@ -459,11 +466,12 @@ class TestScoutHistoryCap(unittest.TestCase):
 
     def test_query_history_has_size_cap(self):
         from agents.scout_v2 import AletheiaScoutV2
+
         scout = AletheiaScoutV2()
-        assert hasattr(scout, '_query_history_max'), \
-            "Scout must have _query_history_max to prevent memory exhaustion"
-        assert scout._query_history_max <= 50_000, \
-            "Cap must be a reasonable limit"
+        assert hasattr(
+            scout, "_query_history_max"
+        ), "Scout must have _query_history_max to prevent memory exhaustion"
+        assert scout._query_history_max <= 50_000, "Cap must be a reasonable limit"
 
 
 if __name__ == "__main__":

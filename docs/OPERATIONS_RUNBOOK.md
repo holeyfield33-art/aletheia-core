@@ -1,4 +1,4 @@
-# Operations Runbook — Aletheia Core v1.7.0
+# Operations Runbook — Aletheia Core v1.9.0
 
 This document covers day-to-day operations, environment setup, and troubleshooting
 for a production Aletheia Core deployment.
@@ -13,25 +13,24 @@ Canonical env matrix: `docs/ENVIRONMENT_VARIABLES.md`
 |----------|----------|-------------|
 | `ALETHEIA_MODE` | Yes | `active` (production) / `shadow` (dev, log-only) / `monitor` |
 | `ALETHEIA_RECEIPT_SECRET` | Yes (active) | HMAC signing secret for audit receipts. Min 32 chars. Generate: `openssl rand -hex 32` |
-| `ALETHEIA_API_KEYS` | Yes (active) | Comma-separated API keys for `/v1/audit` authentication |
-| `ALETHEIA_ADMIN_KEY` | Yes (production) | Admin key for `/v1/keys` and `/v1/rotate` endpoints |
+| `UPSTASH_REDIS_REST_URL` | Yes (production) | Upstash Redis URL for rate limiting, replay defense, and decision store |
+| `UPSTASH_REDIS_REST_TOKEN` | Yes (production) | Upstash Redis auth token |
 | `ALETHEIA_ALIAS_SALT` | Recommended | Salt for daily alias rotation. Generate: `openssl rand -hex 32` |
 | `ALETHEIA_KEY_SALT` | Recommended | HMAC salt for key store hashing. Falls back to plain SHA-256 if unset |
 | `ALETHEIA_ANCHOR_STATE_PATH` | Optional | Path for proximity module identity anchor state persistence (requires `CONSCIOUSNESS_PROXIMITY_ENABLED=true`) |
 | `ALETHEIA_LOG_LEVEL` | Optional | `INFO` (default), `DEBUG`, `WARNING` |
 | `ALETHEIA_AUDIT_LOG_PATH` | Optional | Path to audit log file. Default: `audit.log` |
-| `UPSTASH_REDIS_REST_URL` | Optional | Upstash Redis URL for distributed rate limiting and replay defense |
-| `UPSTASH_REDIS_REST_TOKEN` | Optional | Upstash Redis auth token |
-| `ALETHEIA_TRUSTED_PROXY_DEPTH` | Optional | Number of trusted proxy hops (0–5, default: 1) |
+| `ALETHEIA_TRUSTED_PROXY_DEPTH` | Recommended | Number of trusted proxy hops (0–5, default: 1). Set >1 behind load balancers. |
 | `ALETHEIA_CORS_ORIGINS` | Optional | Comma-separated allowed CORS origins |
 | `ALETHEIA_MANIFEST_KEY_VERSION` | Optional | Key version tag for manifest signing (default: `v1`) |
-| `ALETHEIA_LOG_PII` | Optional | Set to `true` to disable PII redaction in audit logs (default: `false`) |
 
 ### Production checklist
 - `ALETHEIA_MODE=active` — required in production, refuses shadow mode
 - `ALETHEIA_RECEIPT_SECRET` — minimum 32 characters, required in active mode
-- `ALETHEIA_API_KEYS` — at least one key, required in active mode
+- `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
 - `ALETHEIA_ALIAS_SALT` — strongly recommended, rotation predictable without it
+- API keys — created via `POST /v1/keys` (KeyStore); `ALETHEIA_API_KEYS` env var is no longer supported
+- Admin access — via RBAC permissions (OIDC/SAML bearer tokens); `X-Admin-Key` is no longer supported
 
 ---
 
@@ -99,7 +98,7 @@ Verify startup succeeded by checking:
 ## Health and Readiness Endpoints
 
 ### GET /health
-Returns minimal status without auth. Extended diagnostics require `X-Admin-Key`.
+Returns minimal status without auth. Extended diagnostics available to authenticated admin users.
 Used by load balancers and uptime monitors.
 
 ```bash
@@ -108,14 +107,14 @@ curl https://your-app.onrender.com/health
 
 Expected (public): `{"status": "ok", "service": "aletheia-core"}`
 
-Admin diagnostics:
+Admin diagnostics (requires RBAC admin role via Bearer token):
 
 ```bash
 curl https://your-app.onrender.com/health \
-  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY"
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-Expected (admin): `{"status":"ok","service":"aletheia-core","version":"1.7.0",...}`
+Expected (admin): `{"status":"ok","service":"aletheia-core","version":"1.9.0",...}`
 
 ### GET /ready
 Returns subsystem readiness: manifest, Redis, anchor, receipt signing.
@@ -157,13 +156,13 @@ Configure your Prometheus scrape config to target `/metrics` on your deployment 
 ### Hot rotation via API
 ```bash
 curl -X POST https://your-app.onrender.com/v1/rotate \
-  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY"
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-Requires `ALETHEIA_ADMIN_KEY` to be set. Returns HTTP 200 on success, HTTP 429 if called within the 10-second cooldown window.
+Requires RBAC `SECRETS_ROTATE` permission. Returns HTTP 200 on success, HTTP 429 if called within the 10-second cooldown window.
 
 On rotation:
-- Reloads `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_API_KEYS`, `ALETHEIA_ALIAS_SALT`, `ALETHEIA_ADMIN_KEY` from environment
+- Reloads `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_ALIAS_SALT` from environment
 - Re-verifies the manifest signature
 - Rotates the Judge alias bank
 
@@ -181,7 +180,11 @@ Log rotation is configured in `deploy/logrotate.conf` for containerized deployme
 - Permissions: `0600` (owner read/write only)
 - Signals uvicorn to reopen log files after rotation
 
-### SQLite backups
+### SQLite backups (development only)
+
+> **Note:** Production deployments use Upstash Redis for the decision store.
+> SQLite is only used for the API key store and local development.
+
 `scripts/backup_sqlite.sh` provides hourly SQLite backups with integrity verification:
 ```bash
 # Manual run

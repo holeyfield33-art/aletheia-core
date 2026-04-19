@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Aletheia Core v1.8.0 environment reference.
+Aletheia Core v1.9.0 environment reference.
 
 - **Local**: development defaults
 - **Hosted**: Render / Vercel / container platform
@@ -16,8 +16,8 @@ Aletheia Core v1.8.0 environment reference.
 | `ENVIRONMENT` | Recommended | Yes | Set `production` for strict guards. |
 | `ACTIVE_MODE` | No | Recommended | Production safety confirmation. |
 | `ALETHEIA_MODE` | Recommended | Yes | `active`, `shadow`, `monitor`. |
-| `ALETHEIA_API_KEYS` | Optional | Recommended | Comma-separated `X-API-Key` values. |
-| `ALETHEIA_ADMIN_KEY` | Optional | Yes | Admin endpoints & `/health` detail. |
+| ~~`ALETHEIA_API_KEYS`~~ | — | **Removed** | Removed in v1.9.0. Use KeyStore (`POST /v1/keys`). |
+| ~~`ALETHEIA_ADMIN_KEY`~~ | — | **Removed** | Removed in v1.9.0. Use RBAC permissions. |
 | `ALETHEIA_RECEIPT_SECRET` | Recommended | Yes | HMAC key for signed receipts. |
 | `ALETHEIA_ALIAS_SALT` | Recommended | Recommended | Judge alias rotation salt. |
 | `ALETHEIA_ROTATION_SALT` | Recommended | Recommended | Nitpicker mode rotation HMAC. |
@@ -36,7 +36,7 @@ Aletheia Core v1.8.0 environment reference.
 | `DATABASE_URL` | Optional | Yes (postgres) | Postgres connection string. |
 | `ALETHEIA_SECRET_BACKEND` | Optional | Recommended | `env`/`vault`/`aws`/`azure`/`gcp`. |
 | `ALETHEIA_ALLOW_ENV_SECRETS` | Optional | If using `env` | Opt-in for env secrets in prod. |
-| `ALETHEIA_ALLOW_SQLITE_PRODUCTION` | Optional | If using `sqlite` | Opt-in for SQLite in prod. |
+| ~~`ALETHEIA_ALLOW_SQLITE_PRODUCTION`~~ | — | **Removed** | Removed in v1.9.0. Production requires Upstash Redis. |
 | `ALETHEIA_FIPS_MODE` | Optional | Optional | FIPS-140 compliance checks. |
 
 ---
@@ -54,7 +54,7 @@ Aletheia Core v1.8.0 environment reference.
 | `ALETHEIA_POLYMORPHIC_MODES` | Optional | Optional | Nitpicker mode list override. |
 | `ALETHEIA_CLIENT_ID` | Optional | Optional | Metadata client ID label. |
 | `ALETHEIA_LOG_LEVEL` | Optional | Optional | `INFO`, `DEBUG`, etc. |
-| `ALETHEIA_LOG_PII` | Optional | Optional | `true` disables PII redaction. |
+| ~~`ALETHEIA_LOG_PII`~~ | — | **Removed** | Removed in v1.9.0. PII is always redacted. |
 
 ---
 
@@ -65,8 +65,8 @@ Aletheia Core v1.8.0 environment reference.
 | `ALETHEIA_AUDIT_LOG_PATH` | Optional | Recommended | Audit log file path. |
 | `ALETHEIA_KEYSTORE_PATH` | Optional | Recommended | SQLite API key store path. |
 | `ALETHEIA_DECISION_DB_PATH` | Optional | Recommended | Decision store DB path. |
-| `UPSTASH_REDIS_REST_URL` | Optional | Recommended | Redis for rate limit/replay. |
-| `UPSTASH_REDIS_REST_TOKEN` | Optional | Recommended | Upstash Redis auth token. |
+| `UPSTASH_REDIS_REST_URL` | Optional | **Yes** | Redis for rate limit/replay/decision store. Required in production. |
+| `UPSTASH_REDIS_REST_TOKEN` | Optional | **Yes** | Upstash Redis auth token. Required in production. |
 | `ALETHEIA_RATE_LIMIT_PER_SECOND` | Optional | Optional | Per-IP request limit. |
 | `ALETHEIA_TRUSTED_PROXY_DEPTH` | Optional | Recommended | Trusted proxy hop count. |
 | `ALETHEIA_CORS_ORIGINS` | Optional | Recommended | CORS allowlist (comma-sep). |
@@ -160,14 +160,16 @@ NEXTAUTH_SECRET=<32+ chars>
 DATABASE_URL=<prod connection>
 DIRECT_URL=<prod direct connection>
 ALETHEIA_MODE=active
-ALETHEIA_API_KEYS=<comma-separated>
-ALETHEIA_ADMIN_KEY=<strong key>
 ALETHEIA_RECEIPT_SECRET=<strong key>
 ALETHEIA_ALIAS_SALT=<strong key>
 ALETHEIA_ROTATION_SALT=<strong key>
 ALETHEIA_KEY_SALT=<strong key>
 ALETHEIA_MANIFEST_HASH=<sha256 hex>
+UPSTASH_REDIS_REST_URL=<upstash url>
+UPSTASH_REDIS_REST_TOKEN=<upstash token>
 ```
 
-If horizontally scaled, also set `UPSTASH_REDIS_REST_URL`
-and `UPSTASH_REDIS_REST_TOKEN`.
+API keys are created via `POST /v1/keys` (KeyStore). Admin endpoints
+use RBAC permissions (OIDC/SAML bearer tokens). Upstash Redis is
+required for production deployments (rate limiting, replay defense,
+decision store).

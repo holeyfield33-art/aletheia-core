@@ -5,7 +5,6 @@ import hashlib
 import json
 import logging
 import os
-import secrets
 import sqlite3
 import tempfile
 import time
@@ -14,7 +13,7 @@ from dataclasses import dataclass
 import httpx
 
 from core.config import upstash_configured
-from core.persistence import DEFAULT_TENANT, tenant_scope
+from core.persistence import tenant_scope
 
 _logger = logging.getLogger("aletheia.decision_store")
 
@@ -38,6 +37,7 @@ class _SQLiteDecisionStore:
         self._lock = asyncio.Lock()
         # Enforce restrictive permissions on decision DB file
         from pathlib import Path as _Path
+
         db_file = _Path(self._db_path)
         db_file.parent.mkdir(parents=True, exist_ok=True)
         db_file.touch(exist_ok=True)
@@ -83,11 +83,15 @@ class _SQLiteDecisionStore:
             )
             # Migration: add tenant_id if missing (old single-PK schema)
             try:
-                cur.execute("ALTER TABLE decision_tokens ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'")
+                cur.execute(
+                    "ALTER TABLE decision_tokens ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+                )
             except sqlite3.OperationalError:
                 pass
             try:
-                cur.execute("ALTER TABLE deployment_bundle ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'")
+                cur.execute(
+                    "ALTER TABLE deployment_bundle ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+                )
             except sqlite3.OperationalError:
                 pass
             conn.commit()
@@ -110,7 +114,10 @@ class _SQLiteDecisionStore:
             conn = sqlite3.connect(self._db_path)
             try:
                 cur = conn.cursor()
-                cur.execute("DELETE FROM decision_tokens WHERE expires_at < ? AND tenant_id = ?", (now_ts, tid))
+                cur.execute(
+                    "DELETE FROM decision_tokens WHERE expires_at < ? AND tenant_id = ?",
+                    (now_ts, tid),
+                )
                 try:
                     cur.execute(
                         """
@@ -135,7 +142,14 @@ class _SQLiteDecisionStore:
             finally:
                 conn.close()
 
-    async def verify_bundle(self, *, policy_version: str, manifest_hash: str, now_ts: int, tenant_id: str | None = None) -> ReplayCheckResult:
+    async def verify_bundle(
+        self,
+        *,
+        policy_version: str,
+        manifest_hash: str,
+        now_ts: int,
+        tenant_id: str | None = None,
+    ) -> ReplayCheckResult:
         tid = tenant_scope(tenant_id)
         async with self._lock:
             conn = sqlite3.connect(self._db_path)
@@ -155,7 +169,9 @@ class _SQLiteDecisionStore:
 
                 existing_version, existing_hash = row
                 if existing_version != policy_version or existing_hash != manifest_hash:
-                    return ReplayCheckResult(accepted=False, reason="partial_deployment_drift")
+                    return ReplayCheckResult(
+                        accepted=False, reason="partial_deployment_drift"
+                    )
                 return ReplayCheckResult(accepted=True, reason="bundle_verified")
             finally:
                 conn.close()
@@ -215,17 +231,26 @@ class _UpstashDecisionStore:
             return ReplayCheckResult(accepted=False, reason="replay_detected")
         return ReplayCheckResult(accepted=True, reason="accepted")
 
-    async def verify_bundle(self, *, policy_version: str, manifest_hash: str, now_ts: int, tenant_id: str | None = None) -> ReplayCheckResult:
+    async def verify_bundle(
+        self,
+        *,
+        policy_version: str,
+        manifest_hash: str,
+        now_ts: int,
+        tenant_id: str | None = None,
+    ) -> ReplayCheckResult:
         tid = tenant_scope(tenant_id)
         bundle_key = f"tenant:{tid}:policy_bundle"
         expected = json.dumps(
             {"policy_version": policy_version, "manifest_hash": manifest_hash},
             sort_keys=True,
         )
-        result = await self._pipeline([
-            ["SET", bundle_key, expected, "NX", "EX", str(24 * 3600)],
-            ["GET", bundle_key],
-        ])
+        result = await self._pipeline(
+            [
+                ["SET", bundle_key, expected, "NX", "EX", str(24 * 3600)],
+                ["GET", bundle_key],
+            ]
+        )
         current = ""
         if len(result) > 1:
             current = result[1].get("result") or ""
@@ -235,11 +260,31 @@ class _UpstashDecisionStore:
 
 
 class DecisionStore:
-    """Distributed replay and deployment-drift guard with fail-closed degraded mode."""
+    """Distributed replay and deployment-drift guard with fail-closed degraded mode.
+
+    In production (ENVIRONMENT=production), a distributed backend (Upstash Redis)
+    is required. SQLite fallback is single-node only and refuses to start in production.
+    """
 
     def __init__(self) -> None:
         self._central_available = upstash_configured()
-        self._store = _UpstashDecisionStore() if self._central_available else _SQLiteDecisionStore()
+        if not self._central_available:
+            # Refuse SQLite fallback in production
+            if os.getenv("ENVIRONMENT", "").lower() == "production":
+                _logger.critical(
+                    "FATAL: Decision store requires a distributed backend in production. "
+                    "Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN or configure "
+                    "PostgreSQL. SQLite fallback is not safe for multi-worker deployments. "
+                    "Refusing to start."
+                )
+                import sys
+
+                sys.exit(1)
+        self._store = (
+            _UpstashDecisionStore()
+            if self._central_available
+            else _SQLiteDecisionStore()
+        )
         self._degraded = False
 
     @property
@@ -250,7 +295,9 @@ class DecisionStore:
     def degraded(self) -> bool:
         return self._degraded
 
-    async def verify_policy_bundle(self, policy_version: str, manifest_hash: str, *, tenant_id: str | None = None) -> ReplayCheckResult:
+    async def verify_policy_bundle(
+        self, policy_version: str, manifest_hash: str, *, tenant_id: str | None = None
+    ) -> ReplayCheckResult:
         now_ts = int(time.time())
         try:
             return await self._store.verify_bundle(
@@ -262,7 +309,9 @@ class DecisionStore:
         except Exception as exc:
             _logger.error("Decision store bundle verification failure: %s", exc)
             self._degraded = True
-            return ReplayCheckResult(accepted=False, reason="decision_store_unavailable")
+            return ReplayCheckResult(
+                accepted=False, reason="decision_store_unavailable"
+            )
 
     async def claim_decision(
         self,
@@ -291,7 +340,9 @@ class DecisionStore:
         except Exception as exc:
             _logger.error("Decision store claim failure: %s", exc)
             self._degraded = True
-            return ReplayCheckResult(accepted=False, reason="decision_store_unavailable")
+            return ReplayCheckResult(
+                accepted=False, reason="decision_store_unavailable"
+            )
 
 
 decision_store = DecisionStore()

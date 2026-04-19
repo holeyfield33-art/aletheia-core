@@ -1,15 +1,14 @@
 """Aletheia Core — API-key authentication provider.
 
-Wraps the existing X-API-Key auth logic (env-based keys + SQLite key
-store) behind the ``AuthProvider`` interface so it participates in the
-pluggable auth framework without any behavioural change.
+Authenticates via the KeyStore (SQLite/Postgres).  Environment-variable
+keys (ALETHEIA_API_KEYS) are **no longer accepted** — they bypassed
+hashing, quotas, and audit trails.  KeyStore is the only auth source.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-import secrets
 from typing import Optional
 
 from core.auth.base import AuthProvider
@@ -19,51 +18,37 @@ _logger = logging.getLogger("aletheia.auth.api_key")
 
 
 class APIKeyAuthProvider(AuthProvider):
-    """Authenticate via X-API-Key header.
+    """Authenticate via X-API-Key header using KeyStore only.
 
-    Two sources checked in priority order:
-
-    1. **Environment keys** (``ALETHEIA_API_KEYS`` CSV) — admin / demo,
-       no quota.  Role is ``operator`` by default; env keys that match
-       ``ALETHEIA_ADMIN_KEY`` are promoted to ``admin``.
-    2. **Key store** (SQLite) — trial / pro with monthly quota.
-       Role stored in the ``role`` column (default ``operator``).
+    KeyStore (SQLite/Postgres) is the sole authentication source.
+    Environment-variable keys (ALETHEIA_API_KEYS) are rejected — they
+    bypassed hashing, quotas, and the audit trail.
     """
 
     def __init__(self) -> None:
-        self._env_keys: set[str] = set()
-        self._reload_env_keys()
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _reload_env_keys(self) -> None:
-        raw = os.getenv("ALETHEIA_API_KEYS", "")
-        self._env_keys = {k.strip() for k in raw.split(",") if k.strip()}
+        # Fail-fast: refuse to start if env keys are configured in production
+        raw_env_keys = os.getenv("ALETHEIA_API_KEYS", "").strip()
+        if raw_env_keys and os.getenv("ENVIRONMENT", "").lower() == "production":
+            raise RuntimeError(
+                "FATAL: ALETHEIA_API_KEYS environment variable is set in production. "
+                "Environment-based API keys are no longer supported — they bypass "
+                "hashing, quotas, and audit trails. Use the KeyStore (POST /v1/keys) "
+                "to provision API keys. Remove ALETHEIA_API_KEYS to proceed."
+            )
+        if raw_env_keys:
+            _logger.warning(
+                "ALETHEIA_API_KEYS is set but will be IGNORED. "
+                "Environment-based API keys are deprecated. "
+                "Use the KeyStore (POST /v1/keys) to provision keys."
+            )
 
     async def authenticate(self, credential: str) -> Optional[AuthenticatedUser]:
         if not credential:
             return None
 
-        # 1. Check env-based keys (constant-time over ALL keys).
-        env_matches = [
-            secrets.compare_digest(credential, allowed)
-            for allowed in self._env_keys
-        ]
-        if any(env_matches):
-            # Check if this is the admin key
-            admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
-            is_admin = bool(admin_key and secrets.compare_digest(credential, admin_key))
-            roles = frozenset({"admin", "operator"}) if is_admin else frozenset({"operator"})
-            return AuthenticatedUser(
-                user_id="env_key",
-                roles=roles,
-                auth_method="api_key",
-            )
-
-        # 2. Check SQLite key store.
+        # Authenticate via KeyStore only.
         from core.key_store import key_store
+
         quota = key_store.check_and_increment(credential)
         if quota.allowed:
             record = key_store.lookup_by_hash(credential)

@@ -69,7 +69,7 @@ tamper-evident audit receipt — before it is allowed to execute.
 - **Release drafter**: Auto-generated changelog from PR labels.
 - **Dependabot auto-merge**: Approve minor, auto-squash patch dependency PRs.
 - **Stale bot**: Mark inactive issues/PRs after 30 days, close after 14 more.
-- **Production config opt-ins**: `ALETHEIA_ALLOW_SQLITE_PRODUCTION` and `ALETHEIA_ALLOW_ENV_SECRETS` for flexible deployment.
+- **Production config opt-ins**: `ALETHEIA_ALLOW_ENV_SECRETS` for flexible secret backend deployment. SQLite decision store is no longer available in production (Upstash Redis required).
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
@@ -80,7 +80,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 1018 (967 + 51 semantic layer) |
+| Tests passing | 1028 (967 + 51 semantic + 19 hardening phase 3, minus 9 deduplicated) |
 | Blocked semantic patterns | 24 (static) + Qdrant extended |
 | Semantic alias phrases (Judge) | 60+ across 6 restricted categories |
 | Core coverage | 89% |
@@ -219,7 +219,7 @@ Response:
 
 **GET** `/health`
 
-No auth required for the baseline probe. Detailed diagnostics require `X-Admin-Key`.
+No auth required for the baseline probe. Detailed diagnostics available to authenticated admin users.
 
 ```json
 {
@@ -228,7 +228,7 @@ No auth required for the baseline probe. Detailed diagnostics require `X-Admin-K
 }
 ```
 
-With valid `X-Admin-Key`, `/health` additionally returns:
+With RBAC admin credentials (Bearer token), `/health` additionally returns:
 `version`, `uptime_seconds`, `timestamp`, and `manifest_signature`.
 
 ---
@@ -268,9 +268,9 @@ Exported metrics:
 
 **POST** `/v1/rotate`
 
-Admin-only. Requires `X-Admin-Key` header matching `ALETHEIA_ADMIN_KEY`. Hot-rotates secrets without restart.
+Admin-only. Requires RBAC `SECRETS_ROTATE` permission via Bearer token. Hot-rotates secrets without restart.
 
-On rotation, reloads: `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_API_KEYS`, `ALETHEIA_ALIAS_SALT`, `ALETHEIA_ADMIN_KEY`. Re-verifies the manifest signature and rotates the Judge alias bank.
+On rotation, reloads: `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_ALIAS_SALT`. Re-verifies the manifest signature and rotates the Judge alias bank.
 
 **Cooldown:** 10 seconds between rotations. Returns HTTP 429 with `retry_after_seconds` if called too soon.
 
@@ -278,19 +278,19 @@ On rotation, reloads: `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_API_KEYS`, `ALETHEIA_
 
 ```bash
 curl -X POST http://localhost:8000/v1/rotate \
-  -H "X-Admin-Key: $ALETHEIA_ADMIN_KEY"
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 ---
 
-**Key Management Endpoints** (all require `X-Admin-Key` header):
+**Key Management Endpoints** (all require RBAC permissions via Bearer token):
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST /v1/keys` | Create a new API key (trial or pro plan). Returns raw key once. |
-| `GET /v1/keys` | List all keys (metadata only, no raw keys or hashes). |
-| `DELETE /v1/keys/{id}` | Revoke a key by ID. |
-| `GET /v1/keys/{id}/usage` | Get usage statistics for a key. |
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| `POST /v1/keys` | Create key | `KEYS_CREATE` | Create a new API key (trial or pro plan). Returns raw key once. |
+| `GET /v1/keys` | List keys | `KEYS_LIST` | List all keys (metadata only, no raw keys or hashes). |
+| `DELETE /v1/keys/{id}` | Revoke key | `KEYS_REVOKE` | Revoke a key by ID. |
+| `GET /v1/keys/{id}/usage` | Key usage | `KEYS_USAGE` | Get usage statistics for a key. |
 
 ---
 
@@ -429,7 +429,7 @@ The following controls are implemented and tested in the current codebase:
 | Ed25519 manifest signing | `manifest/signing.py` — detached signature verified before every policy load. Tamper or missing signature = hard veto. | `test_judge_manifest.py` |
 | Semantic intent veto | `agents/judge_v1.py` — cosine similarity against 50+ camouflage aliases across 6 restricted action categories. Two-tier veto: primary threshold (0.55) and grey-zone band (0.40–0.55) with keyword heuristics. | `test_judge.py`, `test_hardening.py` |
 | HMAC-signed audit receipts | `core/audit.py` — every decision produces an HMAC-SHA256 receipt binding decision, policy hash, payload SHA-256, action, and origin. | `test_enterprise.py` |
-| PII redaction | `core/audit.py` — email, phone, SSN, and credit card patterns replaced with `[REDACTED:<type>:<hash>]` before writing to audit logs. Controlled by `ALETHEIA_LOG_PII`. | `test_pii_redaction.py` |
+| PII redaction | `core/audit.py` — email, phone, SSN, and credit card patterns replaced with `[REDACTED:<type>:<hash>]` before writing to audit logs. Always enabled (cannot be disabled). | `test_pii_redaction.py` |
 | Config ownership enforcement | `core/config.py` — rejects config files writable by non-owners on shared hosts. | `test_config_ownership.py` |
 | Secret rotation | `core/secret_rotation.py` — hot-rotate secrets via `POST /v1/rotate` (admin-only, 10s cooldown) or `kill -SIGUSR1`. | `test_core.py` |
 | Input hardening | `bridge/utils.py` — NFKC normalization, zero-width character strip, recursive Base64 decode (up to 5 layers with 10× size bomb protection), URL percent-encoding decode. | `test_hardening.py` |
@@ -470,9 +470,7 @@ Below is the quick-start subset.
 
 | Variable | Required | Description |
 |---|---|---|
-| `ALETHEIA_API_KEYS` | Production | Comma-separated API keys for `X-API-Key` auth. Unset = open mode. |
 | `ALETHEIA_RECEIPT_SECRET` | YES (production) | HMAC secret for audit receipts. Service will NOT boot in active mode without this. Min 32 chars. Generate via `openssl rand -hex 32`. |
-| `ALETHEIA_ADMIN_KEY` | Production | Admin key for `/v1/keys` and `/v1/rotate` endpoints. Constant-time compared. |
 | `ALETHEIA_ALIAS_SALT` | RECOMMENDED | Salt for daily alias rotation. Prevents enumeration attacks. Generate via `openssl rand -hex 32`. |
 | `ALETHEIA_KEY_SALT` | RECOMMENDED | HMAC salt for key store hashing. Falls back to plain SHA-256 with a logged warning if unset. |
 | `ALETHEIA_MODE` | No | `active` (default), `shadow`, or `monitor`. Production refuses to start in shadow mode when `ENVIRONMENT=production`. |
@@ -484,11 +482,10 @@ Below is the quick-start subset.
 | `ALETHEIA_CONFIG_PATH` | No | Path to a YAML config file. Default: searches for `config.yaml` / `config.yml` in the working directory. |
 | `ALETHEIA_KEYSTORE_PATH` | No | Path to the key store SQLite database. |
 | `ALETHEIA_MANIFEST_KEY_VERSION` | No | Key version tag for manifest signing. Default: `v1`. |
-| `ALETHEIA_LOG_PII` | No | Set to `true` to disable PII redaction in audit logs. Default: `false` (PII is redacted). |
-| `UPSTASH_REDIS_REST_URL` | Recommended | Upstash Redis REST endpoint for distributed rate limiting. Falls back to in-memory if absent. |
-| `UPSTASH_REDIS_REST_TOKEN` | Recommended | Upstash Redis REST token. Required when URL is set. |
+| `UPSTASH_REDIS_REST_URL` | YES (production) | Upstash Redis REST endpoint for rate limiting and decision store. Required in production. |
+| `UPSTASH_REDIS_REST_TOKEN` | YES (production) | Upstash Redis REST token. Required when URL is set. |
 | `CONSCIOUSNESS_PROXIMITY_ENABLED` | No | Enable optional proximity module. Default: `false`. |
-| `ENVIRONMENT` | No | Set to `production` to enforce active mode and require `ALETHEIA_API_KEYS`. |
+| `ENVIRONMENT` | No | Set to `production` to enforce active mode and require KeyStore auth. |
 | `ALETHEIA_DB_PATH` | No | Path to the SQLite decision store. Default: `data/aletheia_decisions.sqlite3`. Used by backup script. |
 | `ALETHEIA_BACKUP_RETENTION_DAYS` | No | Days to retain SQLite backups. Default: `7`. Used by `scripts/backup_sqlite.sh`. |
 
@@ -512,12 +509,11 @@ if [ -z "$ALETHEIA_ALIAS_SALT" ]; then
   echo "WARNING: ALETHEIA_ALIAS_SALT not set — alias rotation is predictable"
 fi
 
-# ALETHEIA_API_KEYS must be set in active mode
-if [ -z "$ALETHEIA_API_KEYS" ]; then
-  echo "ERROR: ALETHEIA_API_KEYS not set — service will refuse to start in active mode"
+# Upstash Redis is required in production
+if [ -z "$UPSTASH_REDIS_REST_URL" ]; then
+  echo "ERROR: UPSTASH_REDIS_REST_URL not set — required in production"
   exit 1
 fi
-echo "ALETHEIA_API_KEYS length: ${#ALETHEIA_API_KEYS}"
 ```
 
 ### 2. Test the health endpoint

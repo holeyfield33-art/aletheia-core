@@ -4,15 +4,12 @@ from __future__ import annotations
 import logging
 import secrets
 import time as _time
-import traceback
 
 import hashlib
-import json
 import os
+import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -25,18 +22,18 @@ from bridge.utils import normalize_shadow_text
 from core.audit import log_audit_event
 from core.config import settings, env_bool, upstash_configured
 from core.auth import get_auth_provider
-from core.auth.models import AuthContext, AuthenticatedUser
+from core.auth.models import AuthContext
 from core.auth.rbac import Permission, require_permission, has_permission
 from core.embeddings import warm_up
 from core.rate_limit import rate_limiter
 from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
 from core.runtime_security import classify_blocked_intent
-from core.key_store import key_store, DEFAULT_QUOTAS
+from core.key_store import key_store
 from core.secret_rotation import install_sigusr1_handler, rotate_secrets
 from core.metrics import (
-    REQUEST_COUNTER, LATENCY_HISTOGRAM, ACTIVE_KEYS,
-    BLOCKED_ACTIONS_TOTAL,
+    REQUEST_COUNTER,
+    LATENCY_HISTOGRAM,
     metrics_response,
 )
 
@@ -46,6 +43,13 @@ _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 if not (0 <= _TRUSTED_PROXY_DEPTH <= 5):
     raise ValueError(
         f"ALETHEIA_TRUSTED_PROXY_DEPTH must be 0–5, got {_TRUSTED_PROXY_DEPTH}"
+    )
+if os.getenv("ENVIRONMENT", "").lower() == "production" and _TRUSTED_PROXY_DEPTH == 1:
+    _logger.warning(
+        "ALETHEIA_TRUSTED_PROXY_DEPTH is at default value (1) in production. "
+        "This may allow IP spoofing if your proxy chain has more than one hop. "
+        "Set ALETHEIA_TRUSTED_PROXY_DEPTH explicitly to match your infrastructure. "
+        "See docs/ENVIRONMENT_VARIABLES.md for guidance."
     )
 
 
@@ -101,6 +105,7 @@ async def _lifespan(application: FastAPI):
         if db_url:
             try:
                 import asyncpg
+
                 pg_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
                 async with pg_pool.acquire() as conn:
                     await conn.execute("SELECT 1")
@@ -109,11 +114,15 @@ async def _lifespan(application: FastAPI):
                 _logger.error("Postgres pool: connection failed — %s", exc)
                 if os.getenv("ENVIRONMENT", "").lower() == "production":
                     import sys
-                    _logger.critical("FATAL: cannot reach Postgres in production. Refusing to start.")
+
+                    _logger.critical(
+                        "FATAL: cannot reach Postgres in production. Refusing to start."
+                    )
                     sys.exit(1)
 
     # Audit export workers (Task 4 — Elasticsearch, Splunk, Webhook, Syslog)
     from core.exporters import start_export_workers, stop_export_workers
+
     start_export_workers()
 
     yield
@@ -130,7 +139,7 @@ async def _lifespan(application: FastAPI):
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.8.0",
+    version="1.9.0",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
     lifespan=_lifespan,
 )
@@ -141,7 +150,7 @@ _CORS_ORIGINS: list[str] = [
     o.strip()
     for o in os.getenv(
         "ALETHEIA_CORS_ORIGINS",
-        "https://app.aletheia-core.com,https://aletheia-core.com"
+        "https://app.aletheia-core.com,https://aletheia-core.com",
     ).split(",")
     if o.strip()
 ]
@@ -159,7 +168,7 @@ app.add_middleware(
     allow_origins=_CORS_ORIGINS,
     allow_credentials=False,
     allow_methods=["POST", "GET", "DELETE"],
-    allow_headers=["Content-Type", "X-API-Key", "X-Admin-Key"],
+    allow_headers=["Content-Type", "X-API-Key", "Authorization"],
     max_age=600,
 )
 
@@ -174,13 +183,17 @@ async def add_security_and_rate_limit_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; frame-ancestors 'none'"
+    )
     response.headers["Permissions-Policy"] = (
         "geolocation=(), microphone=(), camera=(), payment=()"
     )
     # Rate limit headers
     if hasattr(request.state, "rate_limit_remaining"):
-        response.headers["X-RateLimit-Remaining"] = str(request.state.rate_limit_remaining)
+        response.headers["X-RateLimit-Remaining"] = str(
+            request.state.rate_limit_remaining
+        )
     if hasattr(request.state, "retry_after"):
         response.headers["Retry-After"] = str(request.state.retry_after)
     return response
@@ -189,6 +202,7 @@ async def add_security_and_rate_limit_headers(request: Request, call_next):
 # ---------------------------------------------------------------------------
 # Unified auth middleware (enterprise auth layer)
 # ---------------------------------------------------------------------------
+
 
 @app.middleware("http")
 async def enterprise_auth_middleware(request: Request, call_next):
@@ -203,14 +217,13 @@ async def enterprise_auth_middleware(request: Request, call_next):
     identical to the original ``_check_api_key`` flow — this middleware
     just pre-populates the context for RBAC checks.
     """
-    # Skip auth for unauthenticated endpoints.
-    unauthenticated_paths = {"/health", "/ready", "/metrics", "/docs", "/openapi.json"}
+    # Skip auth for fully unauthenticated endpoints (no optional auth either).
+    unauthenticated_paths = {"/ready", "/docs", "/openapi.json"}
     if request.url.path in unauthenticated_paths:
         return await call_next(request)
 
-    credential = (
-        request.headers.get("authorization", "")
-        or request.headers.get("x-api-key", "")
+    credential = request.headers.get("authorization", "") or request.headers.get(
+        "x-api-key", ""
     )
     if credential:
         try:
@@ -229,63 +242,11 @@ async def enterprise_auth_middleware(request: Request, call_next):
 # Admin-key dependency for key management endpoints
 # ---------------------------------------------------------------------------
 
-def _check_admin_key(
-    request: Request,
-    x_admin_key: str | None = Header(default=None, alias="X-Admin-Key"),
-) -> None:
-    """Require X-Admin-Key header for key management operations.
-
-    Also accepts enterprise auth (OIDC/SAML) when the auth middleware
-    has already populated the request with an admin-role user.
-
-    In production (``ENVIRONMENT=production``), X-Admin-Key is rejected
-    unless ``ALETHEIA_ALLOW_ADMIN_KEY_IN_PROD=true`` is set (escape hatch).
-    Operators should migrate to OIDC/SAML with admin role.
-    """
-    # Enterprise auth: admin role supersedes X-Admin-Key.
-    ctx: AuthContext | None = getattr(request.state, "auth_context", None)
-    if ctx is not None and ctx.user.is_admin:
-        return
-
-    _env_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
-    _allow_in_prod = env_bool("ALETHEIA_ALLOW_ADMIN_KEY_IN_PROD")
-
-    if _env_is_production and not _allow_in_prod:
-        # Check if the request has an enterprise auth context with admin role instead.
-        # If so, allow through (enterprise auth supersedes X-Admin-Key).
-        # This path is hit when _check_admin_key is called as a dependency.
-        _logger.info(
-            "X-Admin-Key is disabled in production. "
-            "Use OIDC/SAML with admin role, or set ALETHEIA_ALLOW_ADMIN_KEY_IN_PROD=true."
-        )
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "admin_key_disabled",
-                "message": (
-                    "X-Admin-Key authentication is disabled in production. "
-                    "Use OIDC or SAML with an admin role instead."
-                ),
-            },
-        )
-
-    admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
-    if not admin_key:
-        raise HTTPException(
-            status_code=503,
-            detail={"error": "key_management_unavailable",
-                     "message": "Key management is not configured. Set ALETHEIA_ADMIN_KEY."},
-        )
-    if not x_admin_key or not secrets.compare_digest(x_admin_key, admin_key):
-        raise HTTPException(
-            status_code=401,
-            detail={"error": "unauthorized", "message": "Valid X-Admin-Key required."},
-        )
-
 
 # ---------------------------------------------------------------------------
 # Key management request models
 # ---------------------------------------------------------------------------
+
 
 class CreateKeyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -309,6 +270,7 @@ def _get_sovereign_runtime():
     global _sovereign_runtime
     if _sovereign_runtime is None:
         from core.unified_audit import UnifiedSovereignRuntime
+
         _sovereign_runtime = UnifiedSovereignRuntime()
     return _sovereign_runtime
 
@@ -319,7 +281,10 @@ async def _on_startup() -> None:
     import sys
 
     # If ENVIRONMENT=production, refuse shadow mode — deny-decisions must be enforced
-    if os.getenv("ENVIRONMENT", "").lower() == "production" and settings.mode != "active":
+    if (
+        os.getenv("ENVIRONMENT", "").lower() == "production"
+        and settings.mode != "active"
+    ):
         _logger.critical(
             "FATAL: ENVIRONMENT=production but ALETHEIA_MODE=%s. "
             "Production must run in active mode. "
@@ -349,17 +314,26 @@ async def _on_startup() -> None:
             _MIN_SECRET_LEN,
         )
         sys.exit(1)
-    if settings.mode == "active" and not _API_KEYS:
+    if settings.mode == "active":
         _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
         if not _auth_disabled:
+            # Verify KeyStore is operational
+            pass  # KeyStore availability is checked by its own init
+    # Block env-based API keys in production (removed — use KeyStore only)
+    if os.getenv("ALETHEIA_API_KEYS", "").strip():
+        if os.getenv("ENVIRONMENT", "").lower() == "production":
             _logger.critical(
-                "FATAL: No API keys configured and ALETHEIA_AUTH_DISABLED is not set. "
-                "The /v1/audit endpoint requires authentication. "
-                "Set ALETHEIA_API_KEYS to a comma-separated list of API keys, "
-                "or set ALETHEIA_AUTH_DISABLED=true for development only. "
-                "Refusing to start."
+                "FATAL: ALETHEIA_API_KEYS is set in production. "
+                "Environment-based API keys are no longer supported. "
+                "Use the KeyStore (POST /v1/keys) to provision keys. "
+                "Remove ALETHEIA_API_KEYS to proceed. Refusing to start."
             )
             sys.exit(1)
+        _logger.warning(
+            "ALETHEIA_API_KEYS is set but will be IGNORED. "
+            "Environment-based API keys are deprecated. "
+            "Use the KeyStore (POST /v1/keys) to provision keys."
+        )
     # Block ALETHEIA_AUTH_DISABLED in production
     if os.getenv("ENVIRONMENT", "").lower() == "production":
         if env_bool("ALETHEIA_AUTH_DISABLED"):
@@ -450,7 +424,7 @@ async def _on_startup() -> None:
 
     # Install SIGUSR1 handler for hot secret rotation
     install_sigusr1_handler(
-        reload_api_keys_fn=_reload_api_keys_live,
+        reload_api_keys_fn=None,
         reload_judge_fn=judge.load_policy,
     )
     _logger.info("Secret rotation handler installed (kill -SIGUSR1 to rotate)")
@@ -472,7 +446,10 @@ async def _global_exception_handler(request: Request, exc: Exception) -> JSONRes
     _logger.error("Unhandled exception: %s", exc, exc_info=(settings.mode != "active"))
     return JSONResponse(
         status_code=500,
-        content={"decision": "ERROR", "reason": "Internal processing error. See audit log."},
+        content={
+            "decision": "ERROR",
+            "reason": "Internal processing error. See audit log.",
+        },
     )
 
 
@@ -501,25 +478,9 @@ def _get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-def _load_api_keys() -> set[str]:
-    """Load allowed API keys from env. Returns empty set (auth disabled) if not set."""
-    raw = os.getenv("ALETHEIA_API_KEYS", "")
-    if not raw.strip():
-        return set()
-    return {k.strip() for k in raw.split(",") if k.strip()}
-
-
-_API_KEYS: set[str] = _load_api_keys()
-
-
-def _reload_api_keys_live() -> set[str]:
-    """Reload API keys from env and update the global set in-place."""
-    global _API_KEYS
-    _API_KEYS = _load_api_keys()
-    return _API_KEYS
-
-
-def _check_api_key(request: Request, x_api_key: str | None = Header(default=None)) -> None:
+def _check_api_key(
+    request: Request, x_api_key: str | None = Header(default=None)
+) -> None:
     """Dependency: validate X-API-Key header and enforce quota.
 
     Also accepts enterprise auth (OIDC/SAML) when the auth middleware
@@ -529,9 +490,8 @@ def _check_api_key(request: Request, x_api_key: str | None = Header(default=None
     Auth is REQUIRED by default. To explicitly disable (dev only),
     set ALETHEIA_AUTH_DISABLED=true. This never works in production.
 
-    Two key sources are checked in order:
-    1. Environment keys (``ALETHEIA_API_KEYS``) — admin / demo keys, no quota.
-    2. Key store (SQLite) — trial / pro keys with monthly quota enforcement.
+    Keys are authenticated exclusively via the KeyStore (SQLite/Postgres).
+    Environment-variable keys (ALETHEIA_API_KEYS) are no longer accepted.
     """
     # Enterprise auth: if the middleware already authenticated the user,
     # check permission and skip API-key validation.
@@ -541,7 +501,7 @@ def _check_api_key(request: Request, x_api_key: str | None = Header(default=None
 
     # Auth explicitly disabled (dev/testing only; blocked in production at startup)
     _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
-    if _auth_disabled and not _API_KEYS:
+    if _auth_disabled:
         return
 
     if not x_api_key:
@@ -550,13 +510,7 @@ def _check_api_key(request: Request, x_api_key: str | None = Header(default=None
             detail={"error": "unauthorized", "message": "Valid X-API-Key required."},
         )
 
-    # 1. Check env-based keys (admin / demo — no quota)
-    # Always compare against ALL keys to prevent timing oracle.
-    env_matches = [secrets.compare_digest(x_api_key, allowed) for allowed in _API_KEYS]
-    if any(env_matches):
-        return
-
-    # 2. Check key store (trial / pro — quota enforced)
+    # Authenticate via KeyStore only (trial / pro — quota enforced)
     quota = key_store.check_and_increment(x_api_key)
     if quota.allowed:
         return
@@ -638,6 +592,7 @@ def _sanitise_reason(reason: str) -> str:
 def _verify_manifest() -> bool:
     """Check manifest signature integrity. Returns True if valid."""
     from manifest.signing import verify_manifest_signature
+
     try:
         verify_manifest_signature(
             manifest_path="manifest/security_policy.json",
@@ -650,7 +605,7 @@ def _verify_manifest() -> bool:
 
 
 @app.get("/health")
-async def health_check(x_admin_key: str | None = Header(default=None, alias="X-Admin-Key")) -> dict:
+async def health_check(request: Request) -> dict:
     """Health endpoint. Public response is minimal; authenticated response includes diagnostics."""
     import datetime
 
@@ -662,6 +617,7 @@ async def health_check(x_admin_key: str | None = Header(default=None, alias="X-A
     redis_status = "not_configured"
     try:
         from core.redis_pool import get_redis_pool
+
         pool = await get_redis_pool()
         if pool is not None:
             await pool.ping()  # type: ignore[union-attr]
@@ -671,8 +627,8 @@ async def health_check(x_admin_key: str | None = Header(default=None, alias="X-A
         status = "degraded"
 
     # Public response: minimal — no version, uptime, or manifest details
-    admin_key = os.getenv("ALETHEIA_ADMIN_KEY", "").strip()
-    is_admin = bool(admin_key and x_admin_key and secrets.compare_digest(x_admin_key, admin_key))
+    ctx: AuthContext | None = getattr(request.state, "auth_context", None)
+    is_admin = ctx is not None and ctx.user.is_admin
 
     if not is_admin:
         return {"status": status, "service": "aletheia-core"}
@@ -711,6 +667,7 @@ async def readiness_check() -> JSONResponse:
     redis_ready = True
     try:
         from core.redis_pool import get_redis_pool
+
         pool = await get_redis_pool()
         if pool is not None:
             await pool.ping()  # type: ignore[union-attr]
@@ -742,20 +699,28 @@ async def prometheus_metrics(request: Request) -> Response:
         if os.getenv("ENVIRONMENT", "").lower() == "production":
             return JSONResponse(
                 status_code=403,
-                content={"error": "metrics_disabled",
-                         "message": "ALETHEIA_METRICS_TOKEN not configured. Metrics disabled in production."},
+                content={
+                    "error": "metrics_disabled",
+                    "message": "ALETHEIA_METRICS_TOKEN not configured. Metrics disabled in production.",
+                },
             )
         # Non-production: allow unauthenticated access with a warning
-        _logger.warning("ALETHEIA_METRICS_TOKEN not set — /metrics is publicly accessible")
+        _logger.warning(
+            "ALETHEIA_METRICS_TOKEN not set — /metrics is publicly accessible"
+        )
     else:
         auth_header = request.headers.get("authorization", "")
         expected = f"Bearer {_metrics_token}"
         if not auth_header or not secrets.compare_digest(auth_header, expected):
             return JSONResponse(
                 status_code=401,
-                content={"error": "unauthorized", "message": "Valid metrics token required."},
+                content={
+                    "error": "unauthorized",
+                    "message": "Valid metrics token required.",
+                },
             )
     from starlette.responses import Response as StarletteResponse
+
     body, content_type = metrics_response()
     return StarletteResponse(content=body, media_type=content_type)
 
@@ -770,6 +735,7 @@ def _is_read_only_action(action: str) -> bool:
 @app.post("/v1/audit", dependencies=[Depends(_check_api_key)])
 async def secure_audit(req: AuditRequest, request: Request) -> dict:
     import uuid
+
     client_ip = _get_client_ip(request)
     request_id = str(uuid.uuid4())[:16]
     start_time = _time.time()
@@ -781,9 +747,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     _auth_method = ctx.user.auth_method if ctx else ""
 
     # --- Degraded mode determination ---
-    degraded = bool(
-        getattr(rate_limiter, "degraded", False) or decision_store.degraded
-    )
+    degraded = bool(getattr(rate_limiter, "degraded", False) or decision_store.degraded)
     fallback_state = "degraded" if degraded else "normal"
 
     # --- Rate limiting (per-IP, tenant-scoped) ---
@@ -804,7 +768,10 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         )
         return JSONResponse(
             status_code=429,
-            content={"decision": "RATE_LIMITED", "reason": "Too many requests. Try again later."},
+            content={
+                "decision": "RATE_LIMITED",
+                "reason": "Too many requests. Try again later.",
+            },
             headers={"Retry-After": "5"},
         )
 
@@ -876,7 +843,10 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         )
         return JSONResponse(
             status_code=403,
-            content={"decision": "SANDBOX_BLOCKED", "reason": _sanitise_reason(sandbox_hit)},
+            content={
+                "decision": "SANDBOX_BLOCKED",
+                "reason": _sanitise_reason(sandbox_hit),
+            },
         )
 
     # 1. SCOUT PHASE
@@ -884,7 +854,9 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
 
     # 2. NITPICKER PHASE — semantic block check feeds the decision
     nitpicker_blocked, nitpicker_reason = nitpicker.check_semantic_block(clean_input)
-    clean_content = nitpicker.sanitize_intent(clean_input, req.origin, request_id=request_id)
+    clean_content = nitpicker.sanitize_intent(  # noqa: F841 — logged by sanitize_intent
+        clean_input, req.origin, request_id=request_id
+    )
 
     # 3. JUDGE PHASE — now includes payload for semantic veto
     is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)
@@ -920,7 +892,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
                 "SHADOW_MODE_BLOCKED: shadow_mode=true but ENVIRONMENT=production. "
                 "Refusing to override DENIED decision for action=%s origin=%s. "
                 "Fix configuration: set ALETHEIA_MODE=active for production.",
-                req.action, req.origin,
+                req.action,
+                req.origin,
             )
         else:
             decision = "PROCEED"
@@ -985,7 +958,11 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     # --- Unified Sovereign Runtime: chain signing (Gate C1) ---
     try:
         sovereign = _get_sovereign_runtime()
-        chain_request = {"action": req.action, "payload": req.payload, "origin": req.origin}
+        chain_request = {
+            "action": req.action,
+            "payload": req.payload,
+            "origin": req.origin,
+        }
         chain_result = sovereign.post_execution_sign(chain_request, dict(response))
         if chain_result.status == "PROCEED":
             response["metadata"]["chain_signature"] = chain_result.chain_signature
@@ -1003,11 +980,15 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
 
     return response
 
+
 # ---------------------------------------------------------------------------
 # Key management endpoints
 # ---------------------------------------------------------------------------
 
-@app.post("/v1/keys", dependencies=[Depends(_check_admin_key)])
+
+@app.post(
+    "/v1/keys", dependencies=[Depends(require_permission(Permission.KEYS_CREATE))]
+)
 async def create_key(req: CreateKeyRequest) -> JSONResponse:
     """Create a new API key.  Returns the raw key exactly once."""
     raw_key, record = key_store.create_key(name=req.name, plan=req.plan, role=req.role)
@@ -1020,7 +1001,7 @@ async def create_key(req: CreateKeyRequest) -> JSONResponse:
     )
 
 
-@app.get("/v1/keys", dependencies=[Depends(_check_admin_key)])
+@app.get("/v1/keys", dependencies=[Depends(require_permission(Permission.KEYS_LIST))])
 async def list_keys() -> JSONResponse:
     """List all API keys (metadata only — no raw keys or hashes)."""
     records = key_store.list_keys()
@@ -1029,7 +1010,10 @@ async def list_keys() -> JSONResponse:
     )
 
 
-@app.delete("/v1/keys/{key_id}", dependencies=[Depends(_check_admin_key)])
+@app.delete(
+    "/v1/keys/{key_id}",
+    dependencies=[Depends(require_permission(Permission.KEYS_REVOKE))],
+)
 async def revoke_key(key_id: str) -> JSONResponse:
     """Revoke an API key by ID."""
     if not key_id or len(key_id) > 64:
@@ -1038,12 +1022,18 @@ async def revoke_key(key_id: str) -> JSONResponse:
     if not success:
         raise HTTPException(
             status_code=404,
-            detail={"error": "key_not_found", "message": "Key not found or already revoked."},
+            detail={
+                "error": "key_not_found",
+                "message": "Key not found or already revoked.",
+            },
         )
     return JSONResponse(content={"status": "revoked", "id": key_id})
 
 
-@app.get("/v1/keys/{key_id}/usage", dependencies=[Depends(_check_admin_key)])
+@app.get(
+    "/v1/keys/{key_id}/usage",
+    dependencies=[Depends(require_permission(Permission.KEYS_USAGE))],
+)
 async def get_key_usage(key_id: str) -> JSONResponse:
     """Get usage statistics for a specific key."""
     if not key_id or len(key_id) > 64:
@@ -1061,11 +1051,14 @@ async def get_key_usage(key_id: str) -> JSONResponse:
 # Secret rotation endpoint
 # ---------------------------------------------------------------------------
 
-@app.post("/v1/rotate", dependencies=[Depends(_check_admin_key)])
+
+@app.post(
+    "/v1/rotate", dependencies=[Depends(require_permission(Permission.SECRETS_ROTATE))]
+)
 async def rotate_secrets_endpoint() -> JSONResponse:
     """Hot-rotate secrets without restart. Admin-only, rate-limited by cooldown."""
     result = rotate_secrets(
-        reload_api_keys_fn=_reload_api_keys_live,
+        reload_api_keys_fn=None,
         reload_judge_fn=judge.load_policy,
     )
     status_code = 200 if result.get("status") == "rotated" else 429
@@ -1078,8 +1071,10 @@ async def rotate_secrets_endpoint() -> JSONResponse:
 
 from starlette.websockets import WebSocket as _StarletteWS  # noqa: E402
 
+
 @app.websocket("/ws/audit")
 async def ws_audit_endpoint(ws: _StarletteWS) -> None:
     """Authenticated, tenant-scoped, PII-redacted live audit stream."""
     from core.ws_audit import ws_audit_handler
+
     await ws_audit_handler(ws)

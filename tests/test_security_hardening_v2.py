@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -160,10 +158,11 @@ class TestXFFIPExtraction:
 # ---------------------------------------------------------------------------
 
 
-class TestActiveModeMustHaveAPIKeys:
-    """Active mode must refuse to start without ALETHEIA_API_KEYS."""
+class TestActiveModeMustRejectEnvKeys:
+    """Active mode must reject ALETHEIA_API_KEYS in production."""
 
-    def test_startup_fails_without_api_keys_in_active_mode(self) -> None:
+    def test_startup_fails_with_env_keys_in_production(self) -> None:
+        """Setting ALETHEIA_API_KEYS in production causes startup failure."""
         from bridge.fastapi_wrapper import _on_startup
 
         mock_settings = MagicMock()
@@ -171,18 +170,17 @@ class TestActiveModeMustHaveAPIKeys:
 
         with (
             patch("bridge.fastapi_wrapper.settings", mock_settings),
-            patch("bridge.fastapi_wrapper._API_KEYS", set()),
             patch.dict(
                 "os.environ",
                 {
                     "ALETHEIA_RECEIPT_SECRET": "a" * 32,
                     "ALETHEIA_ALIAS_SALT": "test_salt",
+                    "ALETHEIA_API_KEYS": "some-env-key",
+                    "ENVIRONMENT": "production",
                 },
             ),
             patch("bridge.fastapi_wrapper.warm_up"),
         ):
-            # Ensure ALETHEIA_AUTH_DISABLED is not set (conftest sets it)
-            os.environ.pop("ALETHEIA_AUTH_DISABLED", None)
             with pytest.raises(SystemExit) as exc_info:
                 loop = asyncio.new_event_loop()
                 try:
@@ -295,27 +293,35 @@ class TestSanitisedVetoReasons:
 class TestUnauthenticatedAccessBlocked:
     """Verify API key enforcement on endpoints."""
 
-    def test_audit_endpoint_returns_401_when_keys_set_and_no_header(self) -> None:
+    @patch.dict(os.environ, {"ALETHEIA_AUTH_DISABLED": "false"})
+    def test_audit_endpoint_returns_401_without_credentials(self) -> None:
         from fastapi.testclient import TestClient
+        from bridge.fastapi_wrapper import app
 
-        with patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}):
-            from bridge.fastapi_wrapper import app
-
-            client = TestClient(app, raise_server_exceptions=False)
-            resp = client.post(
-                "/v1/audit",
-                json={
-                    "payload": "test payload",
-                    "origin": "test",
-                    "action": "test_action",
-                },
-            )
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/v1/audit",
+            json={
+                "payload": "test payload",
+                "origin": "test",
+                "action": "test_action",
+            },
+        )
         assert resp.status_code == 401
 
-    def test_audit_endpoint_accepts_valid_key(self) -> None:
+    @patch.dict(os.environ, {"ALETHEIA_AUTH_DISABLED": "false"})
+    def test_audit_endpoint_accepts_valid_keystore_key(self) -> None:
+        """A valid KeyStore key should not return 401."""
+        import tempfile
         from fastapi.testclient import TestClient
+        from core.key_store import KeyStore
 
-        with patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}):
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp.close()
+        store = KeyStore(db_path=tmp.name)
+        raw_key, _ = store.create_key("test")
+
+        with patch("bridge.fastapi_wrapper.key_store", store):
             from bridge.fastapi_wrapper import app
 
             client = TestClient(app, raise_server_exceptions=False)
@@ -326,18 +332,17 @@ class TestUnauthenticatedAccessBlocked:
                     "origin": "test",
                     "action": "test_action",
                 },
-                headers={"X-API-Key": "valid-key"},
+                headers={"X-API-Key": raw_key},
             )
+        os.unlink(tmp.name)
         assert resp.status_code != 401
 
     def test_health_endpoint_always_unauthenticated(self) -> None:
         from fastapi.testclient import TestClient
+        from bridge.fastapi_wrapper import app
 
-        with patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}):
-            from bridge.fastapi_wrapper import app
-
-            client = TestClient(app, raise_server_exceptions=False)
-            resp = client.get("/health")
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.get("/health")
         assert resp.status_code == 200
 
 
@@ -349,16 +354,33 @@ class TestUnauthenticatedAccessBlocked:
 class TestDegradedModeFailClosed:
     """Privileged actions must fail closed when remote dependencies degrade."""
 
+    def _make_auth_mock(self):
+        from core.auth.models import AuthenticatedUser
+
+        user = AuthenticatedUser(
+            user_id="test-user",
+            roles=frozenset({"operator"}),
+            auth_method="api_key",
+        )
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = user
+        return mock_provider
+
     def test_privileged_action_denied_in_degraded_mode(self) -> None:
         from fastapi.testclient import TestClient
 
         with (
-            patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}),
+            patch(
+                "bridge.fastapi_wrapper.get_auth_provider",
+                return_value=self._make_auth_mock(),
+            ),
             patch("bridge.fastapi_wrapper.rate_limiter.degraded", True),
             patch("bridge.fastapi_wrapper.decision_store._degraded", True),
             patch(
                 "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
-                new=AsyncMock(return_value=type("R", (), {"accepted": True, "reason": "ok"})()),
+                new=AsyncMock(
+                    return_value=type("R", (), {"accepted": True, "reason": "ok"})()
+                ),
             ),
         ):
             from bridge.fastapi_wrapper import app
@@ -371,7 +393,7 @@ class TestDegradedModeFailClosed:
                     "origin": "test",
                     "action": "transfer_funds",
                 },
-                headers={"X-API-Key": "valid-key"},
+                headers={"Authorization": "Bearer test-key"},
             )
         assert resp.status_code == 503
         assert resp.json()["reason"] == "degraded_mode_privileged_action_denied"
@@ -380,22 +402,45 @@ class TestDegradedModeFailClosed:
         from fastapi.testclient import TestClient
 
         with (
-            patch("bridge.fastapi_wrapper._API_KEYS", {"valid-key"}),
+            patch(
+                "bridge.fastapi_wrapper.get_auth_provider",
+                return_value=self._make_auth_mock(),
+            ),
             patch("bridge.fastapi_wrapper.rate_limiter.degraded", True),
             patch("bridge.fastapi_wrapper.decision_store._degraded", True),
             patch(
                 "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
-                new=AsyncMock(return_value=type("R", (), {"accepted": True, "reason": "ok"})()),
+                new=AsyncMock(
+                    return_value=type("R", (), {"accepted": True, "reason": "ok"})()
+                ),
             ),
             patch(
                 "bridge.fastapi_wrapper.decision_store.claim_decision",
-                new=AsyncMock(return_value=type("R", (), {"accepted": True, "reason": "accepted"})()),
+                new=AsyncMock(
+                    return_value=type(
+                        "R", (), {"accepted": True, "reason": "accepted"}
+                    )()
+                ),
             ),
-            patch("bridge.fastapi_wrapper.rate_limiter.allow", new=AsyncMock(return_value=True)),
-            patch("bridge.fastapi_wrapper.scout.evaluate_threat_context", return_value=(0.0, "ok")),
-            patch("bridge.fastapi_wrapper.nitpicker.sanitize_intent", return_value="safe"),
-            patch("bridge.fastapi_wrapper.judge.verify_action", return_value=(True, "Action Approved by the Judge.")),
-            patch("bridge.fastapi_wrapper.log_audit_event", return_value={"receipt": {"id": "r"}}),
+            patch(
+                "bridge.fastapi_wrapper.rate_limiter.allow",
+                new=AsyncMock(return_value=True),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.scout.evaluate_threat_context",
+                return_value=(0.0, "ok"),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.nitpicker.sanitize_intent", return_value="safe"
+            ),
+            patch(
+                "bridge.fastapi_wrapper.judge.verify_action",
+                return_value=(True, "Action Approved by the Judge."),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.log_audit_event",
+                return_value={"receipt": {"id": "r"}},
+            ),
         ):
             from bridge.fastapi_wrapper import app
 
@@ -407,6 +452,6 @@ class TestDegradedModeFailClosed:
                     "origin": "test",
                     "action": "read_status",
                 },
-                headers={"X-API-Key": "valid-key"},
+                headers={"Authorization": "Bearer test-key"},
             )
         assert resp.status_code == 200
