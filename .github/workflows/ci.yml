@@ -81,7 +81,7 @@ jobs:
         env:
           ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
