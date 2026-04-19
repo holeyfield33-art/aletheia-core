@@ -33,7 +33,7 @@ repos:
       - id: no-cors-wildcard
         name: Block CORS wildcard in config
         entry: >
-          bash -c 'if grep -rn "CORS.*\*\|cors.*\*\|allow_origins.*\*" "$@" 2>/dev/null | grep -v "^Binary"; then echo "ERROR - CORS wildcard (*) detected. Use explicit origins."; exit 1; fi'
+          bash -c 'if grep -rn "CORS.*\*\|cors.*\*\|allow_origins.*\*" "$@" 2>/dev/null | grep -v "^Binary"; then echo "ERROR - CORS wildcard (*) detected. Use explicit origins."; exit 1; fi' --
         language: system
         files: "\\.py$|\\.yaml$|\\.yml$|\\.json$|\\.env$|\\.toml$"
         exclude: "^\\.pre-commit-config\\.yaml$|^bridge/fastapi_wrapper\\.py$"
