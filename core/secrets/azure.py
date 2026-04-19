@@ -60,9 +60,9 @@ class AzureSecretManager(SecretManager):
             secret = self._client.get_secret(self._sanitise_name(key))
             return secret.value
         except Exception as exc:
-            _logger.debug(
+            _logger.debug(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
                 "Azure get_secret(%s) failed: %s", key, exc
-            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+            )
             return None
 
     async def set_secret(self, key: str, value: str) -> None:

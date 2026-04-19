@@ -137,9 +137,9 @@ class PgDecisionStore:
             self._degraded = False
             return ReplayCheckResult(accepted=True, reason="accepted")
         except Exception as exc:
-            _logger.error(
+            _logger.error(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
                 "PgDecisionStore claim_token error: %s", exc
-            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+            )
             self._degraded = True
             return ReplayCheckResult(
                 accepted=False, reason="decision_store_unavailable"

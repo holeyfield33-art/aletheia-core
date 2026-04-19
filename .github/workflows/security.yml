@@ -54,7 +54,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Semgrep
-        run: semgrep scan --config=p/security-audit --config=p/python --error --json -o semgrep_report.json .
+        run: |
+          semgrep scan --config=p/security-audit --config=p/python --error --json -o semgrep_report.json .
+          semgrep scan --config=p/security-audit --config=p/python --error .
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 

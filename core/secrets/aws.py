@@ -41,9 +41,9 @@ class AWSSecretManager(SecretManager):
             "/"
         )
         self._client = boto3.client("secretsmanager", region_name=region)
-        _logger.info(
+        _logger.info(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             "AWS Secrets Manager: region=%s prefix=%s", region, self._prefix
-        )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+        )
 
     def _name(self, key: str) -> str:
         return f"{self._prefix}/{key}"
@@ -55,9 +55,9 @@ class AWSSecretManager(SecretManager):
         except self._client.exceptions.ResourceNotFoundException:
             return None
         except Exception as exc:
-            _logger.debug(
+            _logger.debug(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
                 "AWS get_secret(%s) failed: %s", key, exc
-            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+            )
             return None
 
     async def set_secret(self, key: str, value: str) -> None:

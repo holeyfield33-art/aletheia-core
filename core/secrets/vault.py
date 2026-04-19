@@ -76,9 +76,9 @@ class VaultSecretManager(SecretManager):
             )
             return resp["data"]["data"].get("value")
         except Exception as exc:
-            _logger.debug(
+            _logger.debug(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
                 "Vault get_secret(%s) failed: %s", key, exc
-            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
+            )
             return None
 
     async def set_secret(self, key: str, value: str) -> None:
