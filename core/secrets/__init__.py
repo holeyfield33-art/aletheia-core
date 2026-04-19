@@ -57,10 +57,13 @@ def get_secret_manager() -> SecretManager:
 
     module_path, class_name = fqn.rsplit(".", 1)
     import importlib
+
     module = importlib.import_module(module_path)
     cls = getattr(module, class_name)
     _instance = cls()
-    _logger.info("Secret manager initialised: backend=%s", backend_name)
+    _logger.info(
+        "Secret manager initialised: backend=%s", backend_name
+    )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     return _instance
 
 

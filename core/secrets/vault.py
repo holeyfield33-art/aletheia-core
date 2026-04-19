@@ -55,9 +55,7 @@ class VaultSecretManager(SecretManager):
             self._client.token = token
             _logger.info("Vault: authenticated with static token")
         elif role_id and secret_id:
-            resp = self._client.auth.approle.login(
-                role_id=role_id, secret_id=secret_id
-            )
+            resp = self._client.auth.approle.login(role_id=role_id, secret_id=secret_id)
             self._client.token = resp["auth"]["client_token"]
             _logger.info("Vault: authenticated with AppRole")
         else:
@@ -72,11 +70,15 @@ class VaultSecretManager(SecretManager):
     async def get_secret(self, key: str) -> Optional[str]:
         try:
             resp = self._client.secrets.kv.v2.read_secret_version(
-                path=self._path(key), mount_point=self._mount, raise_on_deleted_version=True,
+                path=self._path(key),
+                mount_point=self._mount,
+                raise_on_deleted_version=True,
             )
             return resp["data"]["data"].get("value")
         except Exception as exc:
-            _logger.debug("Vault get_secret(%s) failed: %s", key, exc)
+            _logger.debug(
+                "Vault get_secret(%s) failed: %s", key, exc
+            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             return None
 
     async def set_secret(self, key: str, value: str) -> None:
@@ -89,7 +91,8 @@ class VaultSecretManager(SecretManager):
     async def delete_secret(self, key: str) -> None:
         try:
             self._client.secrets.kv.v2.delete_metadata_and_all_versions(
-                path=self._path(key), mount_point=self._mount,
+                path=self._path(key),
+                mount_point=self._mount,
             )
         except Exception:
             pass  # no-op if missing
@@ -98,7 +101,8 @@ class VaultSecretManager(SecretManager):
         try:
             search_path = f"{self._prefix}/{prefix.lower()}" if prefix else self._prefix
             resp = self._client.secrets.kv.v2.list_secrets(
-                path=search_path, mount_point=self._mount,
+                path=search_path,
+                mount_point=self._mount,
             )
             return sorted(resp["data"]["keys"])
         except Exception:

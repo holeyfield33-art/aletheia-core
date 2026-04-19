@@ -10,7 +10,10 @@ from typing import Any
 import logging as _logging
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
 
 _signing_logger = _logging.getLogger("aletheia.signing")
 
@@ -182,7 +185,9 @@ def verify_manifest_signature(
     try:
         signature_data = json.loads(_read_bytes(signature).decode("utf-8"))
     except json.JSONDecodeError as exc:
-        raise ManifestTamperedError("Manifest signature file is not valid JSON.") from exc
+        raise ManifestTamperedError(
+            "Manifest signature file is not valid JSON."
+        ) from exc
 
     required_fields = {
         "algorithm",
@@ -214,12 +219,15 @@ def verify_manifest_signature(
         raise ManifestTamperedError("Manifest expiry metadata mismatch.")
 
     try:
-        expiry = datetime.fromisoformat(str(signature_data["expires_at"]).replace("Z", "+00:00"))
+        expiry = datetime.fromisoformat(
+            str(signature_data["expires_at"]).replace("Z", "+00:00")
+        )
     except Exception as exc:
         raise ManifestTamperedError("Manifest expiry is malformed.") from exc
 
     now = datetime.now(timezone.utc)
     from datetime import timedelta
+
     grace_deadline = expiry + timedelta(days=_GRACE_PERIOD_DAYS)
 
     if now > grace_deadline:
@@ -252,5 +260,5 @@ def verify_manifest_signature(
 
     try:
         public_key.verify(signature_bytes, payload)
-    except Exception as exc:  # nosec B110 - explicit conversion to policy error
+    except Exception as exc:
         raise ManifestTamperedError("Manifest signature verification failed.") from exc

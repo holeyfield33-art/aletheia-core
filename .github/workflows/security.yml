@@ -43,7 +43,7 @@ jobs:
       - name: Fail on high-severity findings
         run: |
           bandit -r agents/ bridge/ core/ manifest/ proximity/ simulations/ \
-            -ll -ii --configfile pyproject.toml
+            -ll -ii --configfile pyproject.toml -f txt
 
   semgrep:
     name: Semgrep SAST

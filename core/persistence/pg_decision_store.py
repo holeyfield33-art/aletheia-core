@@ -7,13 +7,11 @@ scoped by ``tenant_id`` for hard multi-tenant isolation.
 
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import Optional
 
 from core.decision_store import ReplayCheckResult
-from core.persistence import DEFAULT_TENANT, tenant_scope
+from core.persistence import tenant_scope
 
 _logger = logging.getLogger("aletheia.persistence.pg_decision_store")
 
@@ -84,10 +82,13 @@ class PgDecisionStore:
                     )
                 """)
 
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO _decision_schema_version (id, version) VALUES (1, $1)
                 ON CONFLICT (id) DO UPDATE SET version = $1
-            """, _CURRENT_SCHEMA_VERSION)
+            """,
+                _CURRENT_SCHEMA_VERSION,
+            )
         _logger.info("PgDecisionStore schema at version %d", _CURRENT_SCHEMA_VERSION)
 
     # ------------------------------------------------------------------
@@ -112,7 +113,8 @@ class PgDecisionStore:
                 # Prune expired tokens
                 await conn.execute(
                     "DELETE FROM decision_tokens WHERE expires_at < $1 AND tenant_id = $2",
-                    now_ts, tid,
+                    now_ts,
+                    tid,
                 )
                 # Attempt insert (PK prevents duplicates)
                 try:
@@ -121,8 +123,13 @@ class PgDecisionStore:
                            (token, tenant_id, request_id, issued_at, expires_at,
                             policy_version, manifest_hash)
                            VALUES ($1, $2, $3, $4, $5, $6, $7)""",
-                        token, tid, request_id, now_ts, now_ts + ttl_seconds,
-                        policy_version, manifest_hash,
+                        token,
+                        tid,
+                        request_id,
+                        now_ts,
+                        now_ts + ttl_seconds,
+                        policy_version,
+                        manifest_hash,
                     )
                 except Exception:
                     # Unique constraint violation → replay
@@ -130,9 +137,13 @@ class PgDecisionStore:
             self._degraded = False
             return ReplayCheckResult(accepted=True, reason="accepted")
         except Exception as exc:
-            _logger.error("PgDecisionStore claim_token error: %s", exc)
+            _logger.error(
+                "PgDecisionStore claim_token error: %s", exc
+            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             self._degraded = True
-            return ReplayCheckResult(accepted=False, reason="decision_store_unavailable")
+            return ReplayCheckResult(
+                accepted=False, reason="decision_store_unavailable"
+            )
 
     async def verify_bundle(
         self,
@@ -155,14 +166,24 @@ class PgDecisionStore:
                     await conn.execute(
                         "INSERT INTO deployment_bundle (id, tenant_id, policy_version, "
                         "manifest_hash, updated_at) VALUES (1, $1, $2, $3, $4)",
-                        tid, policy_version, manifest_hash, now_ts,
+                        tid,
+                        policy_version,
+                        manifest_hash,
+                        now_ts,
                     )
                     return ReplayCheckResult(accepted=True, reason="bundle_registered")
 
-                if row["policy_version"] != policy_version or row["manifest_hash"] != manifest_hash:
-                    return ReplayCheckResult(accepted=False, reason="partial_deployment_drift")
+                if (
+                    row["policy_version"] != policy_version
+                    or row["manifest_hash"] != manifest_hash
+                ):
+                    return ReplayCheckResult(
+                        accepted=False, reason="partial_deployment_drift"
+                    )
                 return ReplayCheckResult(accepted=True, reason="bundle_verified")
         except Exception as exc:
             _logger.error("PgDecisionStore verify_bundle error: %s", exc)
             self._degraded = True
-            return ReplayCheckResult(accepted=False, reason="decision_store_unavailable")
+            return ReplayCheckResult(
+                accepted=False, reason="decision_store_unavailable"
+            )

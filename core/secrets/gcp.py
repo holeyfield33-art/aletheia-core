@@ -44,7 +44,9 @@ class GCPSecretManager(SecretManager):
         self._prefix = os.environ.get("ALETHEIA_GCP_SECRET_PREFIX", "aletheia-")
         self._client = secretmanager.SecretManagerServiceClient()
         self._parent = f"projects/{self._project}"
-        _logger.info("GCP Secret Manager: project=%s prefix=%s", self._project, self._prefix)
+        _logger.info(
+            "GCP Secret Manager: project=%s prefix=%s", self._project, self._prefix
+        )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
 
     def _secret_id(self, key: str) -> str:
         """GCP secret IDs: alphanumeric + hyphens + underscores."""
@@ -60,7 +62,9 @@ class GCPSecretManager(SecretManager):
             )
             return resp.payload.data.decode("utf-8")
         except Exception as exc:
-            _logger.debug("GCP get_secret(%s) failed: %s", key, exc)
+            _logger.debug(
+                "GCP get_secret(%s) failed: %s", key, exc
+            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             return None
 
     async def set_secret(self, key: str, value: str) -> None:

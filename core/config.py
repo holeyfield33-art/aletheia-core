@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 import yaml  # type: ignore[import-untyped]
 
@@ -31,7 +30,7 @@ def _validate_config_ownership(config_path: Path) -> None:
     Prevents privilege escalation via tampered config on shared hosts.
     """
     import logging as _logging
-    import stat
+
     _cfg_logger = _logging.getLogger("aletheia.config")
     try:
         st = config_path.stat()
@@ -49,6 +48,7 @@ def _validate_config_ownership(config_path: Path) -> None:
 def _load_yaml() -> dict:
     """Best-effort load of the first config file found on disk."""
     import logging as _logging
+
     _cfg_logger = _logging.getLogger("aletheia.config")
     for candidate in _CONFIG_SEARCH_PATHS:
         try:
@@ -58,7 +58,8 @@ def _load_yaml() -> dict:
                 if len(raw) > _MAX_CONFIG_SIZE:
                     _cfg_logger.error(
                         "Config file %s exceeds %d bytes — skipped",
-                        candidate, _MAX_CONFIG_SIZE,
+                        candidate,
+                        _MAX_CONFIG_SIZE,
                     )
                     continue
                 data = yaml.safe_load(raw)
@@ -82,8 +83,8 @@ class AletheiaSettings:
 
     # --- Semantic intent analysis ---
     embedding_model: str = "all-MiniLM-L6-v2"
-    intent_threshold: float = 0.55          # Judge veto cosine-sim threshold
-    grey_zone_lower: float = 0.40           # Grey-zone second-pass lower bound
+    intent_threshold: float = 0.55  # Judge veto cosine-sim threshold
+    grey_zone_lower: float = 0.40  # Grey-zone second-pass lower bound
     nitpicker_similarity_threshold: float = 0.45  # Nitpicker blocked-pattern threshold
 
     # --- Polymorphic rotation (config-driven, deterministic cycle) ---
@@ -92,15 +93,15 @@ class AletheiaSettings:
     )
 
     # --- Defence mode ---
-    mode: str = "active"                     # "active" | "shadow" | "monitor"
-    shadow_mode: bool = False                # Legacy compat — derived from mode
+    mode: str = "active"  # "active" | "shadow" | "monitor"
+    shadow_mode: bool = False  # Legacy compat — derived from mode
 
     # --- Logging ---
     log_level: str = "INFO"
     audit_log_path: str = "audit.log"
 
     # --- Policy ---
-    policy_threshold: float = 7.5            # Scout threat-score threshold
+    policy_threshold: float = 7.5  # Scout threat-score threshold
 
     # --- Rate limiting ---
     rate_limit_per_second: int = 10
@@ -109,26 +110,26 @@ class AletheiaSettings:
     client_id: str = "ALETHEIA_ENTERPRISE"
 
     # --- Enterprise auth (Task 1) ---
-    secret_backend: str = "env"              # "env" | "vault" | "aws" | "azure" | "gcp"
-    auth_provider: str = "api_key"           # "api_key" | "oidc" | "saml" | "multi"
+    secret_backend: str = "env"  # "env" | "vault" | "aws" | "azure" | "gcp"
+    auth_provider: str = "api_key"  # "api_key" | "oidc" | "saml" | "multi"
 
     # OIDC settings (used when auth_provider includes OIDC)
-    oidc_issuer: str = ""                    # e.g. https://accounts.google.com
+    oidc_issuer: str = ""  # e.g. https://accounts.google.com
     oidc_client_id: str = ""
-    oidc_audience: str = ""                  # JWT ``aud`` claim to validate
-    oidc_role_claim: str = "aletheia_role"   # JWT claim containing role
+    oidc_audience: str = ""  # JWT ``aud`` claim to validate
+    oidc_role_claim: str = "aletheia_role"  # JWT claim containing role
 
     # SAML settings
-    saml_metadata_url: str = ""              # IdP metadata endpoint
-    saml_entity_id: str = ""                 # SP entity ID
-    saml_acs_url: str = ""                   # Assertion Consumer Service URL
+    saml_metadata_url: str = ""  # IdP metadata endpoint
+    saml_entity_id: str = ""  # SP entity ID
+    saml_acs_url: str = ""  # Assertion Consumer Service URL
 
     # --- HA Persistence (Task 2) ---
-    database_backend: str = "sqlite"         # "sqlite" | "postgres"
-    database_url: str = ""                   # PostgreSQL connection string
+    database_backend: str = "sqlite"  # "sqlite" | "postgres"
+    database_url: str = ""  # PostgreSQL connection string
 
     # --- FIPS-140 mode (Task 5) ---
-    fips_mode: bool = False                  # Restrict to FIPS-approved crypto
+    fips_mode: bool = False  # Restrict to FIPS-approved crypto
 
     def __post_init__(self) -> None:
         self.shadow_mode = self.mode == "shadow"
@@ -173,6 +174,7 @@ class AletheiaSettings:
         # FIPS-140 mode validation
         if self.fips_mode:
             import logging as _fips_log
+
             _fl = _fips_log.getLogger("aletheia.config")
             _fl.info(
                 "FIPS-140 mode enabled — only FIPS-approved algorithms "
@@ -240,7 +242,9 @@ class AletheiaSettings:
             log_level=_get("log_level", defaults.log_level),
             audit_log_path=_get("audit_log_path", defaults.audit_log_path),
             policy_threshold=_get("policy_threshold", defaults.policy_threshold),
-            rate_limit_per_second=_get("rate_limit_per_second", defaults.rate_limit_per_second),
+            rate_limit_per_second=_get(
+                "rate_limit_per_second", defaults.rate_limit_per_second
+            ),
             client_id=_get("client_id", defaults.client_id),
             secret_backend=_get("secret_backend", defaults.secret_backend),
             auth_provider=_get("auth_provider", defaults.auth_provider),
@@ -265,8 +269,7 @@ def upstash_configured() -> bool:
     """True when both UPSTASH_REDIS_REST_URL and
     UPSTASH_REDIS_REST_TOKEN are set."""
     return bool(
-        os.getenv("UPSTASH_REDIS_REST_URL")
-        and os.getenv("UPSTASH_REDIS_REST_TOKEN")
+        os.getenv("UPSTASH_REDIS_REST_URL") and os.getenv("UPSTASH_REDIS_REST_TOKEN")
     )
 
 
@@ -321,10 +324,11 @@ def validate_fips_compliance() -> list[str]:
     # Ed25519 is FIPS 186-5 approved.  Check that no MD5 or SHA-1 is used.
     try:
         import hashlib
+
         # Attempt to detect if FIPS mode is enforced at the OpenSSL level
         if hasattr(hashlib, "md5"):
             try:
-                hashlib.md5(b"test", usedforsecurity=True)
+                hashlib.md5(b"test", usedforsecurity=True)  # nosec B324  # nosemgrep: python.lang.security.insecure-hash-algorithms-md5.insecure-hash-algorithm-md5
             except ValueError:
                 pass  # Good — OpenSSL FIPS provider blocks MD5
     except Exception:
@@ -332,7 +336,9 @@ def validate_fips_compliance() -> list[str]:
     # Verify Ed25519 signing key is present (required for manifest integrity)
     manifest_key = Path("manifest/security_policy.ed25519.pub")
     if not manifest_key.is_file():
-        violations.append("FIPS: Ed25519 public key missing at manifest/security_policy.ed25519.pub")
+        violations.append(
+            "FIPS: Ed25519 public key missing at manifest/security_policy.ed25519.pub"
+        )
     # Verify receipt secret uses adequate length
     receipt_secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "")
     if receipt_secret and len(receipt_secret) < 32:
@@ -377,9 +383,7 @@ def validate_production_config() -> list[str]:
     # Secret backend should not be plain env in production
     # Allow explicit opt-in via ALETHEIA_ALLOW_ENV_SECRETS=true for
     # open-source / free-tier deployments that don't run Vault.
-    if settings.secret_backend == "env" and not env_bool(
-        "ALETHEIA_ALLOW_ENV_SECRETS"
-    ):
+    if settings.secret_backend == "env" and not env_bool("ALETHEIA_ALLOW_ENV_SECRETS"):
         issues.append(
             "Production should use a secrets manager (vault/aws/azure/gcp) "
             "instead of secret_backend=env. Set ALETHEIA_ALLOW_ENV_SECRETS=true "

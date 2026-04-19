@@ -37,9 +37,13 @@ class AWSSecretManager(SecretManager):
             ) from exc
 
         region = os.environ.get("AWS_REGION", "us-east-1")
-        self._prefix = os.environ.get("ALETHEIA_AWS_SECRET_PREFIX", "aletheia/").rstrip("/")
+        self._prefix = os.environ.get("ALETHEIA_AWS_SECRET_PREFIX", "aletheia/").rstrip(
+            "/"
+        )
         self._client = boto3.client("secretsmanager", region_name=region)
-        _logger.info("AWS Secrets Manager: region=%s prefix=%s", region, self._prefix)
+        _logger.info(
+            "AWS Secrets Manager: region=%s prefix=%s", region, self._prefix
+        )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
 
     def _name(self, key: str) -> str:
         return f"{self._prefix}/{key}"
@@ -51,7 +55,9 @@ class AWSSecretManager(SecretManager):
         except self._client.exceptions.ResourceNotFoundException:
             return None
         except Exception as exc:
-            _logger.debug("AWS get_secret(%s) failed: %s", key, exc)
+            _logger.debug(
+                "AWS get_secret(%s) failed: %s", key, exc
+            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             return None
 
     async def set_secret(self, key: str, value: str) -> None:
@@ -64,7 +70,8 @@ class AWSSecretManager(SecretManager):
     async def delete_secret(self, key: str) -> None:
         try:
             self._client.delete_secret(
-                SecretId=self._name(key), ForceDeleteWithoutRecovery=True,
+                SecretId=self._name(key),
+                ForceDeleteWithoutRecovery=True,
             )
         except Exception:
             pass

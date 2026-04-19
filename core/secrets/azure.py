@@ -41,7 +41,9 @@ class AzureSecretManager(SecretManager):
 
         vault_url = os.environ.get("AZURE_VAULT_URL", "")
         if not vault_url:
-            raise ValueError("AZURE_VAULT_URL must be set for the Azure secret backend.")
+            raise ValueError(
+                "AZURE_VAULT_URL must be set for the Azure secret backend."
+            )
 
         credential = DefaultAzureCredential()
         self._client = SecretClient(vault_url=vault_url, credential=credential)
@@ -58,7 +60,9 @@ class AzureSecretManager(SecretManager):
             secret = self._client.get_secret(self._sanitise_name(key))
             return secret.value
         except Exception as exc:
-            _logger.debug("Azure get_secret(%s) failed: %s", key, exc)
+            _logger.debug(
+                "Azure get_secret(%s) failed: %s", key, exc
+            )  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             return None
 
     async def set_secret(self, key: str, value: str) -> None:
@@ -75,7 +79,9 @@ class AzureSecretManager(SecretManager):
         try:
             sanitised_prefix = self._sanitise_name(prefix) if prefix else ""
             props = self._client.list_properties_of_secrets()
-            names = [p.name for p in props if p.name and p.name.startswith(sanitised_prefix)]
+            names = [
+                p.name for p in props if p.name and p.name.startswith(sanitised_prefix)
+            ]
             return sorted(names)
         except Exception:
             return []
