@@ -16,7 +16,8 @@ anyio==4.13.0 \
     # via
     #   httpx
     #   starlette
-asyncpg==0.30.0
+asyncpg==0.30.0 \
+    --hash=sha256:c551e9928ab6707602f44811817f82ba3c446e018bfe1d3abecc8ba5f3eac851
     # via -r requirements.in
 certifi==2026.2.25 \
     --hash=sha256:027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa \
