@@ -20,7 +20,7 @@ const SANITIZED_ERROR = { error: "request_failed" };
 /** CORS headers specific to the demo proxy. */
 const corsHeaders: Record<string, string> = {
   "X-XSS-Protection": "0",
-  "Access-Control-Allow-Origin": process.env.ALETHEIA_CORS_ORIGIN ?? "https://aletheia-core.com",
+  "Access-Control-Allow-Origin": process.env.ALETHEIA_CORS_ORIGIN ?? "https://app.aletheia-core.com",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "600",
