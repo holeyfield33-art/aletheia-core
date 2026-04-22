@@ -22,7 +22,6 @@ _CONFIG_SEARCH_PATHS = [
 
 
 _MAX_CONFIG_SIZE = 100_000  # 100 KB — prevents YAML bomb variants
-_ALLOWED_MODES = ("active", "shadow", "monitor")
 
 
 def _validate_config_ownership(config_path: Path) -> None:
@@ -76,21 +75,6 @@ def _load_yaml() -> dict:
 
 def _env(key: str, default: str = "") -> str:
     return os.getenv(key, default)
-
-
-def _normalize_mode(raw_mode: str) -> str:
-    """Normalize accepted mode aliases and UI placeholder values."""
-    normalized = (raw_mode or "").strip().lower()
-    if normalized in _ALLOWED_MODES:
-        return normalized
-
-    # Some deployments accidentally set placeholders like
-    # "active / shadow / monitor"; pick the first valid token.
-    for token in normalized.replace("|", "/").split("/"):
-        candidate = token.strip()
-        if candidate in _ALLOWED_MODES:
-            return candidate
-    return normalized
 
 
 @dataclass
@@ -148,7 +132,6 @@ class AletheiaSettings:
     fips_mode: bool = False  # Restrict to FIPS-approved crypto
 
     def __post_init__(self) -> None:
-        self.mode = _normalize_mode(self.mode)
         self.shadow_mode = self.mode == "shadow"
         # --- Enterprise threshold validation ---
         if not (0.0 <= self.intent_threshold <= 1.0):
@@ -169,7 +152,7 @@ class AletheiaSettings:
             raise ValueError(
                 f"policy_threshold must be >= 0, got {self.policy_threshold}"
             )
-        if self.mode not in _ALLOWED_MODES:
+        if self.mode not in ("active", "shadow", "monitor"):
             raise ValueError(
                 f"mode must be 'active', 'shadow', or 'monitor', got '{self.mode}'"
             )

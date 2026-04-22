@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.9.1] — 2026-04-22
+
+### Fixed
+- **`asyncpg` dependency**: Added to `pyproject.toml` core dependencies and `requirements.txt`
+  with hash pin. Resolves `ModuleNotFoundError` on Python 3.14 / Render production deploys
+  using a Postgres decision store backend.
+- **`ALETHEIA_MODE` startup validation**: Hardened parser now rejects whitespace-padded or
+  slash-delimited placeholder strings (e.g. `active / shadow / monitor`). Only `active`,
+  `shadow`, or `monitor` are accepted; any other value exits at startup.
+- **`ManifestTamperedError: key version mismatch`**: Documented that
+  `ALETHEIA_MANIFEST_KEY_VERSION` must be set to `v1` to match the committed
+  `manifest/security_policy.json.sig` and prevent startup failure on fresh deploys.
+- **Frontend API route** (`app/api`): Fixed TypeScript route handler for Next.js 14
+  app-directory routing.
+- **Stale version strings in docs**: `docs/API_REFERENCE.md`, `docs/OPERATIONS_RUNBOOK.md`,
+  and `docs/index.html` updated from stale `1.7.0` references to `1.9.1`.
+
+---
+
 ## [1.9.0] — 2026-04-19
 
 ### Security Hardening (Enterprise)

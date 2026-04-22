@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.9.0-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.9.1-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-1018%20passing-brightgreen" alt="Tests"/>
@@ -47,29 +47,17 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.9.0
+## What's New in v1.9.1
 
-### Qdrant Semantic Layer
-- **Extended vector search**: Nitpicker now queries a Qdrant vector store for pattern matches after the static pattern check. Fail-open on Qdrant errors — static patterns remain the safety floor.
-- **Symbolic narrowing** (`core/symbolic_narrowing.py`): Pre-filters payloads into coarse action × object buckets before vector search (direct_exfiltration, policy_evasion, data_destruction, privilege_escalation, credential_theft, auth_bypass, code_execution, recon, hybrid_composite).
-- **Vector store wrapper** (`core/vector_store.py`): Thread-safe lazy Qdrant client with 120ms timeout and fail-open semantics.
-- **Semantic manifest schema** (`core/semantic_manifest.py`): Pydantic models with threshold validation (0.0–1.0) and duplicate-ID detection.
-- **`ThresholdsConfig`**: Per-category cosine-similarity block thresholds (direct_exfiltration=0.86, policy_evasion=0.84, hybrid_composite=0.82, recon_alias=0.88).
-- **Index builder** (`scripts/build_semantic_index.py`): CLI to generate embeddings, upsert to Qdrant, create snapshot, and output signed `index_receipt.json`.
+### Deployment Fixes
+- **`asyncpg` added as core dependency**: Resolves `ModuleNotFoundError` on Python 3.14 / Render deployments with Postgres backends.
+- **`ALETHEIA_MODE` parsing hardened**: Normalized whitespace and slash-delimited placeholder values (e.g. `active / shadow / monitor`) are rejected at startup; only `active`, `shadow`, or `monitor` are accepted.
+- **`ALETHEIA_MANIFEST_KEY_VERSION` documented**: Startup failure (`ManifestTamperedError: key version mismatch`) resolved by ensuring env var matches the `key_version` field in `manifest/security_policy.json.sig` (`v1`).
+- **Frontend API route fix** (`app/api`): Corrected TypeScript route handler for Next.js 14 app directory.
+- **Dependency hash pinning**: `asyncpg` hash added to `requirements.txt` lock.
 
-### Pipeline Improvements
-- **`NitpickerResult` dataclass**: Structured result with `is_blocked`, `reason`, `degraded`, `categories`, `top_match_id`, `top_match_score`, `source` (static/qdrant/both).
-- **Response metadata**: Now includes `semantic_degraded`, `semantic_categories_checked`, and `semantic_top_match_id` fields.
-- **`semantic_engine` audit block**: Receipts include `enabled`, `degraded`, `manifest_version`, `categories_checked`, and `top_match` detail.
-- **Nitpicker blocked patterns**: 19 → 24.
-- **51 new tests** for the semantic layer (symbolic narrowing, vector store, semantic manifest schema, thresholds, duplicate ID validation).
-
-### Developer Experience
-- **Pre-commit hooks**: ruff lint/format, trailing whitespace, detect-private-key, version-sync check.
-- **Release drafter**: Auto-generated changelog from PR labels.
-- **Dependabot auto-merge**: Approve minor, auto-squash patch dependency PRs.
-- **Stale bot**: Mark inactive issues/PRs after 30 days, close after 14 more.
-- **Production config opt-ins**: `ALETHEIA_ALLOW_ENV_SECRETS` for flexible secret backend deployment. SQLite decision store is no longer available in production (Upstash Redis required).
+### What was new in v1.9.0
+- Qdrant semantic layer, symbolic narrowing, `NitpickerResult` dataclass, 24 static blocked patterns, 51 new semantic tests, pre-commit hooks, RBAC for admin endpoints, `ALETHEIA_API_KEYS` / `ALETHEIA_ADMIN_KEY` / `ALETHEIA_LOG_PII` env vars removed.
 
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
