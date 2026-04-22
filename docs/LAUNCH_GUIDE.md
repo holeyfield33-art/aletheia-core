@@ -117,7 +117,7 @@ Manual steps:
    - `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
    - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
    - `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
-   - API keys are created via `POST /v1/keys` after deployment
+  - API keys are created via `POST /v1/keys` after deployment (KeyStore)
 4. Sign the manifest locally (`python main.py sign-manifest`) and commit the `.sig` file before deploying.
 5. Verify: `curl https://<your-app>.onrender.com/health`
 
@@ -125,8 +125,15 @@ Manual steps:
 
 1. Connect the repo in the Vercel dashboard.
 2. Vercel reads `vercel.json` — framework is `nextjs`.
-3. Set `NEXT_PUBLIC_ALETHEIA_API_URL` to your Render API URL.
-4. Deploy. The frontend calls the API via `/api/demo`.
+3. Set env vars:
+  - `ALETHEIA_BACKEND_URL=https://aletheia-core.onrender.com`
+  - `ALETHEIA_ALLOWED_BACKEND_HOSTS=aletheia-core.onrender.com,app.aletheia-core.com,aletheia-core.com`
+  - `ALETHEIA_DEMO_API_KEY=<value returned by POST /v1/keys>`
+  - Optional fallback: `ALETHEIA_API_KEY=<same value>`
+4. Deploy. The frontend calls the backend via `/api/demo`.
+
+Note: The demo key should be set on Vercel (server-side route env), not on Render.
+Render validates `X-API-Key` against its KeyStore records created via `POST /v1/keys`.
 
 ## Deploy with Docker
 

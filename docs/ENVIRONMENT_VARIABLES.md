@@ -129,9 +129,9 @@ Aletheia Core v1.9.1 environment reference.
 | `GEOMETRIC_BRAIN_URL` | Optional | Advanced relay/scoring. |
 | `ALETHEIA_SMOKE_TIMEOUT` | Optional | Smoke script timeout override. |
 | `ALETHEIA_DEMO_ORIGINS` | Optional | Allowed demo origins. |
-| `ALETHEIA_DEMO_API_KEY` | Optional | Demo backend API key. |
+| `ALETHEIA_DEMO_API_KEY` | Optional | Vercel `/api/demo` server-side key sent as `X-API-Key` to backend. |
 | `ALETHEIA_AUTH_DISABLED` | Optional | Dev auth bypass (never prod). |
-| `ALETHEIA_API_KEY` | Optional | Single-key compatibility. |
+| `ALETHEIA_API_KEY` | Optional | Fallback for `/api/demo` when `ALETHEIA_DEMO_API_KEY` is unset. |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -173,3 +173,11 @@ API keys are created via `POST /v1/keys` (KeyStore). Admin endpoints
 use RBAC permissions (OIDC/SAML bearer tokens). Upstash Redis is
 required for production deployments (rate limiting, replay defense,
 decision store).
+
+### Demo Proxy Env (Vercel + Render)
+
+- Set on Vercel:
+	- `ALETHEIA_BACKEND_URL=https://aletheia-core.onrender.com`
+	- `ALETHEIA_ALLOWED_BACKEND_HOSTS=aletheia-core.onrender.com,app.aletheia-core.com,aletheia-core.com`
+	- `ALETHEIA_DEMO_API_KEY=<key-from-POST-/v1/keys>` (or `ALETHEIA_API_KEY` as fallback)
+- Do NOT set `ALETHEIA_DEMO_API_KEY` on Render for request auth. Render validates keys from KeyStore (`POST /v1/keys`), not env vars.
