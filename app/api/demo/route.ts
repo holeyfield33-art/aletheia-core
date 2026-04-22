@@ -8,7 +8,11 @@ import { secureJson as _baseSecureJson } from "@/lib/api-utils";
  */
 
 const BACKEND_BASE = process.env.ALETHEIA_BACKEND_URL ?? "";
-const DEMO_API_KEY = process.env.ALETHEIA_DEMO_API_KEY ?? "";
+const DEMO_API_KEY = (
+  process.env.ALETHEIA_DEMO_API_KEY ??
+  process.env.ALETHEIA_API_KEY ??
+  ""
+).trim();
 const TIMEOUT_MS = 25_000; // Render free-tier cold starts take 15-30s
 const ACTIVE_MODE = process.env.ACTIVE_MODE;
 
@@ -88,6 +92,11 @@ export async function POST(request: NextRequest) {
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
+  if (!DEMO_API_KEY) {
+    console.error("[demo-proxy] No demo API key configured (ALETHEIA_DEMO_API_KEY/ALETHEIA_API_KEY)");
+    return secureJson({ error: "service_unavailable" }, { status: 503 });
+  }
+
   // Raw body size check (character count)
   let rawText: string;
   try {
@@ -155,6 +164,9 @@ export async function POST(request: NextRequest) {
           { error: "rate_limited" },
           { status: 429, headers: { "Retry-After": retryAfter } },
         );
+      }
+      if (upstream.status === 401) {
+        return secureJson({ error: "unauthorized" }, { status: 401 });
       }
       // Forward 403 with the structured decision body so the demo UI
       // can display educational security-block messaging.
