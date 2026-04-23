@@ -20,11 +20,16 @@ const PLAN_QUOTAS: Record<string, number> = {
 const MAX_KEYS_PER_USER = 10;
 
 function hashKey(raw: string): string {
-  const salt = process.env.ALETHEIA_KEY_SALT ?? "";
-  if (salt) {
-    return crypto.createHmac("sha256", salt).update(raw).digest("hex");
+  const salt = process.env.ALETHEIA_KEY_SALT;
+  if (!salt) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("ALETHEIA_KEY_SALT must be set in production to securely hash API keys.");
+    }
+    // Dev/test only: warn loudly but allow unsalted hash
+    console.warn("[keys] ALETHEIA_KEY_SALT is not set — API key hashes are unsalted (dev mode only)");
+    return crypto.createHash("sha256").update(raw).digest("hex");
   }
-  return crypto.createHash("sha256").update(raw).digest("hex");
+  return crypto.createHmac("sha256", salt).update(raw).digest("hex");
 }
 
 export async function GET() {

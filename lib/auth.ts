@@ -67,6 +67,9 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Reject soft-deleted accounts
+        if ((user as { deletedAt?: Date | null }).deletedAt) return null;
+
         const valid = await bcrypt.compare(credentials.password, user.password);
         if (!valid) {
           await recordLoginFailure(email);

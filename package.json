@@ -14,12 +14,24 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
-    "next": "14.2.5",
+    "next": "16.2.4",
     "next-auth": "^4.24.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "resend": "^6.11.0",
     "stripe": "^22.0.1"
+  },
+  "overrides": {
+    "next-auth": {
+      "@auth/core": "0.41.1",
+      "uuid": "14.0.0"
+    },
+    "resend": {
+      "svix": "1.92.2"
+    },
+    "svix": {
+      "uuid": "14.0.0"
+    }
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

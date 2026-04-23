@@ -4,19 +4,24 @@ import { getToken } from "next-auth/jwt";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // AUTH DISABLED — Under construction, allow all routes
-  // To re-enable, uncomment the block below:
-  // if (pathname.startsWith("/dashboard") || pathname.startsWith("/api/keys") || pathname.startsWith("/api/logs") || pathname.startsWith("/api/evidence")) {
-  //   const token = await getToken({
-  //     req: request,
-  //     secret: process.env.NEXTAUTH_SECRET,
-  //   });
-  //   if (!token) {
-  //     const loginUrl = new URL("/auth/login", request.url);
-  //     loginUrl.searchParams.set("callbackUrl", pathname);
-  //     return NextResponse.redirect(loginUrl);
-  //   }
-  // }
+  // Route-level auth guard for authenticated zones
+  const protectedPaths = ["/dashboard", "/api/keys", "/api/logs", "/api/evidence", "/api/account", "/api/settings"];
+  const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
+  if (isProtected) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    if (!token) {
+      // For API routes return 401; for page routes redirect to login
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+      }
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", encodeURIComponent(pathname));
+      return NextResponse.redirect(loginUrl);
+    }
+  }
 
   // CSRF protection for state-changing API routes
   if (

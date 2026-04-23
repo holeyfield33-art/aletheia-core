@@ -34,9 +34,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Mark user as verified
+    // Mark user as verified — use the token record's identifier (authoritative),
+    // NOT the query-param email, to prevent parameter-substitution attacks.
     await prisma.user.update({
-      where: { email },
+      where: { email: record.identifier },
       data: { emailVerified: new Date() },
     });
 

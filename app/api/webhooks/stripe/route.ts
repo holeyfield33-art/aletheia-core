@@ -60,7 +60,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.text();
-  const sig = headers().get("stripe-signature");
+  const requestHeaders = await headers();
+  const sig = requestHeaders.get("stripe-signature");
   if (!sig) {
     return NextResponse.json(
       { error: "missing_signature" },

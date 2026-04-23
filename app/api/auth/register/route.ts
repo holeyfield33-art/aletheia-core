@@ -36,8 +36,14 @@ setInterval(() => {
 }, 60_000);
 
 export async function POST(request: NextRequest) {
-  // Rate limit by IP
-  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // Rate limit by IP — prefer the last trusted hop; fall back to cf-connecting-ip.
+  // x-forwarded-for is attacker-controlled in the general case; we use it as a
+  // last resort but cap it so a spoofed value cannot be longer than a valid IP.
+  const cfIp = request.headers.get("cf-connecting-ip")?.trim();
+  const xffRaw = request.headers.get("x-forwarded-for");
+  // Take the last (rightmost) entry added by the trusted proxy, not the first.
+  const xff = xffRaw ? xffRaw.split(",").pop()?.trim() : undefined;
+  const clientIp = (cfIp ?? xff ?? "unknown").slice(0, 45); // max IPv6 length
   if (!checkRegisterRateLimit(clientIp)) {
     return NextResponse.json(
       { error: "rate_limited", message: "Too many registration attempts. Try again later." },
