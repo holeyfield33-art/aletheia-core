@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/version-1.9.1-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-1018%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-1028%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -341,7 +341,7 @@ aletheia-cyber-core/
 │   ├── smoke_test_live.py     # Post-deploy smoke tests
 │   ├── build_semantic_index.py  # Qdrant index builder + signed receipt
 │   └── check_version_sync.py # Pre-commit version consistency check
-├── tests/                     # 1018 tests across core, agents, security, and semantic modules
+├── tests/                     # 1028 tests across core, agents, security, and semantic modules
 ├── simulations/               # Adversarial simulation scripts
 ├── main.py                    # CLI entry point
 ├── AGENTS.md                  # Agent communication protocol
