@@ -253,8 +253,8 @@ export default function SettingsClient({
               fontFamily: "var(--font-mono)",
               fontSize: "0.85rem",
               color: "var(--white)",
-              background: plan === "PRO" ? "var(--crimson-glow)" : "var(--surface-2)",
-              border: `1px solid ${plan === "PRO" ? "var(--crimson)" : "var(--border-hi)"}`,
+              background: plan === "TRIAL" ? "var(--surface-2)" : "var(--crimson-glow)",
+              border: `1px solid ${plan === "TRIAL" ? "var(--border-hi)" : "var(--crimson)"}`,
               padding: "0.35rem 0.85rem",
               borderRadius: "4px",
             }}
@@ -269,15 +269,25 @@ export default function SettingsClient({
             }}
           >
             {plan === "TRIAL" && "1,000 requests/month · 1 API key"}
-            {plan === "PRO" && "100,000 requests/month · 10 API keys"}
+            {plan === "PRO" && "50,000 requests/month · 10 API keys"}
+            {plan === "MAX" && "200,000 requests/month · 10 API keys"}
             {plan === "ENTERPRISE" && "Custom limits"}
           </span>
         </div>
         {plan === "TRIAL" && (
-          <UpgradeButton
-            label="Upgrade to Pro — $49/mo"
-            style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}
-          />
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <UpgradeButton
+              label="Upgrade to Pro — $29.99/mo"
+              plan="PRO"
+              style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}
+            />
+            <UpgradeButton
+              label="Upgrade to Max — $49.99/mo"
+              plan="MAX"
+              className="btn-secondary"
+              style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}
+            />
+          </div>
         )}
       </section>
 

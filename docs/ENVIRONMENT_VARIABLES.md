@@ -112,6 +112,9 @@ Aletheia Core v1.9.1 environment reference.
 | `STRIPE_PRO_PRICE_ID` | Optional | Recommended | Pro plan price id. |
 | `STRIPE_PRO_PRICE_AMOUNT` | Optional | Optional | Fallback Pro amount. |
 | `STRIPE_PRO_CURRENCY` | Optional | Optional | Fallback currency. |
+| `STRIPE_MAX_PRICE_ID` | Optional | Recommended | Max plan price id. |
+| `STRIPE_MAX_PRICE_AMOUNT` | Optional | Optional | Fallback Max amount. |
+| `STRIPE_MAX_CURRENCY` | Optional | Optional | Fallback Max currency. |
 | `RESEND_API_KEY` | Optional | Recommended | Transactional email key. |
 | `EMAIL_FROM` | Optional | Recommended | Sender identity. |
 | `HUGGING_FACE_HUB_TOKEN` | Optional | Optional | Model download auth token. |

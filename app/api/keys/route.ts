@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { secureJson } from "@/lib/api-utils";
+import { getHostedPlanConfig } from "@/lib/hosted-plans";
 
 /**
  * Key management — user-scoped, session-protected.
@@ -11,13 +12,6 @@ import { secureJson } from "@/lib/api-utils";
  * GET  /api/keys  → list current user's keys
  * POST /api/keys  → create a new trial key for current user
  */
-
-const PLAN_QUOTAS: Record<string, number> = {
-  trial: 1_000,
-  pro: 100_000,
-};
-
-const MAX_KEYS_PER_USER = 10;
 
 function hashKey(raw: string): string {
   const salt = process.env.ALETHEIA_KEY_SALT;
@@ -66,12 +60,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Enforce key limit
+  const planConfig = getHostedPlanConfig(session.user.plan);
   const existingCount = await prisma.apiKey.count({
     where: { userId: session.user.id, status: "active" },
   });
-  if (existingCount >= MAX_KEYS_PER_USER) {
+  if (existingCount >= planConfig.maxActiveKeys) {
     return secureJson(
-      { error: "limit_reached", message: `Maximum ${MAX_KEYS_PER_USER} active keys per account.` },
+      { error: "limit_reached", message: `Maximum ${planConfig.maxActiveKeys} active keys per account.` },
       { status: 429 },
     );
   }
@@ -84,12 +79,12 @@ export async function POST(request: NextRequest) {
   }
 
   const name = typeof body.name === "string" ? body.name.slice(0, 64).trim() : "Unnamed Key";
-  const plan = "trial"; // users create trial keys; pro via billing upgrade
+  const plan = planConfig.apiKeyPlan;
 
   const rawKey = `sk_${plan}_${crypto.randomBytes(24).toString("hex")}`;
   const keyHash = hashKey(rawKey);
   const keyPrefix = rawKey.slice(0, 12) + "..." + rawKey.slice(-4);
-  const quota = PLAN_QUOTAS[plan] ?? 1000;
+  const quota = planConfig.monthlyCalls;
 
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);

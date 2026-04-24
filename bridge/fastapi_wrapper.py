@@ -252,7 +252,7 @@ async def enterprise_auth_middleware(request: Request, call_next):
 class CreateKeyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(..., min_length=1, max_length=64)
-    plan: str = Field(default="trial", pattern=r"^(trial|pro)$")
+    plan: str = Field(default="trial", pattern=r"^(trial|pro|max)$")
     role: str = Field(default="operator", pattern=r"^(viewer|auditor|operator|admin)$")
 
 

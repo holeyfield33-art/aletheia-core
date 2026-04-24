@@ -85,7 +85,7 @@ export default function UsagePage() {
       >
         Monitor your trial key usage. Quotas are enforced server-side. Upgrade to{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
-          Hosted Pro
+          a paid hosted plan
         </a>{" "}
         for higher limits and production access.
       </p>
@@ -327,7 +327,7 @@ export default function UsagePage() {
               className="btn-primary"
               style={{ fontSize: "0.78rem", padding: "0.45rem 1rem" }}
             >
-              Upgrade to Hosted Pro
+              Upgrade Hosted Plan
             </a>
             <a
               href={`mailto:${CTAS.upgrade.href.includes("mailto:") ? "" : "info@aletheia-core.com?subject=Enterprise"}`}

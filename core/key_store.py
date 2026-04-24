@@ -6,7 +6,8 @@ Raw keys are returned exactly once at creation time and never persisted.
 
 Default quotas (configurable via env):
   ALETHEIA_TRIAL_QUOTA  — trial plan (default 1000 / month)
-  ALETHEIA_PRO_QUOTA    — pro plan   (default 100000 / month)
+    ALETHEIA_PRO_QUOTA    — pro plan   (default 50000 / month)
+    ALETHEIA_MAX_QUOTA    — max plan   (default 200000 / month)
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from core.persistence import DEFAULT_TENANT, tenant_scope
+from core.persistence import tenant_scope
 
 _logger = logging.getLogger("aletheia.key_store")
 
@@ -32,10 +33,16 @@ _logger = logging.getLogger("aletheia.key_store")
 # ---------------------------------------------------------------------------
 
 DEFAULT_QUOTAS: dict[str, int] = {}
-for _plan_name, _default_val in [("trial", "1000"), ("pro", "100000")]:
+for _plan_name, _default_val in [
+    ("trial", "1000"),
+    ("pro", "50000"),
+    ("max", "200000"),
+]:
     _quota = int(os.getenv(f"ALETHEIA_{_plan_name.upper()}_QUOTA", _default_val))
     if _quota <= 0:
-        raise ValueError(f"ALETHEIA_{_plan_name.upper()}_QUOTA must be positive, got {_quota}")
+        raise ValueError(
+            f"ALETHEIA_{_plan_name.upper()}_QUOTA must be positive, got {_quota}"
+        )
     DEFAULT_QUOTAS[_plan_name] = _quota
 
 _DB_PATH = os.getenv("ALETHEIA_KEYSTORE_PATH", "data/keys.db")
@@ -79,7 +86,7 @@ class KeyRecord:
     created_at: str
     last_used_at: Optional[str]
     user_id: str | None = None
-    role: str = "operator"                   # RBAC role (viewer/auditor/operator/admin)
+    role: str = "operator"  # RBAC role (viewer/auditor/operator/admin)
 
     def to_public_dict(self) -> dict:
         """Return a dict safe for API responses (omits key_hash)."""
@@ -154,10 +161,6 @@ class KeyStore:
                         version INTEGER NOT NULL
                     )
                 """)
-                row = conn.execute(
-                    "SELECT version FROM _key_schema_version WHERE id = 1"
-                ).fetchone()
-                current = row[0] if row else 0
 
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS api_keys (
@@ -282,10 +285,20 @@ class KeyStore:
                          created_at, last_used_at, user_id, role)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        record.id, tid, record.name, record.key_hash, record.key_prefix,
-                        record.plan, record.status, record.monthly_quota,
-                        record.requests_used, record.period_start, record.period_end,
-                        record.created_at, record.last_used_at, record.user_id,
+                        record.id,
+                        tid,
+                        record.name,
+                        record.key_hash,
+                        record.key_prefix,
+                        record.plan,
+                        record.status,
+                        record.monthly_quota,
+                        record.requests_used,
+                        record.period_start,
+                        record.period_end,
+                        record.created_at,
+                        record.last_used_at,
+                        record.user_id,
                         record.role,
                     ),
                 )
@@ -296,7 +309,9 @@ class KeyStore:
         _logger.info("key_created id=%s plan=%s prefix=%s", key_id, plan, key_prefix)
         return raw_key, record
 
-    def lookup_by_hash(self, raw_key: str, *, tenant_id: str | None = None) -> Optional[KeyRecord]:
+    def lookup_by_hash(
+        self, raw_key: str, *, tenant_id: str | None = None
+    ) -> Optional[KeyRecord]:
         """Look up a key record by raw key (hashes it internally)."""
         tid = tenant_scope(tenant_id)
         key_hash = _hash_key(raw_key)
@@ -311,7 +326,9 @@ class KeyStore:
             finally:
                 conn.close()
 
-    def get_by_id(self, key_id: str, *, tenant_id: str | None = None) -> Optional[KeyRecord]:
+    def get_by_id(
+        self, key_id: str, *, tenant_id: str | None = None
+    ) -> Optional[KeyRecord]:
         """Get key record by ID (safe — no raw key needed)."""
         tid = tenant_scope(tenant_id)
         with self._lock:
@@ -360,7 +377,9 @@ class KeyStore:
     # Quota enforcement (called on every authenticated request)
     # ------------------------------------------------------------------
 
-    def check_and_increment(self, raw_key: str, *, tenant_id: str | None = None) -> QuotaCheck:
+    def check_and_increment(
+        self, raw_key: str, *, tenant_id: str | None = None
+    ) -> QuotaCheck:
         """Validate key, enforce quota, and atomically increment usage.
 
         Handles billing period reset when the current period has expired.
@@ -419,8 +438,8 @@ class KeyStore:
                     return QuotaCheck(
                         allowed=False,
                         reason=(
-                            "This trial key has reached its monthly request limit. "
-                            "Upgrade to Hosted Pro for production access and higher limits."
+                            "This API key has reached its monthly request limit. "
+                            "Upgrade your hosted plan for higher limits."
                         ),
                         requests_used=record.requests_used,
                         monthly_quota=record.monthly_quota,
@@ -478,7 +497,9 @@ class KeyStore:
             role=role,
         )
 
-    def list_keys_for_user(self, user_id: str, *, tenant_id: str | None = None) -> list[KeyRecord]:
+    def list_keys_for_user(
+        self, user_id: str, *, tenant_id: str | None = None
+    ) -> list[KeyRecord]:
         """List key records belonging to a specific user."""
         tid = tenant_scope(tenant_id)
         with self._lock:

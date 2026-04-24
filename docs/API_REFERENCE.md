@@ -249,9 +249,10 @@ The raw `key` value is returned **exactly once** at creation. It is hashed at re
 
 **Default quotas:**
 - `trial`: 1,000 requests/month
-- `pro`: 100,000 requests/month
+- `pro`: 50,000 requests/month
+- `max`: 200,000 requests/month
 
-Configurable via `ALETHEIA_TRIAL_QUOTA` and `ALETHEIA_PRO_QUOTA` environment variables.
+Configurable via `ALETHEIA_TRIAL_QUOTA`, `ALETHEIA_PRO_QUOTA`, and `ALETHEIA_MAX_QUOTA` environment variables.
 
 ### GET `/v1/keys`
 
@@ -351,11 +352,17 @@ The web dashboard (`app.aletheia-core.com`) exposes the following API routes. Al
 
 ### POST `/api/stripe/checkout`
 
-Creates a Stripe Checkout session for upgrading to the Pro plan.
+Creates a Stripe Checkout session for upgrading to the Pro or Max hosted plan.
 
 **Auth:** NextAuth JWT session (cookie-based). Returns 401 if not authenticated.
 
-**Request:** No body required. Uses the authenticated user's session.
+**Request:** Optional JSON body selecting the paid hosted plan.
+
+```json
+{ "plan": "PRO" }
+```
+
+Allowed values: `PRO`, `MAX`. If omitted, `PRO` is used.
 
 **Response** (200 OK):
 
@@ -367,11 +374,12 @@ The client should redirect the user to the returned URL. On success, the user is
 
 **Error responses:**
 - `401` — Not authenticated
-- `503` — Stripe not configured (missing `STRIPE_SECRET_KEY` or `STRIPE_PRO_PRICE_ID`)
+- `503` — Stripe not configured (missing `STRIPE_SECRET_KEY` or the selected plan price ID)
 
 **Environment variables required:**
 - `STRIPE_SECRET_KEY` — Stripe secret key
 - `STRIPE_PRO_PRICE_ID` — Price ID for the Pro subscription
+- `STRIPE_MAX_PRICE_ID` — Price ID for the Max subscription
 
 ---
 

@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
+import {
+  getHostedPlanConfig,
+  getStripeCurrencyForPlan,
+  getStripeExpectedAmountForPlan,
+  getStripePriceIdForPlan,
+  type HostedPlanId,
+} from "@/lib/hosted-plans";
 
 /**
  * Stripe webhook handler with HMAC signature verification.
@@ -87,17 +94,25 @@ export async function POST(request: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object;
+      const sessionMetadata =
+        typeof session.metadata === "object" && session.metadata !== null
+          ? (session.metadata as Record<string, unknown>)
+          : undefined;
       // Use client_reference_id (set server-side in checkout creation) — NOT metadata
       // which could be tampered with by intercepting the checkout URL.
       const userId = session.client_reference_id;
 
-      // Verify price matches expected amount to prevent price manipulation
-      const expectedAmount = parseInt(process.env.STRIPE_PRO_PRICE_AMOUNT || "4900", 10);
-      const expectedCurrency = (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+      const sessionPriceId =
+        typeof sessionMetadata?.plan === "string" ? sessionMetadata.plan.toUpperCase() : "PRO";
+      const selectedPlan: HostedPlanId = sessionPriceId === "MAX" ? "MAX" : "PRO";
+      const expectedAmount = getStripeExpectedAmountForPlan(selectedPlan);
+      const expectedCurrency = getStripeCurrencyForPlan(selectedPlan);
+      const expectedPriceId = getStripePriceIdForPlan(selectedPlan);
       const sessionAmount = session.amount_total as number | undefined;
       const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
 
       if (
+        expectedAmount !== undefined &&
         sessionAmount !== undefined &&
         sessionCurrency !== undefined &&
         (sessionAmount !== expectedAmount || sessionCurrency !== expectedCurrency)
@@ -112,12 +127,22 @@ export async function POST(request: Request) {
       }
 
       if (userId && typeof userId === "string") {
+        const planConfig = getHostedPlanConfig(selectedPlan);
         await prisma.user.update({
           where: { id: userId },
           data: {
-            plan: "PRO",
+            plan: selectedPlan,
             stripeCustomerId: session.customer as string | undefined,
             stripeSubscriptionId: session.subscription as string | undefined,
+            stripePriceId: expectedPriceId,
+          },
+        });
+
+        await prisma.apiKey.updateMany({
+          where: { userId, status: "active" },
+          data: {
+            plan: planConfig.apiKeyPlan,
+            monthlyQuota: planConfig.monthlyCalls,
           },
         });
       }
@@ -128,23 +153,57 @@ export async function POST(request: Request) {
       const subscription = event.data.object;
       const customerId = subscription.customer as string;
       if (customerId) {
+        const trialPlan = getHostedPlanConfig("TRIAL");
         await prisma.user.updateMany({
           where: { stripeCustomerId: customerId },
           data: { plan: "TRIAL" },
         });
+        const users = await prisma.user.findMany({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+        if (users.length > 0) {
+          await prisma.apiKey.updateMany({
+            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+            data: {
+              plan: trialPlan.apiKeyPlan,
+              monthlyQuota: trialPlan.monthlyCalls,
+            },
+          });
+        }
       }
       break;
     }
 
     case "customer.subscription.updated": {
       const subscription = event.data.object;
+      const subscriptionItems =
+        typeof subscription.items === "object" && subscription.items !== null
+          ? (subscription.items as { data?: Array<{ price?: { id?: string } }> })
+          : undefined;
       const customerId = subscription.customer as string;
       const status = subscription.status as string;
+      const priceId = subscriptionItems?.data?.[0]?.price?.id;
+      const selectedPlan: HostedPlanId = priceId === process.env.STRIPE_MAX_PRICE_ID ? "MAX" : "PRO";
       if (customerId && status === "active") {
+        const planConfig = getHostedPlanConfig(selectedPlan);
         await prisma.user.updateMany({
           where: { stripeCustomerId: customerId },
-          data: { plan: "PRO" },
+          data: { plan: selectedPlan, stripePriceId: priceId },
         });
+        const users = await prisma.user.findMany({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+        if (users.length > 0) {
+          await prisma.apiKey.updateMany({
+            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+            data: {
+              plan: planConfig.apiKeyPlan,
+              monthlyQuota: planConfig.monthlyCalls,
+            },
+          });
+        }
       }
       break;
     }

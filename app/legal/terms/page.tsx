@@ -86,8 +86,9 @@ export default function TermsPage() {
 
       <h2 style={h2}>5. API Usage &amp; Quotas</h2>
       <ul style={ul}>
-        <li><strong style={{ color: "var(--white)" }}>Trial Plan:</strong> 1,000 API requests per month, up to 10 API keys.</li>
-        <li><strong style={{ color: "var(--white)" }}>Pro Plan:</strong> 100,000 API requests per month, up to 10 API keys.</li>
+        <li><strong style={{ color: "var(--white)" }}>Trial Plan:</strong> 1,000 API requests per month, 1 API key.</li>
+        <li><strong style={{ color: "var(--white)" }}>Pro Plan:</strong> 50,000 API requests per month, up to 10 API keys.</li>
+        <li><strong style={{ color: "var(--white)" }}>Max Plan:</strong> 200,000 API requests per month, up to 10 API keys.</li>
         <li><strong style={{ color: "var(--white)" }}>Enterprise:</strong> Custom limits by arrangement.</li>
       </ul>
       <p style={p}>

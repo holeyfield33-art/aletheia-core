@@ -13,17 +13,13 @@ run automatically on ``init_db()``.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import logging
-import os
 import secrets as _secrets
-from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional
 
 from core.key_store import KeyRecord, QuotaCheck, DEFAULT_QUOTAS, _hash_key
-from core.persistence import DEFAULT_TENANT, tenant_scope
+from core.persistence import tenant_scope
 
 _logger = logging.getLogger("aletheia.persistence.pg_key_store")
 
@@ -61,7 +57,9 @@ class PgKeyStore:
                     version INTEGER NOT NULL
                 )
             """)
-            row = await conn.fetchrow("SELECT version FROM _schema_version WHERE id = 1")
+            row = await conn.fetchrow(
+                "SELECT version FROM _schema_version WHERE id = 1"
+            )
             current = row["version"] if row else 0
 
             # v1: base table
@@ -102,10 +100,13 @@ class PgKeyStore:
                 )
 
             # Upsert schema version
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO _schema_version (id, version) VALUES (1, $1)
                 ON CONFLICT (id) DO UPDATE SET version = $1
-            """, _CURRENT_SCHEMA_VERSION)
+            """,
+                _CURRENT_SCHEMA_VERSION,
+            )
         _logger.info("PgKeyStore schema at version %d", _CURRENT_SCHEMA_VERSION)
 
     # ------------------------------------------------------------------
@@ -155,6 +156,7 @@ class PgKeyStore:
 
         now = datetime.now(timezone.utc)
         from core.key_store import _current_period_bounds
+
         period_start, period_end = _current_period_bounds(now)
         quota = DEFAULT_QUOTAS[plan]
 
@@ -182,33 +184,53 @@ class PgKeyStore:
                      monthly_quota, requests_used, period_start, period_end,
                      created_at, last_used_at, user_id, role)
                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)""",
-                key_id, tid, name, key_hash, key_prefix, plan, "active",
-                quota, 0, period_start.isoformat(), period_end.isoformat(),
-                now.isoformat(), None, user_id, role,
+                key_id,
+                tid,
+                name,
+                key_hash,
+                key_prefix,
+                plan,
+                "active",
+                quota,
+                0,
+                period_start.isoformat(),
+                period_end.isoformat(),
+                now.isoformat(),
+                None,
+                user_id,
+                role,
             )
         _logger.info("pg key_created id=%s tenant=%s plan=%s", key_id, tid, plan)
         return raw_key, record
 
     async def lookup_by_hash(
-        self, raw_key: str, *, tenant_id: str | None = None,
+        self,
+        raw_key: str,
+        *,
+        tenant_id: str | None = None,
     ) -> Optional[KeyRecord]:
         tid = tenant_scope(tenant_id)
         key_hash = _hash_key(raw_key)
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT * FROM api_keys WHERE key_hash = $1 AND tenant_id = $2",
-                key_hash, tid,
+                key_hash,
+                tid,
             )
         return self._row_to_record(row) if row else None
 
     async def get_by_id(
-        self, key_id: str, *, tenant_id: str | None = None,
+        self,
+        key_id: str,
+        *,
+        tenant_id: str | None = None,
     ) -> Optional[KeyRecord]:
         tid = tenant_scope(tenant_id)
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT * FROM api_keys WHERE id = $1 AND tenant_id = $2",
-                key_id, tid,
+                key_id,
+                tid,
             )
         return self._row_to_record(row) if row else None
 
@@ -222,14 +244,18 @@ class PgKeyStore:
         return [self._row_to_record(r) for r in rows]
 
     async def revoke_key(
-        self, key_id: str, *, tenant_id: str | None = None,
+        self,
+        key_id: str,
+        *,
+        tenant_id: str | None = None,
     ) -> bool:
         tid = tenant_scope(tenant_id)
         async with self._pool.acquire() as conn:
             result = await conn.execute(
                 "UPDATE api_keys SET status = 'revoked' "
                 "WHERE id = $1 AND tenant_id = $2 AND status = 'active'",
-                key_id, tid,
+                key_id,
+                tid,
             )
         changed = result.split()[-1] != "0"
         if changed:
@@ -237,7 +263,10 @@ class PgKeyStore:
         return changed
 
     async def check_and_increment(
-        self, raw_key: str, *, tenant_id: str | None = None,
+        self,
+        raw_key: str,
+        *,
+        tenant_id: str | None = None,
     ) -> QuotaCheck:
         tid = tenant_scope(tenant_id)
         key_hash = _hash_key(raw_key)
@@ -246,34 +275,46 @@ class PgKeyStore:
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT * FROM api_keys WHERE key_hash = $1 AND tenant_id = $2",
-                key_hash, tid,
+                key_hash,
+                tid,
             )
             if not row:
-                return QuotaCheck(allowed=False, reason="Invalid API key.",
-                                  requests_used=0, monthly_quota=0)
+                return QuotaCheck(
+                    allowed=False,
+                    reason="Invalid API key.",
+                    requests_used=0,
+                    monthly_quota=0,
+                )
             record = self._row_to_record(row)
 
             if record.status != "active":
-                return QuotaCheck(allowed=False, reason="API key has been revoked.",
-                                  requests_used=record.requests_used,
-                                  monthly_quota=record.monthly_quota)
+                return QuotaCheck(
+                    allowed=False,
+                    reason="API key has been revoked.",
+                    requests_used=record.requests_used,
+                    monthly_quota=record.monthly_quota,
+                )
 
             period_end = datetime.fromisoformat(record.period_end)
             if now >= period_end:
                 from core.key_store import _current_period_bounds
+
                 new_start, new_end = _current_period_bounds(now)
                 await conn.execute(
                     "UPDATE api_keys SET requests_used = 0, period_start = $1, period_end = $2 "
                     "WHERE key_hash = $3 AND tenant_id = $4",
-                    new_start.isoformat(), new_end.isoformat(), key_hash, tid,
+                    new_start.isoformat(),
+                    new_end.isoformat(),
+                    key_hash,
+                    tid,
                 )
                 record.requests_used = 0
 
             if record.requests_used >= record.monthly_quota:
                 return QuotaCheck(
                     allowed=False,
-                    reason="This trial key has reached its monthly request limit. "
-                           "Upgrade to Hosted Pro for production access and higher limits.",
+                    reason="This API key has reached its monthly request limit. "
+                    "Upgrade your hosted plan for higher limits.",
                     requests_used=record.requests_used,
                     monthly_quota=record.monthly_quota,
                 )
@@ -281,20 +322,29 @@ class PgKeyStore:
             await conn.execute(
                 "UPDATE api_keys SET requests_used = requests_used + 1, last_used_at = $1 "
                 "WHERE key_hash = $2 AND tenant_id = $3",
-                now.isoformat(), key_hash, tid,
+                now.isoformat(),
+                key_hash,
+                tid,
             )
-            return QuotaCheck(allowed=True, reason="OK",
-                              requests_used=record.requests_used + 1,
-                              monthly_quota=record.monthly_quota)
+            return QuotaCheck(
+                allowed=True,
+                reason="OK",
+                requests_used=record.requests_used + 1,
+                monthly_quota=record.monthly_quota,
+            )
 
     async def list_keys_for_user(
-        self, user_id: str, *, tenant_id: str | None = None,
+        self,
+        user_id: str,
+        *,
+        tenant_id: str | None = None,
     ) -> list[KeyRecord]:
         tid = tenant_scope(tenant_id)
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
                 "SELECT * FROM api_keys WHERE user_id = $1 AND tenant_id = $2 "
                 "ORDER BY created_at DESC",
-                user_id, tid,
+                user_id,
+                tid,
             )
         return [self._row_to_record(r) for r in rows]

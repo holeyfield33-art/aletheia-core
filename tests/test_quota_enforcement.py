@@ -198,6 +198,21 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         self.assertTrue(data["key"].startswith("sk_trial_"))
         self.assertEqual(data["plan"], "trial")
 
+    def test_create_max_key_with_admin_auth(self) -> None:
+        with patch(
+            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+        ):
+            r = self.client.post(
+                "/v1/keys",
+                json={"name": "Max Created", "plan": "max"},
+                headers=_admin_headers(),
+            )
+        self.assertEqual(r.status_code, 201)
+        data = r.json()
+        self.assertIn("key", data)
+        self.assertTrue(data["key"].startswith("sk_max_"))
+        self.assertEqual(data["plan"], "max")
+
     def test_list_keys_requires_admin(self) -> None:
         r = self.client.get("/v1/keys")
         self.assertEqual(r.status_code, 401)

@@ -3,15 +3,26 @@ import Stripe from "stripe";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/auth-config";
+import { getStripePriceIdForPlan, type HostedPlanId } from "@/lib/hosted-plans";
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  let body: { plan?: string } = {};
+  try {
+    body = await request.json();
+  } catch {
+    body = {};
+  }
+
+  const requestedPlan = body.plan?.toUpperCase();
+  const selectedPlan: HostedPlanId = requestedPlan === "MAX" ? "MAX" : "PRO";
+
   const stripeKey = process.env.STRIPE_SECRET_KEY;
-  const priceId = process.env.STRIPE_PRO_PRICE_ID;
+  const priceId = getStripePriceIdForPlan(selectedPlan);
 
   if (!stripeKey || !priceId) {
     return NextResponse.json(
@@ -31,7 +42,7 @@ export async function POST() {
     success_url: `${appBase}/dashboard?upgraded=true`,
     cancel_url: `${appBase}/dashboard?upgrade=cancelled`,
     client_reference_id: session.user.id,
-    metadata: { userId: session.user.id },
+    metadata: { userId: session.user.id, plan: selectedPlan },
     customer_email: session.user.email ?? undefined,
   });
 

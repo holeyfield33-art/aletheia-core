@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PRODUCT, URLS } from "@/lib/site-config";
+import { HOSTED_PLANS, formatPlanPrice } from "@/lib/hosted-plans";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -47,14 +48,14 @@ const tiers = [
   {
     label: "Hosted Pro",
     name: "Production API",
-    price: "$49",
+    price: formatPlanPrice(HOSTED_PLANS.PRO.monthlyPriceCents),
     priceDetail: "/mo",
     color: "var(--crimson-hi)",
     description:
-      "Production API access with 100,000 requests/month, retained audit logs, and priority support.",
+      "Production API access with 50,000 requests/month, retained audit logs, and priority support.",
     features: [
       "Production API access",
-      "100,000 requests / month",
+      "50,000 requests / month",
       "30-day audit logs",
       "Up to 10 API keys",
       "Priority support",
@@ -62,6 +63,25 @@ const tiers = [
     ],
     cta: { label: "Upgrade to Hosted Pro", href: "/dashboard" },
     highlight: true,
+  },
+  {
+    label: "Hosted Max",
+    name: "High-throughput API",
+    price: formatPlanPrice(HOSTED_PLANS.MAX.monthlyPriceCents),
+    priceDetail: "/mo",
+    color: "var(--white)",
+    description:
+      "Higher-throughput hosted API access with 200,000 requests/month for production workloads that outgrow Pro.",
+    features: [
+      "Production API access",
+      "200,000 requests / month",
+      "30-day audit logs",
+      "Up to 10 API keys",
+      "Priority support",
+      "Webhook integrations",
+    ],
+    cta: { label: "Upgrade to Hosted Max", href: "/dashboard" },
+    highlight: false,
   },
   {
     label: "Services",
@@ -157,6 +177,7 @@ export default function PricingPage() {
         >
           Start free with the self-hosted engine or an evaluation key.
           Upgrade to Hosted Pro when you need production throughput.
+          Choose Max when you need 200,000 calls/month.
         </p>
       </div>
 

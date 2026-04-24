@@ -53,5 +53,5 @@ export const CTAS = {
   github: { label: "View GitHub", href: URLS.github },
   docs: { label: "Read Docs", href: URLS.landingPage },
   trial: { label: "Start Free Trial", href: "/dashboard/keys" },
-  upgrade: { label: "Upgrade to Hosted Pro", href: "/api/stripe/checkout" },
+  upgrade: { label: "Upgrade Hosted Plan", href: "/dashboard" },
 } as const;

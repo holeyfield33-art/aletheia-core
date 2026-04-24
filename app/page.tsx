@@ -456,14 +456,14 @@ function HowToUse() {
     {
       label: "Hosted Pro",
       name: "Production API",
-      price: "$49",
+      price: "$29.99",
       priceDetail: "/mo",
       color: "var(--crimson-hi)",
       description:
-        "Production API access with 100,000 requests/month, retained audit logs, and priority support.",
+        "Production API access with 50,000 requests/month, retained audit logs, and priority support.",
       features: [
         "Production API access",
-        "100,000 requests / month",
+        "50,000 requests / month",
         "30-day audit logs",
         "Up to 10 API keys",
         "Priority support",
@@ -474,6 +474,27 @@ function HowToUse() {
       },
       ctaStyle: "primary" as const,
       highlight: true,
+    },
+    {
+      label: "Hosted Max",
+      name: "High-throughput API",
+      price: "$49.99",
+      priceDetail: "/mo",
+      color: "var(--white)",
+      description:
+        "Higher-throughput hosted API access with 200,000 requests/month for heavier production workloads.",
+      features: [
+        "Production API access",
+        "200,000 requests / month",
+        "30-day audit logs",
+        "Up to 10 API keys",
+        "Priority support",
+      ],
+      cta: {
+        label: "Upgrade to Hosted Max",
+        href: "/dashboard",
+      },
+      ctaStyle: "secondary" as const,
     },
     {
       label: "Services",

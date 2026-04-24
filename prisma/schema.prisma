@@ -66,6 +66,7 @@ enum UserRole {
 enum UserPlan {
   TRIAL
   PRO
+  MAX
   ENTERPRISE
 }
 

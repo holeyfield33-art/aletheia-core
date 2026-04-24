@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { CTAS, URLS } from "@/lib/site-config";
 import { useToast } from "@/app/components/Toast";
+import { CTAS, URLS } from "@/lib/site-config";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -172,7 +172,7 @@ export default function KeysPage() {
         They are not for production workloads. For production API access with
         retained audit logs, higher quotas, and managed infrastructure, upgrade to{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
-          Hosted Pro
+          Hosted Pro or Hosted Max
         </a>.
       </p>
 
@@ -320,7 +320,7 @@ export default function KeysPage() {
           className="btn-ghost"
           style={{ fontSize: "0.82rem", padding: "0.6rem 1.25rem", color: "var(--silver)" }}
         >
-          Upgrade to Hosted Pro
+          Upgrade to a paid hosted plan
         </a>
       </div>
 
@@ -482,7 +482,7 @@ export default function KeysPage() {
         Trial keys are limited to 1,000 requests per month for evaluation use.
         For production access, managed infrastructure, and higher quotas,{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
-          upgrade to Hosted Pro
+          upgrade to a paid hosted plan
         </a>.
       </div>
 

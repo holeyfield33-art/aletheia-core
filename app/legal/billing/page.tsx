@@ -58,14 +58,15 @@ export default function BillingTermsPage() {
       <ul style={ul}>
         <li><strong style={{ color: "var(--white)" }}>Community (Free):</strong> Open-source self-hosted. No account required.</li>
         <li><strong style={{ color: "var(--white)" }}>Trial (Free):</strong> 1,000 API requests per month. No payment required. No automatic conversion to a paid plan.</li>
-        <li><strong style={{ color: "var(--white)" }}>Pro ($49/month):</strong> 100,000 API requests per month. Billed monthly as a recurring charge via Stripe.</li>
+        <li><strong style={{ color: "var(--white)" }}>Pro ($29.99/month):</strong> 50,000 API requests per month. Billed monthly as a recurring charge via Stripe.</li>
+        <li><strong style={{ color: "var(--white)" }}>Max ($49.99/month):</strong> 200,000 API requests per month. Billed monthly as a recurring charge via Stripe.</li>
         <li><strong style={{ color: "var(--white)" }}>Enterprise (Custom):</strong> Custom pricing by arrangement. Contact <a href={URLS.contact} style={{ color: "var(--crimson-hi)" }}>{URLS.contactEmail}</a>.</li>
       </ul>
 
       <h2 style={h2}>2. Recurring Charges &amp; Consent</h2>
       <p style={p}>
         <strong style={{ color: "var(--white)" }}>Clear disclosure:</strong> The Pro plan is a recurring
-        monthly subscription at $49.00 USD per month, charged to the payment method you provide at checkout.
+        monthly subscription at $29.99 USD per month and the Max plan is a recurring monthly subscription at $49.99 USD per month, charged to the payment method you provide at checkout.
       </p>
       <p style={p}>
         <strong style={{ color: "var(--white)" }}>Affirmative consent:</strong> By clicking
@@ -77,7 +78,7 @@ export default function BillingTermsPage() {
       <p style={p}>
         The Trial plan is free and does not require a payment method. There is no automatic conversion from
         the Trial plan to a paid plan. You must explicitly choose to upgrade and provide payment information
-        to start a Pro subscription.
+        to start a paid subscription.
       </p>
 
       <h2 style={h2}>4. Cancellation</h2>

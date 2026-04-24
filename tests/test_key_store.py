@@ -60,6 +60,10 @@ class TestKeyCreation(_KeyStoreTestBase):
         _, record = self.store.create_key("Pro", plan="pro")
         self.assertEqual(record.monthly_quota, DEFAULT_QUOTAS["pro"])
 
+    def test_max_plan_quota(self) -> None:
+        _, record = self.store.create_key("Max", plan="max")
+        self.assertEqual(record.monthly_quota, DEFAULT_QUOTAS["max"])
+
     def test_invalid_plan_defaults_to_trial(self) -> None:
         _, record = self.store.create_key("Bad Plan", plan="enterprise")
         self.assertEqual(record.plan, "trial")
@@ -168,6 +172,7 @@ class TestQuotaEnforcement(_KeyStoreTestBase):
         raw, _ = self.store.create_key("Quota")
         # Manually set usage to max
         import sqlite3
+
         conn = sqlite3.connect(self._tmp.name)
         conn.execute(
             "UPDATE api_keys SET requests_used = monthly_quota WHERE key_hash = ?",
@@ -199,6 +204,7 @@ class TestBillingPeriodReset(_KeyStoreTestBase):
 
         # Manually set period_end to the past
         import sqlite3
+
         past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
         conn = sqlite3.connect(self._tmp.name)
         conn.execute(
@@ -218,6 +224,7 @@ class TestBillingPeriodReset(_KeyStoreTestBase):
         raw, _ = self.store.create_key("NewPeriod")
 
         import sqlite3
+
         past = (datetime.now(timezone.utc) - timedelta(days=35)).isoformat()
         conn = sqlite3.connect(self._tmp.name)
         conn.execute(
