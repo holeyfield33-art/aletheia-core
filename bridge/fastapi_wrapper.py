@@ -123,6 +123,7 @@ async def _lifespan(application: FastAPI):
     # Audit export workers (Task 4 — Elasticsearch, Splunk, Webhook, Syslog)
     from core.exporters import start_export_workers, stop_export_workers
 
+    await _startup_checks()
     start_export_workers()
 
     yield
@@ -275,8 +276,7 @@ def _get_sovereign_runtime():
     return _sovereign_runtime
 
 
-@app.on_event("startup")
-async def _on_startup() -> None:
+async def _startup_checks() -> None:
     """Pre-warm embedding model and validate critical secrets at startup."""
     import sys
 
@@ -428,6 +428,11 @@ async def _on_startup() -> None:
         reload_judge_fn=judge.load_policy,
     )
     _logger.info("Secret rotation handler installed (kill -SIGUSR1 to rotate)")
+
+
+async def _on_startup() -> None:
+    """Backward-compatible startup hook for tests and legacy imports."""
+    await _startup_checks()
 
 
 class AuditRequest(BaseModel):

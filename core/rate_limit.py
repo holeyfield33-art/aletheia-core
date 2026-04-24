@@ -35,6 +35,25 @@ _REDIS_WINDOW_SECONDS = 1  # sliding window size
 _REDIS_TTL_SECONDS = 10  # key expiry — cleanup after inactivity
 
 
+class _CompletedReset:
+    """Synchronous reset result that can also be awaited."""
+
+    def __await__(self):
+        if False:
+            yield None
+        return None
+
+
+class _ScheduledReset:
+    """Wrapper that exposes a scheduled task as an awaitable."""
+
+    def __init__(self, task: asyncio.Task[None]) -> None:
+        self._task = task
+
+    def __await__(self):
+        return self._task.__await__()
+
+
 class UpstashRateLimiter:
     """Distributed sliding-window rate limiter using Upstash Redis REST API.
 
@@ -158,7 +177,7 @@ class UpstashRateLimiter:
                 )
             return False
 
-    async def reset(self, key: str | None = None) -> None:
+    async def _reset_async(self, key: str | None = None) -> None:
         """Clear rate limit state. Used in tests and admin operations."""
         try:
             async with httpx.AsyncClient() as client:
@@ -172,15 +191,24 @@ class UpstashRateLimiter:
         except Exception as exc:
             _logger.warning("Redis reset error: %s", exc)
 
-    def reset_sync(self, key: str | None = None) -> None:
-        """Synchronous reset for test compatibility."""
+    def reset(self, key: str | None = None):
+        """Clear rate limit state in sync and async test contexts.
+
+        Sync callers can invoke this without awaiting and async callers can still
+        use ``await limiter.reset()``.
+        """
         try:
             loop = asyncio.get_running_loop()
-            # Event loop already running (e.g. pytest-asyncio) — schedule as task
-            loop.create_task(self.reset(key))
         except RuntimeError:
-            # No running loop — safe to use asyncio.run()
-            asyncio.run(self.reset(key))
+            asyncio.run(self._reset_async(key))
+            return _CompletedReset()
+
+        task = loop.create_task(self._reset_async(key))
+        return _ScheduledReset(task)
+
+    def reset_sync(self, key: str | None = None) -> None:
+        """Synchronous reset for test compatibility."""
+        self.reset(key)
 
 
 class InMemoryRateLimiter:
@@ -226,18 +254,28 @@ class InMemoryRateLimiter:
             self._windows.move_to_end(key)
             return True
 
-    async def reset(self, key: str | None = None) -> None:
+    async def _reset_async(self, key: str | None = None) -> None:
         async with self._lock:
             if key is None:
                 self._windows.clear()
             else:
                 self._windows.pop(key, None)
 
+    def reset(self, key: str | None = None):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            if key is None:
+                self._windows.clear()
+            else:
+                self._windows.pop(key, None)
+            return _CompletedReset()
+
+        task = loop.create_task(self._reset_async(key))
+        return _ScheduledReset(task)
+
     def reset_sync(self, key: str | None = None) -> None:
-        if key is None:
-            self._windows.clear()
-        else:
-            self._windows.pop(key, None)
+        self.reset(key)
 
 
 def create_rate_limiter(max_per_second: int | None = None):
