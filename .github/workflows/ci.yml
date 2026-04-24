@@ -51,7 +51,6 @@ jobs:
             --ignore=tests/test_swarm_1000bot.py \
             --ignore=tests/test_distributed_state.py
         env:
-          ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
 
       - name: Run proximity tests
@@ -79,7 +78,6 @@ jobs:
             --ignore=tests/test_swarm_1000bot.py \
             --ignore=tests/test_distributed_state.py
         env:
-          ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

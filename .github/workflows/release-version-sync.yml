@@ -76,7 +76,6 @@ jobs:
             --ignore=tests/test_proximity \
             --ignore=tests/test_api.py
         env:
-          ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
 
       - name: Run proximity tests

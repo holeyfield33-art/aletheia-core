@@ -35,7 +35,6 @@ jobs:
           python -m pytest tests/ -v --tb=short \
             --ignore=tests/test_distributed_state.py
         env:
-          ALETHEIA_MODE: shadow
           ALETHEIA_LOG_LEVEL: WARNING
 
   build:
