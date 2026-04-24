@@ -25,8 +25,10 @@ export default function SettingsClient({
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
+  const [deleteEmailConfirm, setDeleteEmailConfirm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const toast = useToast();
+  const normalizedEmail = email?.toLowerCase() ?? "";
 
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +89,7 @@ export default function SettingsClient({
       const res = await fetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: deletePassword }),
+        body: JSON.stringify({ password: deletePassword, confirmEmail: deleteEmailConfirm }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -414,6 +416,26 @@ export default function SettingsClient({
                 }}
               />
             )}
+            {!hasPassword && (
+              <input
+                type="email"
+                placeholder="Type your email to confirm deletion"
+                value={deleteEmailConfirm}
+                onChange={(e) => setDeleteEmailConfirm(e.target.value)}
+                style={{
+                  width: "100%",
+                  maxWidth: "300px",
+                  padding: "0.5rem 0.75rem",
+                  background: "#09090b",
+                  border: "1px solid var(--border)",
+                  color: "var(--white)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.85rem",
+                  marginBottom: "0.75rem",
+                  boxSizing: "border-box",
+                }}
+              />
+            )}
             {deleteError && (
               <p style={{ color: "#f87171", fontSize: "0.8rem", marginBottom: "0.5rem" }}>
                 {deleteError}
@@ -421,7 +443,11 @@ export default function SettingsClient({
             )}
             <button
               onClick={handleDeleteAccount}
-              disabled={deleting || (hasPassword && !deletePassword)}
+              disabled={
+                deleting ||
+                (hasPassword && !deletePassword) ||
+                (!hasPassword && deleteEmailConfirm.trim().toLowerCase() !== normalizedEmail)
+              }
               style={{
                 fontSize: "0.82rem",
                 padding: "0.45rem 1rem",
@@ -429,7 +455,12 @@ export default function SettingsClient({
                 color: "var(--white)",
                 border: "none",
                 cursor: deleting ? "not-allowed" : "pointer",
-                opacity: deleting || (hasPassword && !deletePassword) ? 0.5 : 1,
+                opacity:
+                  deleting ||
+                  (hasPassword && !deletePassword) ||
+                  (!hasPassword && deleteEmailConfirm.trim().toLowerCase() !== normalizedEmail)
+                    ? 0.5
+                    : 1,
               }}
             >
               {deleting ? "Deleting…" : "Permanently Delete Account"}

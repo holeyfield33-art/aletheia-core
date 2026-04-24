@@ -48,6 +48,11 @@ body {
   font-size: 16px;
   line-height: 1.65;
   overflow-x: hidden;
+  padding-top: 38px;
+}
+
+nav[style] {
+  top: 38px !important;
 }
 
 a {
@@ -89,6 +94,43 @@ a:hover {
 ::selection {
   background: var(--crimson);
   color: var(--white);
+}
+
+@keyframes constructionPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.construction-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: linear-gradient(90deg, #8b1a2a 0%, #b02236 50%, #8b1a2a 100%);
+  color: #f0eee8;
+  text-align: center;
+  padding: 0.55rem 1rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid #b02236;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.construction-banner-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2eb87a;
+  animation: constructionPulse 2s ease-in-out infinite;
 }
 
 /* Utility classes */

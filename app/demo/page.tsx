@@ -864,7 +864,7 @@ function getPublicReceipt(
 }
 
 function ReceiptField({ label, value }: { label: string; value: string }) {
-  const escaped = safeReceiptDisplay(value);
+  const safeValue = sanitizeForDisplay(value);
   return (
     <div>
       <div
@@ -890,8 +890,9 @@ function ReceiptField({ label, value }: { label: string; value: string }) {
           borderRadius: "4px",
           padding: "0.5rem 0.75rem",
         }}
-        dangerouslySetInnerHTML={{ __html: escaped }}
-      />
+      >
+        {safeValue}
+      </div>
     </div>
   );
 }

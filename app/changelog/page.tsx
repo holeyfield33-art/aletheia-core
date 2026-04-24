@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import type { ReactNode } from "react";
 
 // read CHANGELOG.md at build time
 const changelogPath = path.join(process.cwd(), "CHANGELOG.md");
@@ -65,46 +66,109 @@ export default function ChangelogPage() {
               lineHeight: 1.8,
               marginTop: "1rem",
             }}
-            dangerouslySetInnerHTML={{
-              __html: markdownToHtml(section.content),
-            }}
-          />
+          >
+            {renderMarkdown(section.content)}
+          </div>
         </section>
       ))}
     </div>
   );
 }
 
-function markdownToHtml(md: string): string {
-  return md
-    .split("\n")
-    .map((line) => {
-      // h3: ### Added
-      if (line.startsWith("### ")) {
-        return `<h3 style="font-size:1.1rem; font-weight:700; margin:1.5rem 0 0.75rem; color:var(--crimson-hi)">${line.slice(4)}</h3>`;
-      }
-      // ul list: - item
-      if (line.startsWith("- ")) {
-        return `<li style="margin-left:1.5rem; margin-bottom:0.5rem">${
-          line.slice(2)
-        }</li>`;
-      }
-      // hr: ---
-      if (line === "---") {
-        return `<hr style="border:none; border-top:1px solid var(--border); margin:2rem 0" />`;
-      }
-      // paragraph
-      if (line.trim() && !line.startsWith("- ") && !line.startsWith("### ") && line !== "---") {
-        return `<p style="margin-bottom:0.75rem">${line}</p>`;
-      }
-      return ""; // empty
-    })
-    .join("\n")
-    .replace(/(<li[^>]*>[^<]*<\/li>\n?)+/g, (match) => `<ul>${match}</ul>`)
-    .replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank">$1</a>'
+function renderMarkdown(md: string): ReactNode[] {
+  const lines = md.split("\n");
+  const nodes: ReactNode[] = [];
+  let listItems: string[] = [];
+
+  function flushList() {
+    if (listItems.length === 0) return;
+    nodes.push(
+      <ul key={`list-${nodes.length}`} style={{ margin: "0 0 1rem 1.5rem" }}>
+        {listItems.map((item, index) => (
+          <li key={index} style={{ marginBottom: "0.5rem" }}>
+            {renderInlineLinks(item)}
+          </li>
+        ))}
+      </ul>
     );
+    listItems = [];
+  }
+
+  for (const line of lines) {
+    if (line.startsWith("- ")) {
+      listItems.push(line.slice(2));
+      continue;
+    }
+
+    flushList();
+
+    if (line.startsWith("### ")) {
+      nodes.push(
+        <h3
+          key={`h3-${nodes.length}`}
+          style={{
+            fontSize: "1.1rem",
+            fontWeight: 700,
+            margin: "1.5rem 0 0.75rem",
+            color: "var(--crimson-hi)",
+          }}
+        >
+          {line.slice(4)}
+        </h3>
+      );
+      continue;
+    }
+
+    if (line === "---") {
+      nodes.push(
+        <hr
+          key={`hr-${nodes.length}`}
+          style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2rem 0" }}
+        />
+      );
+      continue;
+    }
+
+    if (line.trim()) {
+      nodes.push(
+        <p key={`p-${nodes.length}`} style={{ marginBottom: "0.75rem" }}>
+          {renderInlineLinks(line)}
+        </p>
+      );
+    }
+  }
+
+  flushList();
+  return nodes;
+}
+
+function renderInlineLinks(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(linkPattern)) {
+    const [fullMatch, label, href] = match;
+    const start = match.index ?? 0;
+
+    if (start > lastIndex) {
+      parts.push(text.slice(lastIndex, start));
+    }
+
+    parts.push(
+      <a key={`${href}-${start}`} href={href} target="_blank" rel="noreferrer">
+        {label}
+      </a>
+    );
+
+    lastIndex = start + fullMatch.length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
 }
 
 export const metadata = {

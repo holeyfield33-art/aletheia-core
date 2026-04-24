@@ -1,53 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isIP } from "node:net";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_NAME_LENGTH = 64;
 const MAX_EMAIL_LENGTH = 255;
 
-// In-memory rate limiter for registration (per IP, 5 attempts per hour)
-const registerAttempts = new Map<string, { count: number; resetAt: number }>();
 const REGISTER_LIMIT = 5;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-function checkRegisterRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = registerAttempts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    registerAttempts.set(ip, { count: 1, resetAt: now + REGISTER_WINDOW_MS });
-    return true;
+function extractClientIp(request: NextRequest): string {
+  const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
+  if (cloudflareIp && isIP(cloudflareIp)) return cloudflareIp;
+
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const candidate = forwardedFor
+      .split(",")
+      .map((value) => value.trim())
+      .reverse()
+      .find((value) => isIP(value));
+    if (candidate) return candidate;
   }
-  if (entry.count >= REGISTER_LIMIT) return false;
-  entry.count++;
-  return true;
+
+  return "unknown";
 }
 
-// Evict stale entries periodically (cap at 10k)
-setInterval(() => {
-  const now = Date.now();
-  if (registerAttempts.size > 10000) {
-    registerAttempts.forEach((val, key) => {
-      if (now > val.resetAt) registerAttempts.delete(key);
-    });
-  }
-}, 60_000);
-
 export async function POST(request: NextRequest) {
-  // Rate limit by IP — prefer the last trusted hop; fall back to cf-connecting-ip.
-  // x-forwarded-for is attacker-controlled in the general case; we use it as a
-  // last resort but cap it so a spoofed value cannot be longer than a valid IP.
-  const cfIp = request.headers.get("cf-connecting-ip")?.trim();
-  const xffRaw = request.headers.get("x-forwarded-for");
-  // Take the last (rightmost) entry added by the trusted proxy, not the first.
-  const xff = xffRaw ? xffRaw.split(",").pop()?.trim() : undefined;
-  const clientIp = (cfIp ?? xff ?? "unknown").slice(0, 45); // max IPv6 length
-  if (!checkRegisterRateLimit(clientIp)) {
+  const clientIp = extractClientIp(request);
+  const rateLimit = await consumeRateLimit({
+    action: "register",
+    key: clientIp,
+    limit: REGISTER_LIMIT,
+    windowMs: REGISTER_WINDOW_MS,
+  });
+
+  if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "rate_limited", message: "Too many registration attempts. Try again later." },
-      { status: 429, headers: { "Retry-After": "3600" } },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
     );
   }
 

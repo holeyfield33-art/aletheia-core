@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
-// In-memory rate limiter: 1 export per 24 hours per user
-const exportTimestamps = new Map<string, number>();
 const EXPORT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export async function POST() {
@@ -52,11 +51,10 @@ export async function POST() {
           decision: true,
           origin: true,
           threatScore: true,
-          receipt: true,
           createdAt: true,
         },
         orderBy: { createdAt: "desc" },
-        take: 10000,
+        take: 2000,
       },
     },
   });
@@ -65,23 +63,17 @@ export async function POST() {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  // Rate limit: 1 export per 24h
-  const lastExport = exportTimestamps.get(user.id);
-  if (lastExport && Date.now() - lastExport < EXPORT_COOLDOWN_MS) {
-    const retryAfter = Math.ceil((EXPORT_COOLDOWN_MS - (Date.now() - lastExport)) / 1000);
+  const rateLimit = await consumeRateLimit({
+    action: "account_export",
+    key: user.id,
+    limit: 1,
+    windowMs: EXPORT_COOLDOWN_MS,
+  });
+  if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "rate_limited", message: "You can export your data once every 24 hours." },
-      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
     );
-  }
-  exportTimestamps.set(user.id, Date.now());
-
-  // Cap map size
-  if (exportTimestamps.size > 10000) {
-    const now = Date.now();
-    exportTimestamps.forEach((ts, key) => {
-      if (now - ts > EXPORT_COOLDOWN_MS) exportTimestamps.delete(key);
-    });
   }
 
   const exportData = {
@@ -115,15 +107,18 @@ export async function POST() {
     audit_logs: {
       retention_days: 90,
       count: user.auditLogs.length,
+      truncated: user.auditLogs.length === 2000,
+      receipt_export_path: "/dashboard/evidence",
       entries: user.auditLogs,
     },
   };
 
-  return new NextResponse(JSON.stringify(exportData, null, 2), {
+  return new NextResponse(JSON.stringify(exportData), {
     status: 200,
     headers: {
       "Content-Type": "application/json",
       "Content-Disposition": `attachment; filename="aletheia-data-export-${new Date().toISOString().slice(0, 10)}.json"`,
+      "Cache-Control": "no-store",
     },
   });
 }

@@ -162,3 +162,13 @@ model LoginAttempt {
 
   @@index([email, createdAt])
 }
+
+model RateLimitEvent {
+  id        String   @id @default(cuid())
+  action    String
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([action, key, createdAt])
+  @@index([createdAt])
+}

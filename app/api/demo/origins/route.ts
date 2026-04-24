@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
 /**
- * Returns the list of whitelisted demo origins so the UI can show
- * real-time trust status before the user clicks "Run Audit".
- *
- * Only exposes the demo-scoped allowlist — no security-sensitive data.
+ * Returns a bounded summary of the demo allowlist without disclosing the raw
+ * host inventory. The UI only needs to know whether a policy exists.
  */
 
 const corsHeaders: Record<string, string> = {
@@ -12,12 +10,42 @@ const corsHeaders: Record<string, string> = {
   "Cache-Control": "public, max-age=60",
 };
 
-export async function GET() {
+function parseRequestOrigin(request: Request): string | null {
+  const originHeader = request.headers.get("origin");
+  if (originHeader) {
+    try {
+      return new URL(originHeader).origin;
+    } catch {
+      return null;
+    }
+  }
+
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+export async function GET(request: Request) {
   const raw = process.env.ALETHEIA_DEMO_ORIGINS ?? "";
   const origins = raw
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
+  const source = parseRequestOrigin(request);
 
-  return NextResponse.json({ origins }, { headers: corsHeaders });
+  return NextResponse.json(
+    {
+      allowlistConfigured: origins.length > 0,
+      allowedOriginCount: origins.length,
+      currentOriginAllowed: source ? origins.includes(source) : null,
+    },
+    { headers: corsHeaders },
+  );
 }

@@ -1,4 +1,5 @@
 import { NextAuthOptions } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
@@ -12,6 +13,15 @@ import { getBaseUrl } from "@/lib/auth-config";
 // works across all server instances.
 const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const CLAIM_REFRESH_MS = 15 * 60 * 1000; // 15 minutes
+
+type AppToken = JWT & {
+  id?: string;
+  role?: string;
+  plan?: string;
+  claimsRefreshedAt?: number;
+  deletedAt?: string | null;
+};
 
 async function checkLoginRateLimit(email: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - LOGIN_WINDOW_MS);
@@ -27,6 +37,41 @@ async function recordLoginFailure(email: string): Promise<void> {
 
 async function clearLoginFailures(email: string): Promise<void> {
   await prisma.loginAttempt.deleteMany({ where: { email } });
+}
+
+async function refreshTokenClaims(token: AppToken): Promise<AppToken> {
+  if (!token.id) return token;
+
+  const user = await prisma.user.findUnique({
+    where: { id: token.id },
+    select: {
+      role: true,
+      plan: true,
+      deletedAt: true,
+      name: true,
+      email: true,
+      image: true,
+    },
+  });
+
+  if (!user || user.deletedAt) {
+    return {
+      ...token,
+      deletedAt: user?.deletedAt?.toISOString() ?? new Date().toISOString(),
+      claimsRefreshedAt: Date.now(),
+    };
+  }
+
+  return {
+    ...token,
+    role: user.role,
+    plan: user.plan,
+    deletedAt: null,
+    name: user.name ?? token.name,
+    email: user.email ?? token.email,
+    picture: user.image ?? token.picture,
+    claimsRefreshedAt: Date.now(),
+  };
 }
 
 // Periodic cleanup of expired attempts (runs every 60s, deletes rows older than window)
@@ -138,12 +183,25 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role ?? "USER";
         token.plan = user.plan ?? "TRIAL";
+        token.deletedAt = null;
+        token.claimsRefreshedAt = Date.now();
+        return token;
       }
+
+      const appToken = token as AppToken;
+      const lastRefresh = appToken.claimsRefreshedAt ?? 0;
+      if (appToken.id && Date.now() - lastRefresh >= CLAIM_REFRESH_MS) {
+        return refreshTokenClaims(appToken);
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id;
+        session.user.id = token.deletedAt ? "" : token.id;
+        session.user.name = token.name ?? session.user.name;
+        session.user.email = token.email ?? session.user.email;
+        session.user.image = token.picture ?? session.user.image;
         session.user.role = token.role;
         session.user.plan = token.plan;
       }
@@ -165,9 +223,8 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  // Trust the Host header on Vercel (behind proxy/load balancer)
-  // Also enable via AUTH_TRUST_HOST=true env var
-  ...(process.env.VERCEL || process.env.AUTH_TRUST_HOST === "true"
+  // Only trust Host on Vercel-managed deployments where the proxy chain is known.
+  ...(process.env.VERCEL
     ? { trustHost: true }
     : {}),
 };

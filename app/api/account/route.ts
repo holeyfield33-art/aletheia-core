@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+
+const OAUTH_DELETE_REAUTH_WINDOW_SECONDS = 10 * 60;
 
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -12,10 +15,13 @@ export async function DELETE(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const confirmationPassword = body?.password;
+  const confirmationEmail = typeof body?.confirmEmail === "string"
+    ? body.confirmEmail.trim().toLowerCase()
+    : "";
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, password: true },
+    select: { id: true, password: true, email: true },
   });
 
   if (!user) {
@@ -34,6 +40,33 @@ export async function DELETE(request: NextRequest) {
     if (!valid) {
       return NextResponse.json(
         { error: "invalid_password", message: "Incorrect password." },
+        { status: 403 },
+      );
+    }
+  } else {
+    if (!user.email || confirmationEmail !== user.email.toLowerCase()) {
+      return NextResponse.json(
+        {
+          error: "email_confirmation_required",
+          message: "Type your email address exactly to confirm account deletion.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    const issuedAt = typeof token?.iat === "number" ? token.iat : 0;
+    const ageSeconds = issuedAt > 0 ? Math.floor(Date.now() / 1000) - issuedAt : Infinity;
+
+    if (ageSeconds > OAUTH_DELETE_REAUTH_WINDOW_SECONDS) {
+      return NextResponse.json(
+        {
+          error: "reauth_required",
+          message: "Please sign out and sign back in before deleting an OAuth account.",
+        },
         { status: 403 },
       );
     }
