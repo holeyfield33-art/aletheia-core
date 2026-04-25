@@ -117,7 +117,7 @@ jobs:
 
           # pip-audit resolves against PyPI, which does not recognize local
           # version suffixes such as "+cpu" on torch wheels.
-          cleaned = [re.sub(r"(==[0-9][A-Za-z0-9_.-]*?)\+[A-Za-z0-9_.-]+", r"\1", line) for line in lines]
+          cleaned = [line.replace("+cpu", "") for line in lines]
           dst.write_text("\n".join(cleaned) + "\n")
           PY
       - name: Audit runtime dependencies
