@@ -100,7 +100,7 @@ jobs:
       - name: TypeScript typecheck
         run: npx tsc --noEmit
       - name: Lint
-        run: npx next lint --max-warnings=0
+        run: npm run lint
       - name: Vitest unit tests
         run: npx vitest run
       - name: Build
