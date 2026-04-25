@@ -121,7 +121,7 @@ jobs:
           dst.write_text("\n".join(cleaned) + "\n")
           PY
       - name: Audit runtime dependencies
-        run: pip-audit -r /tmp/requirements-audit.txt --strict --ignore-vuln GHSA-placeholder
+        run: pip-audit -r /tmp/requirements-audit.txt --strict --no-deps --ignore-vuln GHSA-placeholder
 
   npm-audit:
     name: npm audit (Node SCA)
