@@ -10,6 +10,9 @@ const MIN_PASSWORD_LENGTH = 8;
 const MAX_NAME_LENGTH = 64;
 const MAX_EMAIL_LENGTH = 255;
 
+// 2026 baseline for bcrypt; do not lower without security review.
+const BCRYPT_COST = 14;
+
 const REGISTER_LIMIT = 5;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     // --- Hash password ---
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_COST);
 
     // --- Create user ---
     const user = await prisma.user.create({

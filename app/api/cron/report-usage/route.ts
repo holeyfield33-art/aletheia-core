@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "node:crypto";
 import Stripe from "stripe";
 import {
   clearUnreportedUsage,
@@ -7,6 +8,17 @@ import {
 } from "@/lib/usage-tracking";
 
 export const maxDuration = 60;
+
+// Constant-time comparison of the cron Authorization header. A naive `!==`
+// leaks the secret one byte at a time across Vercel edge nodes.
+export function authorizedCronRequest(authHeader: string | null, secret: string): boolean {
+  if (!secret || !authHeader) return false;
+  const expected = `Bearer ${secret}`;
+  const a = Buffer.from(authHeader);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 async function sendSlackAlert(message: string): Promise<void> {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
@@ -33,7 +45,7 @@ export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+  if (!authorizedCronRequest(auth, cronSecret ?? "")) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -77,11 +89,20 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      await stripe.subscriptionItems.createUsageRecord(subscriptionItem.id, {
-        quantity: pending,
-        timestamp: Math.floor(Date.now() / 1000),
-        action: "increment",
-      });
+      // Idempotency key bounds duplicate Stripe writes when Vercel retries the
+      // cron run or an operator triggers it twice in the same hour. Stripe
+      // dedupes by (key, account) for 24h, which covers cron cadence + retries.
+      const reportingHourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
+      const idempotencyKey = `usage-report:${user.userId}:${reportingHourBucket}:${pending}`;
+      await stripe.subscriptionItems.createUsageRecord(
+        subscriptionItem.id,
+        {
+          quantity: pending,
+          timestamp: Math.floor(Date.now() / 1000),
+          action: "increment",
+        },
+        { idempotencyKey },
+      );
 
       await clearUnreportedUsage(user.userId, pending);
       reportedUsers += 1;

@@ -15,6 +15,20 @@ type CheckoutTier = "scale" | "pro" | "payg";
 
 const PAYG_MONTHLY_QUOTA = 2_147_483_647;
 
+// Refuse to load the webhook handler in production without a configured secret.
+// Without this, every Stripe POST would be silently 503'd at request time and
+// billing events (subscriptions, cancellations, paid invoices) would be lost.
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXTAUTH_URL && // skip during `next build`
+  !(process.env.STRIPE_WEBHOOK_SECRET ?? "").startsWith("whsec_")
+) {
+  throw new Error(
+    "STRIPE_WEBHOOK_SECRET must be set to a 'whsec_…' value in production. " +
+      "Without it, billing webhooks cannot be verified and subscription state will drift.",
+  );
+}
+
 function normalizeTier(rawTier: string | null | undefined): CheckoutTier {
   if (rawTier === "payg") return "payg";
   if (rawTier === "pro") return "pro";
@@ -71,7 +85,7 @@ function getTierForPriceId(priceId: string | undefined): CheckoutTier {
   return "scale";
 }
 
-function verifyStripeSignature(
+export function verifyStripeSignature(
   body: string,
   sigHeader: string,
   secret: string,
@@ -157,15 +171,41 @@ export async function POST(request: Request) {
       // which could be tampered with by intercepting the checkout URL.
       const userId = session.client_reference_id;
 
-      const selectedTier = normalizeTier(
-        typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined,
-      );
+      // Prefer Stripe's authoritative line-item price id over user-supplied
+      // metadata. Metadata is only used as a fallback hint when no line item
+      // price is recoverable (e.g. 0-line synthetic events).
+      const lineItems =
+        typeof session.line_items === "object" && session.line_items !== null
+          ? (session.line_items as { data?: Array<{ price?: { id?: string } }> })
+          : undefined;
+      const linePriceId = lineItems?.data?.find((line) => line.price?.id)?.price?.id;
+      const metadataTier =
+        typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined;
+      const selectedTier = linePriceId
+        ? getTierForPriceId(linePriceId)
+        : normalizeTier(metadataTier);
       const selectedPlan = getPlanForTier(selectedTier);
       const expectedAmount = getStripeExpectedAmountForTier(selectedTier);
       const expectedCurrency = getStripeCurrencyForTier(selectedTier);
       const expectedPriceId = getStripePriceIdForTier(selectedTier);
       const sessionAmount = session.amount_total as number | undefined;
       const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
+
+      // Defence-in-depth: if metadata claims a different tier than the price id
+      // resolves to, that's a downgrade attempt — refuse the event.
+      if (
+        linePriceId &&
+        metadataTier &&
+        getTierForPriceId(linePriceId) !== normalizeTier(metadataTier)
+      ) {
+        console.error(
+          `[stripe-webhook] tier/metadata mismatch: priceId=${linePriceId} metadataTier=${metadataTier}`,
+        );
+        return NextResponse.json(
+          { error: "tier_mismatch", message: "Checkout metadata does not match line item." },
+          { status: 400 },
+        );
+      }
 
       if (
         expectedAmount !== undefined &&
@@ -282,7 +322,18 @@ export async function POST(request: Request) {
           : undefined;
       const customerId = subscription.customer as string;
       const status = subscription.status as string;
-      const priceId = subscriptionItems?.data?.[0]?.price?.id;
+      // Match against our known plan price ids rather than trusting items[0],
+      // which can be an add-on, proration, or one-off line item.
+      const knownPriceIds = new Set(
+        [
+          PRICING.scale.stripePriceId,
+          PRICING.pro.stripePriceId,
+          PRICING.payg.stripePriceId,
+        ].filter(Boolean) as string[],
+      );
+      const priceId = subscriptionItems?.data?.find(
+        (item) => item.price?.id && knownPriceIds.has(item.price.id),
+      )?.price?.id;
       const selectedTier = getTierForPriceId(priceId);
       const selectedPlan = getPlanForTier(selectedTier);
       if (customerId && status === "active") {
