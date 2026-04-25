@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use Aletheia Core in your research, please cite it using the metadata in this file."
+title: "Aletheia Core: Runtime audit and pre-execution block layer for autonomous AI agents"
+abstract: >
+  Aletheia Core is an open-source policy engine that audits and decides on
+  agent actions before execution. It combines a signed semantic manifest,
+  three-anchor decision pipeline, and tamper-evident audit receipts to
+  provide cryptographic evidence of AI safety enforcement.
+type: software
+authors:
+  - family-names: Holeyfield
+    given-names: Anonymous
+    affiliation: Aletheia Core
+    website: https://aletheia-core.com
+repository-code: https://github.com/holeyfield33-art/aletheia-core
+url: https://aletheia-core.com
+license: MIT
+keywords:
+  - ai-safety
+  - agent-policy
+  - runtime-audit
+  - pre-execution-block
+  - cryptographic-receipts
+  - policy-enforcement
+version: 1.9.2
+date-released: 2026-04-25
