@@ -10,8 +10,8 @@ from __future__ import annotations
 import os
 import sys
 import time
-import urllib.error
-import urllib.request
+
+import httpx
 
 
 def _normalize_base(url: str) -> str:
@@ -31,20 +31,21 @@ def _get_base_url() -> str:
 
 
 def _ping(url: str, timeout_s: float) -> tuple[bool, int | None, str]:
-    req = urllib.request.Request(
-        url,
-        method="GET",
-        headers={
-            "User-Agent": "aletheia-render-warmup/1.0",
-            "Accept": "application/json,text/plain,*/*",
-        },
-    )
     try:
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            return True, resp.getcode(), "ok"
-    except urllib.error.HTTPError as err:
-        # HTTP responses still wake the dyno/container.
-        return True, err.code, f"http_error:{err.code}"
+        with httpx.Client(timeout=timeout_s, follow_redirects=True) as client:
+            resp = client.get(
+                url,
+                headers={
+                    "User-Agent": "aletheia-render-warmup/1.0",
+                    "Accept": "application/json,text/plain,*/*",
+                },
+            )
+            # Any HTTP response still wakes the container.
+            return (
+                True,
+                resp.status_code,
+                "ok" if resp.is_success else f"http_error:{resp.status_code}",
+            )
     except Exception as err:  # pragma: no cover
         return False, None, str(err)
 
