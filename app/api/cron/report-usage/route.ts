@@ -77,7 +77,19 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      await stripe.subscriptionItems.createUsageRecord(subscriptionItem.id, {
+      // Stripe SDK typings can lag API support for usage-record endpoints.
+      const subscriptionItemsCompat = stripe.subscriptionItems as unknown as {
+        createUsageRecord: (
+          id: string,
+          params: {
+            quantity: number;
+            timestamp: number;
+            action: "increment" | "set";
+          },
+        ) => Promise<unknown>;
+      };
+
+      await subscriptionItemsCompat.createUsageRecord(subscriptionItem.id, {
         quantity: pending,
         timestamp: Math.floor(Date.now() / 1000),
         action: "increment",

@@ -229,7 +229,7 @@ export default function UsagePage() {
                 >
                   <span>
                     {k.requests_used.toLocaleString()} / {k.monthly_quota.toLocaleString()}{" "}
-                    requests
+                    Sovereign Audit Receipts
                   </span>
                   <span style={{ color: barColor }}>{pct}%</span>
                 </div>

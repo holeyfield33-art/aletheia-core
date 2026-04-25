@@ -44,7 +44,7 @@ export default function EvidencePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   return (
     <div>

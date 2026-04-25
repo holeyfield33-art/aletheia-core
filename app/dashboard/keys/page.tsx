@@ -83,7 +83,7 @@ export default function KeysPage() {
     } finally {
       setGenerating(false);
     }
-  }, [newKeyName]);
+  }, [newKeyName, toast]);
 
   const handleRevoke = useCallback(async (id: string) => {
     try {
@@ -95,7 +95,7 @@ export default function KeysPage() {
     } catch {
       /* silent */
     }
-  }, []);
+  }, [toast]);
 
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
@@ -111,7 +111,7 @@ export default function KeysPage() {
       setSecretCopied(true);
       toast.success("Key copied to clipboard");
     }
-  }, [generatedSecret]);
+  }, [generatedSecret, toast]);
 
   const overlay: React.CSSProperties = {
     position: "fixed",
@@ -130,8 +130,6 @@ export default function KeysPage() {
     width: "100%",
     maxWidth: "440px",
   };
-
-  const activeKeys = keys.filter((k) => k.status === "active");
 
   return (
     <div>
@@ -479,7 +477,7 @@ export default function KeysPage() {
         }}
       >
         Keys are hashed at rest using SHA-256. Only the prefix is stored for identification.
-        Trial keys are limited to 1,000 requests per month for evaluation use.
+        Trial keys are limited to 1,000 Sovereign Audit Receipts per month for evaluation use.
         For production access, managed infrastructure, and higher quotas,{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
           upgrade to a paid hosted plan
