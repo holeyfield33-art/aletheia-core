@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isIP } from "node:net";
 import { getToken } from "next-auth/jwt";
 import { secureJson as _baseSecureJson } from "@/lib/api-utils";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { PRICING } from "@/lib/site-config";
 
 /**
@@ -73,6 +75,33 @@ const ALLOWED_ACTIONS = new Set([
 const MAX_DEMO_BODY_BYTES = 25_000; // 25 KB — bounded for demo payloads
 const MAX_BODY_CHARS = 25_000; // raw character limit before JSON parse
 
+// Per-IP rate limit on the public demo proxy. Without this, an attacker can
+// burn the shared demo API key's monthly quota in seconds and break the
+// top-of-funnel for every visitor. Tunable via env.
+const TRUST_CF_HEADERS = process.env.TRUST_CF_HEADERS === "true";
+const DEMO_RATE_LIMIT = parseInt(process.env.DEMO_RATE_LIMIT ?? "20", 10);
+const DEMO_RATE_WINDOW_MS = parseInt(
+  process.env.DEMO_RATE_WINDOW_MS ?? String(60 * 60 * 1000),
+  10,
+);
+
+function extractClientIp(request: NextRequest): string {
+  if (TRUST_CF_HEADERS) {
+    const cf = request.headers.get("cf-connecting-ip")?.trim();
+    if (cf && isIP(cf)) return cf;
+  }
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const candidate = forwardedFor
+      .split(",")
+      .map((v) => v.trim())
+      .reverse()
+      .find((v) => isIP(v));
+    if (candidate) return candidate;
+  }
+  return "unknown";
+}
+
 export async function POST(request: NextRequest) {
   // Production mode gate
   if (process.env.ENVIRONMENT === "production" && ACTIVE_MODE !== "true") {
@@ -83,6 +112,29 @@ export async function POST(request: NextRequest) {
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_DEMO_BODY_BYTES) {
     return secureJson({ error: "payload_too_large" }, { status: 413 });
+  }
+
+  // Per-IP rate limit before any upstream work.
+  const clientIp = extractClientIp(request);
+  if (clientIp !== "unknown") {
+    const rl = await consumeRateLimit({
+      action: "demo_proxy",
+      key: clientIp,
+      limit: DEMO_RATE_LIMIT,
+      windowMs: DEMO_RATE_WINDOW_MS,
+    }).catch(() => null);
+    if (rl && !rl.allowed) {
+      return secureJson(
+        {
+          error: "rate_limited",
+          message: "Demo rate limit reached. Sign up for a free API key for higher limits.",
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rl.retryAfterSeconds) },
+        },
+      );
+    }
   }
 
   if (!BACKEND_BASE) {

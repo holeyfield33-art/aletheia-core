@@ -13,7 +13,15 @@ import { getBaseUrl } from "@/lib/auth-config";
 // works across all server instances.
 const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const CLAIM_REFRESH_MS = 15 * 60 * 1000; // 15 minutes
+// JWT claims (role, plan, deletedAt) are re-fetched at most this often.
+// Lower = stronger revocation guarantee for deleted/role-changed users at
+// the cost of one DB round-trip per active user per interval.
+// Tunable via env to absorb load spikes without a redeploy.
+const CLAIM_REFRESH_MS = (() => {
+  const fromEnv = parseInt(process.env.AUTH_CLAIM_REFRESH_MS ?? "", 10);
+  if (Number.isFinite(fromEnv) && fromEnv >= 10_000) return fromEnv;
+  return 60_000; // 60s default (was 15m — too wide for deleted-user revocation)
+})();
 
 type AppToken = JWT & {
   id?: string;
@@ -174,8 +182,19 @@ export const authOptions: NextAuthOptions = {
         if (decoded.includes("//") || decoded.includes("\\")) return baseUrl;
         return `${baseUrl}${decoded}`;
       }
-      // Allow same-origin absolute URLs only
-      if (url.startsWith(baseUrl)) return url;
+      // Allow same-origin absolute URLs only.
+      // Use URL parsing + strict origin equality — never a string prefix.
+      // Prefix-matching baseUrl (e.g. "https://app.aletheia-core.com") against
+      // "https://app.aletheia-core.com.evil.com" or
+      // "https://app.aletheia-core.com@evil.com" would otherwise return true
+      // and produce an open redirect.
+      try {
+        const target = new URL(url);
+        const base = new URL(baseUrl);
+        if (target.origin === base.origin) return url;
+      } catch {
+        // Unparseable URL — fall through to baseUrl
+      }
       return baseUrl;
     },
     async jwt({ token, user }) {

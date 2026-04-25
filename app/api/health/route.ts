@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import prisma from "@/lib/prisma";
 
 /**
  * Health-check endpoint — reports which required env vars are set.
@@ -43,14 +44,12 @@ export async function GET(request: NextRequest) {
     status[key] = process.env[key] ? "SET" : "not set";
   }
 
-  // Quick Prisma connectivity test
+  // Quick Prisma connectivity test using the shared singleton —
+  // do NOT instantiate a new PrismaClient per request (connection leak).
   let dbStatus = "untested";
   if (process.env.DATABASE_URL) {
     try {
-      const { PrismaClient } = await import("@prisma/client");
-      const prisma = new PrismaClient();
       await prisma.$queryRaw`SELECT 1`;
-      await prisma.$disconnect();
       dbStatus = "connected";
     } catch {
       dbStatus = "error";

@@ -20,6 +20,7 @@ export async function proxy(request: NextRequest) {
     "/api/evidence",
     "/api/account",
     "/api/settings",
+    "/api/policy",
   ];
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
   if (isProtected) {
