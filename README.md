@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/version-1.9.1-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-1028%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-1114%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -56,6 +56,12 @@ tamper-evident audit receipt — before it is allowed to execute.
 - **Frontend API route fix** (`app/api`): Corrected TypeScript route handler for Next.js 14 app directory.
 - **Dependency hash pinning**: `asyncpg` hash added to `requirements.txt` lock.
 
+### Launch Transition
+- **Hosted API status set to live**: construction banner now auto-hides in production state.
+- **Pricing terminology updated**: public copy now uses Sovereign Audit Receipts / verified decisions.
+- **Tier model update**: hosted tiers are now Free, Scale, Pro, and PAYG (Stripe-backed).
+- **Checkout/webhook tier mapping**: checkout supports `tier=scale|pro|payg`; webhook fulfillment maps tiers to internal hosted plans.
+
 ### What was new in v1.9.0
 - Qdrant semantic layer, symbolic narrowing, `NitpickerResult` dataclass, 24 static blocked patterns, 51 new semantic tests, pre-commit hooks, RBAC for admin endpoints, `ALETHEIA_API_KEYS` / `ALETHEIA_ADMIN_KEY` / `ALETHEIA_LOG_PII` env vars removed.
 
@@ -68,7 +74,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric | Value |
 |--------|-------|
 | Audit status | **PASS** |
-| Tests passing | 1028 (967 + 51 semantic + 19 hardening phase 3, minus 9 deduplicated) |
+| Tests passing | 1114 passed, 16 skipped |
 | Blocked semantic patterns | 24 (static) + Qdrant extended |
 | Semantic alias phrases (Judge) | 60+ across 6 restricted categories |
 | Core coverage | 89% |
@@ -122,7 +128,7 @@ uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
 ### Run the test suite
 
 ```bash
-pytest tests/ -v --ignore=tests/test_api.py
+pytest tests/ -v
 ```
 
 ---

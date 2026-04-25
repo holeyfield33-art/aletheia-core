@@ -1,8 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+const BYPASS_PATHS = [
+  "/api/stripe/checkout",
+  "/api/stripe/webhook",
+  "/api/webhooks/stripe",
+  "/_next/static",
+];
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isBypassed = BYPASS_PATHS.some((path) => pathname.startsWith(path));
 
   // Route-level auth guard for authenticated zones.
   const protectedPaths = [
@@ -33,6 +41,7 @@ export async function proxy(request: NextRequest) {
   if (
     (request.method === "POST" || request.method === "DELETE" || request.method === "PUT" || request.method === "PATCH") &&
     pathname.startsWith("/api/") &&
+    !isBypassed &&
     !pathname.startsWith("/api/auth/") &&
     !pathname.startsWith("/api/webhooks/")
   ) {

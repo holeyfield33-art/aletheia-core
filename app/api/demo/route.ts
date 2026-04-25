@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { secureJson as _baseSecureJson } from "@/lib/api-utils";
+import { PRICING } from "@/lib/site-config";
 
 /**
  * Demo proxy route — keeps ALETHEIA_DEMO_API_KEY server-side only.
@@ -20,6 +22,7 @@ const ACTIVE_MODE = process.env.ACTIVE_MODE;
 export const maxDuration = 30;
 
 const SANITIZED_ERROR = { error: "request_failed" };
+const FREE_TIER_EXHAUSTED_MESSAGE = `You've used your ${PRICING.free.receipts.toLocaleString()} free Sovereign Audit Receipts. Upgrade to continue receiving cryptographic proof of AI safety.`;
 
 /** CORS headers specific to the demo proxy. */
 const corsHeaders: Record<string, string> = {
@@ -159,10 +162,17 @@ export async function POST(request: NextRequest) {
     if (!upstream.ok) {
       console.error(`[demo-proxy] upstream returned ${upstream.status}`);
       if (upstream.status === 429) {
-        const retryAfter = upstream.headers.get("Retry-After") ?? "5";
+        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+        const upgradeUrl = token?.sub
+          ? "/api/stripe/checkout?tier=scale"
+          : `/auth/register?callbackUrl=${encodeURIComponent("/pricing?tier=scale")}`;
         return secureJson(
-          { error: "rate_limited" },
-          { status: 429, headers: { "Retry-After": retryAfter } },
+          {
+            error: "free_tier_exhausted",
+            message: FREE_TIER_EXHAUSTED_MESSAGE,
+            upgradeUrl,
+          },
+          { status: 402, headers: { "X-Upgrade-Url": upgradeUrl } },
         );
       }
       if (upstream.status === 401) {

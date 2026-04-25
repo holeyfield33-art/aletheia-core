@@ -2,19 +2,74 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
-import {
-  getHostedPlanConfig,
-  getStripeCurrencyForPlan,
-  getStripeExpectedAmountForPlan,
-  getStripePriceIdForPlan,
-  type HostedPlanId,
-} from "@/lib/hosted-plans";
+import { getHostedPlanConfig, type HostedPlanId } from "@/lib/hosted-plans";
+import { PRICING } from "@/lib/site-config";
 
 /**
  * Stripe webhook handler with HMAC signature verification.
  * Uses Stripe's v1 signature scheme (HMAC-SHA256) without requiring the Stripe SDK.
  * STRIPE_WEBHOOK_SECRET must be set in production (whsec_...).
  */
+
+type CheckoutTier = "scale" | "pro" | "payg";
+
+const PAYG_MONTHLY_QUOTA = 2_147_483_647;
+
+function normalizeTier(rawTier: string | null | undefined): CheckoutTier {
+  if (rawTier === "payg") return "payg";
+  if (rawTier === "pro") return "pro";
+  return "scale";
+}
+
+function getPlanForTier(tier: CheckoutTier): HostedPlanId {
+  if (tier === "scale") return "PRO";
+  if (tier === "pro") return "MAX";
+  return "ENTERPRISE";
+}
+
+function getStripePriceIdForTier(tier: CheckoutTier): string | undefined {
+  if (tier === "scale") return PRICING.scale.stripePriceId;
+  if (tier === "pro") return PRICING.pro.stripePriceId;
+  return PRICING.payg.stripePriceId;
+}
+
+function getStripeExpectedAmountForTier(tier: CheckoutTier): number | undefined {
+  if (tier === "scale") {
+    return parseInt(process.env.STRIPE_SCALE_PRICE_AMOUNT || String(PRICING.scale.price * 100), 10);
+  }
+  if (tier === "pro") {
+    return parseInt(process.env.STRIPE_PRO_PRICE_AMOUNT || String(PRICING.pro.price * 100), 10);
+  }
+  return undefined;
+}
+
+function getStripeCurrencyForTier(tier: CheckoutTier): string {
+  if (tier === "scale") {
+    return (process.env.STRIPE_SCALE_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+  }
+  if (tier === "payg") {
+    return (process.env.STRIPE_PAYG_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+  }
+  return (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+}
+
+function getQuotaUpdateForPlan(plan: HostedPlanId): { plan: string; monthlyQuota: number } {
+  if (plan === "ENTERPRISE") {
+    return { plan: "enterprise", monthlyQuota: PAYG_MONTHLY_QUOTA };
+  }
+
+  const planConfig = getHostedPlanConfig(plan);
+  return {
+    plan: planConfig.apiKeyPlan,
+    monthlyQuota: planConfig.monthlyCalls,
+  };
+}
+
+function getTierForPriceId(priceId: string | undefined): CheckoutTier {
+  if (priceId && priceId === PRICING.payg.stripePriceId) return "payg";
+  if (priceId && priceId === PRICING.pro.stripePriceId) return "pro";
+  return "scale";
+}
 
 function verifyStripeSignature(
   body: string,
@@ -102,12 +157,13 @@ export async function POST(request: Request) {
       // which could be tampered with by intercepting the checkout URL.
       const userId = session.client_reference_id;
 
-      const sessionPriceId =
-        typeof sessionMetadata?.plan === "string" ? sessionMetadata.plan.toUpperCase() : "PRO";
-      const selectedPlan: HostedPlanId = sessionPriceId === "MAX" ? "MAX" : "PRO";
-      const expectedAmount = getStripeExpectedAmountForPlan(selectedPlan);
-      const expectedCurrency = getStripeCurrencyForPlan(selectedPlan);
-      const expectedPriceId = getStripePriceIdForPlan(selectedPlan);
+      const selectedTier = normalizeTier(
+        typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined,
+      );
+      const selectedPlan = getPlanForTier(selectedTier);
+      const expectedAmount = getStripeExpectedAmountForTier(selectedTier);
+      const expectedCurrency = getStripeCurrencyForTier(selectedTier);
+      const expectedPriceId = getStripePriceIdForTier(selectedTier);
       const sessionAmount = session.amount_total as number | undefined;
       const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
 
@@ -127,7 +183,7 @@ export async function POST(request: Request) {
       }
 
       if (userId && typeof userId === "string") {
-        const planConfig = getHostedPlanConfig(selectedPlan);
+        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
         await prisma.user.update({
           where: { id: userId },
           data: {
@@ -141,8 +197,8 @@ export async function POST(request: Request) {
         await prisma.apiKey.updateMany({
           where: { userId, status: "active" },
           data: {
-            plan: planConfig.apiKeyPlan,
-            monthlyQuota: planConfig.monthlyCalls,
+            plan: quotaUpdate.plan,
+            monthlyQuota: quotaUpdate.monthlyQuota,
           },
         });
       }
@@ -184,9 +240,10 @@ export async function POST(request: Request) {
       const customerId = subscription.customer as string;
       const status = subscription.status as string;
       const priceId = subscriptionItems?.data?.[0]?.price?.id;
-      const selectedPlan: HostedPlanId = priceId === process.env.STRIPE_MAX_PRICE_ID ? "MAX" : "PRO";
+      const selectedTier = getTierForPriceId(priceId);
+      const selectedPlan = getPlanForTier(selectedTier);
       if (customerId && status === "active") {
-        const planConfig = getHostedPlanConfig(selectedPlan);
+        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
         await prisma.user.updateMany({
           where: { stripeCustomerId: customerId },
           data: { plan: selectedPlan, stripePriceId: priceId },
@@ -199,8 +256,8 @@ export async function POST(request: Request) {
           await prisma.apiKey.updateMany({
             where: { userId: { in: users.map((user) => user.id) }, status: "active" },
             data: {
-              plan: planConfig.apiKeyPlan,
-              monthlyQuota: planConfig.monthlyCalls,
+              plan: quotaUpdate.plan,
+              monthlyQuota: quotaUpdate.monthlyQuota,
             },
           });
         }

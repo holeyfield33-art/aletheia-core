@@ -4,7 +4,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { PRODUCT, URLS } from "@/lib/site-config";
+import { PRODUCT, STATUS, URLS } from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
 import Nav from "@/app/components/Nav";
 import { ToastProvider } from "@/app/components/Toast";
@@ -78,11 +78,13 @@ export default function RootLayout({
         <Script src="/theme-bootstrap.js" strategy="beforeInteractive" />
       </head>
       <body>
-        <div className="construction-banner">
-          <span className="construction-banner-pulse" />
-          UNDER CONSTRUCTION — Full platform launch in progress. Demo is live.
-          <span className="construction-banner-pulse" />
-        </div>
+        {STATUS.hostedApi !== "live" && (
+          <div className="construction-banner">
+            <span className="construction-banner-pulse" />
+            UNDER CONSTRUCTION — Full platform launch in progress. Demo is live.
+            <span className="construction-banner-pulse" />
+          </div>
+        )}
         <a
           href="#main-content"
           className="skip-link"

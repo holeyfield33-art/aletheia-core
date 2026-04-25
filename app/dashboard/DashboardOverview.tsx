@@ -219,18 +219,18 @@ export default function DashboardOverview({
                 color: "var(--silver)",
               }}
             >
-              {totalRequests.toLocaleString()} / {totalQuota.toLocaleString()} requests &middot; Upgrade to Pro for 50K/month or Max for 200K/month
+              {totalRequests.toLocaleString()} / {totalQuota.toLocaleString()} Sovereign Audit Receipts &middot; Upgrade to Scale for 25K/month or Pro for 100K/month
             </div>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <UpgradeButton
-              label="Upgrade to Pro"
-              plan="PRO"
+              label="Start Scale"
+              tier="scale"
               style={{ fontSize: "0.82rem", padding: "0.5rem 1.25rem", flexShrink: 0 }}
             />
             <UpgradeButton
-              label="Upgrade to Max"
-              plan="MAX"
+              label="Start Pro"
+              tier="pro"
               className="btn-secondary"
               style={{ fontSize: "0.82rem", padding: "0.5rem 1.25rem", flexShrink: 0 }}
             />

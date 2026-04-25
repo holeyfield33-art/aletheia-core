@@ -3,26 +3,52 @@ import Stripe from "stripe";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/auth-config";
-import { getStripePriceIdForPlan, type HostedPlanId } from "@/lib/hosted-plans";
+import { PRICING } from "@/lib/site-config";
 
-export async function POST(request: Request) {
+type CheckoutTier = "scale" | "pro" | "payg";
+
+function normalizeTier(rawTier: string | null | undefined): CheckoutTier {
+  if (rawTier === "payg") return "payg";
+  if (rawTier === "pro") return "pro";
+  return "scale";
+}
+
+function getPriceIdForTier(tier: CheckoutTier): string | undefined {
+  if (tier === "scale") return PRICING.scale.stripePriceId;
+  if (tier === "pro") return PRICING.pro.stripePriceId;
+  return PRICING.payg.stripePriceId;
+}
+
+function getInternalPlanForTier(tier: CheckoutTier): "PRO" | "MAX" | "ENTERPRISE" {
+  if (tier === "scale") return "PRO";
+  if (tier === "pro") return "MAX";
+  return "ENTERPRISE";
+}
+
+async function createCheckoutResponse(request: Request, redirectToStripe: boolean) {
+  const url = new URL(request.url);
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
+    if (redirectToStripe) {
+      const loginUrl = new URL("/auth/login", url.origin);
+      loginUrl.searchParams.set("callbackUrl", `${url.pathname}${url.search}`);
+      return NextResponse.redirect(loginUrl);
+    }
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  let body: { plan?: string } = {};
+  let body: { tier?: string } = {};
   try {
     body = await request.json();
   } catch {
     body = {};
   }
 
-  const requestedPlan = body.plan?.toUpperCase();
-  const selectedPlan: HostedPlanId = requestedPlan === "MAX" ? "MAX" : "PRO";
+  const selectedTier = normalizeTier(url.searchParams.get("tier") ?? body.tier);
+  const internalPlan = getInternalPlanForTier(selectedTier);
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
-  const priceId = getStripePriceIdForPlan(selectedPlan);
+  const priceId = getPriceIdForTier(selectedTier);
 
   if (!stripeKey || !priceId) {
     return NextResponse.json(
@@ -42,9 +68,21 @@ export async function POST(request: Request) {
     success_url: `${appBase}/dashboard?upgraded=true`,
     cancel_url: `${appBase}/dashboard?upgrade=cancelled`,
     client_reference_id: session.user.id,
-    metadata: { userId: session.user.id, plan: selectedPlan },
+    metadata: { userId: session.user.id, tier: selectedTier, plan: internalPlan },
     customer_email: session.user.email ?? undefined,
   });
 
+  if (redirectToStripe && checkoutSession.url) {
+    return NextResponse.redirect(checkoutSession.url);
+  }
+
   return NextResponse.json({ url: checkoutSession.url });
+}
+
+export async function GET(request: Request) {
+  return createCheckoutResponse(request, true);
+}
+
+export async function POST(request: Request) {
+  return createCheckoutResponse(request, false);
 }

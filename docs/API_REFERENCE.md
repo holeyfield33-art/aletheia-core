@@ -248,9 +248,9 @@ Create a new API key.
 The raw `key` value is returned **exactly once** at creation. It is hashed at rest (HMAC-SHA256 with `ALETHEIA_KEY_SALT`, or SHA-256 fallback).
 
 **Default quotas:**
-- `trial`: 1,000 requests/month
-- `pro`: 50,000 requests/month
-- `max`: 200,000 requests/month
+- `trial` (public Free): 1,000 Sovereign Audit Receipts/month
+- `pro` (public Scale): 25,000 verified decisions/month
+- `max` (public Pro): 100,000 verified decisions/month
 
 Configurable via `ALETHEIA_TRIAL_QUOTA`, `ALETHEIA_PRO_QUOTA`, and `ALETHEIA_MAX_QUOTA` environment variables.
 
@@ -352,17 +352,23 @@ The web dashboard (`app.aletheia-core.com`) exposes the following API routes. Al
 
 ### POST `/api/stripe/checkout`
 
-Creates a Stripe Checkout session for upgrading to the Pro or Max hosted plan.
+Creates a Stripe Checkout session for Scale, Pro, or PAYG hosted plans.
 
 **Auth:** NextAuth JWT session (cookie-based). Returns 401 if not authenticated.
 
-**Request:** Optional JSON body selecting the paid hosted plan.
+**Request:** Optional JSON body or query string selecting the paid tier.
 
 ```json
-{ "plan": "PRO" }
+{ "tier": "scale" }
 ```
 
-Allowed values: `PRO`, `MAX`. If omitted, `PRO` is used.
+Allowed values: `scale`, `pro`, `payg`. If omitted, `scale` is used.
+
+Equivalent query form:
+
+```text
+/api/stripe/checkout?tier=payg
+```
 
 **Response** (200 OK):
 
@@ -378,8 +384,9 @@ The client should redirect the user to the returned URL. On success, the user is
 
 **Environment variables required:**
 - `STRIPE_SECRET_KEY` — Stripe secret key
+- `STRIPE_SCALE_PRICE_ID` — Price ID for the Scale subscription
 - `STRIPE_PRO_PRICE_ID` — Price ID for the Pro subscription
-- `STRIPE_MAX_PRICE_ID` — Price ID for the Max subscription
+- `STRIPE_PAYG_PRICE_ID` — Price ID for the PAYG plan
 
 ---
 
@@ -390,8 +397,8 @@ Stripe webhook endpoint for subscription lifecycle events.
 **Auth:** Stripe signature verification (`stripe-signature` header, HMAC-SHA256).
 
 **Handled events:**
-- `checkout.session.completed` — Upgrades user to PRO plan
-- `customer.subscription.deleted` — Downgrades user to TRIAL plan
+- `checkout.session.completed` — Upgrades user to the selected paid tier
+- `customer.subscription.deleted` — Downgrades user to trial/free tier
 - `customer.subscription.updated` — Updates plan based on subscription status
 
 **Environment variables required:**

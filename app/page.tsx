@@ -1,4 +1,4 @@
-import { PRODUCT, URLS, STATUS, CTAS } from "@/lib/site-config";
+import { PRODUCT, URLS, STATUS, CTAS, PRICING } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -401,7 +401,7 @@ function BuiltInTheOpen() {
         >
           <strong style={{ color: "var(--white)" }}>API Access:</strong>{" "}
           Use the live demo with no key, request a free trial key for evaluation,
-          or upgrade to Hosted Pro for production API access and retained audit logs.
+          or upgrade to Scale or Pro for production verified decisions and retained audit logs.
         </div>
         <a
           href={URLS.github}
@@ -443,10 +443,10 @@ function HowToUse() {
       priceDetail: "/ evaluation",
       color: "var(--silver)",
       description:
-        "Free evaluation key with 1,000 requests/month. No credit card required.",
+        `Free evaluation key with ${PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts/month. No credit card required.`,
       features: [
         "Free evaluation key",
-        "1,000 requests / month",
+        `${PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts / month`,
         "One API key",
         "Evaluation use only",
       ],
@@ -454,45 +454,45 @@ function HowToUse() {
       ctaStyle: "secondary" as const,
     },
     {
-      label: "Hosted Pro",
+      label: "Scale",
       name: "Production API",
-      price: "$29.99",
+      price: `$${PRICING.scale.price}`,
       priceDetail: "/mo",
       color: "var(--crimson-hi)",
       description:
-        "Production API access with 50,000 requests/month, retained audit logs, and priority support.",
+        `Production API access with ${PRICING.scale.receipts.toLocaleString()} verified decisions/month, retained audit logs, and priority support.`,
       features: [
         "Production API access",
-        "50,000 requests / month",
+        `${PRICING.scale.receipts.toLocaleString()} Sovereign Audit Receipts / month`,
         "30-day audit logs",
         "Up to 10 API keys",
         "Priority support",
       ],
       cta: {
-        label: "Upgrade to Hosted Pro",
-        href: "/dashboard",
+        label: "Start Scale",
+        href: "/pricing?tier=scale",
       },
       ctaStyle: "primary" as const,
       highlight: true,
     },
     {
-      label: "Hosted Max",
+      label: "Pro",
       name: "High-throughput API",
-      price: "$49.99",
+      price: `$${PRICING.pro.price}`,
       priceDetail: "/mo",
       color: "var(--white)",
       description:
-        "Higher-throughput hosted API access with 200,000 requests/month for heavier production workloads.",
+        `Higher-throughput hosted API access with ${PRICING.pro.receipts.toLocaleString()} verified decisions/month for heavier production workloads.`,
       features: [
         "Production API access",
-        "200,000 requests / month",
+        `${PRICING.pro.receipts.toLocaleString()} Sovereign Audit Receipts / month`,
         "30-day audit logs",
         "Up to 10 API keys",
         "Priority support",
       ],
       cta: {
-        label: "Upgrade to Hosted Max",
-        href: "/dashboard",
+        label: "Start Pro",
+        href: "/pricing?tier=pro",
       },
       ctaStyle: "secondary" as const,
     },

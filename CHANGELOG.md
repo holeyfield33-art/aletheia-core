@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [1.9.1] — 2026-04-22
 
+### Launch Notes
+- **Production status flip**: Hosted API status is now `live`; the under-construction banner is hidden when `STATUS.hostedApi === "live"`.
+- **Public pricing model update**: Introduced launch-tier terminology and constants for `free`, `scale`, `pro`, and `payg` in `lib/site-config.ts`.
+- **Stripe tier expansion**: Checkout and webhook flows now support Scale/Pro/PAYG tier mapping with dedicated env-based Stripe price IDs.
+- **Free-tier gate UX**: Demo upgrade flow now returns a paid-upgrade response (`402`) with an upgrade URL when free-tier usage is exhausted.
+- **Pricing UX additions**: Added trust messaging and a PAYG section on pricing page, plus an interactive ROI calculator component.
+- **Terminology migration**: Public UI/legal copy updated from generic request language to Sovereign Audit Receipts / verified decisions.
+
+### Migration Notes
+- **New Stripe env vars**: add `STRIPE_SCALE_PRICE_ID`, `STRIPE_PAYG_PRICE_ID`, and optional `STRIPE_SCALE_PRICE_AMOUNT`, `STRIPE_SCALE_CURRENCY`, `STRIPE_PAYG_CURRENCY`.
+- **Deprecated naming**: `STRIPE_MAX_*` is no longer used by hosted checkout flows.
+
 ### Fixed
 - **`asyncpg` dependency**: Added to `pyproject.toml` core dependencies and `requirements.txt`
   with hash pin. Resolves `ModuleNotFoundError` on Python 3.14 / Render production deploys
@@ -78,6 +90,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `ALETHEIA_ALLOW_SQLITE_PRODUCTION` production opt-in for SQLite decision store
 
 ### Verified
+- Full test suite: **1114 passed**, 16 skipped.
 - Full test suite: **1028 passed**, 16 skipped.
 
 ## [1.8.0] — 2026-04-18

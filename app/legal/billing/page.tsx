@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PRODUCT, URLS } from "@/lib/site-config";
+import { PRICING, PRODUCT, URLS } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Subscription & Billing Terms",
@@ -57,16 +57,17 @@ export default function BillingTermsPage() {
       <h2 style={h2}>1. Plans &amp; Pricing</h2>
       <ul style={ul}>
         <li><strong style={{ color: "var(--white)" }}>Community (Free):</strong> Open-source self-hosted. No account required.</li>
-        <li><strong style={{ color: "var(--white)" }}>Trial (Free):</strong> 1,000 API requests per month. No payment required. No automatic conversion to a paid plan.</li>
-        <li><strong style={{ color: "var(--white)" }}>Pro ($29.99/month):</strong> 50,000 API requests per month. Billed monthly as a recurring charge via Stripe.</li>
-        <li><strong style={{ color: "var(--white)" }}>Max ($49.99/month):</strong> 200,000 API requests per month. Billed monthly as a recurring charge via Stripe.</li>
+        <li><strong style={{ color: "var(--white)" }}>Free (Free):</strong> {PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts per month. No payment required. No automatic conversion to a paid plan.</li>
+        <li><strong style={{ color: "var(--white)" }}>Scale (${PRICING.scale.price}/month):</strong> {PRICING.scale.receipts.toLocaleString()} verified decisions per month. Billed monthly as a recurring charge via Stripe.</li>
+        <li><strong style={{ color: "var(--white)" }}>Pro (${PRICING.pro.price}/month):</strong> {PRICING.pro.receipts.toLocaleString()} verified decisions per month. Billed monthly as a recurring charge via Stripe.</li>
+        <li><strong style={{ color: "var(--white)" }}>PAYG:</strong> ${PRICING.payg.ratePerReceipt.toFixed(4)} per secured decision. Metered through Stripe.</li>
         <li><strong style={{ color: "var(--white)" }}>Enterprise (Custom):</strong> Custom pricing by arrangement. Contact <a href={URLS.contact} style={{ color: "var(--crimson-hi)" }}>{URLS.contactEmail}</a>.</li>
       </ul>
 
       <h2 style={h2}>2. Recurring Charges &amp; Consent</h2>
       <p style={p}>
-        <strong style={{ color: "var(--white)" }}>Clear disclosure:</strong> The Pro plan is a recurring
-        monthly subscription at $29.99 USD per month and the Max plan is a recurring monthly subscription at $49.99 USD per month, charged to the payment method you provide at checkout.
+        <strong style={{ color: "var(--white)" }}>Clear disclosure:</strong> The Scale plan is a recurring
+        monthly subscription at ${PRICING.scale.price} USD per month and the Pro plan is a recurring monthly subscription at ${PRICING.pro.price} USD per month, charged to the payment method you provide at checkout. PAYG usage is metered at ${PRICING.payg.ratePerReceipt.toFixed(4)} USD per secured decision.
       </p>
       <p style={p}>
         <strong style={{ color: "var(--white)" }}>Affirmative consent:</strong> By clicking
@@ -82,19 +83,19 @@ export default function BillingTermsPage() {
       </p>
 
       <h2 style={h2}>4. Cancellation</h2>
-      <p style={p}>You may cancel your Pro subscription at any time by:</p>
+      <p style={p}>You may cancel your Scale, Pro, or PAYG subscription at any time by:</p>
       <ul style={ul}>
         <li>Using the Stripe customer portal (linked from your dashboard)</li>
         <li>Contacting us at <a href={URLS.contact} style={{ color: "var(--crimson-hi)" }}>{URLS.contactEmail}</a></li>
       </ul>
       <p style={p}>
-        Cancellation takes effect at the end of the current billing period. You will retain Pro access until
-        then. After cancellation, your account reverts to the Trial plan with Trial-level quotas.
+        Cancellation takes effect at the end of the current billing period. You will retain paid access until
+        then. After cancellation, your account reverts to the Free plan with free-tier quotas.
       </p>
 
       <h2 style={h2}>5. Refunds</h2>
       <ul style={ul}>
-        <li>If you cancel within the first 14 days of your initial Pro subscription, you may request a full refund by contacting us.</li>
+        <li>If you cancel within the first 14 days of your initial Scale or Pro subscription, you may request a full refund by contacting us.</li>
         <li>After the 14-day period, no prorated refunds are provided for partial months.</li>
         <li>Refund requests should be directed to <a href={URLS.contact} style={{ color: "var(--crimson-hi)" }}>{URLS.contactEmail}</a>.</li>
       </ul>

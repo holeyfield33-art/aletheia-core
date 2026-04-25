@@ -13,7 +13,7 @@ export const PRODUCT = {
   tagline: "Professional-grade runtime audit and pre-execution block layer for AI agents.",
   description:
     "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
-  version: "1.8.0",
+  version: "1.9.1",
   testCount: 1099,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",
@@ -37,8 +37,8 @@ export const STATUS = {
    * "live" | "launching" | "private-beta" | "unavailable"
    * Only mark "live" when hosted API is publicly accessible.
    */
-  hostedApi: "launching" as const,
-  hostedApiLabel: "Hosted API — launching",
+  hostedApi: "live" as const,
+  hostedApiLabel: "Hosted API — live",
   servicesAvailable: true,
   openSource: true,
 } as const;
@@ -52,6 +52,24 @@ export const CTAS = {
   pricing: { label: "Pricing", href: "/#pricing" },
   github: { label: "View GitHub", href: URLS.github },
   docs: { label: "Read Docs", href: URLS.landingPage },
-  trial: { label: "Start Free Trial", href: "/dashboard/keys" },
+  trial: { label: "Start Free", href: "/dashboard/keys" },
   upgrade: { label: "Upgrade Hosted Plan", href: "/dashboard" },
+} as const;
+
+export const PRICING = {
+  free: { receipts: 1000, price: 0 },
+  scale: {
+    receipts: 25000,
+    price: 19,
+    stripePriceId: process.env.STRIPE_SCALE_PRICE_ID,
+  },
+  pro: {
+    receipts: 100000,
+    price: 49,
+    stripePriceId: process.env.STRIPE_PRO_PRICE_ID,
+  },
+  payg: {
+    ratePerReceipt: 0.0008,
+    stripePriceId: process.env.STRIPE_PAYG_PRICE_ID,
+  },
 } as const;

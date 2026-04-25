@@ -268,22 +268,22 @@ export default function SettingsClient({
               color: "var(--muted)",
             }}
           >
-            {plan === "TRIAL" && "1,000 requests/month · 1 API key"}
-            {plan === "PRO" && "50,000 requests/month · 10 API keys"}
-            {plan === "MAX" && "200,000 requests/month · 10 API keys"}
-            {plan === "ENTERPRISE" && "Custom limits"}
+            {plan === "TRIAL" && "1,000 Sovereign Audit Receipts/month · 1 API key"}
+            {plan === "PRO" && "Scale · 25,000 verified decisions/month · 10 API keys"}
+            {plan === "MAX" && "Pro · 100,000 verified decisions/month · 10 API keys"}
+            {plan === "ENTERPRISE" && "PAYG or custom limits"}
           </span>
         </div>
         {plan === "TRIAL" && (
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <UpgradeButton
-              label="Upgrade to Pro — $29.99/mo"
-              plan="PRO"
+              label="Start Scale — $19/mo"
+              tier="scale"
               style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}
             />
             <UpgradeButton
-              label="Upgrade to Max — $49.99/mo"
-              plan="MAX"
+              label="Start Pro — $49/mo"
+              tier="pro"
               className="btn-secondary"
               style={{ fontSize: "0.85rem", padding: "0.5rem 1.25rem" }}
             />

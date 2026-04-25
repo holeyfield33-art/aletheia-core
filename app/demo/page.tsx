@@ -156,6 +156,8 @@ type AuditResult = {
   decision?: string;
   reason?: string;
   reasoning?: string;
+  message?: string;
+  upgradeUrl?: string;
   metadata?: {
     threat_level?: string;
     latency_ms?: number;
@@ -223,7 +225,14 @@ export default function DemoPage() {
       });
       const rlRemaining = res.headers.get("X-RateLimit-Remaining");
       if (rlRemaining !== null) setRateLimitRemaining(Number(rlRemaining));
-      if (res.status === 429) {
+      if (res.status === 402) {
+        const data: AuditResult = await res.json();
+        setResult(data);
+        if (data.upgradeUrl) {
+          window.location.href = data.upgradeUrl;
+          return;
+        }
+      } else if (res.status === 429) {
         const ra = Number(res.headers.get("Retry-After") || "5");
         setRetryAfter(ra);
         setResult({ error: "rate_limited" });
@@ -268,7 +277,14 @@ export default function DemoPage() {
       });
       const rlRemaining = res.headers.get("X-RateLimit-Remaining");
       if (rlRemaining !== null) setRateLimitRemaining(Number(rlRemaining));
-      if (res.status === 429) {
+      if (res.status === 402) {
+        const data: AuditResult = await res.json();
+        setResult(data);
+        if (data.upgradeUrl) {
+          window.location.href = data.upgradeUrl;
+          return;
+        }
+      } else if (res.status === 429) {
         const ra = Number(res.headers.get("Retry-After") || "5");
         setRetryAfter(ra);
         setResult({ error: "rate_limited" });
@@ -533,7 +549,7 @@ export default function DemoPage() {
                 marginTop: "0.25rem",
               }}
             >
-              {rateLimitRemaining} requests remaining
+              {rateLimitRemaining} Sovereign Audit Receipts remaining
             </div>
           )}
         </div>
@@ -592,7 +608,9 @@ export default function DemoPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
                 <span className="badge-error">ERROR</span>
                 <span style={{ color: "var(--silver)", fontSize: "0.9rem" }}>
-                  {result.error === "rate_limited"
+                  {result.error === "free_tier_exhausted"
+                    ? result.message || "Your free Sovereign Audit Receipts are exhausted."
+                    : result.error === "rate_limited"
                     ? `Too many requests. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
                     : result.error === "request_timeout"
                       ? "Request timed out. The backend may be starting up — try again."
@@ -785,7 +803,7 @@ export default function DemoPage() {
             margin: "0 auto 1.25rem",
           }}
         >
-          Get your own API key with 1,000 free requests/month.
+          Get your own API key with 1,000 free Sovereign Audit Receipts each month.
           No credit card required.
         </p>
         <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
@@ -794,7 +812,7 @@ export default function DemoPage() {
             className="btn-primary"
             style={{ fontSize: "0.92rem", padding: "0.65rem 1.5rem" }}
           >
-            Start Free Trial &rarr;
+            Start Free &rarr;
           </a>
           <a
             href="/auth/login"
@@ -811,7 +829,7 @@ export default function DemoPage() {
             color: "var(--muted)",
           }}
         >
-          Free trial &middot; 1,000 requests/month &middot; Upgrade to Pro for 100K/month
+          Free tier &middot; 1,000 Sovereign Audit Receipts/month &middot; Upgrade to Scale for 25K/month or Pro for 100K/month
         </p>
       </div>
 

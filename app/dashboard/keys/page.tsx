@@ -168,11 +168,11 @@ export default function KeysPage() {
           lineHeight: 1.6,
         }}
       >
-        Trial keys are for evaluation only with limited monthly requests (1,000/month).
+        Trial keys are for evaluation only with limited monthly Sovereign Audit Receipts (1,000/month).
         They are not for production workloads. For production API access with
         retained audit logs, higher quotas, and managed infrastructure, upgrade to{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
-          Hosted Pro or Hosted Max
+          Scale or Pro
         </a>.
       </p>
 
@@ -643,7 +643,7 @@ export default function KeysPage() {
                   }}
                 >
                   Use this key in the <code style={{ color: "var(--white)" }}>X-API-Key</code>{" "}
-                  header to call the hosted API. Trial: 1,000 requests/month.
+                  header to call the hosted API. Trial: 1,000 Sovereign Audit Receipts/month.
                 </div>
 
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

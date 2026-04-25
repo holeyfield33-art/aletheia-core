@@ -1,0 +1,84 @@
+name: Release Checklist
+description: Track release readiness, deployment, and post-release verification.
+title: "[Release]: vX.Y.Z"
+labels: ["release", "ops"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this checklist to prepare, deploy, and verify a release.
+
+  - type: input
+    id: release-version
+    attributes:
+      label: Release Version
+      description: Semantic version for this release.
+      placeholder: "1.9.1"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope-summary
+    attributes:
+      label: Scope Summary
+      description: Briefly summarize what changed and why.
+      placeholder: "Major changes in this release..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: pre-release-checks
+    attributes:
+      label: Pre-release Checks
+      options:
+        - label: Changelog updated with release notes and migration notes.
+        - label: Docs updated for API, environment variables, and pricing/plan language.
+        - label: Required production environment variables validated.
+        - label: Version strings aligned across app/package/docs surfaces.
+
+  - type: checkboxes
+    id: test-checks
+    attributes:
+      label: Test and Build Validation
+      options:
+        - label: Full test suite passed (`pytest tests/ -v`).
+        - label: Frontend build passed (`npm run build`).
+        - label: Any release-specific smoke checks completed.
+
+  - type: checkboxes
+    id: deploy-checks
+    attributes:
+      label: Deployment Checks
+      options:
+        - label: Production deploy completed.
+        - label: Health/readiness checks green.
+        - label: Billing/checkout paths verified in production.
+        - label: Rate-limiting and upgrade gates verified.
+
+  - type: checkboxes
+    id: post-release-checks
+    attributes:
+      label: Post-release Verification
+      options:
+        - label: Banner/launch-state behavior verified.
+        - label: Pricing page copy and CTAs verified.
+        - label: Demo flow and free-tier exhaustion behavior verified.
+        - label: No critical errors in logs/alerts.
+
+  - type: textarea
+    id: rollback-plan
+    attributes:
+      label: Rollback Plan
+      description: Link rollback commit/deploy strategy and trigger conditions.
+      placeholder: "If X fails, rollback to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: sign-off
+    attributes:
+      label: Sign-off
+      description: Approver(s), date/time, and final go/no-go note.
+      placeholder: "Approved by ..."
+    validations:
+      required: true

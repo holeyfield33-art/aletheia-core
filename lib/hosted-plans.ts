@@ -24,18 +24,18 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   PRO: {
     id: "PRO",
     apiKeyPlan: "pro",
-    displayName: "Hosted Pro",
-    monthlyPriceCents: 2_999,
-    monthlyCalls: 50_000,
+    displayName: "Hosted Scale",
+    monthlyPriceCents: 1_900,
+    monthlyCalls: 25_000,
     maxActiveKeys: 10,
     logRetentionDays: 30,
   },
   MAX: {
     id: "MAX",
     apiKeyPlan: "max",
-    displayName: "Hosted Max",
-    monthlyPriceCents: 4_999,
-    monthlyCalls: 200_000,
+    displayName: "Hosted Pro",
+    monthlyPriceCents: 4_900,
+    monthlyCalls: 100_000,
     maxActiveKeys: 10,
     logRetentionDays: 30,
   },
@@ -60,24 +60,27 @@ export function formatPlanPrice(cents: number): string {
 }
 
 export function getStripePriceIdForPlan(plan: HostedPlanId): string | undefined {
-  if (plan === "PRO") return process.env.STRIPE_PRO_PRICE_ID;
-  if (plan === "MAX") return process.env.STRIPE_MAX_PRICE_ID;
+  if (plan === "PRO") return process.env.STRIPE_SCALE_PRICE_ID || process.env.STRIPE_PRO_PRICE_ID;
+  if (plan === "MAX") return process.env.STRIPE_PRO_PRICE_ID;
   return undefined;
 }
 
 export function getStripeExpectedAmountForPlan(plan: HostedPlanId): number | undefined {
   if (plan === "PRO") {
-    return parseInt(process.env.STRIPE_PRO_PRICE_AMOUNT || String(HOSTED_PLANS.PRO.monthlyPriceCents), 10);
+    return parseInt(
+      process.env.STRIPE_SCALE_PRICE_AMOUNT || String(HOSTED_PLANS.PRO.monthlyPriceCents),
+      10,
+    );
   }
   if (plan === "MAX") {
-    return parseInt(process.env.STRIPE_MAX_PRICE_AMOUNT || String(HOSTED_PLANS.MAX.monthlyPriceCents), 10);
+    return parseInt(process.env.STRIPE_PRO_PRICE_AMOUNT || String(HOSTED_PLANS.MAX.monthlyPriceCents), 10);
   }
   return undefined;
 }
 
 export function getStripeCurrencyForPlan(plan: HostedPlanId): string {
-  if (plan === "MAX") {
-    return (process.env.STRIPE_MAX_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+  if (plan === "PRO") {
+    return (process.env.STRIPE_SCALE_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
   }
   return (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
 }

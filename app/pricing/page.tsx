@@ -1,107 +1,75 @@
 import type { Metadata } from "next";
-import { PRODUCT, URLS } from "@/lib/site-config";
-import { HOSTED_PLANS, formatPlanPrice } from "@/lib/hosted-plans";
+import UpgradeButton from "@/app/components/UpgradeButton";
+import ROICalculator from "@/app/components/ROICalculator";
+import { PRICING, PRODUCT, URLS } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: `${PRODUCT.name} pricing — open-source core, hosted API, and expert services.`,
+  description: `${PRODUCT.name} pricing — sovereign audit receipts for secure AI decisions.`,
 };
+
+function formatUsd(amount: number): string {
+  return amount === 0 ? "Free" : `$${amount}`;
+}
+
+function formatReceipts(receipts: number): string {
+  return receipts.toLocaleString();
+}
 
 const tiers = [
   {
-    label: "Community",
-    name: "Self-hosted engine",
-    price: "Free",
-    priceDetail: "/ self-hosted",
-    color: "var(--green)",
-    description:
-      "MIT-licensed open-source engine. Full control, self-hosted.",
-    features: [
-      "MIT licensed",
-      "Self-hosted",
-      "Core runtime protection",
-      "Signed receipts",
-      "Community support",
-      "Unlimited requests",
-    ],
-    cta: { label: "View on GitHub", href: URLS.github },
-    highlight: false,
-  },
-  {
-    label: "Hosted Trial",
+    label: "Free",
     name: "Free evaluation",
     price: "Free",
-    priceDetail: "/ evaluation",
+    priceDetail: "/ month",
     color: "var(--silver)",
     description:
-      "Free evaluation key with 1,000 requests/month. No credit card required.",
+      `Generate up to ${formatReceipts(PRICING.free.receipts)} Sovereign Audit Receipts each month with no credit card required.`,
     features: [
-      "Free evaluation key",
-      "1,000 requests / month",
+      `${formatReceipts(PRICING.free.receipts)} Sovereign Audit Receipts / month`,
+      "Signed receipt verification",
       "One API key",
       "7-day audit logs",
-      "Evaluation use only",
+      "Evaluation access",
     ],
-    cta: { label: "Start Free Trial", href: "/dashboard/keys" },
+    cta: { label: "Start Free", href: "/dashboard/keys" },
     highlight: false,
   },
   {
-    label: "Hosted Pro",
-    name: "Production API",
-    price: formatPlanPrice(HOSTED_PLANS.PRO.monthlyPriceCents),
+    label: "Scale",
+    name: "Launch tier",
+    price: formatUsd(PRICING.scale.price),
     priceDetail: "/mo",
     color: "var(--crimson-hi)",
     description:
-      "Production API access with 50,000 requests/month, retained audit logs, and priority support.",
+      `Production access for teams that need ${formatReceipts(PRICING.scale.receipts)} verified decisions each month.`,
     features: [
-      "Production API access",
-      "50,000 requests / month",
+      `${formatReceipts(PRICING.scale.receipts)} Sovereign Audit Receipts / month`,
+      "Cryptographic proof for each secured decision",
       "30-day audit logs",
       "Up to 10 API keys",
       "Priority support",
-      "Webhook integrations",
     ],
-    cta: { label: "Upgrade to Hosted Pro", href: "/dashboard" },
+    cta: { label: "Start Scale", href: "/pricing?tier=scale" },
     highlight: true,
   },
   {
-    label: "Hosted Max",
-    name: "High-throughput API",
-    price: formatPlanPrice(HOSTED_PLANS.MAX.monthlyPriceCents),
+    label: "Pro",
+    name: "Production tier",
+    price: formatUsd(PRICING.pro.price),
     priceDetail: "/mo",
     color: "var(--white)",
     description:
-      "Higher-throughput hosted API access with 200,000 requests/month for production workloads that outgrow Pro.",
+      `Higher-throughput hosted protection for ${formatReceipts(PRICING.pro.receipts)} verified decisions each month.`,
     features: [
-      "Production API access",
-      "200,000 requests / month",
+      `${formatReceipts(PRICING.pro.receipts)} Sovereign Audit Receipts / month`,
+      "Cryptographic proof for each secured decision",
       "30-day audit logs",
       "Up to 10 API keys",
       "Priority support",
       "Webhook integrations",
     ],
-    cta: { label: "Upgrade to Hosted Max", href: "/dashboard" },
-    highlight: false,
-  },
-  {
-    label: "Services",
-    name: "Expert engagement",
-    price: "From $2,500",
-    priceDetail: "",
-    color: "var(--silver)",
-    description:
-      "Agent red-team review, custom policy engineering, runtime security integration, and deployment guidance.",
-    features: [
-      "Agent red-team review",
-      "Custom policy engineering",
-      "Runtime security integration",
-      "Deployment guidance",
-      "Dedicated support channel",
-    ],
-    cta: {
-      label: "Book Services",
-      href: `mailto:${URLS.contactEmail}?subject=Service Inquiry`,
-    },
+    cta: { label: "Start Pro", href: "/pricing?tier=pro" },
     highlight: false,
   },
 ];
@@ -109,11 +77,11 @@ const tiers = [
 const faqs = [
   {
     q: "Can I self-host Aletheia Core for free?",
-    a: "Yes. The core engine is MIT-licensed and always free to self-host. The hosted API is a managed convenience layer.",
+    a: "Yes. The core engine is MIT-licensed and always free to self-host. Hosted tiers add managed delivery, usage gates, and Stripe billing.",
   },
   {
-    q: "What counts as a request?",
-    a: "Each call to the /evaluate endpoint counts as one request. Manifest verification and audit log reads do not count against your quota.",
+    q: "What counts as a Sovereign Audit Receipt?",
+    a: "Each verified decision that produces a signed receipt counts as one Sovereign Audit Receipt. Verification lookups do not count against your allowance.",
   },
   {
     q: "Can I upgrade or downgrade at any time?",
@@ -121,11 +89,11 @@ const faqs = [
   },
   {
     q: "Is there a credit card required for the free trial?",
-    a: "No. The Hosted Trial tier requires no payment method. You can generate an evaluation key instantly from the dashboard.",
+    a: "No. The free tier requires no payment method. You can generate an evaluation key instantly from the dashboard.",
   },
   {
     q: "What happens if I exceed my monthly limit?",
-    a: "Requests beyond your quota receive a 429 response with a Retry-After header. No overage charges — upgrade when you're ready.",
+    a: "Free-tier usage beyond your quota returns a paid-upgrade response. Paid fixed tiers stay capped to their monthly allowance, while PAYG bills only for metered secured decisions.",
   },
   {
     q: "Do you offer annual billing?",
@@ -164,7 +132,7 @@ export default function PricingPage() {
             marginBottom: "0.75rem",
           }}
         >
-          Open-source core. Hosted API for production.
+          Sovereign Audit Receipts for every secured decision.
         </h1>
         <p
           style={{
@@ -175,9 +143,7 @@ export default function PricingPage() {
             lineHeight: 1.65,
           }}
         >
-          Start free with the self-hosted engine or an evaluation key.
-          Upgrade to Hosted Pro when you need production throughput.
-          Choose Max when you need 200,000 calls/month.
+          Start free, self-host the MIT-licensed core, or move into managed Scale and Pro tiers when you need verified decisions at production volume.
         </p>
       </div>
 
@@ -306,20 +272,86 @@ export default function PricingPage() {
                 </li>
               ))}
             </ul>
-            <a
-              href={t.cta.href}
-              className={t.highlight ? "btn-primary" : "btn-secondary"}
-              style={{
-                display: "block",
-                textAlign: "center",
-                textDecoration: "none",
-              }}
-            >
-              {t.cta.label}
-            </a>
+            {t.label === "Free" ? (
+              <a
+                href={t.cta.href}
+                className="btn-secondary"
+                style={{
+                  display: "block",
+                  textAlign: "center",
+                  textDecoration: "none",
+                }}
+              >
+                {t.cta.label}
+              </a>
+            ) : (
+              <UpgradeButton
+                label={t.cta.label}
+                tier={t.label.toLowerCase() as "scale" | "pro"}
+                className={t.highlight ? "btn-primary" : "btn-secondary"}
+                style={{ width: "100%", justifyContent: "center" }}
+              />
+            )}
           </div>
         ))}
       </div>
+
+      <div
+        className="trust-section"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "10px",
+          padding: "1.5rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          flexWrap: "wrap",
+          marginBottom: "1.5rem",
+        }}
+      >
+        <p style={{ color: "var(--silver)", fontSize: "0.95rem", margin: 0 }}>
+          Each receipt = cryptographic proof of AI safety.
+        </p>
+        <a
+          href="/verify"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn-secondary"
+          style={{ textDecoration: "none" }}
+        >
+          Verify a signed receipt →
+        </a>
+      </div>
+
+      <div
+        className="payg-section"
+        style={{
+          background: "var(--crimson-glow)",
+          border: "1px solid var(--crimson)",
+          borderRadius: "10px",
+          padding: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <h4
+          style={{
+            fontFamily: "var(--font-head)",
+            fontSize: "1.1rem",
+            color: "var(--white)",
+            marginBottom: "0.45rem",
+          }}
+        >
+          Need flexibility?
+        </h4>
+        <p style={{ color: "var(--silver)", fontSize: "0.92rem", marginBottom: "1rem" }}>
+          ${PRICING.payg.ratePerReceipt.toFixed(4)} per receipt — pay only for what you use.
+        </p>
+        <UpgradeButton label="Enable PAYG →" tier="payg" />
+      </div>
+
+      <ROICalculator />
 
       {/* FAQ */}
       <div style={{ maxWidth: "680px", margin: "0 auto" }}>
@@ -396,7 +428,7 @@ export default function PricingPage() {
             marginBottom: "0.5rem",
           }}
         >
-          Need enterprise-grade deployment?
+          Self-hosted core and enterprise support remain available.
         </h3>
         <p
           style={{
@@ -405,7 +437,7 @@ export default function PricingPage() {
             marginBottom: "1rem",
           }}
         >
-          Custom policy engineering, agent red-team review, and managed deployment.
+          Self-host the MIT-licensed engine, or contact us for custom policy engineering, red-team review, and managed deployment.
         </p>
         <a
           href={`mailto:${URLS.contactEmail}?subject=Enterprise Inquiry`}

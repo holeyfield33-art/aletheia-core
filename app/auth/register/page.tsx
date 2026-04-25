@@ -123,7 +123,7 @@ export default function RegisterPage() {
             marginBottom: "1.5rem",
           }}
         >
-          Start your free trial — 1,000 API requests/month
+          Start free — 1,000 Sovereign Audit Receipts/month
         </p>
 
         {error && (

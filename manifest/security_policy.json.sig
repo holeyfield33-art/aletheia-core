@@ -5,6 +5,6 @@
   "manifest_version": "2026.03.07",
   "payload_sha256": "7552b8ba125b545d2ae36f3424eabdb9f35dd43c2ac1c94185e52ecd76b22798",
   "signature": "q/ZCLEdA1sd9tmPZGrEfBrmiCcx7u0MqAkuhNq9vsxcKJBoGEK16LCr9Y/w4NLUzMYiDNgD8WxTjjCLvO3sEAw==",
-  "signed_at": "2026-04-07T23:26:51.357407+00:00",
+  "signed_at": "2026-04-24T02:33:53.791164+00:00",
   "expires_at": "2027-03-07T00:00:00+00:00"
 }

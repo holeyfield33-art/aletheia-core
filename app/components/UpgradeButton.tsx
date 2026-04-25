@@ -6,11 +6,13 @@ export default function UpgradeButton({
   label = "Upgrade Hosted Plan",
   className = "btn-primary",
   style,
+  tier,
   plan = "PRO",
 }: {
   label?: string;
   className?: string;
   style?: React.CSSProperties;
+  tier?: "scale" | "pro" | "payg";
   plan?: "PRO" | "MAX";
 }) {
   const [loading, setLoading] = useState(false);
@@ -18,11 +20,12 @@ export default function UpgradeButton({
   async function handleClick() {
     if (loading) return;
     setLoading(true);
+    const requestedTier = tier ?? (plan === "MAX" ? "pro" : "scale");
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch(`/api/stripe/checkout?tier=${requestedTier}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ tier: requestedTier }),
       });
       const data = await res.json();
       if (data.url) {
