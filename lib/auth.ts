@@ -82,6 +82,32 @@ async function refreshTokenClaims(token: AppToken): Promise<AppToken> {
   };
 }
 
+/**
+ * Pure resolver for the next-auth `redirect` callback. Exported for unit
+ * tests so the open-redirect contract is regression-locked. Behavior:
+ *   - protocol-relative URLs (`//evil`) return `baseUrl`
+ *   - relative paths are appended to `baseUrl` after decode + traversal check
+ *   - absolute URLs are accepted only when origin === baseUrl origin
+ *   - everything else returns `baseUrl`
+ */
+export function resolveAuthRedirect(url: string, baseUrl: string): string {
+  if (!url || typeof url !== "string") return baseUrl;
+  if (url.startsWith("//")) return baseUrl;
+  if (url.startsWith("/")) {
+    const decoded = decodeURIComponent(url);
+    if (decoded.includes("//") || decoded.includes("\\")) return baseUrl;
+    return `${baseUrl}${decoded}`;
+  }
+  try {
+    const target = new URL(url);
+    const base = new URL(baseUrl);
+    if (target.origin === base.origin) return url;
+  } catch {
+    // unparseable — fall through
+  }
+  return baseUrl;
+}
+
 // Periodic cleanup of expired attempts (runs every 60s, deletes rows older than window)
 setInterval(async () => {
   try {
@@ -173,29 +199,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      if (!url || typeof url !== "string") return baseUrl;
-      // Block protocol-relative redirects (//evil.com)
-      if (url.startsWith("//")) return baseUrl;
-      // Allow relative paths (no traversal)
-      if (url.startsWith("/")) {
-        const decoded = decodeURIComponent(url);
-        if (decoded.includes("//") || decoded.includes("\\")) return baseUrl;
-        return `${baseUrl}${decoded}`;
-      }
-      // Allow same-origin absolute URLs only.
-      // Use URL parsing + strict origin equality — never a string prefix.
-      // Prefix-matching baseUrl (e.g. "https://app.aletheia-core.com") against
-      // "https://app.aletheia-core.com.evil.com" or
-      // "https://app.aletheia-core.com@evil.com" would otherwise return true
-      // and produce an open redirect.
-      try {
-        const target = new URL(url);
-        const base = new URL(baseUrl);
-        if (target.origin === base.origin) return url;
-      } catch {
-        // Unparseable URL — fall through to baseUrl
-      }
-      return baseUrl;
+      return resolveAuthRedirect(url, baseUrl);
     },
     async jwt({ token, user }) {
       if (user) {
