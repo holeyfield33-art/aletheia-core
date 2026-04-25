@@ -5,6 +5,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.9.2] — 2026-04-25
+
+### Security Fixes (Critical & High Priority)
+
+**C-1 — Open Redirect via `baseUrl` prefix-match (CRITICAL)**
+- `lib/auth.ts` redirect callback used `url.startsWith(baseUrl)`, returning true for `https://app.aletheia-core.com.evil.com/...` and `https://app.aletheia-core.com@evil.com/...`.
+- **Fix**: Strict `URL.origin` equality check. Same-origin absolute URLs pass; suffix-match, userinfo, and scheme-mismatch attacks rejected.
+
+**C-2 — Silent email auto-verification in production (CRITICAL)**
+- `lib/email.ts` auto-verified accounts when `RESEND_API_KEY` unset, regardless of `NODE_ENV`. Guard wrapped only `console.log`, leaving production vulnerable.
+- **Fix**: Throws `email_service_unconfigured`. Register route catches, deletes user row, returns 503. Unconfigured email service cannot enable impersonation.
+
+**H-1 — JWT staleness after deletion (HIGH)**
+- `CLAIM_REFRESH_MS` was 15 minutes, creating wide access window for deleted users.
+- **Fix**: Reduced to 60s (tunable via `AUTH_CLAIM_REFRESH_MS`). Closes post-deletion access on stateless JWT sessions.
+
+**H-2 — Spoofed `cf-connecting-ip` header (HIGH)**
+- `/api/auth/register` and `/api/demo` honored `cf-connecting-ip` unconditionally, bypassing rate limits on non-Cloudflare deployments.
+- **Fix**: Only honor when `TRUST_CF_HEADERS=true`. Default fallback to `x-forwarded-for`.
+
+**H-3 — Demo proxy DoS on shared quota (HIGH)**
+- `/api/demo` had no per-IP rate limit. Attackers could burn shared API key quota in seconds, breaking conversion funnel.
+- **Fix**: Per-IP rate limiter (default 20/hr, tunable via `DEMO_RATE_LIMIT`, `DEMO_RATE_WINDOW_MS`).
+
+### Hardening (Medium Priority)
+
+- **M-1** — Rate-limit checked BEFORE heavy DB query to protect export endpoint
+- **M-2** — `/api/health` uses shared Prisma singleton (was per-request instantiation)
+- **M-3** — `/api/policy` added to proxy `protectedPaths` for defense-in-depth
+- **M-4** — `getHostedPlanConfig()` guarded against prototype-walk with `Object.hasOwn()`
+
+### Updated Docs
+- **ENVIRONMENT_VARIABLES.md**: Added security env vars (`TRUST_CF_HEADERS`, `DEMO_RATE_LIMIT`, `DEMO_RATE_WINDOW_MS`, `AUTH_CLAIM_REFRESH_MS`)
+- Updated version references from 1.9.1 → 1.9.2
+
+### Verified
+- Frontend build: ✅ passed (48 routes, clean)
+- Backend test suite: ✅ 1114 passed, 16 skipped
+- No regressions from prior release
+
+---
+
+
 ## [1.9.1] — 2026-04-22
 
 ### Launch Notes

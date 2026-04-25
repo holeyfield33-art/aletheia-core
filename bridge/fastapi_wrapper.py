@@ -140,7 +140,7 @@ async def _lifespan(application: FastAPI):
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.9.1",
+    version="1.9.2",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
     lifespan=_lifespan,
 )

@@ -31,7 +31,7 @@ def run_aletheia_audit(
     user_payload, source_origin, action_type, source_ip, file_sig=None
 ):
     print("\n" + "=" * 40)
-    print("ALETHEIA CORE v1.9.1")
+    print("ALETHEIA CORE v1.9.2")
     print("=" * 40)
 
     scout = AletheiaScoutV2()
