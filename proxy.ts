@@ -80,14 +80,9 @@ export async function proxy(request: NextRequest) {
     "Strict-Transport-Security",
     "max-age=31536000; includeSubDomains",
   );
-  // Note: 'unsafe-inline' on script-src is required for Next.js inline
-  // hydration scripts (__NEXT_DATA__, route prefetch). Without it, React
-  // never hydrates and every client component (OAuth buttons, ROI slider,
-  // theme toggle, mobile nav) renders dead. Migrating to nonce-based CSP
-  // requires custom hydration nonce injection — tracked separately.
   response.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.stripe.com https://*.aletheia-core.com https://vitals.vercel-insights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; script-src-elem 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.stripe.com https://*.aletheia-core.com https://vitals.vercel-insights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
   );
 
   return response;

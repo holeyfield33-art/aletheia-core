@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { signIn, getProviders, type ClientSafeProvider } from "next-auth/react";
+import { useState, Suspense } from "react";
+import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginContent() {
@@ -20,25 +20,6 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [providers, setProviders] = useState<Record<string, ClientSafeProvider> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getProviders()
-      .then((p) => {
-        if (!cancelled) setProviders(p ?? {});
-      })
-      .catch(() => {
-        if (!cancelled) setProviders({});
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const githubEnabled = !!providers?.github;
-  const googleEnabled = !!providers?.google;
-  const anyOAuthEnabled = githubEnabled || googleEnabled;
 
   // Show debug info on non-production builds (preview + dev)
   const isDebug =
@@ -281,59 +262,51 @@ function LoginContent() {
           </button>
         </form>
 
-        {providers !== null && anyOAuthEnabled && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                margin: "1.25rem 0",
-              }}
-            >
-              <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-              <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>or continue with</span>
-              <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-            </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            margin: "1.25rem 0",
+          }}
+        >
+          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+          <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>or continue with</span>
+          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+        </div>
 
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              {githubEnabled && (
-                <button
-                  type="button"
-                  onClick={() => handleOAuth("github")}
-                  style={{
-                    flex: 1,
-                    padding: "0.6rem",
-                    background: "#09090b",
-                    border: "1px solid var(--border)",
-                    color: "var(--silver)",
-                    fontSize: "0.82rem",
-                    cursor: "pointer",
-                  }}
-                >
-                  GitHub
-                </button>
-              )}
-              {googleEnabled && (
-                <button
-                  type="button"
-                  onClick={() => handleOAuth("google")}
-                  style={{
-                    flex: 1,
-                    padding: "0.6rem",
-                    background: "#09090b",
-                    border: "1px solid var(--border)",
-                    color: "var(--silver)",
-                    fontSize: "0.82rem",
-                    cursor: "pointer",
-                  }}
-                >
-                  Google
-                </button>
-              )}
-            </div>
-          </>
-        )}
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button
+            type="button"
+            onClick={() => handleOAuth("github")}
+            style={{
+              flex: 1,
+              padding: "0.6rem",
+              background: "#09090b",
+              border: "1px solid var(--border)",
+              color: "var(--silver)",
+              fontSize: "0.82rem",
+              cursor: "pointer",
+            }}
+          >
+            GitHub
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOAuth("google")}
+            style={{
+              flex: 1,
+              padding: "0.6rem",
+              background: "#09090b",
+              border: "1px solid var(--border)",
+              color: "var(--silver)",
+              fontSize: "0.82rem",
+              cursor: "pointer",
+            }}
+          >
+            Google
+          </button>
+        </div>
 
         <p
           style={{
@@ -358,8 +331,36 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<LoginLoadingFallback />}>
       <LoginContent />
     </Suspense>
+  );
+}
+
+function LoginLoadingFallback() {
+  return (
+    <div
+      style={{
+        minHeight: "calc(100vh - 60px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "400px",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          padding: "2.5rem 2rem",
+          color: "var(--muted)",
+          textAlign: "center",
+        }}
+      >
+        Loading sign-in…
+      </div>
+    </div>
   );
 }

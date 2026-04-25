@@ -25,8 +25,41 @@ function getInternalPlanForTier(tier: CheckoutTier): "PRO" | "MAX" | "ENTERPRISE
   return "ENTERPRISE";
 }
 
+function isSameOriginBrowserRequest(request: Request, url: URL): boolean {
+  const secFetchSite = request.headers.get("sec-fetch-site");
+  if (secFetchSite === "cross-site") return false;
+  if (secFetchSite === "same-origin" || secFetchSite === "same-site" || secFetchSite === "none") {
+    return true;
+  }
+
+  const origin = request.headers.get("origin");
+  if (origin) {
+    try {
+      return new URL(origin).host === url.host;
+    } catch {
+      return false;
+    }
+  }
+
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).host === url.host;
+    } catch {
+      return false;
+    }
+  }
+
+  // Non-browser clients should not trigger checkout creation.
+  return false;
+}
+
 async function createCheckoutResponse(request: Request, redirectToStripe: boolean) {
   const url = new URL(request.url);
+  if (!isSameOriginBrowserRequest(request, url)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     if (redirectToStripe) {

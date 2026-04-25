@@ -268,6 +268,7 @@ export default function RegisterPage() {
 
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button
+            type="button"
             onClick={() => handleOAuth("github")}
             style={{
               flex: 1,
@@ -282,6 +283,7 @@ export default function RegisterPage() {
             GitHub
           </button>
           <button
+            type="button"
             onClick={() => handleOAuth("google")}
             style={{
               flex: 1,
