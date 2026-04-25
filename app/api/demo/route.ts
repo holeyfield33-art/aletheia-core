@@ -115,15 +115,32 @@ export async function POST(request: NextRequest) {
     return secureJson({ error: "payload_too_large" }, { status: 413 });
   }
 
-  // Per-IP rate limit before any upstream work.
+  // Per-IP rate limit before any upstream work. Fail CLOSED on DB error so a
+  // Postgres outage cannot turn the demo into an open relay that drains the
+  // shared upstream key's quota.
   const clientIp = extractClientIp(request);
   if (clientIp !== "unknown") {
-    const rl = await consumeRateLimit({
-      action: "demo_proxy",
-      key: clientIp,
-      limit: DEMO_RATE_LIMIT,
-      windowMs: DEMO_RATE_WINDOW_MS,
-    }).catch(() => null);
+    let rl: { allowed: boolean; retryAfterSeconds: number; remaining: number } | null = null;
+    try {
+      rl = await consumeRateLimit({
+        action: "demo_proxy",
+        key: clientIp,
+        limit: DEMO_RATE_LIMIT,
+        windowMs: DEMO_RATE_WINDOW_MS,
+      });
+    } catch (err) {
+      console.error(
+        "[demo-proxy] rate limit DB error — failing closed:",
+        err instanceof Error ? err.message : "unknown",
+      );
+      return secureJson(
+        {
+          error: "service_unavailable",
+          message: "Demo is temporarily unavailable. Please try again shortly.",
+        },
+        { status: 503, headers: { "Retry-After": "30" } },
+      );
+    }
     if (rl && !rl.allowed) {
       return secureJson(
         {
@@ -132,10 +149,16 @@ export async function POST(request: NextRequest) {
         },
         {
           status: 429,
-          headers: { "Retry-After": String(rl.retryAfterSeconds) },
+          headers: {
+            "Retry-After": String(rl.retryAfterSeconds),
+            "X-RateLimit-Limit": String(DEMO_RATE_LIMIT),
+            "X-RateLimit-Remaining": "0",
+          },
         },
       );
     }
+    // Stash remaining for response headers later (success path).
+    (request as unknown as { _rlRemaining?: number })._rlRemaining = rl?.remaining;
   }
 
   if (!BACKEND_BASE) {
@@ -229,7 +252,21 @@ export async function POST(request: NextRequest) {
         );
       }
       if (upstream.status === 401) {
-        return secureJson({ error: "unauthorized" }, { status: 401 });
+        // Upstream rejected our shared demo key. Most common cause: the key
+        // configured in ALETHEIA_DEMO_API_KEY is not present in the Render
+        // KeyStore (e.g. wiped by a restart on an ephemeral SQLite backend).
+        // See docs/LAUNCH_GUIDE.md → "Hosted demo key persistence".
+        console.error(
+          "[demo-proxy] upstream returned 401 — demo key not registered in backend KeyStore",
+        );
+        return secureJson(
+          {
+            error: "demo_unavailable",
+            message:
+              "Demo backend is temporarily unavailable. Please try again later.",
+          },
+          { status: 503 },
+        );
       }
       // Forward 403 with the structured decision body so the demo UI
       // can display educational security-block messaging.
@@ -260,7 +297,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return secureJson(data);
+    const remaining = (request as unknown as { _rlRemaining?: number })._rlRemaining;
+    const rateHeaders =
+      typeof remaining === "number"
+        ? {
+            "X-RateLimit-Limit": String(DEMO_RATE_LIMIT),
+            "X-RateLimit-Remaining": String(Math.max(0, remaining)),
+          }
+        : {};
+    return secureJson(data, { headers: rateHeaders });
   } catch (err) {
     clearTimeout(timer);
     const isTimeout =

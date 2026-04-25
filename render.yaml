@@ -57,6 +57,11 @@ services:
       # --- Demo ---
       - key: ALETHEIA_DEMO_ORIGINS
         sync: false
+      # Idempotent demo-key re-seed on boot. Required on ephemeral disks
+      # (Render free tier with SQLite KeyStore). Safe to leave unset on
+      # Postgres deployments where the key is provisioned via POST /v1/keys.
+      - key: ALETHEIA_DEMO_API_KEY
+        sync: false
       # --- Model / AI ---
       - key: HF_TOKEN
         sync: false

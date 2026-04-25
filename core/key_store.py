@@ -309,6 +309,90 @@ class KeyStore:
         _logger.info("key_created id=%s plan=%s prefix=%s", key_id, plan, key_prefix)
         return raw_key, record
 
+    def import_raw_key(
+        self,
+        name: str,
+        raw_key: str,
+        plan: str = "trial",
+        user_id: str | None = None,
+        role: str = "operator",
+        tenant_id: str | None = None,
+    ) -> KeyRecord:
+        """Register a pre-existing raw key (e.g. injected via env at startup).
+
+        Used by the hosted demo seed path so the public /demo flow survives
+        backend restarts even when the KeyStore is on an ephemeral disk. The
+        raw key is hashed for storage; the plaintext is never persisted.
+        Idempotent — returns the existing record if the key is already known.
+        """
+        existing = self.lookup_by_hash(raw_key, tenant_id=tenant_id)
+        if existing is not None:
+            return existing
+
+        tid = tenant_scope(tenant_id)
+        if role not in ("viewer", "auditor", "operator", "admin"):
+            role = "operator"
+        if plan not in DEFAULT_QUOTAS:
+            plan = "trial"
+
+        key_hash = _hash_key(raw_key)
+        key_prefix = raw_key[:12] + "..." + raw_key[-4:]
+        key_id = secrets.token_hex(8)
+        now = datetime.now(timezone.utc)
+        period_start, period_end = _current_period_bounds(now)
+        quota = DEFAULT_QUOTAS[plan]
+
+        record = KeyRecord(
+            id=key_id,
+            name=name,
+            key_hash=key_hash,
+            key_prefix=key_prefix,
+            plan=plan,
+            status="active",
+            monthly_quota=quota,
+            requests_used=0,
+            period_start=period_start.isoformat(),
+            period_end=period_end.isoformat(),
+            created_at=now.isoformat(),
+            last_used_at=None,
+            user_id=user_id,
+            role=role,
+        )
+
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                conn.execute(
+                    """INSERT INTO api_keys
+                        (id, tenant_id, name, key_hash, key_prefix, plan, status,
+                         monthly_quota, requests_used, period_start, period_end,
+                         created_at, last_used_at, user_id, role)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        record.id,
+                        tid,
+                        record.name,
+                        record.key_hash,
+                        record.key_prefix,
+                        record.plan,
+                        record.status,
+                        record.monthly_quota,
+                        record.requests_used,
+                        record.period_start,
+                        record.period_end,
+                        record.created_at,
+                        record.last_used_at,
+                        record.user_id,
+                        record.role,
+                    ),
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+        _logger.info("key_imported id=%s plan=%s prefix=%s", key_id, plan, key_prefix)
+        return record
+
     def lookup_by_hash(
         self, raw_key: str, *, tenant_id: str | None = None
     ) -> Optional[KeyRecord]:
