@@ -13,9 +13,15 @@ const MAX_EMAIL_LENGTH = 255;
 const REGISTER_LIMIT = 5;
 const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
+// Only honor cf-connecting-ip when we are actually deployed behind Cloudflare.
+// Otherwise an attacker can rotate this header to bypass per-IP rate limits.
+const TRUST_CF_HEADERS = process.env.TRUST_CF_HEADERS === "true";
+
 function extractClientIp(request: NextRequest): string {
-  const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
-  if (cloudflareIp && isIP(cloudflareIp)) return cloudflareIp;
+  if (TRUST_CF_HEADERS) {
+    const cloudflareIp = request.headers.get("cf-connecting-ip")?.trim();
+    if (cloudflareIp && isIP(cloudflareIp)) return cloudflareIp;
+  }
 
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
@@ -115,7 +121,25 @@ export async function POST(request: NextRequest) {
     });
 
     // --- Send verification email ---
-    await sendVerificationEmail(normalizedEmail);
+    // If the email service is unconfigured in production, sendVerificationEmail
+    // throws — roll back the user record so we don't leave an unreachable
+    // account behind, and surface a clear configuration error.
+    try {
+      await sendVerificationEmail(normalizedEmail);
+    } catch (emailErr) {
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+      const message = emailErr instanceof Error ? emailErr.message : "unknown";
+      if (message === "email_service_unconfigured") {
+        return NextResponse.json(
+          {
+            error: "email_service_unconfigured",
+            message: "Account creation is temporarily unavailable. Please try again later.",
+          },
+          { status: 503 },
+        );
+      }
+      throw emailErr;
+    }
 
     return NextResponse.json(
       {

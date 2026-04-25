@@ -30,10 +30,18 @@ export async function sendVerificationEmail(email: string): Promise<boolean> {
   const verifyUrl = `${URLS.appBase}/api/auth/verify-email?token=${token}&email=${encodeURIComponent(email)}`;
 
   if (!resend) {
-    // Dev mode: skip sending, auto-verify
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[DEV] Verify: ${verifyUrl}`);
+    // Production must never auto-verify. If RESEND_API_KEY is missing here,
+    // fail loudly so registration returns 500 and the operator notices —
+    // the previous behavior silently marked any new account as verified,
+    // letting an attacker register arbitrary emails as their own.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[email] RESEND_API_KEY is not set in production. Refusing to auto-verify.",
+      );
+      throw new Error("email_service_unconfigured");
     }
+    // Dev/test only: log the link and auto-verify so local flow works.
+    console.log(`[DEV] Verify: ${verifyUrl}`);
     await prisma.user.update({
       where: { email },
       data: { emailVerified: new Date() },

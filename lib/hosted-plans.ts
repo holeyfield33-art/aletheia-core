@@ -52,7 +52,10 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
 
 export function getHostedPlanConfig(plan: string | null | undefined): HostedPlanConfig {
   const normalized = typeof plan === "string" ? plan.toUpperCase() : "TRIAL";
-  return HOSTED_PLANS[normalized as HostedPlanId] ?? HOSTED_PLANS.TRIAL;
+  // Guard against prototype-walk lookups (e.g. plan="__proto__") — `??` would
+  // not catch Object.prototype because it's truthy.
+  if (!Object.hasOwn(HOSTED_PLANS, normalized)) return HOSTED_PLANS.TRIAL;
+  return HOSTED_PLANS[normalized as HostedPlanId];
 }
 
 export function formatPlanPrice(cents: number): string {

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aletheia-cyber-core"
-version = "1.9.1"
+version = "1.9.2"
 description = "Runtime audit and pre-execution block layer for autonomous AI agents. Protects against instruction smuggling, semantic camouflage, and supply-chain attacks."
 readme = "README.md"
 license = {text = "MIT"}

@@ -8,8 +8,23 @@ const EXPORT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export async function POST() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  if (!session?.user?.id || !session?.user?.email) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // Rate-limit BEFORE the heavy multi-relation query so spam requests don't
+  // burn DB read budget.
+  const rateLimit = await consumeRateLimit({
+    action: "account_export",
+    key: session.user.id,
+    limit: 1,
+    windowMs: EXPORT_COOLDOWN_MS,
+  });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "rate_limited", message: "You can export your data once every 24 hours." },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+    );
   }
 
   const user = await prisma.user.findUnique({
@@ -61,19 +76,6 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
-  const rateLimit = await consumeRateLimit({
-    action: "account_export",
-    key: user.id,
-    limit: 1,
-    windowMs: EXPORT_COOLDOWN_MS,
-  });
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: "rate_limited", message: "You can export your data once every 24 hours." },
-      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
-    );
   }
 
   const exportData = {
