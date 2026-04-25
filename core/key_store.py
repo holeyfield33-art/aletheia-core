@@ -433,8 +433,11 @@ class KeyStore:
                     record.period_start = new_start.isoformat()
                     record.period_end = new_end.isoformat()
 
+                # PAYG enterprise keys are fully metered with no hard request cap.
+                is_unlimited_payg = record.plan.lower() == "enterprise"
+
                 # Quota check
-                if record.requests_used >= record.monthly_quota:
+                if not is_unlimited_payg and record.requests_used >= record.monthly_quota:
                     return QuotaCheck(
                         allowed=False,
                         reason=(

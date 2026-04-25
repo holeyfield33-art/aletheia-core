@@ -16,7 +16,7 @@ export default function ROICalculator() {
   const [monthlyDecisions, setMonthlyDecisions] = useState(25000);
 
   const metrics = useMemo(() => {
-    const paygCost = monthlyDecisions * PRICING.payg.ratePerReceipt;
+    const paygCost = monthlyDecisions * PRICING.payg.pricePerReceipt;
     const scaleCost = PRICING.scale.price;
     const proCost = PRICING.pro.price;
     const scaleFit = monthlyDecisions <= PRICING.scale.receipts;
@@ -101,7 +101,7 @@ export default function ROICalculator() {
       >
         <MetricCard label="Scale" value={currency(metrics.scaleCost)} detail={`${currency(metrics.effectiveScale)} per secured decision`} />
         <MetricCard label="Pro" value={currency(metrics.proCost)} detail={`${currency(metrics.effectivePro)} per secured decision`} />
-        <MetricCard label="PAYG" value={currency(metrics.paygCost)} detail={`${currency(PRICING.payg.ratePerReceipt)} per secured decision`} />
+        <MetricCard label="PAYG" value={currency(metrics.paygCost)} detail={`${currency(PRICING.payg.pricePerReceipt)} per secured decision`} />
       </div>
 
       <div

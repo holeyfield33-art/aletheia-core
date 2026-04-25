@@ -115,8 +115,9 @@ Aletheia Core v1.9.2 environment reference.
 | `STRIPE_PRO_PRICE_ID` | Optional | Recommended | Pro plan price id. |
 | `STRIPE_PRO_PRICE_AMOUNT` | Optional | Optional | Fallback Pro amount. |
 | `STRIPE_PRO_CURRENCY` | Optional | Optional | Fallback currency. |
-| `STRIPE_PAYG_PRICE_ID` | Optional | Recommended | PAYG price id. |
-| `STRIPE_PAYG_CURRENCY` | Optional | Optional | PAYG currency. |
+| `STRIPE_PAYG_METERED_PRICE_ID` | Optional | Recommended | PAYG metered price id. |
+| `STRIPE_PAYG_METERED_CURRENCY` | Optional | Optional | PAYG currency. |
+| `CRON_SECRET` | Optional | Recommended | Bearer secret for usage-report cron endpoint auth. |
 | `RESEND_API_KEY` | Optional | Recommended | Transactional email key. |
 | `EMAIL_FROM` | Optional | Recommended | Sender identity. |
 | `HUGGING_FACE_HUB_TOKEN` | Optional | Optional | Model download auth token. |

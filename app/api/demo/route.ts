@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt";
 import { secureJson as _baseSecureJson } from "@/lib/api-utils";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { PRICING } from "@/lib/site-config";
+import { incrementUsage } from "@/lib/usage-tracking";
 
 /**
  * Demo proxy route — keeps ALETHEIA_DEMO_API_KEY server-side only.
@@ -247,6 +248,18 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await upstream.json();
+
+    // Metered PAYG usage is tracked asynchronously so request latency is unaffected.
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (token?.sub && token.plan === "ENTERPRISE") {
+      void incrementUsage(token.sub, 1).catch((error) => {
+        console.error("[demo-proxy] Usage tracking failed", {
+          userId: token.sub,
+          error,
+        });
+      });
+    }
+
     return secureJson(data);
   } catch (err) {
     clearTimeout(timer);

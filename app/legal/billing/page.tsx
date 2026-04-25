@@ -60,14 +60,14 @@ export default function BillingTermsPage() {
         <li><strong style={{ color: "var(--white)" }}>Free (Free):</strong> {PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts per month. No payment required. No automatic conversion to a paid plan.</li>
         <li><strong style={{ color: "var(--white)" }}>Scale (${PRICING.scale.price}/month):</strong> {PRICING.scale.receipts.toLocaleString()} verified decisions per month. Billed monthly as a recurring charge via Stripe.</li>
         <li><strong style={{ color: "var(--white)" }}>Pro (${PRICING.pro.price}/month):</strong> {PRICING.pro.receipts.toLocaleString()} verified decisions per month. Billed monthly as a recurring charge via Stripe.</li>
-        <li><strong style={{ color: "var(--white)" }}>PAYG:</strong> ${PRICING.payg.ratePerReceipt.toFixed(4)} per secured decision. Metered through Stripe.</li>
+        <li><strong style={{ color: "var(--white)" }}>PAYG:</strong> ${PRICING.payg.pricePerReceipt.toFixed(5)} per secured decision. Metered through Stripe.</li>
         <li><strong style={{ color: "var(--white)" }}>Enterprise (Custom):</strong> Custom pricing by arrangement. Contact <a href={URLS.contact} style={{ color: "var(--crimson-hi)" }}>{URLS.contactEmail}</a>.</li>
       </ul>
 
       <h2 style={h2}>2. Recurring Charges &amp; Consent</h2>
       <p style={p}>
         <strong style={{ color: "var(--white)" }}>Clear disclosure:</strong> The Scale plan is a recurring
-        monthly subscription at ${PRICING.scale.price} USD per month and the Pro plan is a recurring monthly subscription at ${PRICING.pro.price} USD per month, charged to the payment method you provide at checkout. PAYG usage is metered at ${PRICING.payg.ratePerReceipt.toFixed(4)} USD per secured decision.
+        monthly subscription at ${PRICING.scale.price} USD per month and the Pro plan is a recurring monthly subscription at ${PRICING.pro.price} USD per month, charged to the payment method you provide at checkout. PAYG usage is metered at ${PRICING.payg.pricePerReceipt.toFixed(5)} USD per secured decision.
       </p>
       <p style={p}>
         <strong style={{ color: "var(--white)" }}>Affirmative consent:</strong> By clicking

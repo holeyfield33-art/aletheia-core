@@ -93,15 +93,30 @@ async function createCheckoutResponse(request: Request, redirectToStripe: boolea
   const stripe = new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" });
 
   const appBase = getBaseUrl();
+  const lineItems =
+    selectedTier === "payg"
+      ? [{ price: priceId }]
+      : [{ price: priceId, quantity: 1 }];
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
     payment_method_types: ["card"],
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     success_url: `${appBase}/dashboard?upgraded=true`,
     cancel_url: `${appBase}/dashboard?upgrade=cancelled`,
     client_reference_id: session.user.id,
-    metadata: { userId: session.user.id, tier: selectedTier, plan: internalPlan },
+    metadata: {
+      userId: session.user.id,
+      tier: selectedTier,
+      plan: internalPlan,
+      billingModel: selectedTier === "payg" ? "metered" : "licensed",
+    },
+    subscription_data: {
+      metadata: {
+        userId: session.user.id,
+        tier: selectedTier,
+      },
+    },
     customer_email: session.user.email ?? undefined,
   });
 

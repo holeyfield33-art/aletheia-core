@@ -2,6 +2,12 @@
   "framework": "nextjs",
   "buildCommand": "npm run build:vercel",
   "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/cron/report-usage",
+      "schedule": "0 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

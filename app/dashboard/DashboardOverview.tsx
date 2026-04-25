@@ -155,6 +155,8 @@ export default function DashboardOverview({
   plan,
   isNewUser,
   totalQuota,
+  currentMonthUsage,
+  estimatedPaygCost,
 }: {
   keyCount: number;
   totalRequests: number;
@@ -162,6 +164,8 @@ export default function DashboardOverview({
   plan: string;
   isNewUser: boolean;
   totalQuota: number;
+  currentMonthUsage: number;
+  estimatedPaygCost: number;
 }) {
   const [showWelcome, setShowWelcome] = useState(isNewUser);
 
@@ -174,6 +178,21 @@ export default function DashboardOverview({
     { label: "Audit Decisions", value: logCount.toLocaleString(), href: "/dashboard/logs" },
     { label: "Plan", value: plan, href: "/dashboard/usage" },
   ];
+
+  if (plan === "ENTERPRISE") {
+    cards.push(
+      {
+        label: "This Month Usage",
+        value: currentMonthUsage.toLocaleString(),
+        href: "/dashboard/usage",
+      },
+      {
+        label: "Estimated PAYG Cost",
+        value: `$${estimatedPaygCost.toFixed(2)}`,
+        href: "/dashboard/usage",
+      },
+    );
+  }
 
   return (
     <div>
@@ -249,6 +268,25 @@ export default function DashboardOverview({
       >
         Overview
       </div>
+
+      {plan === "ENTERPRISE" && (
+        <div
+          style={{
+            background: "rgba(46,184,122,0.08)",
+            border: "1px solid rgba(46,184,122,0.35)",
+            borderRadius: "10px",
+            padding: "0.9rem 1rem",
+            marginBottom: "1rem",
+            color: "var(--silver)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.8rem",
+            lineHeight: 1.6,
+          }}
+        >
+          You&apos;ll be billed at the end of the month for exact usage. No surprises.
+        </div>
+      )}
+
       <h1
         style={{
           fontFamily: "var(--font-head)",

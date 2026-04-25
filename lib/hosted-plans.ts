@@ -1,5 +1,5 @@
 export type HostedPlanId = "TRIAL" | "PRO" | "MAX" | "ENTERPRISE";
-export type ApiKeyPlanId = "trial" | "pro" | "max";
+export type ApiKeyPlanId = "trial" | "pro" | "max" | "enterprise";
 
 export type HostedPlanConfig = {
   id: HostedPlanId;
@@ -41,10 +41,10 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   },
   ENTERPRISE: {
     id: "ENTERPRISE",
-    apiKeyPlan: "max",
+    apiKeyPlan: "enterprise",
     displayName: "Enterprise",
     monthlyPriceCents: 0,
-    monthlyCalls: 200_000,
+    monthlyCalls: 2_147_483_647,
     maxActiveKeys: 10,
     logRetentionDays: 30,
   },

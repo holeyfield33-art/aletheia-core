@@ -310,7 +310,9 @@ class PgKeyStore:
                 )
                 record.requests_used = 0
 
-            if record.requests_used >= record.monthly_quota:
+            is_unlimited_payg = record.plan.lower() == "enterprise"
+
+            if not is_unlimited_payg and record.requests_used >= record.monthly_quota:
                 return QuotaCheck(
                     allowed=False,
                     reason="This API key has reached its monthly request limit. "

@@ -69,7 +69,10 @@ export const PRICING = {
     stripePriceId: process.env.STRIPE_PRO_PRICE_ID,
   },
   payg: {
-    ratePerReceipt: 0.0008,
-    stripePriceId: process.env.STRIPE_PAYG_PRICE_ID,
+    name: "Pay as You Go",
+    pricePerReceipt: 0.00049,
+    stripePriceId: process.env.STRIPE_PAYG_METERED_PRICE_ID,
+    isMetered: true,
+    description: "No monthly fee. Pay only for what you use.",
   },
 } as const;

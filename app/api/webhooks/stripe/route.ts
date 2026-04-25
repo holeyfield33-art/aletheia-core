@@ -48,7 +48,7 @@ function getStripeCurrencyForTier(tier: CheckoutTier): string {
     return (process.env.STRIPE_SCALE_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
   }
   if (tier === "payg") {
-    return (process.env.STRIPE_PAYG_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+    return (process.env.STRIPE_PAYG_METERED_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
   }
   return (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
 }
@@ -205,6 +205,46 @@ export async function POST(request: Request) {
       break;
     }
 
+    case "invoice.paid": {
+      const invoice = event.data.object;
+      const customerId = invoice.customer as string | undefined;
+      const subscriptionId = invoice.subscription as string | undefined;
+      const lines =
+        typeof invoice.lines === "object" && invoice.lines !== null
+          ? (invoice.lines as { data?: Array<{ price?: { id?: string } }> })
+          : undefined;
+      const priceId = lines?.data?.find((line) => line.price?.id)?.price?.id;
+      const selectedTier = getTierForPriceId(priceId);
+      const selectedPlan = getPlanForTier(selectedTier);
+
+      if (customerId) {
+        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
+        await prisma.user.updateMany({
+          where: { stripeCustomerId: customerId },
+          data: {
+            plan: selectedPlan,
+            stripePriceId: priceId,
+            stripeSubscriptionId: subscriptionId,
+          },
+        });
+
+        const users = await prisma.user.findMany({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+        if (users.length > 0) {
+          await prisma.apiKey.updateMany({
+            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+            data: {
+              plan: quotaUpdate.plan,
+              monthlyQuota: quotaUpdate.monthlyQuota,
+            },
+          });
+        }
+      }
+      break;
+    }
+
     case "customer.subscription.deleted": {
       const subscription = event.data.object;
       const customerId = subscription.customer as string;
@@ -212,7 +252,10 @@ export async function POST(request: Request) {
         const trialPlan = getHostedPlanConfig("TRIAL");
         await prisma.user.updateMany({
           where: { stripeCustomerId: customerId },
-          data: { plan: "TRIAL" },
+          data: {
+            plan: "TRIAL",
+            stripeSubscriptionId: null,
+          },
         });
         const users = await prisma.user.findMany({
           where: { stripeCustomerId: customerId },

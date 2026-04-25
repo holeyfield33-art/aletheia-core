@@ -346,7 +346,7 @@ export default function PricingPage() {
           Need flexibility?
         </h4>
         <p style={{ color: "var(--silver)", fontSize: "0.92rem", marginBottom: "1rem" }}>
-          ${PRICING.payg.ratePerReceipt.toFixed(4)} per receipt — pay only for what you use.
+          ${PRICING.payg.pricePerReceipt.toFixed(5)} per receipt — pay only for what you use.
         </p>
         <UpgradeButton label="Enable PAYG →" tier="payg" />
       </div>

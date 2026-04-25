@@ -386,7 +386,13 @@ The client should redirect the user to the returned URL. On success, the user is
 - `STRIPE_SECRET_KEY` — Stripe secret key
 - `STRIPE_SCALE_PRICE_ID` — Price ID for the Scale subscription
 - `STRIPE_PRO_PRICE_ID` — Price ID for the Pro subscription
-- `STRIPE_PAYG_PRICE_ID` — Price ID for the PAYG plan
+- `STRIPE_PAYG_METERED_PRICE_ID` — Metered price ID for PAYG
+
+---
+
+### POST `/api/stripe/webhook`
+
+Alias endpoint for Stripe webhook processing (same behavior as `/api/webhooks/stripe`).
 
 ---
 
