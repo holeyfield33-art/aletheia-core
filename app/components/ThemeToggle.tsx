@@ -16,12 +16,9 @@ function getStoredTheme(): Theme | null {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-
   useEffect(() => {
     const theme = getStoredTheme() ?? getSystemTheme();
     document.documentElement.setAttribute("data-theme", theme);
-    setMounted(true);
   }, []);
 
   // Prevent flash — children render immediately but theme class is applied in useEffect

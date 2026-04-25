@@ -6,8 +6,10 @@ import { getBaseUrl } from "@/lib/auth-config";
 import { PRICING } from "@/lib/site-config";
 
 type CheckoutTier = "scale" | "pro" | "payg";
+type CheckoutSelection = CheckoutTier | "enterprise";
 
-function normalizeTier(rawTier: string | null | undefined): CheckoutTier {
+function normalizeTier(rawTier: string | null | undefined): CheckoutSelection {
+  if (rawTier === "enterprise") return "enterprise";
   if (rawTier === "payg") return "payg";
   if (rawTier === "pro") return "pro";
   return "scale";
@@ -78,6 +80,14 @@ async function createCheckoutResponse(request: Request, redirectToStripe: boolea
   }
 
   const selectedTier = normalizeTier(url.searchParams.get("tier") ?? body.tier);
+  if (selectedTier === "enterprise") {
+    const contactUrl = new URL("/contact", url.origin);
+    if (redirectToStripe) {
+      return NextResponse.redirect(contactUrl);
+    }
+    return NextResponse.json({ url: contactUrl.toString() });
+  }
+
   const internalPlan = getInternalPlanForTier(selectedTier);
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
@@ -98,27 +108,33 @@ async function createCheckoutResponse(request: Request, redirectToStripe: boolea
       ? [{ price: priceId }]
       : [{ price: priceId, quantity: 1 }];
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    payment_method_types: ["card"],
-    line_items: lineItems,
-    success_url: `${appBase}/dashboard?upgraded=true`,
-    cancel_url: `${appBase}/dashboard?upgrade=cancelled`,
-    client_reference_id: session.user.id,
-    metadata: {
-      userId: session.user.id,
-      tier: selectedTier,
-      plan: internalPlan,
-      billingModel: selectedTier === "payg" ? "metered" : "licensed",
-    },
-    subscription_data: {
+  let checkoutSession: Stripe.Checkout.Session;
+  try {
+    checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      line_items: lineItems,
+      success_url: `${appBase}/dashboard?upgraded=true`,
+      cancel_url: `${appBase}/dashboard?upgrade=cancelled`,
+      client_reference_id: session.user.id,
       metadata: {
         userId: session.user.id,
         tier: selectedTier,
+        plan: internalPlan,
+        billingModel: selectedTier === "payg" ? "metered" : "licensed",
       },
-    },
-    customer_email: session.user.email ?? undefined,
-  });
+      subscription_data: {
+        metadata: {
+          userId: session.user.id,
+          tier: selectedTier,
+        },
+      },
+      customer_email: session.user.email ?? undefined,
+    });
+  } catch (error) {
+    console.error("[stripe-checkout] Failed to create checkout session", error);
+    return NextResponse.json({ error: "checkout_session_failed" }, { status: 500 });
+  }
 
   if (redirectToStripe && checkoutSession.url) {
     return NextResponse.redirect(checkoutSession.url);

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -8,7 +8,7 @@ import prisma from "@/lib/prisma";
  * Requires admin authentication in production.
  * In development, accessible without auth for local debugging.
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   // In production, require admin auth
   if (process.env.NODE_ENV === "production") {
     const session = await getServerSession(authOptions);

@@ -62,7 +62,12 @@ function getStripeCurrencyForTier(tier: CheckoutTier): string {
     return (process.env.STRIPE_SCALE_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
   }
   if (tier === "payg") {
-    return (process.env.STRIPE_PAYG_METERED_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+    return (
+      process.env.STRIPE_PAYG_METERED_CURRENCY ||
+      process.env.STRIPE_PAYG_CURRENCY ||
+      process.env.STRIPE_PRO_CURRENCY ||
+      "usd"
+    ).toLowerCase();
   }
   return (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
 }
@@ -160,208 +165,211 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      const sessionMetadata =
-        typeof session.metadata === "object" && session.metadata !== null
-          ? (session.metadata as Record<string, unknown>)
-          : undefined;
-      // Use client_reference_id (set server-side in checkout creation) — NOT metadata
-      // which could be tampered with by intercepting the checkout URL.
-      const userId = session.client_reference_id;
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        const sessionMetadata =
+          typeof session.metadata === "object" && session.metadata !== null
+            ? (session.metadata as Record<string, unknown>)
+            : undefined;
+        // Use client_reference_id (set server-side in checkout creation) — NOT metadata
+        // which could be tampered with by intercepting the checkout URL.
+        const userId = session.client_reference_id;
+        // Prefer Stripe's authoritative line-item price id over user-supplied
+        // metadata. Metadata is only used as a fallback hint when no line item
+        // price is recoverable (e.g. 0-line synthetic events).
+        const lineItems =
+          typeof session.line_items === "object" && session.line_items !== null
+            ? (session.line_items as { data?: Array<{ price?: { id?: string } }> })
+            : undefined;
+        const linePriceId = lineItems?.data?.find((line) => line.price?.id)?.price?.id;
+        const metadataTier =
+          typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined;
+        const selectedTier = linePriceId
+          ? getTierForPriceId(linePriceId)
+          : normalizeTier(metadataTier);
+        const selectedPlan = getPlanForTier(selectedTier);
+        const expectedAmount = getStripeExpectedAmountForTier(selectedTier);
+        const expectedCurrency = getStripeCurrencyForTier(selectedTier);
+        const expectedPriceId = getStripePriceIdForTier(selectedTier);
+        const sessionAmount = session.amount_total as number | undefined;
+        const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
 
-      // Prefer Stripe's authoritative line-item price id over user-supplied
-      // metadata. Metadata is only used as a fallback hint when no line item
-      // price is recoverable (e.g. 0-line synthetic events).
-      const lineItems =
-        typeof session.line_items === "object" && session.line_items !== null
-          ? (session.line_items as { data?: Array<{ price?: { id?: string } }> })
-          : undefined;
-      const linePriceId = lineItems?.data?.find((line) => line.price?.id)?.price?.id;
-      const metadataTier =
-        typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined;
-      const selectedTier = linePriceId
-        ? getTierForPriceId(linePriceId)
-        : normalizeTier(metadataTier);
-      const selectedPlan = getPlanForTier(selectedTier);
-      const expectedAmount = getStripeExpectedAmountForTier(selectedTier);
-      const expectedCurrency = getStripeCurrencyForTier(selectedTier);
-      const expectedPriceId = getStripePriceIdForTier(selectedTier);
-      const sessionAmount = session.amount_total as number | undefined;
-      const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
+        // Defence-in-depth: if metadata claims a different tier than the price id
+        // resolves to, that's a downgrade attempt — refuse the event.
+        if (
+          linePriceId &&
+          metadataTier &&
+          getTierForPriceId(linePriceId) !== normalizeTier(metadataTier)
+        ) {
+          console.error(
+            `[stripe-webhook] tier/metadata mismatch: priceId=${linePriceId} metadataTier=${metadataTier}`,
+          );
+          return NextResponse.json(
+            { error: "tier_mismatch", message: "Checkout metadata does not match line item." },
+            { status: 400 },
+          );
+        }
 
-      // Defence-in-depth: if metadata claims a different tier than the price id
-      // resolves to, that's a downgrade attempt — refuse the event.
-      if (
-        linePriceId &&
-        metadataTier &&
-        getTierForPriceId(linePriceId) !== normalizeTier(metadataTier)
-      ) {
-        console.error(
-          `[stripe-webhook] tier/metadata mismatch: priceId=${linePriceId} metadataTier=${metadataTier}`,
-        );
-        return NextResponse.json(
-          { error: "tier_mismatch", message: "Checkout metadata does not match line item." },
-          { status: 400 },
-        );
-      }
+        if (
+          expectedAmount !== undefined &&
+          sessionAmount !== undefined &&
+          sessionCurrency !== undefined &&
+          (sessionAmount !== expectedAmount || sessionCurrency !== expectedCurrency)
+        ) {
+          console.error(
+            `[stripe-webhook] Price mismatch: expected ${expectedAmount} ${expectedCurrency}, got ${sessionAmount} ${sessionCurrency}`,
+          );
+          return NextResponse.json(
+            { error: "price_mismatch", message: "No matching price found" },
+            { status: 400 },
+          );
+        }
 
-      if (
-        expectedAmount !== undefined &&
-        sessionAmount !== undefined &&
-        sessionCurrency !== undefined &&
-        (sessionAmount !== expectedAmount || sessionCurrency !== expectedCurrency)
-      ) {
-        console.error(
-          `[stripe-webhook] Price mismatch: expected ${expectedAmount} ${expectedCurrency}, got ${sessionAmount} ${sessionCurrency}`,
-        );
-        return NextResponse.json(
-          { error: "price_mismatch", message: "No matching price found" },
-          { status: 400 },
-        );
-      }
+        if (userId && typeof userId === "string") {
+          const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              plan: selectedPlan,
+              stripeCustomerId: session.customer as string | undefined,
+              stripeSubscriptionId: session.subscription as string | undefined,
+              stripePriceId: expectedPriceId,
+            },
+          });
 
-      if (userId && typeof userId === "string") {
-        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            plan: selectedPlan,
-            stripeCustomerId: session.customer as string | undefined,
-            stripeSubscriptionId: session.subscription as string | undefined,
-            stripePriceId: expectedPriceId,
-          },
-        });
-
-        await prisma.apiKey.updateMany({
-          where: { userId, status: "active" },
-          data: {
-            plan: quotaUpdate.plan,
-            monthlyQuota: quotaUpdate.monthlyQuota,
-          },
-        });
-      }
-      break;
-    }
-
-    case "invoice.paid": {
-      const invoice = event.data.object;
-      const customerId = invoice.customer as string | undefined;
-      const subscriptionId = invoice.subscription as string | undefined;
-      const lines =
-        typeof invoice.lines === "object" && invoice.lines !== null
-          ? (invoice.lines as { data?: Array<{ price?: { id?: string } }> })
-          : undefined;
-      const priceId = lines?.data?.find((line) => line.price?.id)?.price?.id;
-      const selectedTier = getTierForPriceId(priceId);
-      const selectedPlan = getPlanForTier(selectedTier);
-
-      if (customerId) {
-        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
-        await prisma.user.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: {
-            plan: selectedPlan,
-            stripePriceId: priceId,
-            stripeSubscriptionId: subscriptionId,
-          },
-        });
-
-        const users = await prisma.user.findMany({
-          where: { stripeCustomerId: customerId },
-          select: { id: true },
-        });
-        if (users.length > 0) {
           await prisma.apiKey.updateMany({
-            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+            where: { userId, status: "active" },
             data: {
               plan: quotaUpdate.plan,
               monthlyQuota: quotaUpdate.monthlyQuota,
             },
           });
         }
+        break;
       }
-      break;
-    }
 
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      const customerId = subscription.customer as string;
-      if (customerId) {
-        const trialPlan = getHostedPlanConfig("TRIAL");
-        await prisma.user.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: {
-            plan: "TRIAL",
-            stripeSubscriptionId: null,
-          },
-        });
-        const users = await prisma.user.findMany({
-          where: { stripeCustomerId: customerId },
-          select: { id: true },
-        });
-        if (users.length > 0) {
-          await prisma.apiKey.updateMany({
-            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+      case "invoice.paid": {
+        const invoice = event.data.object;
+        const customerId = invoice.customer as string | undefined;
+        const subscriptionId = invoice.subscription as string | undefined;
+        const lines =
+          typeof invoice.lines === "object" && invoice.lines !== null
+            ? (invoice.lines as { data?: Array<{ price?: { id?: string } }> })
+            : undefined;
+        const priceId = lines?.data?.find((line) => line.price?.id)?.price?.id;
+        const selectedTier = getTierForPriceId(priceId);
+        const selectedPlan = getPlanForTier(selectedTier);
+
+        if (customerId) {
+          const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
+          await prisma.user.updateMany({
+            where: { stripeCustomerId: customerId },
             data: {
-              plan: trialPlan.apiKeyPlan,
-              monthlyQuota: trialPlan.monthlyCalls,
+              plan: selectedPlan,
+              stripePriceId: priceId,
+              stripeSubscriptionId: subscriptionId,
             },
           });
+          const users = await prisma.user.findMany({
+            where: { stripeCustomerId: customerId },
+            select: { id: true },
+          });
+          if (users.length > 0) {
+            await prisma.apiKey.updateMany({
+              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+              data: {
+                plan: quotaUpdate.plan,
+                monthlyQuota: quotaUpdate.monthlyQuota,
+              },
+            });
+          }
         }
+        break;
       }
-      break;
-    }
 
-    case "customer.subscription.updated": {
-      const subscription = event.data.object;
-      const subscriptionItems =
-        typeof subscription.items === "object" && subscription.items !== null
-          ? (subscription.items as { data?: Array<{ price?: { id?: string } }> })
-          : undefined;
-      const customerId = subscription.customer as string;
-      const status = subscription.status as string;
-      // Match against our known plan price ids rather than trusting items[0],
-      // which can be an add-on, proration, or one-off line item.
-      const knownPriceIds = new Set(
-        [
-          PRICING.scale.stripePriceId,
-          PRICING.pro.stripePriceId,
-          PRICING.payg.stripePriceId,
-        ].filter(Boolean) as string[],
-      );
-      const priceId = subscriptionItems?.data?.find(
-        (item) => item.price?.id && knownPriceIds.has(item.price.id),
-      )?.price?.id;
-      const selectedTier = getTierForPriceId(priceId);
-      const selectedPlan = getPlanForTier(selectedTier);
-      if (customerId && status === "active") {
-        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
-        await prisma.user.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: { plan: selectedPlan, stripePriceId: priceId },
-        });
-        const users = await prisma.user.findMany({
-          where: { stripeCustomerId: customerId },
-          select: { id: true },
-        });
-        if (users.length > 0) {
-          await prisma.apiKey.updateMany({
-            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        const customerId = subscription.customer as string;
+        if (customerId) {
+          const trialPlan = getHostedPlanConfig("TRIAL");
+          await prisma.user.updateMany({
+            where: { stripeCustomerId: customerId },
             data: {
-              plan: quotaUpdate.plan,
-              monthlyQuota: quotaUpdate.monthlyQuota,
+              plan: "TRIAL",
+              stripeSubscriptionId: null,
             },
           });
+          const users = await prisma.user.findMany({
+            where: { stripeCustomerId: customerId },
+            select: { id: true },
+          });
+          if (users.length > 0) {
+            await prisma.apiKey.updateMany({
+              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+              data: {
+                plan: trialPlan.apiKeyPlan,
+                monthlyQuota: trialPlan.monthlyCalls,
+              },
+            });
+          }
         }
+        break;
       }
-      break;
-    }
 
-    default:
-      // Unhandled event type — acknowledge receipt
-      break;
+      case "customer.subscription.updated": {
+        const subscription = event.data.object;
+        const subscriptionItems =
+          typeof subscription.items === "object" && subscription.items !== null
+            ? (subscription.items as { data?: Array<{ price?: { id?: string } }> })
+            : undefined;
+        const customerId = subscription.customer as string;
+        const status = subscription.status as string;
+        // Match against our known plan price ids rather than trusting items[0],
+        // which can be an add-on, proration, or one-off line item.
+        const knownPriceIds = new Set(
+          [
+            PRICING.scale.stripePriceId,
+            PRICING.pro.stripePriceId,
+            PRICING.payg.stripePriceId,
+          ].filter(Boolean) as string[],
+        );
+        const priceId = subscriptionItems?.data?.find(
+          (item) => item.price?.id && knownPriceIds.has(item.price.id),
+        )?.price?.id;
+        const selectedTier = getTierForPriceId(priceId);
+        const selectedPlan = getPlanForTier(selectedTier);
+        if (customerId && status === "active") {
+          const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
+          await prisma.user.updateMany({
+            where: { stripeCustomerId: customerId },
+            data: { plan: selectedPlan, stripePriceId: priceId },
+          });
+          const users = await prisma.user.findMany({
+            where: { stripeCustomerId: customerId },
+            select: { id: true },
+          });
+          if (users.length > 0) {
+            await prisma.apiKey.updateMany({
+              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+              data: {
+                plan: quotaUpdate.plan,
+                monthlyQuota: quotaUpdate.monthlyQuota,
+              },
+            });
+          }
+        }
+        break;
+      }
+
+      default:
+        // Unhandled event type — acknowledge receipt
+        break;
+    }
+  } catch (error) {
+    console.error("[stripe-webhook] Failed to process event", error);
+    return NextResponse.json({ error: "webhook_processing_failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

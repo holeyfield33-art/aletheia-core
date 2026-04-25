@@ -89,12 +89,27 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
+      // Stripe SDK typings can lag API support for usage-record endpoints.
+      const subscriptionItemsCompat = stripe.subscriptionItems as unknown as {
+        createUsageRecord: (
+          id: string,
+          params: {
+            quantity: number;
+            timestamp: number;
+            action: "increment" | "set";
+          },
+          options?: {
+            idempotencyKey?: string;
+          },
+        ) => Promise<unknown>;
+      };
+
       // Idempotency key bounds duplicate Stripe writes when Vercel retries the
       // cron run or an operator triggers it twice in the same hour. Stripe
       // dedupes by (key, account) for 24h, which covers cron cadence + retries.
       const reportingHourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
       const idempotencyKey = `usage-report:${user.userId}:${reportingHourBucket}:${pending}`;
-      await stripe.subscriptionItems.createUsageRecord(
+      await subscriptionItemsCompat.createUsageRecord(
         subscriptionItem.id,
         {
           quantity: pending,

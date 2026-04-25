@@ -8,7 +8,7 @@
     "build": "prisma generate && next build",
     "build:vercel": "prisma migrate deploy && prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint app lib proxy.ts --ext .ts,.tsx",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -38,10 +38,13 @@
     }
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "16.2.4",
     "prisma": "^5.22.0",
     "typescript": "^5",
     "vitest": "^2.1.0"

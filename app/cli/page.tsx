@@ -280,7 +280,7 @@ export default function CLIDocsPage() {
                 marginTop: "0.5rem",
               }}
             >
-              ssh-keygen -t ed25519 -N "" -f manifest/security_policy.ed25519.key -m pem
+              ssh-keygen -t ed25519 -N &quot;&quot; -f manifest/security_policy.ed25519.key -m pem
             </div>
           </li>
           <li style={{ marginBottom: "0.75rem" }}>

@@ -1,4 +1,4 @@
-import { PRODUCT, URLS, STATUS, CTAS, PRICING } from "@/lib/site-config";
+import { PRODUCT, URLS, STATUS, PRICING } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -437,7 +437,7 @@ function HowToUse() {
       ctaStyle: "secondary" as const,
     },
     {
-      label: "Hosted Trial",
+      label: "Free",
       name: "Free evaluation",
       price: "Free",
       priceDetail: "/ evaluation",

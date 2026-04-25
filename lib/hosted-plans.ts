@@ -24,7 +24,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   PRO: {
     id: "PRO",
     apiKeyPlan: "pro",
-    displayName: "Hosted Scale",
+    displayName: "Scale",
     monthlyPriceCents: 1_900,
     monthlyCalls: 25_000,
     maxActiveKeys: 10,
@@ -33,7 +33,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   MAX: {
     id: "MAX",
     apiKeyPlan: "max",
-    displayName: "Hosted Pro",
+    displayName: "Pro",
     monthlyPriceCents: 4_900,
     monthlyCalls: 100_000,
     maxActiveKeys: 10,

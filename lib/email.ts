@@ -40,8 +40,7 @@ export async function sendVerificationEmail(email: string): Promise<boolean> {
       );
       throw new Error("email_service_unconfigured");
     }
-    // Dev/test only: log the link and auto-verify so local flow works.
-    console.log(`[DEV] Verify: ${verifyUrl}`);
+    // Dev/test only: auto-verify so local flow works.
     await prisma.user.update({
       where: { email },
       data: { emailVerified: new Date() },

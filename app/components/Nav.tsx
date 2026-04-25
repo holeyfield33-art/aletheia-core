@@ -21,7 +21,7 @@ const mobileLinkStyle: React.CSSProperties = {
 };
 
 export default function Nav() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const isAuthed = status === "authenticated";
   const [mobileOpen, setMobileOpen] = useState(false);
 

@@ -77,8 +77,8 @@ export default function BillingTermsPage() {
 
       <h2 style={h2}>3. Free Trial</h2>
       <p style={p}>
-        The Trial plan is free and does not require a payment method. There is no automatic conversion from
-        the Trial plan to a paid plan. You must explicitly choose to upgrade and provide payment information
+        The Free plan does not require a payment method. There is no automatic conversion from
+        the Free plan to a paid plan. You must explicitly choose to upgrade and provide payment information
         to start a paid subscription.
       </p>
 
@@ -118,7 +118,7 @@ export default function BillingTermsPage() {
       <p style={p}>
         If a recurring payment fails, Stripe will retry the charge per its retry schedule. If payment
         cannot be collected after repeated attempts, your subscription may be cancelled and your account
-        reverted to the Trial plan.
+        reverted to the Free plan.
       </p>
 
       <h2 style={h2}>9. Contact</h2>

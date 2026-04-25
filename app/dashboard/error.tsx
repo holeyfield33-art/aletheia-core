@@ -7,6 +7,7 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  void error;
   return (
     <div
       style={{

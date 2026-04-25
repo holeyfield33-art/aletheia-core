@@ -181,6 +181,13 @@ Aletheia Core is deployed as a split architecture:
 
 For local development, run `docker-compose up` to start PostgreSQL, Redis, and Qdrant.
 
+### Render warm-up job (recommended for free-tier cold starts)
+
+Use `scripts/render_warmup.py` to ping `/health` and `/ready` on your backend every 10 minutes.
+The included `render.yaml` defines a cron service named `aletheia-core-warmup` for this purpose.
+
+Set `ALETHEIA_WARMUP_URL` to your backend URL if it differs from the default.
+
 ---
 
 ## API Reference
@@ -360,19 +367,21 @@ aletheia-cyber-core/
 
 ## Hosted vs Self-Hosted
 
-| | **Self-Hosted (Community)** | **Hosted Trial** | **Hosted Pro** |
-|---|---|---|---|
-| **Price** | Free (MIT) | Free | $49/mo |
-| **Hosting** | You manage | Managed | Managed |
-| **API keys** | You configure | One trial key | Production keys |
-| **Audit logs** | Your storage | None | 30-day retention |
-| **Support** | GitHub community | — | Priority support |
-| **Use case** | Full control, research | Evaluation | Production |
+| | **Self-Hosted (Community)** | **Free** | **Scale** | **Pro** | **PAYG** |
+|---|---|---|---|---|---|
+| **Price** | Free (MIT) | Free | $19/mo | $49/mo | $0.0008 per receipt |
+| **Hosting** | You manage | Managed | Managed | Managed | Managed |
+| **API keys** | You configure | One free key | Production keys | Production keys | Metered production |
+| **Audit logs** | Your storage | Limited | 30-day retention | 30-day retention | Usage-based |
+| **Support** | GitHub community | — | Priority support | Priority support | Priority support |
+| **Use case** | Full control, research | Evaluation | Production baseline | Higher throughput | Variable usage workloads |
 
 - **Live demo** — free, no API key required: [app.aletheia-core.com/demo](https://app.aletheia-core.com/demo)
 - **Self-hosted** — the open-source engine. Clone the repo, sign a manifest, run the server.
-- **Hosted Trial** — free evaluation key with limited monthly requests.
-- **Hosted Pro** — production API access, managed infrastructure, retained audit logs.
+- **Free** — free evaluation key with 1,000 Sovereign Audit Receipts per month.
+- **Scale** — production API access with 25,000 Sovereign Audit Receipts per month.
+- **Pro** — production API access with 100,000 Sovereign Audit Receipts per month.
+- **PAYG** — metered billing at $0.0008 per Sovereign Audit Receipt.
 - **Services** — starting at $2,500 for red-team review, custom policy engineering, deployment guidance.
 
 ---

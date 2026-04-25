@@ -6,7 +6,6 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
-import { getBaseUrl } from "@/lib/auth-config";
 
 // Distributed login attempt tracking via Prisma (PostgreSQL).
 // Replaces the previous in-memory Map so brute-force protection

@@ -589,7 +589,7 @@ curl -X POST https://your-host/v1/audit \
     <p class="section-sub">Open-source core. Hosted API for evaluation and production. Expert services available.</p>
     <p style="color:var(--silver);font-size:0.9rem;margin-bottom:2rem;line-height:1.7;">
       Use the live demo with no key, request a free trial key for evaluation,
-      or upgrade to Hosted Pro or Hosted Max for production API access and retained audit logs.
+      or upgrade to Scale, Pro, or PAYG for production API access and retained audit logs.
     </p>
     <div class="pricing-grid">
 
@@ -615,14 +615,14 @@ curl -X POST https://your-host/v1/audit \
 
       <div class="pricing-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Hosted Trial</h3>
+          <h3>Free</h3>
           <span class="plan-tag" style="color:var(--silver);">Free</span>
         </div>
         <div><span class="price">Free</span><span class="price-detail">/ evaluation</span></div>
-        <p class="plan-desc">Free evaluation key with limited monthly requests. No credit card required.</p>
+        <p class="plan-desc">Free evaluation key with 1,000 Sovereign Audit Receipts per month. No credit card required.</p>
         <ul class="pricing-features">
           <li><span class="chk">✓</span> Free evaluation key</li>
-          <li><span class="chk">✓</span> Limited monthly requests</li>
+          <li><span class="chk">✓</span> 1,000 Sovereign Audit Receipts / month</li>
           <li><span class="chk">✓</span> One API key</li>
           <li><span class="chk">✓</span> Evaluation use only</li>
         </ul>
@@ -634,41 +634,60 @@ curl -X POST https://your-host/v1/audit \
 
       <div class="pricing-card highlight">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Hosted Pro</h3>
+          <h3>Scale</h3>
           <span class="plan-tag" style="color:var(--green);">Production</span>
         </div>
-        <div><span class="price">$29.99</span><span class="price-detail">/mo</span></div>
-        <p class="plan-desc">Production API access with 50,000 requests/month, managed operations, retained audit logs, and priority support.</p>
+        <div><span class="price">$19</span><span class="price-detail">/mo</span></div>
+        <p class="plan-desc">Production API access with 25,000 Sovereign Audit Receipts per month, managed operations, and retained audit logs.</p>
         <ul class="pricing-features">
           <li><span class="chk">✓</span> Production API access</li>
-          <li><span class="chk">✓</span> 50,000 requests / month</li>
+          <li><span class="chk">✓</span> 25,000 Sovereign Audit Receipts / month</li>
           <li><span class="chk">✓</span> 30-day audit logs</li>
           <li><span class="chk">✓</span> Managed operations</li>
           <li><span class="chk">✓</span> Priority support</li>
         </ul>
         <a href="https://app.aletheia-core.com/dashboard"
            class="cta-primary" style="display:block;text-align:center;margin-top:0.5rem;">
-          Upgrade to Hosted Pro
+          Upgrade to Scale
         </a>
       </div>
 
       <div class="pricing-card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Hosted Max</h3>
+          <h3>Pro</h3>
           <span class="plan-tag" style="color:var(--silver);">High Throughput</span>
         </div>
-        <div><span class="price">$49.99</span><span class="price-detail">/mo</span></div>
-        <p class="plan-desc">Higher-throughput production API access with 200,000 requests/month, retained audit logs, and managed operations.</p>
+        <div><span class="price">$49</span><span class="price-detail">/mo</span></div>
+        <p class="plan-desc">Higher-throughput production API access with 100,000 Sovereign Audit Receipts per month, retained audit logs, and managed operations.</p>
         <ul class="pricing-features">
           <li><span class="chk">✓</span> Production API access</li>
-          <li><span class="chk">✓</span> 200,000 requests / month</li>
+          <li><span class="chk">✓</span> 100,000 Sovereign Audit Receipts / month</li>
           <li><span class="chk">✓</span> 30-day audit logs</li>
           <li><span class="chk">✓</span> Managed operations</li>
           <li><span class="chk">✓</span> Priority support</li>
         </ul>
         <a href="https://app.aletheia-core.com/dashboard"
            style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          Upgrade to Hosted Max
+          Upgrade to Pro
+        </a>
+      </div>
+
+      <div class="pricing-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <h3>PAYG</h3>
+          <span class="plan-tag" style="color:var(--silver);">Usage Based</span>
+        </div>
+        <div><span class="price">$0.0008</span><span class="price-detail">/ receipt</span></div>
+        <p class="plan-desc">Pay only for usage with metered billing through Stripe.</p>
+        <ul class="pricing-features">
+          <li><span class="chk">✓</span> Metered billing</li>
+          <li><span class="chk">✓</span> No fixed monthly commitment</li>
+          <li><span class="chk">✓</span> Production API access</li>
+          <li><span class="chk">✓</span> Managed operations</li>
+        </ul>
+        <a href="https://app.aletheia-core.com/dashboard"
+           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
+          Choose PAYG
         </a>
       </div>
 
@@ -707,16 +726,20 @@ curl -X POST https://your-host/v1/audit \
             <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need full control, your own infrastructure, or you want to contribute.</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Hosted Trial</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Free</td>
             <td style="padding:0.6rem 0.75rem;color:var(--silver);">You want a free evaluation key to test the API in your own code.</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Hosted Pro</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need production API access with 50,000 requests/month, retained audit logs, and managed operations.</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Scale</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need production API access with 25,000 Sovereign Audit Receipts per month and retained audit logs.</td>
           </tr>
           <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Hosted Max</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need 200,000 requests/month with retained audit logs and managed hosted operations.</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Pro</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need 100,000 Sovereign Audit Receipts per month with retained audit logs and managed operations.</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">PAYG</td>
+            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You prefer metered billing and only pay for the Sovereign Audit Receipts you use.</td>
           </tr>
           <tr>
             <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Services</td>

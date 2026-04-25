@@ -611,7 +611,7 @@ export default function DemoPage() {
                   {result.error === "free_tier_exhausted"
                     ? result.message || "Your free Sovereign Audit Receipts are exhausted."
                     : result.error === "rate_limited"
-                    ? `Too many requests. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
+                    ? `Rate limit reached. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
                     : result.error === "request_timeout"
                       ? "Request timed out. The backend may be starting up — try again."
                       : "Something went wrong. Please try again."}
@@ -845,16 +845,6 @@ export default function DemoPage() {
       </p>
     </div>
   );
-}
-
-/** XSS-safe display of receipt values. Escapes HTML entities and control chars. */
-function safeReceiptDisplay(value: string): string {
-  return sanitizeForDisplay(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;");
 }
 
 /**

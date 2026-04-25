@@ -12,17 +12,21 @@ import { incrementUsage } from "@/lib/usage-tracking";
  * No arbitrary path proxying.
  */
 
-const BACKEND_BASE = process.env.ALETHEIA_BACKEND_URL ?? "";
+const BACKEND_BASE = (
+  process.env.ALETHEIA_BACKEND_URL ??
+  process.env.ALETHEIA_BASE_URL ??
+  "https://aletheia-core.onrender.com"
+).trim();
 const DEMO_API_KEY = (
   process.env.ALETHEIA_DEMO_API_KEY ??
   process.env.ALETHEIA_API_KEY ??
   ""
 ).trim();
-const TIMEOUT_MS = 25_000; // Render free-tier cold starts take 15-30s
-const ACTIVE_MODE = process.env.ACTIVE_MODE;
+const TIMEOUT_MS = parseInt(process.env.DEMO_UPSTREAM_TIMEOUT_MS ?? "45000", 10);
+const ACTIVE_MODE = (process.env.ACTIVE_MODE ?? "").trim().toLowerCase();
 
 /** Allow Vercel to keep the function alive long enough for cold starts. */
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const SANITIZED_ERROR = { error: "request_failed" };
 const FREE_TIER_EXHAUSTED_MESSAGE = `You've used your ${PRICING.free.receipts.toLocaleString()} free Sovereign Audit Receipts. Upgrade to continue receiving cryptographic proof of AI safety.`;
@@ -104,8 +108,8 @@ function extractClientIp(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
-  // Production mode gate
-  if (process.env.ENVIRONMENT === "production" && ACTIVE_MODE !== "true") {
+  // Do not block demo in production if ACTIVE_MODE is simply unset in frontend envs.
+  if (process.env.ENVIRONMENT === "production" && ACTIVE_MODE && ACTIVE_MODE !== "true") {
     console.error("[demo-proxy] ACTIVE_MODE is not 'true' in production");
     return secureJson({ error: "service_unavailable" }, { status: 503 });
   }
@@ -162,12 +166,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (!BACKEND_BASE) {
-    console.error("[demo-proxy] ALETHEIA_BACKEND_URL not configured");
+    console.error("[demo-proxy] No backend URL configured");
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
   if (!validateBackendUrl(BACKEND_BASE)) {
-    console.error("[demo-proxy] ALETHEIA_BACKEND_URL failed validation:", BACKEND_BASE);
+    console.error("[demo-proxy] Backend URL failed validation:", BACKEND_BASE);
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
