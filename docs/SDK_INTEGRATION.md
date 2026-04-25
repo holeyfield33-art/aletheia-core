@@ -1,4 +1,4 @@
-# SDK Integration Guide — Aletheia Core v1.9.1
+# SDK Integration Guide — Aletheia Core v1.9.2
 
 How to call the Aletheia Core audit API from your application code.
 

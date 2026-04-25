@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.9.1-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.9.2-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/badge/tests-1114%20passing-brightgreen" alt="Tests"/>
@@ -47,7 +47,7 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.9.1
+## What's New in v1.9.2
 
 ### Deployment Fixes
 - **`asyncpg` added as core dependency**: Resolves `ModuleNotFoundError` on Python 3.14 / Render deployments with Postgres backends.

@@ -1,6 +1,6 @@
 # Launch Guide (Beginner Friendly)
 
-This guide covers every way to install, run, test, and deploy Aletheia Core v1.9.1.
+This guide covers every way to install, run, test, and deploy Aletheia Core v1.9.2.
 
 ---
 
