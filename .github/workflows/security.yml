@@ -105,8 +105,23 @@ jobs:
           python-version: "3.12"
       - name: Install pip-audit
         run: pip install pip-audit
+      - name: Prepare audit requirements (strip local-version suffixes)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          src = Path("requirements.txt")
+          dst = Path("/tmp/requirements-audit.txt")
+          lines = src.read_text().splitlines()
+
+          # pip-audit resolves against PyPI, which does not recognize local
+          # version suffixes such as "+cpu" on torch wheels.
+          cleaned = [re.sub(r"(==[0-9][A-Za-z0-9_.-]*?)\+[A-Za-z0-9_.-]+", r"\\1", line) for line in lines]
+          dst.write_text("\n".join(cleaned) + "\n")
+          PY
       - name: Audit runtime dependencies
-        run: pip-audit -r requirements.txt --strict --ignore-vuln GHSA-placeholder
+        run: pip-audit -r /tmp/requirements-audit.txt --strict --ignore-vuln GHSA-placeholder
 
   npm-audit:
     name: npm audit (Node SCA)

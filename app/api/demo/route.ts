@@ -302,13 +302,13 @@ export async function POST(request: NextRequest) {
     }
 
     const remaining = (request as unknown as { _rlRemaining?: number })._rlRemaining;
-    const rateHeaders =
+    const rateHeaders: Record<string, string> | undefined =
       typeof remaining === "number"
         ? {
             "X-RateLimit-Limit": String(DEMO_RATE_LIMIT),
             "X-RateLimit-Remaining": String(Math.max(0, remaining)),
           }
-        : {};
+        : undefined;
     return secureJson(data, { headers: rateHeaders });
   } catch (err) {
     clearTimeout(timer);

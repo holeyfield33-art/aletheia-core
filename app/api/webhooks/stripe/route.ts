@@ -15,20 +15,6 @@ type CheckoutTier = "scale" | "pro" | "payg";
 
 const PAYG_MONTHLY_QUOTA = 2_147_483_647;
 
-// Refuse to load the webhook handler in production without a configured secret.
-// Without this, every Stripe POST would be silently 503'd at request time and
-// billing events (subscriptions, cancellations, paid invoices) would be lost.
-if (
-  process.env.NODE_ENV === "production" &&
-  process.env.NEXTAUTH_URL && // skip during `next build`
-  !(process.env.STRIPE_WEBHOOK_SECRET ?? "").startsWith("whsec_")
-) {
-  throw new Error(
-    "STRIPE_WEBHOOK_SECRET must be set to a 'whsec_…' value in production. " +
-      "Without it, billing webhooks cannot be verified and subscription state will drift.",
-  );
-}
-
 function normalizeTier(rawTier: string | null | undefined): CheckoutTier {
   if (rawTier === "payg") return "payg";
   if (rawTier === "pro") return "pro";
@@ -133,6 +119,15 @@ export function verifyStripeSignature(
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const hasValidSecret = (secret ?? "").startsWith("whsec_");
+  if (process.env.NODE_ENV === "production" && !hasValidSecret) {
+    console.error("[stripe-webhook] invalid or missing STRIPE_WEBHOOK_SECRET in production");
+    return NextResponse.json(
+      { error: "configuration_error" },
+      { status: 503 },
+    );
+  }
+
   if (!secret) {
     return NextResponse.json(
       { error: "configuration_error" },
