@@ -640,13 +640,9 @@ export default function DemoPage() {
                     Decision
                   </div>
                   {isDenied ? (
-                    <span className="badge-denied">
-                      \u2715 DENY
-                    </span>
+                    <span className="badge-denied">{"\u2715 DENY"}</span>
                   ) : (
-                    <span className="badge-proceed">
-                      \u2713 ALLOW
-                    </span>
+                    <span className="badge-proceed">{"\u2713 ALLOW"}</span>
                   )}
                   {result.metadata?.threat_level && (
                     <span
@@ -844,7 +840,7 @@ export default function DemoPage() {
       >
         Have a receipt?{" "}
         <a href="/verify" style={{ color: "var(--silver-dim)" }}>
-          Inspect it in the Receipt Viewer \u2192
+          Inspect it in the Receipt Viewer {"\u2192"}
         </a>
       </p>
     </div>
