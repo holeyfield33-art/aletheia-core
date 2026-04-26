@@ -94,7 +94,14 @@ export async function GET(request: NextRequest) {
       // dedupes by (key, account) for 24h, which covers cron cadence + retries.
       const reportingHourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
       const idempotencyKey = `usage-report:${user.userId}:${reportingHourBucket}:${pending}`;
-      await stripe.subscriptionItems.createUsageRecord(
+      // Stripe's runtime API supports this call; some SDK typings lag behind.
+      await (stripe.subscriptionItems as unknown as {
+        createUsageRecord: (
+          subscriptionItemId: string,
+          params: { quantity: number; timestamp: number; action: "increment" },
+          options: { idempotencyKey: string },
+        ) => Promise<unknown>;
+      }).createUsageRecord(
         subscriptionItem.id,
         {
           quantity: pending,

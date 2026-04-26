@@ -109,15 +109,29 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           src = Path("requirements.txt")
           dst = Path("/tmp/requirements-audit.txt")
           lines = src.read_text().splitlines()
 
-          # pip-audit resolves against PyPI, which does not recognize local
-          # version suffixes such as "+cpu" on torch wheels.
-          cleaned = [line.replace("+cpu", "") for line in lines]
+          cleaned: list[str] = []
+          skipping_torch_hashes = False
+          for line in lines:
+            # pip-audit resolves against PyPI and cannot resolve torch CPU wheel
+            # local versions from download.pytorch.org. Exclude this pinned block
+            # from audit input to keep SCA deterministic.
+            if line.startswith("torch==") and "+cpu" in line:
+              skipping_torch_hashes = True
+              continue
+
+            if skipping_torch_hashes and line.startswith("    --hash="):
+              continue
+
+            if skipping_torch_hashes and not line.startswith("    --hash="):
+              skipping_torch_hashes = False
+
+            cleaned.append(line.replace("+cpu", ""))
+
           dst.write_text("\n".join(cleaned) + "\n")
           PY
       - name: Audit runtime dependencies
