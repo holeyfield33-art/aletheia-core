@@ -8,7 +8,7 @@
     "build": "prisma generate && next build",
     "build:vercel": "prisma migrate deploy && prisma generate && next build",
     "start": "next start",
-    "lint": "eslint app lib proxy.ts --ext .ts,.tsx"
+    "lint": "eslint app lib middleware.ts --ext .ts,.tsx"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
