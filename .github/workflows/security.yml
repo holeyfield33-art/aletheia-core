@@ -94,3 +94,45 @@ jobs:
             echo "   pip-compile requirements.in --generate-hashes -o requirements.txt"
             exit 1
           }
+
+  pip-audit:
+    name: pip-audit (Python SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Prepare audit requirements (strip local-version suffixes)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          src = Path("requirements.txt")
+          dst = Path("/tmp/requirements-audit.txt")
+          lines = src.read_text().splitlines()
+
+          # pip-audit resolves against PyPI, which does not recognize local
+          # version suffixes such as "+cpu" on torch wheels.
+          cleaned = [line.replace("+cpu", "") for line in lines]
+          dst.write_text("\n".join(cleaned) + "\n")
+          PY
+      - name: Audit runtime dependencies
+        run: pip-audit -r /tmp/requirements-audit.txt --strict --no-deps --ignore-vuln GHSA-placeholder
+
+  npm-audit:
+    name: npm audit (Node SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: npm audit (high+ only)
+        run: npm audit --omit=dev --audit-level=high

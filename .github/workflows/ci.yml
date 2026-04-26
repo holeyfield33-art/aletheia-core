@@ -83,3 +83,30 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  frontend:
+    name: Next.js typecheck / lint / build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Vitest unit tests
+        run: npx vitest run
+      - name: Build
+        env:
+          # next build wants these defined; values are placeholders for CI.
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-only-placeholder-secret-must-be-32-bytes
+          DATABASE_URL: postgresql://localhost:5432/ci?schema=public
+        run: npx next build

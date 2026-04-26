@@ -76,7 +76,7 @@ function getTierForPriceId(priceId: string | undefined): CheckoutTier {
   return "scale";
 }
 
-function verifyStripeSignature(
+export function verifyStripeSignature(
   body: string,
   sigHeader: string,
   secret: string,
@@ -119,6 +119,15 @@ function verifyStripeSignature(
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const hasValidSecret = (secret ?? "").startsWith("whsec_");
+  if (process.env.NODE_ENV === "production" && !hasValidSecret) {
+    console.error("[stripe-webhook] invalid or missing STRIPE_WEBHOOK_SECRET in production");
+    return NextResponse.json(
+      { error: "configuration_error" },
+      { status: 503 },
+    );
+  }
+
   if (!secret) {
     return NextResponse.json(
       { error: "configuration_error" },
@@ -163,8 +172,50 @@ export async function POST(request: Request) {
         // which could be tampered with by intercepting the checkout URL.
         const userId = session.client_reference_id;
 
-        const selectedTier = normalizeTier(
-          typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined,
+      // Prefer Stripe's authoritative line-item price id over user-supplied
+      // metadata. Metadata is only used as a fallback hint when no line item
+      // price is recoverable (e.g. 0-line synthetic events).
+      const lineItems =
+        typeof session.line_items === "object" && session.line_items !== null
+          ? (session.line_items as { data?: Array<{ price?: { id?: string } }> })
+          : undefined;
+      const linePriceId = lineItems?.data?.find((line) => line.price?.id)?.price?.id;
+      const metadataTier =
+        typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined;
+      const selectedTier = linePriceId
+        ? getTierForPriceId(linePriceId)
+        : normalizeTier(metadataTier);
+      const selectedPlan = getPlanForTier(selectedTier);
+      const expectedAmount = getStripeExpectedAmountForTier(selectedTier);
+      const expectedCurrency = getStripeCurrencyForTier(selectedTier);
+      const expectedPriceId = getStripePriceIdForTier(selectedTier);
+      const sessionAmount = session.amount_total as number | undefined;
+      const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
+
+      // Defence-in-depth: if metadata claims a different tier than the price id
+      // resolves to, that's a downgrade attempt — refuse the event.
+      if (
+        linePriceId &&
+        metadataTier &&
+        getTierForPriceId(linePriceId) !== normalizeTier(metadataTier)
+      ) {
+        console.error(
+          `[stripe-webhook] tier/metadata mismatch: priceId=${linePriceId} metadataTier=${metadataTier}`,
+        );
+        return NextResponse.json(
+          { error: "tier_mismatch", message: "Checkout metadata does not match line item." },
+          { status: 400 },
+        );
+      }
+
+      if (
+        expectedAmount !== undefined &&
+        sessionAmount !== undefined &&
+        sessionCurrency !== undefined &&
+        (sessionAmount !== expectedAmount || sessionCurrency !== expectedCurrency)
+      ) {
+        console.error(
+          `[stripe-webhook] Price mismatch: expected ${expectedAmount} ${expectedCurrency}, got ${sessionAmount} ${sessionCurrency}`,
         );
         const selectedPlan = getPlanForTier(selectedTier);
         const expectedAmount = getStripeExpectedAmountForTier(selectedTier);
@@ -234,30 +285,41 @@ export async function POST(request: Request) {
             },
           });
 
-          const users = await prisma.user.findMany({
-            where: { stripeCustomerId: customerId },
-            select: { id: true },
-          });
-          if (users.length > 0) {
-            await prisma.apiKey.updateMany({
-              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
-              data: {
-                plan: quotaUpdate.plan,
-                monthlyQuota: quotaUpdate.monthlyQuota,
-              },
-            });
-          }
-        }
-        break;
-      }
-
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object;
-        const customerId = subscription.customer as string;
-        if (customerId) {
-          const trialPlan = getHostedPlanConfig("TRIAL");
-          await prisma.user.updateMany({
-            where: { stripeCustomerId: customerId },
+    case "customer.subscription.updated": {
+      const subscription = event.data.object;
+      const subscriptionItems =
+        typeof subscription.items === "object" && subscription.items !== null
+          ? (subscription.items as { data?: Array<{ price?: { id?: string } }> })
+          : undefined;
+      const customerId = subscription.customer as string;
+      const status = subscription.status as string;
+      // Match against our known plan price ids rather than trusting items[0],
+      // which can be an add-on, proration, or one-off line item.
+      const knownPriceIds = new Set(
+        [
+          PRICING.scale.stripePriceId,
+          PRICING.pro.stripePriceId,
+          PRICING.payg.stripePriceId,
+        ].filter(Boolean) as string[],
+      );
+      const priceId = subscriptionItems?.data?.find(
+        (item) => item.price?.id && knownPriceIds.has(item.price.id),
+      )?.price?.id;
+      const selectedTier = getTierForPriceId(priceId);
+      const selectedPlan = getPlanForTier(selectedTier);
+      if (customerId && status === "active") {
+        const quotaUpdate = getQuotaUpdateForPlan(selectedPlan);
+        await prisma.user.updateMany({
+          where: { stripeCustomerId: customerId },
+          data: { plan: selectedPlan, stripePriceId: priceId },
+        });
+        const users = await prisma.user.findMany({
+          where: { stripeCustomerId: customerId },
+          select: { id: true },
+        });
+        if (users.length > 0) {
+          await prisma.apiKey.updateMany({
+            where: { userId: { in: users.map((user) => user.id) }, status: "active" },
             data: {
               plan: "TRIAL",
               stripeSubscriptionId: null,

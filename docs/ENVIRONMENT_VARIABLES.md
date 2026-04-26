@@ -186,4 +186,11 @@ decision store).
 	- `ALETHEIA_BACKEND_URL=https://aletheia-core.onrender.com`
 	- `ALETHEIA_ALLOWED_BACKEND_HOSTS=aletheia-core.onrender.com,app.aletheia-core.com,aletheia-core.com`
 	- `ALETHEIA_DEMO_API_KEY=<key-from-POST-/v1/keys>` (or `ALETHEIA_API_KEY` as fallback)
-- Do NOT set `ALETHEIA_DEMO_API_KEY` on Render for request auth. Render validates keys from KeyStore (`POST /v1/keys`), not env vars.
+- On Render: also set `ALETHEIA_DEMO_API_KEY` to the **same value** if your KeyStore
+  uses the default SQLite backend on an ephemeral filesystem (e.g. Render free tier).
+  The backend's lifespan hook will idempotently re-import the key on every restart.
+  Skip this only if `ALETHEIA_DATABASE_BACKEND=postgres` with a durable `DATABASE_URL`.
+- For long-lived deploys, prefer Postgres: set `ALETHEIA_DATABASE_BACKEND=postgres` and
+  `DATABASE_URL`, then provision the demo key once via `POST /v1/keys`.
+
+See `docs/LAUNCH_GUIDE.md` → "Hosted demo key persistence" for the full runbook.

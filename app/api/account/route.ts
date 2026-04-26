@@ -5,7 +5,10 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-const OAUTH_DELETE_REAUTH_WINDOW_SECONDS = 10 * 60;
+// Tight reauth window — account deletion is destructive, so a stolen JWT
+// is dangerous even minutes after issuance. Users can re-login if they
+// need to retry; the UX cost is low.
+const OAUTH_DELETE_REAUTH_WINDOW_SECONDS = 60;
 
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);

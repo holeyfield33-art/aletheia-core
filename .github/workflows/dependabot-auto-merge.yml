@@ -17,15 +17,22 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Auto-approve patch and minor updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+      # Auto-merge is **patch-only** and **excludes** packages whose breakage
+      # has outsized blast radius (auth, billing, ORM, react/next core). Those
+      # require human review even on a patch bump.
+      - name: Auto-approve patch updates (low-risk packages only)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' &&
+          !contains(fromJSON('["next","next-auth","@auth/core","@auth/prisma-adapter","stripe","prisma","@prisma/client","react","react-dom","resend","bcryptjs"]'), steps.metadata.outputs.dependency-names)
         run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto-merge patch updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+      - name: Auto-merge patch updates (low-risk packages only)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' &&
+          !contains(fromJSON('["next","next-auth","@auth/core","@auth/prisma-adapter","stripe","prisma","@prisma/client","react","react-dom","resend","bcryptjs"]'), steps.metadata.outputs.dependency-names)
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}

@@ -135,6 +135,32 @@ Manual steps:
 Note: The demo key should be set on Vercel (server-side route env), not on Render.
 Render validates `X-API-Key` against its KeyStore records created via `POST /v1/keys`.
 
+### Hosted demo key persistence
+
+The Render backend authenticates the Vercel demo proxy's `X-API-Key` against
+its **KeyStore**. With the default SQLite backend on Render's free tier the
+filesystem is ephemeral, so the demo key vanishes on every restart and the
+`/demo` page returns a `demo_unavailable` error.
+
+Two recommended options:
+
+1. **Use Postgres for the KeyStore** (recommended for any persistent deploy):
+  - Set `ALETHEIA_DATABASE_BACKEND=postgres`
+  - Set `DATABASE_URL=postgres://…`
+  - Provision the demo key once with `POST /v1/keys` and store it as
+    `ALETHEIA_DEMO_API_KEY` on Vercel.
+
+2. **Auto-seed at startup** (works on SQLite too): set
+  `ALETHEIA_DEMO_API_KEY` on **both** Vercel _and_ Render. The backend's
+  lifespan hook (`bridge.fastapi_wrapper._seed_demo_key`) will register the
+  key in the local KeyStore on every boot. This is idempotent.
+
+To re-seed manually after a database loss:
+
+```bash
+ALETHEIA_DEMO_API_KEY=<the-key> python scripts/seed_demo_key.py
+```
+
 ## Deploy with Docker
 
 ```bash

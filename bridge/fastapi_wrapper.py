@@ -126,6 +126,11 @@ async def _lifespan(application: FastAPI):
     await _startup_checks()
     start_export_workers()
 
+    # Idempotent demo-key seed: lets the public /demo flow survive restarts
+    # without re-introducing the deprecated ALETHEIA_API_KEYS env-var auth path.
+    # No-op if the key is already known to the KeyStore, or if the env var is unset.
+    _seed_demo_key()
+
     yield
 
     # Shutdown: close pools + exporters
@@ -274,6 +279,48 @@ def _get_sovereign_runtime():
 
         _sovereign_runtime = UnifiedSovereignRuntime()
     return _sovereign_runtime
+
+
+def _seed_demo_key() -> None:
+    """Provision the public demo key into the KeyStore at startup.
+
+    Background: env-var keys (ALETHEIA_API_KEYS) were removed in v1.7. The hosted
+    /demo flow needs a stable upstream key, but Render's free-tier filesystem is
+    ephemeral, so a SQLite-backed KeyStore loses keys on every restart. This
+    helper inserts the configured ALETHEIA_DEMO_API_KEY into the KeyStore if it
+    isn't already present, and is a no-op otherwise.
+
+    Operators on a Postgres-backed KeyStore should still create the canonical
+    demo key with POST /v1/keys; this seed only catches the gap.
+    """
+    raw_key = os.getenv("ALETHEIA_DEMO_API_KEY", "").strip()
+    if not raw_key:
+        return
+
+    try:
+        if key_store.lookup_by_hash(raw_key) is not None:
+            return
+    except Exception as exc:
+        _logger.warning("demo-key seed: lookup failed (%s); skipping", exc)
+        return
+
+    try:
+        # Inject the externally-provisioned raw key directly into the store.
+        # We cannot use create_key() because it generates a fresh secret.
+        key_store.import_raw_key(
+            name="hosted-demo",
+            raw_key=raw_key,
+            plan="trial",
+            role="operator",
+        )
+        _logger.info("demo-key seed: ALETHEIA_DEMO_API_KEY registered in KeyStore")
+    except AttributeError:
+        _logger.error(
+            "demo-key seed: KeyStore.import_raw_key() not available — "
+            "create the demo key manually via POST /v1/keys"
+        )
+    except Exception as exc:
+        _logger.error("demo-key seed: failed to register demo key (%s)", exc)
 
 
 async def _startup_checks() -> None:

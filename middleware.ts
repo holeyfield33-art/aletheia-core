@@ -81,9 +81,28 @@ export default async function middleware(request: NextRequest) {
     "Strict-Transport-Security",
     "max-age=31536000; includeSubDomains",
   );
+  // CSP allowlist:
+  // - connect-src is enumerated (no wildcard subdomain) so a future internal
+  //   sub-host (admin, status, staging) does not become XHR-reachable from any
+  //   XSS on the main app.
+  // - Override the enumerated connect-src list at deploy time via
+  //   CSP_EXTRA_CONNECT_SRC (space-separated origins) when adding new
+  //   third-party endpoints.
+  const extraConnect = (process.env.CSP_EXTRA_CONNECT_SRC ?? "").trim();
+  const connectSrc = [
+    "'self'",
+    "https://api.stripe.com",
+    "https://app.aletheia-core.com",
+    "https://api.aletheia-core.com",
+    "https://aletheia-core.onrender.com",
+    "https://vitals.vercel-insights.com",
+    extraConnect,
+  ]
+    .filter(Boolean)
+    .join(" ");
   response.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; script-src-elem 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://api.stripe.com https://*.aletheia-core.com https://vitals.vercel-insights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+    `default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; script-src-elem 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src ${connectSrc}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
   );
 
   return response;
