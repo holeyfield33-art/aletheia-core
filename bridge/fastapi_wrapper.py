@@ -287,13 +287,21 @@ def _seed_demo_key() -> None:
     Background: env-var keys (ALETHEIA_API_KEYS) were removed in v1.7. The hosted
     /demo flow needs a stable upstream key, but Render's free-tier filesystem is
     ephemeral, so a SQLite-backed KeyStore loses keys on every restart. This
-    helper inserts the configured ALETHEIA_DEMO_API_KEY into the KeyStore if it
-    isn't already present, and is a no-op otherwise.
+    helper inserts the configured demo key into the KeyStore if it isn't already
+    present, and is a no-op otherwise.
+
+    Env resolution mirrors the demo proxy:
+    1) ALETHEIA_DEMO_API_KEY
+    2) ALETHEIA_API_KEY (fallback)
 
     Operators on a Postgres-backed KeyStore should still create the canonical
     demo key with POST /v1/keys; this seed only catches the gap.
     """
+    key_source = "ALETHEIA_DEMO_API_KEY"
     raw_key = os.getenv("ALETHEIA_DEMO_API_KEY", "").strip()
+    if not raw_key:
+        raw_key = os.getenv("ALETHEIA_API_KEY", "").strip()
+        key_source = "ALETHEIA_API_KEY"
     if not raw_key:
         return
 
@@ -313,7 +321,7 @@ def _seed_demo_key() -> None:
             plan="trial",
             role="operator",
         )
-        _logger.info("demo-key seed: ALETHEIA_DEMO_API_KEY registered in KeyStore")
+        _logger.info("demo-key seed: %s registered in KeyStore", key_source)
     except AttributeError:
         _logger.error(
             "demo-key seed: KeyStore.import_raw_key() not available — "

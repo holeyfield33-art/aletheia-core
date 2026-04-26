@@ -18,6 +18,10 @@ Usage
     ALETHEIA_DEMO_API_KEY=sk_trial_xxxxxxxxxxxxxxxxxxxxxxxx \
         python scripts/seed_demo_key.py
 
+    # Fallback (same key via ALETHEIA_API_KEY)
+    ALETHEIA_API_KEY=sk_trial_xxxxxxxxxxxxxxxxxxxxxxxx \
+        python scripts/seed_demo_key.py
+
     # Dry run (no writes):
     ALETHEIA_DEMO_API_KEY=... python scripts/seed_demo_key.py --dry-run
 
@@ -47,9 +51,13 @@ def main(argv: list[str] | None = None) -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
     raw_key = os.getenv("ALETHEIA_DEMO_API_KEY", "").strip()
+    key_source = "ALETHEIA_DEMO_API_KEY"
+    if not raw_key:
+        raw_key = os.getenv("ALETHEIA_API_KEY", "").strip()
+        key_source = "ALETHEIA_API_KEY"
     if not raw_key:
         print(
-            "ERROR: ALETHEIA_DEMO_API_KEY is not set in the environment.",
+            "ERROR: neither ALETHEIA_DEMO_API_KEY nor ALETHEIA_API_KEY is set.",
             file=sys.stderr,
         )
         return 2
@@ -69,7 +77,8 @@ def main(argv: list[str] | None = None) -> int:
 
     record = key_store.import_raw_key(name=args.name, raw_key=raw_key, plan=args.plan)
     print(
-        f"Imported demo key id={record.id} prefix={record.key_prefix} plan={record.plan}"
+        f"Imported demo key from {key_source} id={record.id} "
+        f"prefix={record.key_prefix} plan={record.plan}"
     )
     return 0
 
