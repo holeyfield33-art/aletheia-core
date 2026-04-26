@@ -130,6 +130,25 @@ async def _lifespan(application: FastAPI):
     # without re-introducing the deprecated ALETHEIA_API_KEYS env-var auth path.
     # No-op if the key is already known to the KeyStore, or if the env var is unset.
     _seed_demo_key()
+    demo_key = _demo_key_health_signal()
+    if not demo_key["configured"]:
+        _logger.info("demo-key health: not configured")
+    elif demo_key["status"] == "registered":
+        _logger.info(
+            "demo-key health: registered in KeyStore (%s)",
+            demo_key["source"],
+        )
+    elif demo_key["status"] == "missing":
+        _logger.warning(
+            "demo-key health: configured via %s but missing in KeyStore; "
+            "the hosted /demo proxy may receive upstream 401",
+            demo_key["source"],
+        )
+    else:
+        _logger.warning(
+            "demo-key health: lookup failed for configured key (%s)",
+            demo_key["source"],
+        )
 
     yield
 
@@ -281,6 +300,48 @@ def _get_sovereign_runtime():
     return _sovereign_runtime
 
 
+def _resolve_demo_api_key() -> tuple[str, str]:
+    """Return configured demo key and its environment source."""
+    raw_key = os.getenv("ALETHEIA_DEMO_API_KEY", "").strip()
+    if raw_key:
+        return raw_key, "ALETHEIA_DEMO_API_KEY"
+
+    raw_key = os.getenv("ALETHEIA_API_KEY", "").strip()
+    if raw_key:
+        return raw_key, "ALETHEIA_API_KEY"
+
+    return "", ""
+
+
+def _demo_key_health_signal() -> dict[str, str | bool]:
+    """Report whether configured demo key exists in KeyStore."""
+    raw_key, key_source = _resolve_demo_api_key()
+    if not raw_key:
+        return {
+            "configured": False,
+            "registered": False,
+            "status": "not_configured",
+            "source": "",
+        }
+
+    try:
+        registered = key_store.lookup_by_hash(raw_key) is not None
+    except Exception:
+        return {
+            "configured": True,
+            "registered": False,
+            "status": "lookup_error",
+            "source": key_source,
+        }
+
+    return {
+        "configured": True,
+        "registered": registered,
+        "status": "registered" if registered else "missing",
+        "source": key_source,
+    }
+
+
 def _seed_demo_key() -> None:
     """Provision the public demo key into the KeyStore at startup.
 
@@ -297,11 +358,7 @@ def _seed_demo_key() -> None:
     Operators on a Postgres-backed KeyStore should still create the canonical
     demo key with POST /v1/keys; this seed only catches the gap.
     """
-    key_source = "ALETHEIA_DEMO_API_KEY"
-    raw_key = os.getenv("ALETHEIA_DEMO_API_KEY", "").strip()
-    if not raw_key:
-        raw_key = os.getenv("ALETHEIA_API_KEY", "").strip()
-        key_source = "ALETHEIA_API_KEY"
+    raw_key, key_source = _resolve_demo_api_key()
     if not raw_key:
         return
 
@@ -693,6 +750,8 @@ async def health_check(request: Request) -> dict:
     if not is_admin:
         return {"status": status, "service": "aletheia-core"}
 
+    demo_key = _demo_key_health_signal()
+
     # Authenticated response: full diagnostics
     return {
         "status": status,
@@ -703,6 +762,9 @@ async def health_check(request: Request) -> dict:
         "manifest_signature": manifest_status,
         "database_backend": settings.database_backend,
         "redis": redis_status,
+        "demo_key_configured": demo_key["configured"],
+        "demo_key_registered": demo_key["registered"],
+        "demo_key_status": demo_key["status"],
     }
 
 
@@ -734,6 +796,8 @@ async def readiness_check() -> JSONResponse:
     except Exception:
         redis_ready = False
 
+    demo_key = _demo_key_health_signal()
+
     ready = manifest_ok and redis_ready
 
     body = {
@@ -743,6 +807,9 @@ async def readiness_check() -> JSONResponse:
         "receipt_signing_configured": receipt_configured,
         "database_backend": settings.database_backend,
         "redis_ready": redis_ready,
+        "demo_key_configured": demo_key["configured"],
+        "demo_key_registered": demo_key["registered"],
+        "demo_key_status": demo_key["status"],
     }
     return JSONResponse(
         status_code=200 if ready else 503,

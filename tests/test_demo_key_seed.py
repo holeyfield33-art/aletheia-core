@@ -77,3 +77,50 @@ def test_seed_demo_key_lookup_failure_is_fail_safe(monkeypatch) -> None:
 
     key_store.lookup_by_hash.assert_called_once_with("sk_trial_demo_123")
     key_store.import_raw_key.assert_not_called()
+
+
+def test_demo_key_health_signal_not_configured(monkeypatch) -> None:
+    import bridge.fastapi_wrapper as wrapper
+
+    monkeypatch.delenv("ALETHEIA_DEMO_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_API_KEY", raising=False)
+
+    health = wrapper._demo_key_health_signal()
+
+    assert health["configured"] is False
+    assert health["registered"] is False
+    assert health["status"] == "not_configured"
+
+
+def test_demo_key_health_signal_registered(monkeypatch) -> None:
+    import bridge.fastapi_wrapper as wrapper
+
+    key_store = Mock()
+    key_store.lookup_by_hash.return_value = object()
+    monkeypatch.setattr(wrapper, "key_store", key_store)
+    monkeypatch.setenv("ALETHEIA_DEMO_API_KEY", "sk_trial_demo_123")
+
+    health = wrapper._demo_key_health_signal()
+
+    key_store.lookup_by_hash.assert_called_once_with("sk_trial_demo_123")
+    assert health["configured"] is True
+    assert health["registered"] is True
+    assert health["status"] == "registered"
+
+
+def test_demo_key_health_signal_missing(monkeypatch) -> None:
+    import bridge.fastapi_wrapper as wrapper
+
+    key_store = Mock()
+    key_store.lookup_by_hash.return_value = None
+    monkeypatch.setattr(wrapper, "key_store", key_store)
+    monkeypatch.delenv("ALETHEIA_DEMO_API_KEY", raising=False)
+    monkeypatch.setenv("ALETHEIA_API_KEY", "sk_trial_fallback_456")
+
+    health = wrapper._demo_key_health_signal()
+
+    key_store.lookup_by_hash.assert_called_once_with("sk_trial_fallback_456")
+    assert health["configured"] is True
+    assert health["registered"] is False
+    assert health["status"] == "missing"
+    assert health["source"] == "ALETHEIA_API_KEY"

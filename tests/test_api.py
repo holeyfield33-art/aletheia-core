@@ -360,6 +360,9 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
             self.assertIn("version", body)
             self.assertIn("uptime_seconds", body)
             self.assertIn("timestamp", body)
+            self.assertIn("demo_key_configured", body)
+            self.assertIn("demo_key_registered", body)
+            self.assertIn("demo_key_status", body)
 
     def test_ready_returns_readiness_status(self) -> None:
         r = self.client.get("/ready")
@@ -369,6 +372,9 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertIn("manifest_signature", body)
         self.assertIn("policy_version", body)
         self.assertIn("receipt_signing_configured", body)
+        self.assertIn("demo_key_configured", body)
+        self.assertIn("demo_key_registered", body)
+        self.assertIn("demo_key_status", body)
 
     def test_unsupported_methods_return_405(self) -> None:
         self.assertEqual(self.client.get("/v1/audit").status_code, 405)

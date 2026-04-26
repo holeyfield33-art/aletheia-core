@@ -120,6 +120,11 @@ Expected (admin): `{"status":"ok","service":"aletheia-core","version":"1.9.2",..
 Returns subsystem readiness: manifest, Redis, anchor, receipt signing.
 Returns HTTP 200 when ready, HTTP 503 when degraded.
 
+Also includes hosted demo diagnostics:
+- `demo_key_configured`: demo key env var is present
+- `demo_key_registered`: configured key exists in backend KeyStore
+- `demo_key_status`: one of `not_configured`, `registered`, `missing`, `lookup_error`
+
 ```bash
 curl https://your-app.onrender.com/ready
 ```

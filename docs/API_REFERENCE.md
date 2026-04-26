@@ -119,7 +119,10 @@ Public health endpoint.
   "version": "1.9.2",
   "uptime_seconds": 3600.0,
   "timestamp": "2026-04-10T12:00:00+00:00",
-  "manifest_signature": "VALID"
+  "manifest_signature": "VALID",
+  "demo_key_configured": true,
+  "demo_key_registered": true,
+  "demo_key_status": "registered"
 }
 ```
 
@@ -127,6 +130,9 @@ Public health endpoint.
 |-------|--------|---------|
 | `status` | `ok`, `degraded` | `degraded` when manifest signature verification fails |
 | `manifest_signature` | `VALID`, `INVALID` | Result of Ed25519 signature check (admin diagnostics only) |
+| `demo_key_configured` | `true`, `false` | Whether `ALETHEIA_DEMO_API_KEY`/`ALETHEIA_API_KEY` is configured |
+| `demo_key_registered` | `true`, `false` | Whether configured demo key hash exists in backend KeyStore |
+| `demo_key_status` | `not_configured`, `registered`, `missing`, `lookup_error` | Registration diagnostic for hosted `/demo` flow |
 
 ### GET `/ready`
 
@@ -139,7 +145,10 @@ Readiness probe. Returns HTTP 200 when all subsystems are healthy, HTTP 503 when
   "ready": true,
   "manifest_signature": "VALID",
   "policy_version": "1.0",
-  "receipt_signing_configured": true
+  "receipt_signing_configured": true,
+  "demo_key_configured": true,
+  "demo_key_registered": true,
+  "demo_key_status": "registered"
 }
 ```
 
