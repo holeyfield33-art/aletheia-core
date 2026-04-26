@@ -44,6 +44,7 @@ make smoke
 | 9 | Receipt fields | POST /v1/audit | receipt contains decision, policy_hash, signature |
 | 10 | Security headers | GET /health | Cache-Control, X-Content-Type-Options, X-Frame-Options |
 | 11 | Method not allowed | GET /v1/audit | 405 |
+| 12 | Unauthorized tool call | POST /v1/audit | decision=DENIED or SANDBOX_BLOCKED |
 
 ---
 
@@ -66,9 +67,10 @@ Target: https://your-app.onrender.com
   [PASS] receipt_fields_present — decision=PROCEED
   [PASS] security_headers — all present
   [PASS] method_not_allowed_405 — GET /v1/audit → 405
+  [PASS] unauthorized_tool_call_denied — decision=DENIED code=403
 
 ============================================================
-RESULTS: 11/11 passed, 0 failed
+RESULTS: 12/12 passed, 0 failed
 ============================================================
 ```
 

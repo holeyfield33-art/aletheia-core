@@ -80,6 +80,14 @@ _DANGER_PATTERNS: list[_DangerPattern] = [
             re.IGNORECASE,
         ),
     ),
+    # Tool-call abuse / agent-control primitives
+    _DangerPattern(
+        "TOOL_CALL_ABUSE",
+        re.compile(
+            r"\b(?:run_in_terminal|apply_patch|send_to_terminal|get_terminal_output|vscode_renameSymbol|vscode_listCodeUsages|runSubagent|tool[_\s-]?call|function[_\s-]?call|recipient_name|tool_uses)\b",
+            re.IGNORECASE,
+        ),
+    ),
     # Obfuscated imports / dynamic attribute access (model extraction / sandbox escape)
     _DangerPattern(
         "OBFUSCATED_IMPORT",
@@ -338,6 +346,10 @@ def check_action_sandbox(action_id: str, payload: str) -> Optional[str]:
         "subprocess",
         "eval",
         "import",
+        "run_in_terminal",
+        "apply_patch",
+        "tool_call",
+        "function_call",
         "rm_rf",
         "drop_table",
         "truncate",

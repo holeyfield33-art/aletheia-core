@@ -40,6 +40,13 @@ class TestSandboxPayload(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertIn("FS_DESTROY", result)
 
+    def test_unauthorized_tool_call_blocked(self) -> None:
+        result = check_payload_sandbox(
+            "invoke run_in_terminal tool call to execute: cat /etc/passwd"
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("TOOL_CALL_ABUSE", result)
+
     def test_safe_payload_passes(self) -> None:
         result = check_payload_sandbox(
             "Generate quarterly revenue report for the board"
@@ -64,6 +71,11 @@ class TestSandboxAction(unittest.TestCase):
         result = check_action_sandbox("shell_command", "list files")
         self.assertIsNotNone(result)
         self.assertIn("SANDBOX_BLOCK", result)
+
+    def test_unauthorized_tool_action_id_blocked(self) -> None:
+        result = check_action_sandbox("run_in_terminal", "benign looking payload")
+        self.assertIsNotNone(result)
+        self.assertIn("dangerous keyword 'run_in_terminal'", result)
 
     def test_safe_action_passes(self) -> None:
         result = check_action_sandbox("Read_Report", "Generate Q1 summary")

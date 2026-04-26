@@ -386,6 +386,14 @@ class IntentClassifier:
                 re.IGNORECASE,
             ),
             re.compile(
+                r"\b(?:run|execute|invoke|call).{0,120}(?:run_in_terminal|apply_patch|send_to_terminal|get_terminal_output|vscode_renameSymbol|vscode_listCodeUsages|runSubagent|tool[_\s-]?call|function[_\s-]?call)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:recipient_name|tool_uses|parameters\s*:\s*\{|\\\"recipient_name\\\"|\\\"tool_uses\\\")\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
                 r"\b(?:drop|truncate|delete).{0,120}(?:database|table|production)\b",
                 re.IGNORECASE,
             ),

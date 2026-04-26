@@ -151,6 +151,23 @@ match sandbox regex patterns.
 phrasing not covered by existing patterns may pass. Pair with OS-level sandboxing
 (seccomp, AppArmor) for defense in depth.
 
+### 8.1 Unauthorized Tool-Invocation Abuse
+
+**Threat:** Adversary attempts to coerce the system into direct tool execution by
+embedding tool-control primitives in payload text (for example `run_in_terminal`,
+`apply_patch`, `send_to_terminal`, explicit `tool call`, `function call`, or
+tool schema keys such as `recipient_name`/`tool_uses`).
+
+**Mitigations:**
+- Semantic pre-screen classifies tool-control instructions as `tool_abuse`
+- Sandbox patterns explicitly detect tool-invocation primitives in normalized text
+- Action-ID sandbox blocks dangerous tool-oriented action identifiers
+- Fail-closed response returns `DENIED` or `SANDBOX_BLOCKED` without internal matcher details
+
+**Residual risk:** Obfuscated or newly invented control vocabulary could still
+require pattern-bank updates. Keep regression tests for tool-call abuse payloads
+in CI and review denied-event telemetry for drift.
+
 ### 9. Information Leakage
 
 **Threat:** Adversary probes responses to learn internal thresholds, pattern names,
