@@ -105,37 +105,8 @@ jobs:
           python-version: "3.12"
       - name: Install pip-audit
         run: pip install pip-audit
-      - name: Prepare audit requirements (strip local-version suffixes)
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          src = Path("requirements.txt")
-          dst = Path("/tmp/requirements-audit.txt")
-          lines = src.read_text().splitlines()
-
-          cleaned: list[str] = []
-          skipping_torch_hashes = False
-          for line in lines:
-            # pip-audit resolves against PyPI and cannot resolve torch CPU wheel
-            # local versions from download.pytorch.org. Exclude this pinned block
-            # from audit input to keep SCA deterministic.
-            if line.startswith("torch==") and "+cpu" in line:
-              skipping_torch_hashes = True
-              continue
-
-            if skipping_torch_hashes and line.startswith("    --hash="):
-              continue
-
-            if skipping_torch_hashes and not line.startswith("    --hash="):
-              skipping_torch_hashes = False
-
-            cleaned.append(line.replace("+cpu", ""))
-
-          dst.write_text("\n".join(cleaned) + "\n")
-          PY
       - name: Audit runtime dependencies
-        run: pip-audit -r /tmp/requirements-audit.txt --strict --no-deps --ignore-vuln GHSA-placeholder
+        run: pip-audit -r requirements-ci.txt --strict --no-deps --ignore-vuln GHSA-placeholder
 
   npm-audit:
     name: npm audit (Node SCA)
