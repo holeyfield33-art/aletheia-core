@@ -613,8 +613,10 @@ export default function DemoPage() {
                     : result.error === "rate_limited"
                     ? `Rate limit reached. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
                     : result.error === "request_timeout"
-                      ? "Request timed out. The backend may be starting up — try again."
-                      : "Something went wrong. Please try again."}
+                      ? "Request timed out. The backend may be starting up — try again in a few seconds."
+                      : result.error === "service_unavailable"
+                        ? "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."
+                        : "Something went wrong. Please try again."}
                 </span>
               </div>
             ) : (

@@ -8,7 +8,7 @@ const BYPASS_PATHS = [
   "/_next/static",
 ];
 
-export async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isBypassed = BYPASS_PATHS.some((path) => pathname.startsWith(path));
 
