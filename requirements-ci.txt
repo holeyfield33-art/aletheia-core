@@ -10,5 +10,5 @@ numpy==2.4.3
 pytest==9.0.3
 httpx==0.28.1
 pytest-asyncio==1.3.0
-hypothesis==6.151.11
+hypothesis==6.152.3
 confusable-homoglyphs==3.3.1
