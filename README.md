@@ -220,6 +220,7 @@ Response:
     "decision": "PROCEED",
     "policy_hash": "sha256...",
     "payload_sha256": "sha256...",
+    "prompt": "Summarize quarterly controls delta.",
     "action": "Read_Report",
     "origin": "trusted_admin",
     "signature": "hmac-sha256...",
@@ -228,7 +229,7 @@ Response:
 }
 ```
 
-**Note:** `shadow_verdict` and `redacted_payload` are never returned to clients. `client_ip_claim`, if provided, is stored in the audit log for debugging only and is never used for enforcement.
+**Note:** `receipt.prompt` is optional; when present it is included in the signed canonical receipt string. `shadow_verdict` and `redacted_payload` are never returned to clients. `client_ip_claim`, if provided, is stored in the audit log for debugging only and is never used for enforcement.
 
 ---
 

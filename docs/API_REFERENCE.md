@@ -99,6 +99,7 @@ Extra fields are rejected (`extra="forbid"`).
     "decision": "PROCEED",
     "policy_hash": "sha256:3d4f...",
     "payload_sha256": "sha256:9a2b...",
+    "prompt": "Summarize Q1 risk posture deltas.",
     "action": "Read_Report",
     "origin": "trusted_admin",
     "signature": "hmac-sha256:7c1e...",
@@ -108,6 +109,10 @@ Extra fields are rejected (`extra="forbid"`).
 ```
 
 **Possible `decision` values:**
+
+Receipt notes:
+- `receipt.prompt` is optional and, when present, is part of the signed canonical string.
+- Legacy receipts without `prompt` remain valid and verifiable.
 
 | Decision | HTTP Status | Meaning |
 |----------|-------------|---------|

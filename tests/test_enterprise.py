@@ -1,13 +1,12 @@
 """Tests for enterprise features: audit logging, TMR receipts, rate limiter, input hardening."""
 
 import asyncio
-import json
 import os
-import tempfile
 import unittest
+from unittest.mock import patch
 
 from bridge.utils import normalize_shadow_text
-from core.audit import build_tmr_receipt, log_audit_event
+from core.audit import build_tmr_receipt, log_audit_event, verify_receipt
 from core.rate_limit import InMemoryRateLimiter
 
 
@@ -63,6 +62,51 @@ class TestAuditLogging(unittest.TestCase):
         self.assertIn("payload_length", record)
         self.assertEqual(record["payload_length"], 500)
         self.assertNotIn("redacted_payload", record)
+
+
+class TestReceiptPromptBinding(unittest.TestCase):
+    """Prompt must be cryptographically bound when present."""
+
+    def test_prompt_bound_and_backward_compatible(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_SECRET": "receipt-test-value"  # pragma: allowlist secret
+            },
+            clear=False,
+        ):
+            # New flow: receipt with prompt verifies successfully.
+            receipt_with_prompt = build_tmr_receipt(
+                decision="PROCEED",
+                policy_hash="abc123",
+                payload_sha256="deadbeef",
+                prompt="Summarize quarterly revenue deltas.",
+                action="Read_Report",
+                origin="trusted_admin",
+                request_id="req-1",
+                fallback_state="normal",
+                issued_at="2026-04-29T00:00:00+00:00",
+            )
+            self.assertTrue(verify_receipt(receipt_with_prompt))
+
+            # Tampering prompt after signing must fail verification.
+            tampered = dict(receipt_with_prompt)
+            tampered["prompt"] = "Tampered prompt content"
+            self.assertFalse(verify_receipt(tampered))
+
+            # Backward compatibility: receipts without prompt still verify.
+            legacy_receipt = build_tmr_receipt(
+                decision="PROCEED",
+                policy_hash="abc123",
+                payload_sha256="deadbeef",
+                action="Read_Report",
+                origin="trusted_admin",
+                request_id="req-legacy",
+                fallback_state="normal",
+                issued_at="2026-04-29T00:00:00+00:00",
+            )
+            self.assertNotIn("prompt", legacy_receipt)
+            self.assertTrue(verify_receipt(legacy_receipt))
 
 
 class TestRateLimiter(unittest.TestCase):

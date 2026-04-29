@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from pydantic import BaseModel, Field, field_validator
+
 from core.config import settings
 
 # ---------------------------------------------------------------------------
@@ -181,6 +183,47 @@ def extract_trace_context() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
+class Receipt(BaseModel):
+    """Canonical TMR receipt payload used for signing and verification."""
+
+    decision: str
+    policy_hash: str
+    policy_version: str = "UNKNOWN"
+    payload_sha256: str = ""
+    prompt: Optional[str] = None
+    action: str = ""
+    origin: str = ""
+    request_id: str = ""
+    fallback_state: str = "normal"
+    decision_token: str
+    nonce: str
+    issued_at: str
+    signature: str = ""
+    warning: Optional[str] = Field(default=None)
+
+    @field_validator("prompt")
+    @classmethod
+    def _validate_prompt_length(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and len(value) > 4096:
+            raise ValueError("prompt must be <= 4096 characters")
+        return value
+
+    def _canonical_string(self) -> str:
+        """Return canonical receipt string used for HMAC signing."""
+        canonical = (
+            f"{self.decision}|{self.policy_hash}|{self.policy_version}|"
+            f"{self.payload_sha256}"
+        )
+        if self.prompt is not None:
+            canonical += f"|prompt:{self.prompt}"
+        canonical += (
+            f"|{self.action}|{self.origin}|{self.request_id}|"
+            f"{self.fallback_state}|{self.issued_at}|"
+            f"{self.decision_token}|{self.nonce}"
+        )
+        return canonical
+
+
 def log_audit_event(
     *,
     decision: str,
@@ -295,6 +338,7 @@ def log_audit_event(
         policy_hash=record["policy_hash"],
         policy_version=record["policy_version"],
         payload_sha256=record.get("payload_sha256", ""),
+        prompt=payload,
         action=action,
         origin=origin,
         request_id=request_id,
@@ -311,6 +355,7 @@ def build_tmr_receipt(
     policy_hash: str,
     policy_version: str = "UNKNOWN",
     payload_sha256: str = "",
+    prompt: Optional[str] = None,
     action: str = "",
     origin: str = "",
     request_id: str = "",
@@ -332,31 +377,7 @@ def build_tmr_receipt(
         )
     ).hexdigest()
 
-    if not secret:
-        return {
-            "decision": decision,
-            "policy_hash": policy_hash,
-            "policy_version": policy_version,
-            "payload_sha256": payload_sha256,
-            "action": action,
-            "origin": origin,
-            "request_id": request_id,
-            "fallback_state": fallback_state,
-            "decision_token": decision_token,
-            "nonce": nonce,
-            "signature": "UNSIGNED_DEV_MODE",
-            "issued_at": issued_at,
-            "warning": "Set ALETHEIA_RECEIPT_SECRET for production receipt signing.",
-        }
-
-    message = (
-        f"{decision}|{policy_hash}|{policy_version}|{payload_sha256}|"
-        f"{action}|{origin}|{request_id}|{fallback_state}|"
-        f"{issued_at}|{decision_token}|{nonce}"
-    ).encode("utf-8")
-    sig = hmac.new(secret, message, hashlib.sha256).hexdigest()
-
-    return {
+    receipt_payload: dict[str, Any] = {
         "decision": decision,
         "policy_hash": policy_hash,
         "policy_version": policy_version,
@@ -367,6 +388,52 @@ def build_tmr_receipt(
         "fallback_state": fallback_state,
         "decision_token": decision_token,
         "nonce": nonce,
-        "signature": sig,
         "issued_at": issued_at,
     }
+    if prompt is not None:
+        receipt_payload["prompt"] = prompt
+
+    receipt = Receipt.model_validate(receipt_payload)
+
+    if not secret:
+        unsigned = receipt.model_dump(exclude_none=True)
+        unsigned["signature"] = "UNSIGNED_DEV_MODE"
+        unsigned["warning"] = (
+            "Set ALETHEIA_RECEIPT_SECRET for production receipt signing."
+        )
+        return unsigned
+
+    sig = hmac.new(
+        secret,
+        receipt._canonical_string().encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    signed = receipt.model_dump(exclude_none=True)
+    signed["signature"] = sig
+    return signed
+
+
+def verify_receipt(receipt: dict[str, Any]) -> bool:
+    """Verify a TMR receipt signature against the configured HMAC secret."""
+    secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
+    if not secret:
+        return False
+
+    provided_sig = receipt.get("signature")
+    if not isinstance(provided_sig, str) or not provided_sig:
+        return False
+    if provided_sig == "UNSIGNED_DEV_MODE":
+        return False
+
+    try:
+        parsed = Receipt.model_validate(receipt)
+    except Exception:
+        return False
+
+    expected_sig = hmac.new(
+        secret,
+        parsed._canonical_string().encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(provided_sig, expected_sig)
