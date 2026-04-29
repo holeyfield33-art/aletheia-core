@@ -35,6 +35,8 @@ from core.secret_rotation import install_sigusr1_handler, rotate_secrets
 from core.metrics import (
     REQUEST_COUNTER,
     LATENCY_HISTOGRAM,
+    AUDIT_DECISIONS_TOTAL,
+    AUDIT_EVALUATION_DURATION_SECONDS,
     metrics_response,
 )
 
@@ -818,7 +820,16 @@ async def readiness_check() -> JSONResponse:
 
 @app.get("/metrics")
 async def prometheus_metrics(request: Request) -> Response:
-    """Prometheus metrics endpoint. Auth REQUIRED in production."""
+    """Prometheus metrics endpoint. Disabled unless METRICS_ENABLED=true. Auth REQUIRED in production."""
+    _metrics_enabled = os.getenv("METRICS_ENABLED", "false").strip().lower()
+    if _metrics_enabled not in ("true", "1", "yes"):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "not_found",
+                "message": "Metrics endpoint is disabled. Set METRICS_ENABLED=true to enable.",
+            },
+        )
     _metrics_token = os.getenv("ALETHEIA_METRICS_TOKEN", "").strip()
     if not _metrics_token:
         # In production, refuse unauthenticated metrics
@@ -1115,6 +1126,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     # Record Prometheus metrics
     REQUEST_COUNTER.labels(agent="pipeline", verdict=decision).inc()
     LATENCY_HISTOGRAM.observe(latency / 1000)  # seconds
+    AUDIT_DECISIONS_TOTAL.labels(decision=decision.lower()).inc()
+    AUDIT_EVALUATION_DURATION_SECONDS.observe(latency / 1000)
 
     # Shadow mode override: log the block but let the request through.
     # Safety: shadow mode is NEVER allowed when ENVIRONMENT=production,

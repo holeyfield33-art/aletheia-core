@@ -6,9 +6,14 @@ Metrics are served at GET /metrics in OpenMetrics/Prometheus format.
 
 from __future__ import annotations
 
-import time
 
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import (
+    Counter,
+    Histogram,
+    Gauge,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
 
 # ---------------------------------------------------------------------------
 # Metric definitions
@@ -93,6 +98,19 @@ TENANT_REQUESTS = Counter(
     "aletheia_tenant_requests_total",
     "Total audit requests per tenant",
     ["tenant_id", "verdict"],
+)
+
+
+AUDIT_DECISIONS_TOTAL = Counter(
+    "aletheia_audit_decisions_total",
+    "Total audit decisions by outcome",
+    ["decision"],
+)
+
+AUDIT_EVALUATION_DURATION_SECONDS = Histogram(
+    "aletheia_audit_evaluation_duration_seconds",
+    "Full decision processing time for /v1/audit",
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 
 
