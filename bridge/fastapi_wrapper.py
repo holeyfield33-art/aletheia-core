@@ -569,7 +569,7 @@ async def _on_startup() -> None:
 
 class AuditRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    payload: str = Field(..., max_length=10_000)
+    payload: str = Field(..., max_length=2048)
     origin: str = Field(..., max_length=128)
     action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
     client_ip_claim: str | None = Field(default=None, max_length=64)
@@ -875,7 +875,7 @@ async def _check_eval_rate_limit(request: Request) -> None:
 
 class EvaluateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    payload: str = Field(..., max_length=10_000)
+    payload: str = Field(..., max_length=2048)
     origin: str = Field(..., max_length=128)
     action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
 

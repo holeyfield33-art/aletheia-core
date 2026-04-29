@@ -58,6 +58,7 @@ def warm_up() -> None:
 
 _MAX_ENCODE_TEXTS = 1000
 _MAX_TOTAL_TEXT_BYTES = 500_000  # 500 KB total
+_MAX_MODEL_INPUT_CHARS = 2800  # Approx safe cap before model tokenization
 
 
 def encode(texts: list[str]) -> NDArray[np.float32]:
@@ -74,7 +75,12 @@ def encode(texts: list[str]) -> NDArray[np.float32]:
             f"Total text size {total_size} exceeds limit {_MAX_TOTAL_TEXT_BYTES}"
         )
     model = _get_model()
-    return model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+    bounded_texts = [t[:_MAX_MODEL_INPUT_CHARS] for t in texts]
+    return model.encode(
+        bounded_texts,
+        normalize_embeddings=True,
+        show_progress_bar=False,
+    )
 
 
 def cosine_similarity(

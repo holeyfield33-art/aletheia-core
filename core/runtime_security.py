@@ -66,7 +66,7 @@ class IntentDecision:
 class AuditRequestSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    payload: str = Field(min_length=1, max_length=10_000)
+    payload: str = Field(min_length=1, max_length=2048)
     origin: str = Field(min_length=1, max_length=128)
     action: str = Field(min_length=1, max_length=128)
 
