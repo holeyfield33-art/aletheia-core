@@ -12,12 +12,56 @@ Two authentication mechanisms are supported:
 
 | Header | Used by | Source |
 |--------|---------|--------|
-| `X-API-Key` | `/v1/audit` | KeyStore (SQLite/Postgres, quota-enforced) |
+| `X-API-Key` | `/v1/audit`, `/v1/evaluate` | KeyStore (SQLite/Postgres, quota-enforced) |
 | `Authorization: Bearer <token>` | All endpoints | OIDC/SAML provider (RBAC permissions) |
 
 API keys are created via `POST /v1/keys` and authenticated exclusively through the KeyStore.
 Admin endpoints (`/v1/keys/*`, `/v1/rotate`) require RBAC permissions (e.g. `KEYS_CREATE`, `SECRETS_ROTATE`).
 To disable auth in development, set `ALETHEIA_AUTH_DISABLED=true` (blocked in production).
+
+---
+
+## Audit Endpoint
+
+## Evaluation Endpoint
+
+### POST `/v1/evaluate`
+
+Policy-evaluation endpoint. Runs Scout + Nitpicker + Judge and returns a decision
+without generating the full signed audit receipt.
+
+**Auth:** `X-API-Key` header (required when auth is enabled).
+
+**Rate limit:** Per-IP 20 requests/minute with burst 5 (configurable via
+`EVAL_RATE_LIMIT_PER_MINUTE` and `EVAL_RATE_BURST`).
+
+**Request body** (JSON, `Content-Type: application/json`):
+
+| Field | Type | Required | Constraints | Description |
+|-------|------|----------|-------------|-------------|
+| `payload` | string | Yes | max 2,048 chars | The instruction/payload to evaluate |
+| `origin` | string | Yes | max 128 chars | Source identifier (e.g. `trusted_admin`, `agent-01`) |
+| `action` | string | Yes | max 128 chars, pattern `^[A-Za-z0-9_\-]+$` | Action identifier |
+
+**Response** (200 OK):
+
+```json
+{
+  "decision": "PROCEED",
+  "threat_level": "LOW",
+  "latency_ms": 12.5,
+  "request_id": "a1b2c3d4e5f6g7h8"
+}
+```
+
+**Error responses:**
+
+| Status | Cause |
+|--------|-------|
+| 401 | Missing or invalid `X-API-Key` |
+| 403 | Blocked by semantic policy/sandbox/Judge decision |
+| 422 | Validation error (missing fields, pattern mismatch, length exceeded) |
+| 429 | Per-IP evaluate rate limit exceeded. Includes `Retry-After` header. |
 
 ---
 
@@ -33,7 +77,7 @@ Primary endpoint. Evaluates a payload through the tri-agent pipeline and returns
 
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
-| `payload` | string | Yes | max 10,000 chars | The agent action or instruction to evaluate |
+| `payload` | string | Yes | max 2,048 chars | The agent action or instruction to evaluate |
 | `origin` | string | Yes | max 128 chars | Source identifier (e.g. `trusted_admin`, `agent-01`) |
 | `action` | string | Yes | max 128 chars, pattern `^[A-Za-z0-9_\-]+$` | Action identifier (e.g. `Read_Report`, `Transfer_Funds`) |
 | `client_ip_claim` | string | No | max 64 chars | Optional client IP for audit logging only — never used for enforcement |
@@ -98,41 +142,31 @@ Extra fields are rejected (`extra="forbid"`).
 
 Public health endpoint.
 
-- Without auth: returns minimal status for probes.
-- With valid RBAC credentials (admin role): returns extended diagnostics.
+- Endpoint is intentionally lightweight and independent of policy/model checks.
 
 **Response (public, 200 OK):**
 
 ```json
 {
   "status": "ok",
-  "service": "aletheia-core"
+  "version": "1.9.2",
+  "uptime_seconds": 3600.0
 }
 ```
 
-**Response (admin diagnostics, 200 OK):**
+**Response (startup failure, 503 Service Unavailable):**
 
 ```json
 {
-  "status": "ok",
-  "service": "aletheia-core",
-  "version": "1.9.2",
-  "uptime_seconds": 3600.0,
-  "timestamp": "2026-04-10T12:00:00+00:00",
-  "manifest_signature": "VALID",
-  "demo_key_configured": true,
-  "demo_key_registered": true,
-  "demo_key_status": "registered"
+  "status": "error",
+  "detail": "critical startup failure"
 }
 ```
 
 | Field | Values | Meaning |
 |-------|--------|---------|
-| `status` | `ok`, `degraded` | `degraded` when manifest signature verification fails |
-| `manifest_signature` | `VALID`, `INVALID` | Result of Ed25519 signature check (admin diagnostics only) |
-| `demo_key_configured` | `true`, `false` | Whether `ALETHEIA_DEMO_API_KEY`/`ALETHEIA_API_KEY` is configured |
-| `demo_key_registered` | `true`, `false` | Whether configured demo key hash exists in backend KeyStore |
-| `demo_key_status` | `not_configured`, `registered`, `missing`, `lookup_error` | Registration diagnostic for hosted `/demo` flow |
+| `status` | `ok`, `error` | `error` indicates startup prerequisites failed |
+| `detail` | string | Failure reason when `status=error` |
 
 ### GET `/ready`
 
