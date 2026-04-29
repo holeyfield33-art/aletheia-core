@@ -206,7 +206,7 @@ def _verify_ws_jwt(token: str) -> str | None:
         payload = json.loads(base64.urlsafe_b64decode(encoded))
         if payload.get("exp", 0) < time.time():
             return None  # Expired
-        return payload.get("tenant_id", "default")
+        return str(payload.get("tenant_id", "default"))
     except Exception:
         return None
 
@@ -227,9 +227,9 @@ def _authenticate_ws_token(token: str) -> str | None:
     try:
         from core.key_store import key_store
 
-        record = key_store.validate_key(token)
+        record = key_store.lookup_by_hash(token)
         if record is not None:
-            return record.tenant_id or "default"
+            return "default"
     except Exception:
         pass
 

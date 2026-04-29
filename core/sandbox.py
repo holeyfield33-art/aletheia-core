@@ -184,7 +184,7 @@ def _check_ast_dynamic_attr(text: str) -> str | None:
       - getattr(os, f'sys{"tem"}')
     """
     try:
-        tree = ast.parse(text, mode="exec")
+        tree: ast.AST = ast.parse(text, mode="exec")
     except SyntaxError:
         # Not valid Python — try wrapping as expression
         try:

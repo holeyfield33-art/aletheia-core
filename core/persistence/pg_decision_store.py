@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 
 from core.decision_store import ReplayCheckResult
 from core.persistence import tenant_scope
@@ -23,7 +24,7 @@ class PgDecisionStore:
     """Async PostgreSQL decision store with tenant isolation."""
 
     def __init__(self) -> None:
-        self._pool = None
+        self._pool: Any = None
         self._degraded = False
 
     @property
@@ -38,7 +39,7 @@ class PgDecisionStore:
     # Lifecycle
     # ------------------------------------------------------------------
 
-    async def init_db(self, pool) -> None:
+    async def init_db(self, pool: Any) -> None:
         self._pool = pool
         async with pool.acquire() as conn:
             await conn.execute("""

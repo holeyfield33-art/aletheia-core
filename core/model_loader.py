@@ -31,7 +31,9 @@ def _has_cached_weights(model_dir: Path) -> bool:
     return any(model_dir.rglob("pytorch_model.bin"))
 
 
-def load_cached_sentence_transformer(model_name: str, token: str | None = None):
+def load_cached_sentence_transformer(
+    model_name: str, token: str | None = None
+) -> object:
     """Load a SentenceTransformer from a local cache or download it once.
 
     Cache path format:

@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import secrets as _secrets
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from core.key_store import KeyRecord, QuotaCheck, DEFAULT_QUOTAS, _hash_key
 from core.persistence import tenant_scope
@@ -37,13 +37,13 @@ class PgKeyStore:
     """
 
     def __init__(self) -> None:
-        self._pool = None
+        self._pool: Any = None
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
-    async def init_db(self, pool) -> None:
+    async def init_db(self, pool: Any) -> None:
         """Create tables, indexes, and run idempotent migrations.
 
         *pool* must be an ``asyncpg.Pool`` instance.
@@ -113,7 +113,7 @@ class PgKeyStore:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _row_to_record(self, row) -> KeyRecord:
+    def _row_to_record(self, row: Any) -> KeyRecord:
         return KeyRecord(
             id=row["id"],
             name=row["name"],
@@ -257,7 +257,7 @@ class PgKeyStore:
                 key_id,
                 tid,
             )
-        changed = result.split()[-1] != "0"
+        changed = bool(result.split()[-1] != "0")
         if changed:
             _logger.info("pg key_revoked id=%s tenant=%s", key_id, tid)
         return changed

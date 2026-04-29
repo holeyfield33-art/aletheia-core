@@ -164,7 +164,7 @@ def extract_trace_context() -> dict[str, str]:
     Lightweight — never raises, never imports heavy dependencies at module level.
     """
     try:
-        from opentelemetry import trace  # type: ignore[import-untyped]
+        from opentelemetry import trace  # type: ignore[import-untyped,unused-ignore]
 
         span = trace.get_current_span()
         ctx = span.get_span_context()
@@ -361,7 +361,7 @@ def build_tmr_receipt(
     request_id: str = "",
     fallback_state: str = "normal",
     issued_at: str = "",
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Build a tamper-evident receipt signed with a private HMAC secret.
 
     Signs: decision + policy_hash + payload_sha256 + action + origin + timestamp.
@@ -401,7 +401,7 @@ def build_tmr_receipt(
         unsigned["warning"] = (
             "Set ALETHEIA_RECEIPT_SECRET for production receipt signing."
         )
-        return unsigned
+        return dict(unsigned)
 
     sig = hmac.new(
         secret,
@@ -409,7 +409,7 @@ def build_tmr_receipt(
         hashlib.sha256,
     ).hexdigest()
 
-    signed = receipt.model_dump(exclude_none=True)
+    signed: dict[str, Any] = receipt.model_dump(exclude_none=True)
     signed["signature"] = sig
     return signed
 

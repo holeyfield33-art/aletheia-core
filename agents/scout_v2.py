@@ -9,7 +9,7 @@ _scout_logger = logging.getLogger("aletheia.scout")
 
 
 class AletheiaScoutV2:
-    def __init__(self):
+    def __init__(self) -> None:
         # GROK'S LIVE X-STREAM SIGNATURES
         self.threat_intel_db = {
             "smuggling_prefixes": [
@@ -124,7 +124,9 @@ class AletheiaScoutV2:
 
         return False, ""
 
-    def evaluate_threat_context(self, source_id, payload, file_sig=None):
+    def evaluate_threat_context(
+        self, source_id: str, payload: str, file_sig: str | None = None
+    ) -> tuple[float, str]:
         """Score the threat level of a payload from *source_id*.
 
         .. admonition:: Adversarial Limitation

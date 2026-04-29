@@ -76,7 +76,7 @@ def gue_delta3(L: int) -> float:
     """
     if L <= 0:
         return 0.0
-    return (1.0 / (np.pi**2)) * np.log(float(L)) + 0.06
+    return float((1.0 / (np.pi**2)) * np.log(float(L)) + 0.06)
 
 
 def theta_bk(L: int) -> float:
@@ -88,7 +88,7 @@ def theta_bk(L: int) -> float:
         return _THETA_BK_OVERRIDE
     if L <= 0:
         return 1.0
-    return 0.27 * np.log(float(L)) + 0.5
+    return float(0.27 * np.log(float(L)) + 0.5)
 
 
 def compute_drift_score(activation_matrix: np.ndarray) -> float:

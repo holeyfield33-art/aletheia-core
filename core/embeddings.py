@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -21,7 +22,7 @@ _model = None  # lazy singleton
 _LOCK_TIMEOUT_SECONDS = 120  # generous; model download may be slow
 
 
-def _get_model():
+def _get_model() -> Any:
     """Thread-safe lazy load of the SentenceTransformer model."""
     global _model
     if _model is None:

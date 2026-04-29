@@ -33,7 +33,7 @@ def redis_configured() -> bool:
     return bool(redis_url())
 
 
-async def get_redis_pool():
+async def get_redis_pool() -> Optional[object]:
     """Return or create the global ``redis.asyncio`` connection pool.
 
     Returns ``None`` when no Redis URL is configured.  Callers must
@@ -83,7 +83,7 @@ async def close_redis_pool() -> None:
     """Close the global pool (call during shutdown)."""
     global _pool
     if _pool is not None:
-        await _pool.close()  # type: ignore[union-attr]
+        await _pool.close()  # type: ignore[attr-defined]
         _pool = None
 
 

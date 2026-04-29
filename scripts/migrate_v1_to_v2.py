@@ -157,7 +157,8 @@ def migrate_decision_store(db_path: str, *, dry_run: bool = False) -> int:
             if table not in _ALLOWED_TABLES:
                 raise ValueError(f"Unexpected table name: {table!r}")
             columns = {
-                row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()  # nosec B608
+                row[1]
+                for row in conn.execute(f"PRAGMA table_info({table})").fetchall()  # nosec B608
             }
             needs_column = "tenant_id" not in columns
 

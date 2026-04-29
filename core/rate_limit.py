@@ -21,6 +21,7 @@ import os
 import random
 import time
 from collections import OrderedDict
+from typing import Any, Generator
 
 import httpx
 
@@ -38,7 +39,7 @@ _REDIS_TTL_SECONDS = 10  # key expiry — cleanup after inactivity
 class _CompletedReset:
     """Synchronous reset result that can also be awaited."""
 
-    def __await__(self):
+    def __await__(self) -> Generator[None, None, None]:
         if False:
             yield None
         return None
@@ -50,7 +51,7 @@ class _ScheduledReset:
     def __init__(self, task: asyncio.Task[None]) -> None:
         self._task = task
 
-    def __await__(self):
+    def __await__(self) -> Generator[Any, None, None]:
         return self._task.__await__()
 
 
@@ -81,7 +82,7 @@ class UpstashRateLimiter:
         self.degraded = False
         _logger.info("Rate limiter: Upstash Redis backend active")
 
-    async def _redis(self, client: httpx.AsyncClient, *command) -> object:
+    async def _redis(self, client: httpx.AsyncClient, *command: object) -> object:
         """Execute a single Redis command via Upstash REST API."""
         resp = await client.post(
             self._url,
@@ -185,13 +186,14 @@ class UpstashRateLimiter:
                     # Scan and delete all aletheia rate limit keys
                     result = await self._redis(client, "KEYS", f"{_REDIS_KEY_PREFIX}*")
                     if result:
-                        await self._redis(client, "DEL", *result)
+                        keys = list(result) if result else []  # type: ignore[call-overload]
+                        await self._redis(client, "DEL", *keys)
                 else:
                     await self._redis(client, "DEL", f"{_REDIS_KEY_PREFIX}{key}")
         except Exception as exc:
             _logger.warning("Redis reset error: %s", exc)
 
-    def reset(self, key: str | None = None):
+    def reset(self, key: str | None = None) -> _CompletedReset | _ScheduledReset:
         """Clear rate limit state in sync and async test contexts.
 
         Sync callers can invoke this without awaiting and async callers can still
@@ -261,7 +263,7 @@ class InMemoryRateLimiter:
             else:
                 self._windows.pop(key, None)
 
-    def reset(self, key: str | None = None):
+    def reset(self, key: str | None = None) -> _CompletedReset | _ScheduledReset:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -278,7 +280,9 @@ class InMemoryRateLimiter:
         self.reset(key)
 
 
-def create_rate_limiter(max_per_second: int | None = None):
+def create_rate_limiter(
+    max_per_second: int | None = None,
+) -> "UpstashRateLimiter | InMemoryRateLimiter":
     """Factory: return Redis limiter if configured, else in-memory fallback.
 
     In production (ENVIRONMENT=production), Redis is required.

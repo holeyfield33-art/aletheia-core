@@ -258,7 +258,8 @@ class TestDecisionStoreDefaultPath(unittest.TestCase):
         from core.decision_store import _SQLiteDecisionStore
 
         with patch.dict(
-            os.environ, {"ALETHEIA_DECISION_DB_PATH": "/tmp/env_override.sqlite3"}  # nosec B108
+            os.environ,
+            {"ALETHEIA_DECISION_DB_PATH": "/tmp/env_override.sqlite3"},  # nosec B108
         ):
             store = _SQLiteDecisionStore()
             self.assertEqual(store._db_path, "/tmp/env_override.sqlite3")  # nosec B108

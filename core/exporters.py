@@ -119,7 +119,7 @@ class ElasticsearchExporter(AuditExporter):
     def name(self) -> str:
         return "elasticsearch"
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             import httpx
 
@@ -178,7 +178,7 @@ class SplunkExporter(AuditExporter):
     def name(self) -> str:
         return "splunk"
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             import httpx
 
@@ -232,7 +232,7 @@ class WebhookExporter(AuditExporter):
     def name(self) -> str:
         return "webhook"
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             import httpx
 
