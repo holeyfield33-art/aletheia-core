@@ -31,10 +31,14 @@ from core.metrics import WS_CONNECTIONS
 _logger = logging.getLogger("aletheia.ws_audit")
 
 # Fields never sent over the WebSocket
-_STRIP_FIELDS = frozenset({
-    "payload_sha256", "payload_preview", "payload_length",
-    "receipt",
-})
+_STRIP_FIELDS = frozenset(
+    {
+        "payload_sha256",
+        "payload_preview",
+        "payload_length",
+        "receipt",
+    }
+)
 
 # Per-tenant rate limiting: max WS connections per tenant
 _WS_MAX_PER_TENANT: int = int(os.getenv("ALETHEIA_WS_MAX_PER_TENANT", "10"))
@@ -124,7 +128,10 @@ async def ws_audit_handler(ws: WebSocket) -> None:
         return
 
     # Per-tenant rate limit
-    if tenant_id != "__all__" and audit_broadcast.tenant_count(tenant_id) >= _WS_MAX_PER_TENANT:
+    if (
+        tenant_id != "__all__"
+        and audit_broadcast.tenant_count(tenant_id) >= _WS_MAX_PER_TENANT
+    ):
         await ws.close(code=4029, reason="Too many connections for this tenant")
         return
 
@@ -133,7 +140,9 @@ async def ws_audit_handler(ws: WebSocket) -> None:
     try:
         while True:
             try:
-                msg = await asyncio.wait_for(queue.get(), timeout=_WS_HEARTBEAT_INTERVAL)
+                msg = await asyncio.wait_for(
+                    queue.get(), timeout=_WS_HEARTBEAT_INTERVAL
+                )
             except asyncio.TimeoutError:
                 # Send ping to keep connection alive
                 try:
@@ -166,13 +175,18 @@ def create_ws_token(tenant_id: str, ttl_seconds: int = 300) -> str:
     Uses a simple HMAC scheme — no external JWT library required.
     """
     import base64
-    payload = json.dumps({
-        "tenant_id": tenant_id,
-        "exp": int(time.time()) + ttl_seconds,
-        "nonce": secrets.token_hex(8),
-    }).encode("utf-8")
+
+    payload = json.dumps(
+        {
+            "tenant_id": tenant_id,
+            "exp": int(time.time()) + ttl_seconds,
+            "nonce": secrets.token_hex(8),
+        }
+    ).encode("utf-8")
     encoded = base64.urlsafe_b64encode(payload).decode("ascii")
-    sig = hmac.new(_WS_JWT_SECRET or b"dev-only", encoded.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        _WS_JWT_SECRET or b"dev-only", encoded.encode(), hashlib.sha256
+    ).hexdigest()
     return f"{encoded}.{sig}"
 
 
@@ -181,9 +195,12 @@ def _verify_ws_jwt(token: str) -> str | None:
     if not _WS_JWT_SECRET:
         return None  # JWT auth disabled when no secret is set
     import base64
+
     try:
         encoded, sig = token.rsplit(".", 1)
-        expected_sig = hmac.new(_WS_JWT_SECRET, encoded.encode(), hashlib.sha256).hexdigest()
+        expected_sig = hmac.new(
+            _WS_JWT_SECRET, encoded.encode(), hashlib.sha256
+        ).hexdigest()
         if not hmac.compare_digest(sig, expected_sig):
             return None
         payload = json.loads(base64.urlsafe_b64decode(encoded))
@@ -209,6 +226,7 @@ def _authenticate_ws_token(token: str) -> str | None:
     # API key lookup via key_store
     try:
         from core.key_store import key_store
+
         record = key_store.validate_key(token)
         if record is not None:
             return record.tenant_id or "default"

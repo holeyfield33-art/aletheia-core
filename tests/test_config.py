@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -17,10 +16,13 @@ class TestAletheiaSettingsDefaults(unittest.TestCase):
         """Return a fresh AletheiaSettings loaded with no env overrides and no YAML file."""
         # Import inside the method so we can reload with a clean env
         from core.config import AletheiaSettings
+
         # Patch _load_yaml to return empty dict (no file on disk)
         with patch("core.config._load_yaml", return_value={}):
             # Clear any ALETHEIA_* env vars that might be set in the test environment
-            clean_env = {k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")}
+            clean_env = {
+                k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")
+            }
             with patch.dict(os.environ, clean_env, clear=True):
                 return AletheiaSettings.load()
 
@@ -66,16 +68,19 @@ class TestShadowModeDerivedFromMode(unittest.TestCase):
 
     def test_shadow_mode_true_when_mode_is_shadow(self) -> None:
         from core.config import AletheiaSettings
+
         s = AletheiaSettings(mode="shadow")
         self.assertTrue(s.shadow_mode)
 
     def test_shadow_mode_false_when_mode_is_active(self) -> None:
         from core.config import AletheiaSettings
+
         s = AletheiaSettings(mode="active")
         self.assertFalse(s.shadow_mode)
 
     def test_shadow_mode_false_when_mode_is_monitor(self) -> None:
         from core.config import AletheiaSettings
+
         s = AletheiaSettings(mode="monitor")
         self.assertFalse(s.shadow_mode)
 
@@ -86,9 +91,12 @@ class TestYamlLoading(unittest.TestCase):
     def _load_with_yaml(self, yaml_content: str):
         import yaml
         from core.config import AletheiaSettings
+
         parsed = yaml.safe_load(yaml_content)
         with patch("core.config._load_yaml", return_value=parsed or {}):
-            clean_env = {k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")}
+            clean_env = {
+                k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")
+            }
             with patch.dict(os.environ, clean_env, clear=True):
                 return AletheiaSettings.load()
 
@@ -122,8 +130,11 @@ class TestYamlLoading(unittest.TestCase):
         # _load_yaml already coerces non-dict content to {} before it reaches load().
         # Simulate that by patching with the result _load_yaml would produce.
         from core.config import AletheiaSettings
+
         with patch("core.config._load_yaml", return_value={}):
-            clean_env = {k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")}
+            clean_env = {
+                k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")
+            }
             with patch.dict(os.environ, clean_env, clear=True):
                 s = AletheiaSettings.load()
         self.assertAlmostEqual(s.policy_threshold, 7.5)
@@ -134,8 +145,11 @@ class TestEnvVarOverrides(unittest.TestCase):
 
     def _load_with_env(self, env_vars: dict):
         from core.config import AletheiaSettings
+
         with patch("core.config._load_yaml", return_value={}):
-            clean_env = {k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")}
+            clean_env = {
+                k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")
+            }
             clean_env.update(env_vars)
             with patch.dict(os.environ, clean_env, clear=True):
                 return AletheiaSettings.load()
@@ -167,9 +181,12 @@ class TestEnvVarOverrides(unittest.TestCase):
 
     def test_env_wins_over_yaml(self) -> None:
         from core.config import AletheiaSettings
+
         yaml_data = {"policy_threshold": 5.0}
         with patch("core.config._load_yaml", return_value=yaml_data):
-            clean_env = {k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")}
+            clean_env = {
+                k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")
+            }
             clean_env["ALETHEIA_POLICY_THRESHOLD"] = "2.0"
             with patch.dict(os.environ, clean_env, clear=True):
                 s = AletheiaSettings.load()
@@ -185,9 +202,12 @@ class TestLoadYamlFileDiscovery(unittest.TestCase):
 
     def test_loads_from_config_yaml_file(self) -> None:
         from core.config import _load_yaml
+
         with tempfile.TemporaryDirectory() as tmp:
             config_file = Path(tmp) / "config.yaml"
-            config_file.write_text("policy_threshold: 4.2\nclient_id: TEST_CORP\n", encoding="utf-8")
+            config_file.write_text(
+                "policy_threshold: 4.2\nclient_id: TEST_CORP\n", encoding="utf-8"
+            )
             original_dir = os.getcwd()
             try:
                 os.chdir(tmp)
@@ -199,6 +219,7 @@ class TestLoadYamlFileDiscovery(unittest.TestCase):
 
     def test_returns_empty_dict_when_no_file(self) -> None:
         from core.config import _load_yaml
+
         with tempfile.TemporaryDirectory() as tmp:
             original_dir = os.getcwd()
             try:
@@ -213,6 +234,7 @@ class TestLoadYamlFileDiscovery(unittest.TestCase):
         """_CONFIG_SEARCH_PATHS can be patched to point at a custom file."""
         import core.config as cfg_mod
         from core.config import _load_yaml
+
         with tempfile.TemporaryDirectory() as tmp:
             config_file = Path(tmp) / "custom.yaml"
             config_file.write_text("client_id: ENV_CORP\n", encoding="utf-8")

@@ -122,6 +122,7 @@ def install_sigusr1_handler(
 
     Usage: ``kill -SIGUSR1 $(pidof python)``
     """
+
     def _handler(signum: int, frame: Any) -> None:
         _logger.info("SIGUSR1 received — rotating secrets")
         try:

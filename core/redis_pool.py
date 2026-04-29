@@ -64,6 +64,7 @@ async def get_redis_pool():
             "Set a rediss:// URL or append ?ssl=true."
         )
         import sys
+
         sys.exit(1)
 
     _pool = aioredis.from_url(

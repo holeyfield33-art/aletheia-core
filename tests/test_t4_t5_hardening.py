@@ -15,13 +15,9 @@ Covers:
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-import time
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +126,7 @@ class TestWSJWTAuth(unittest.TestCase):
         # Reimport to pick up env
         import importlib
         import core.ws_audit
+
         importlib.reload(core.ws_audit)
         from core.ws_audit import create_ws_token, _verify_ws_jwt
 
@@ -142,6 +139,7 @@ class TestWSJWTAuth(unittest.TestCase):
     def test_expired_jwt_rejected(self):
         import importlib
         import core.ws_audit
+
         importlib.reload(core.ws_audit)
         from core.ws_audit import create_ws_token, _verify_ws_jwt
 
@@ -153,6 +151,7 @@ class TestWSJWTAuth(unittest.TestCase):
     def test_tampered_jwt_rejected(self):
         import importlib
         import core.ws_audit
+
         importlib.reload(core.ws_audit)
         from core.ws_audit import create_ws_token, _verify_ws_jwt
 
@@ -168,8 +167,10 @@ class TestWSJWTAuth(unittest.TestCase):
             os.environ.pop("ALETHEIA_WS_JWT_SECRET", None)
             import importlib
             import core.ws_audit
+
             importlib.reload(core.ws_audit)
             from core.ws_audit import _verify_ws_jwt
+
             result = _verify_ws_jwt("anything.here")
             self.assertIsNone(result)
 
@@ -211,22 +212,26 @@ class TestFIPSMode(unittest.TestCase):
 
     def test_fips_mode_defaults_false(self):
         from core.config import AletheiaSettings
+
         s = AletheiaSettings()
         self.assertFalse(s.fips_mode)
 
     def test_fips_mode_can_be_enabled(self):
         from core.config import AletheiaSettings
+
         s = AletheiaSettings(fips_mode=True)
         self.assertTrue(s.fips_mode)
 
     def test_validate_fips_compliance_returns_list(self):
         from core.config import validate_fips_compliance
+
         result = validate_fips_compliance()
         self.assertIsInstance(result, list)
 
     @patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "short"})
     def test_fips_short_receipt_secret_flagged(self):
         from core.config import validate_fips_compliance
+
         violations = validate_fips_compliance()
         self.assertTrue(
             any("RECEIPT_SECRET" in v for v in violations),
@@ -246,6 +251,7 @@ class TestProductionConfigValidation(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("ALETHEIA_RECEIPT_SECRET", None)
             from core.config import validate_production_config
+
             issues = validate_production_config()
             self.assertTrue(any("RECEIPT_SECRET" in i for i in issues))
 
@@ -257,26 +263,42 @@ class TestProductionConfigValidation(unittest.TestCase):
             os.environ.pop("UPSTASH_REDIS_REST_URL", None)
             os.environ.pop("UPSTASH_REDIS_REST_TOKEN", None)
             from core.config import validate_production_config
+
             issues = validate_production_config()
             self.assertTrue(any("Redis" in i for i in issues))
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_RECEIPT_SECRET": "valid-secret",
-        "REDIS_URL": "redis://localhost",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_RECEIPT_SECRET": "valid-secret",
+            "REDIS_URL": "redis://localhost",
+        },
+    )
     def test_sqlite_flagged_in_production(self):
         from core.config import validate_production_config
-        issues = validate_production_config()
-        self.assertTrue(any("sqlite" in i.lower() or "postgres" in i.lower() for i in issues))
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_RECEIPT_SECRET": "valid-secret",
-        "REDIS_URL": "redis://localhost",
-    })
+        issues = validate_production_config()
+        self.assertTrue(
+            any("sqlite" in i.lower() or "postgres" in i.lower() for i in issues)
+        )
+
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_RECEIPT_SECRET": "valid-secret",
+            "REDIS_URL": "redis://localhost",
+        },
+    )
     def test_env_secret_backend_flagged(self):
         from core.config import validate_production_config
+
         issues = validate_production_config()
-        self.assertTrue(any("secrets manager" in i.lower() or "secret_backend" in i.lower() for i in issues))
+        self.assertTrue(
+            any(
+                "secrets manager" in i.lower() or "secret_backend" in i.lower()
+                for i in issues
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -289,20 +311,24 @@ class TestNewMetrics(unittest.TestCase):
 
     def test_exporter_retries_total(self):
         from core.metrics import EXPORTER_RETRIES_TOTAL
+
         EXPORTER_RETRIES_TOTAL.labels(backend="elasticsearch").inc()
 
     def test_dlq_size_gauge(self):
         from core.metrics import DLQ_SIZE
+
         DLQ_SIZE.set(42)
         self.assertEqual(DLQ_SIZE._value.get(), 42.0)
         DLQ_SIZE.set(0)
 
     def test_tenant_requests_counter(self):
         from core.metrics import TENANT_REQUESTS
+
         TENANT_REQUESTS.labels(tenant_id="acme", verdict="PROCEED").inc()
 
     def test_metrics_output_contains_new_metrics(self):
         from core.metrics import metrics_response, TENANT_REQUESTS
+
         # Ensure at least one label combo exists
         TENANT_REQUESTS.labels(tenant_id="test-output", verdict="DENIED").inc()
         body, content_type = metrics_response()
@@ -325,6 +351,7 @@ class TestTraceContextExtraction(unittest.TestCase):
 
     def test_returns_empty_dict_without_otel(self):
         from core.audit import extract_trace_context
+
         # OTel likely not installed in test env
         result = extract_trace_context()
         self.assertIsInstance(result, dict)
@@ -336,6 +363,7 @@ class TestTraceContextExtraction(unittest.TestCase):
             "span_id": "0" * 16,
         }
         from core.audit import extract_trace_context
+
         ctx = extract_trace_context()
         self.assertIn("trace_id", ctx)
         self.assertIn("span_id", ctx)
@@ -351,18 +379,21 @@ class TestAdversarialWarnings(unittest.TestCase):
 
     def test_scout_evaluate_threat_context_docstring(self):
         from agents.scout_v2 import AletheiaScoutV2
+
         doc = AletheiaScoutV2.evaluate_threat_context.__doc__
         self.assertIn("Adversarial", doc)
         self.assertIn("human-in-the-loop", doc)
 
     def test_nitpicker_check_semantic_block_docstring(self):
         from agents.nitpicker_v2 import AletheiaNitpickerV2
+
         doc = AletheiaNitpickerV2.check_semantic_block.__doc__
         self.assertIn("Adversarial", doc)
         self.assertIn("adversarial rephrasing", doc)
 
     def test_judge_verify_action_docstring(self):
         from agents.judge_v1 import AletheiaJudge
+
         doc = AletheiaJudge.verify_action.__doc__
         self.assertIn("Adversarial", doc)
         self.assertIn("dual-key", doc)
@@ -382,16 +413,21 @@ class TestExporterRaisesOnError(unittest.TestCase):
 
         exporter = ElasticsearchExporter()
         mock_client = AsyncMock()
-        mock_client.post.return_value = MagicMock(status_code=500, text="Internal Error")
+        mock_client.post.return_value = MagicMock(
+            status_code=500, text="Internal Error"
+        )
         exporter._client = mock_client
 
         with self.assertRaises(RuntimeError):
             asyncio.run(exporter.export({"test": True}))
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_SPLUNK_HEC_URL": "https://splunk:8088/services/collector",
-        "ALETHEIA_SPLUNK_HEC_TOKEN": "tok",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_SPLUNK_HEC_URL": "https://splunk:8088/services/collector",
+            "ALETHEIA_SPLUNK_HEC_TOKEN": "tok",
+        },
+    )
     def test_splunk_raises_on_400(self):
         from core.exporters import SplunkExporter
 

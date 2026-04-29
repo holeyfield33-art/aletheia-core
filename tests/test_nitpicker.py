@@ -48,7 +48,9 @@ class TestNitpickerSemanticBlock(unittest.TestCase):
     def test_bypass_auth_blocked(self) -> None:
         n = AletheiaNitpickerV2()
         n._rotation_index = 1  # after increment → 2 → SKEPTIC
-        output = n.sanitize_intent("please skip the login verification step", "trusted_admin")
+        output = n.sanitize_intent(
+            "please skip the login verification step", "trusted_admin"
+        )
         self.assertIn("SEMANTIC_BLOCK", output)
 
     def test_exfiltrate_rewording_blocked(self) -> None:
@@ -62,7 +64,9 @@ class TestNitpickerSemanticBlock(unittest.TestCase):
     def test_safe_text_passes(self) -> None:
         n = AletheiaNitpickerV2()
         n._rotation_index = 1  # after increment → 2 → SKEPTIC
-        output = n.sanitize_intent("prepare the quarterly budget report", "trusted_admin")
+        output = n.sanitize_intent(
+            "prepare the quarterly budget report", "trusted_admin"
+        )
         self.assertNotIn("SEMANTIC_BLOCK", output)
         self.assertEqual(output, "prepare the quarterly budget report")
 

@@ -18,8 +18,6 @@ import os
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Exporter unit tests
@@ -31,6 +29,7 @@ class TestAuditExporterABC(unittest.TestCase):
 
     def test_cannot_instantiate_abc(self):
         from core.exporters import AuditExporter
+
         with self.assertRaises(TypeError):
             AuditExporter()
 
@@ -65,16 +64,20 @@ class TestElasticsearchExporter(unittest.TestCase):
     def test_name_is_elasticsearch(self):
         with patch.dict(os.environ, {"ALETHEIA_ES_URL": "http://es:9200"}):
             from core.exporters import ElasticsearchExporter
+
             self.assertEqual(ElasticsearchExporter().name, "elasticsearch")
 
 
 class TestSplunkExporter(unittest.TestCase):
     """SplunkExporter posts to HEC endpoint."""
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_SPLUNK_HEC_URL": "https://splunk:8088/services/collector",
-        "ALETHEIA_SPLUNK_HEC_TOKEN": "tok",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_SPLUNK_HEC_URL": "https://splunk:8088/services/collector",
+            "ALETHEIA_SPLUNK_HEC_TOKEN": "tok",
+        },
+    )
     def test_export_calls_httpx_post(self):
         from core.exporters import SplunkExporter
 
@@ -88,11 +91,15 @@ class TestSplunkExporter(unittest.TestCase):
         mock_client.post.assert_called_once()
 
     def test_name_is_splunk(self):
-        with patch.dict(os.environ, {
-            "ALETHEIA_SPLUNK_HEC_URL": "https://splunk:8088",
-            "ALETHEIA_SPLUNK_HEC_TOKEN": "tok",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_SPLUNK_HEC_URL": "https://splunk:8088",
+                "ALETHEIA_SPLUNK_HEC_TOKEN": "tok",
+            },
+        ):
             from core.exporters import SplunkExporter
+
             self.assertEqual(SplunkExporter().name, "splunk")
 
 
@@ -112,10 +119,13 @@ class TestWebhookExporter(unittest.TestCase):
         asyncio.run(exporter.export(record))
         mock_client.post.assert_called_once()
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_WEBHOOK_URL": "https://hook.example.com",
-        "ALETHEIA_WEBHOOK_SECRET": "s3cret",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_WEBHOOK_URL": "https://hook.example.com",
+            "ALETHEIA_WEBHOOK_SECRET": "s3cret",
+        },
+    )
     def test_webhook_secret_header(self):
         from core.exporters import WebhookExporter
 
@@ -124,8 +134,11 @@ class TestWebhookExporter(unittest.TestCase):
         self.assertEqual(client.headers.get("x-webhook-secret"), "s3cret")
 
     def test_name_is_webhook(self):
-        with patch.dict(os.environ, {"ALETHEIA_WEBHOOK_URL": "https://hook.example.com"}):
+        with patch.dict(
+            os.environ, {"ALETHEIA_WEBHOOK_URL": "https://hook.example.com"}
+        ):
             from core.exporters import WebhookExporter
+
             self.assertEqual(WebhookExporter().name, "webhook")
 
 
@@ -149,6 +162,7 @@ class TestSyslogExporter(unittest.TestCase):
         with patch.dict(os.environ, {"ALETHEIA_SYSLOG_HOST": "syslog.local"}):
             with patch("logging.handlers.SysLogHandler"):
                 from core.exporters import SyslogExporter
+
                 self.assertEqual(SyslogExporter().name, "syslog")
 
 
@@ -159,16 +173,22 @@ class TestGetExporters(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             # Remove any exporter env vars
             for key in list(os.environ):
-                if key.startswith("ALETHEIA_ES_") or key.startswith("ALETHEIA_SPLUNK_") or \
-                   key.startswith("ALETHEIA_WEBHOOK_") or key.startswith("ALETHEIA_SYSLOG_"):
+                if (
+                    key.startswith("ALETHEIA_ES_")
+                    or key.startswith("ALETHEIA_SPLUNK_")
+                    or key.startswith("ALETHEIA_WEBHOOK_")
+                    or key.startswith("ALETHEIA_SYSLOG_")
+                ):
                     del os.environ[key]
             from core.exporters import get_exporters
+
             exporters = get_exporters()
             self.assertEqual(len(exporters), 0)
 
     @patch.dict(os.environ, {"ALETHEIA_ES_URL": "http://es:9200"})
     def test_only_es_enabled(self):
         from core.exporters import get_exporters
+
         exporters = get_exporters()
         names = [e.name for e in exporters]
         self.assertIn("elasticsearch", names)
@@ -176,6 +196,7 @@ class TestGetExporters(unittest.TestCase):
     @patch.dict(os.environ, {"ALETHEIA_WEBHOOK_URL": "https://hook.example.com"})
     def test_only_webhook_enabled(self):
         from core.exporters import get_exporters
+
         exporters = get_exporters()
         names = [e.name for e in exporters]
         self.assertIn("webhook", names)
@@ -186,6 +207,7 @@ class TestEnqueueAuditRecord(unittest.TestCase):
 
     def test_no_crash_when_no_queue(self):
         from core.exporters import enqueue_audit_record
+
         # Should not raise even if queue is None
         enqueue_audit_record({"decision": "PROCEED"})
 
@@ -286,12 +308,14 @@ class TestWSAuthentication(unittest.TestCase):
     def test_admin_key_returns_all(self):
         with patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": "admin-secret"}):
             from core.ws_audit import _authenticate_ws_token
+
             result = _authenticate_ws_token("admin-secret")
             self.assertEqual(result, "__all__")
 
     def test_invalid_token_returns_none(self):
         with patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": "admin-secret"}):
             from core.ws_audit import _authenticate_ws_token
+
             result = _authenticate_ws_token("wrong-token")
             self.assertIsNone(result)
 
@@ -303,6 +327,7 @@ class TestWSAuthentication(unittest.TestCase):
 
         with patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": "admin-key"}):
             from core.ws_audit import _authenticate_ws_token
+
             result = _authenticate_ws_token("user-api-key")
             self.assertEqual(result, "acme")
 
@@ -317,22 +342,27 @@ class TestExpandedMetrics(unittest.TestCase):
 
     def test_blocked_actions_total(self):
         from core.metrics import BLOCKED_ACTIONS_TOTAL
+
         BLOCKED_ACTIONS_TOTAL.labels(reason="scout_threat").inc()
 
     def test_consensus_failures_total(self):
         from core.metrics import CONSENSUS_FAILURES_TOTAL
+
         CONSENSUS_FAILURES_TOTAL.inc()
 
     def test_decision_latency(self):
         from core.metrics import DECISION_LATENCY
+
         DECISION_LATENCY.labels(tenant_id="acme").observe(0.05)
 
     def test_exporter_errors_total(self):
         from core.metrics import EXPORTER_ERRORS_TOTAL
+
         EXPORTER_ERRORS_TOTAL.labels(backend="elasticsearch").inc()
 
     def test_ws_connections_gauge(self):
         from core.metrics import WS_CONNECTIONS
+
         WS_CONNECTIONS.set(0)
         WS_CONNECTIONS.inc()
         self.assertEqual(WS_CONNECTIONS._value.get(), 1.0)
@@ -341,15 +371,19 @@ class TestExpandedMetrics(unittest.TestCase):
 
     def test_audit_events_exported_counter(self):
         from core.metrics import AUDIT_EVENTS_EXPORTED
+
         AUDIT_EVENTS_EXPORTED.labels(backend="webhook").inc()
 
     def test_metrics_output_contains_new_metrics(self):
         from core.metrics import metrics_response
+
         body, _ = metrics_response()
         text = body.decode("utf-8")
-        for name in ("aletheia_blocked_actions_total",
-                     "aletheia_exporter_errors_total",
-                     "aletheia_ws_audit_connections"):
+        for name in (
+            "aletheia_blocked_actions_total",
+            "aletheia_exporter_errors_total",
+            "aletheia_ws_audit_connections",
+        ):
             self.assertIn(name, text, f"Missing metric: {name}")
 
 
@@ -367,12 +401,17 @@ class TestExporterWiringInAudit(unittest.TestCase):
     @patch("core.exporters.enqueue_audit_record")
     @patch("core.ws_audit.audit_broadcast")
     def test_log_audit_event_calls_enqueue(
-        self, mock_broadcast, mock_enqueue, _pv, _ph, mock_logger,
+        self,
+        mock_broadcast,
+        mock_enqueue,
+        _pv,
+        _ph,
+        mock_logger,
     ):
         mock_logger.return_value.info = lambda x: None
         from core.audit import log_audit_event
 
-        record = log_audit_event(
+        _record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
             payload="test",
@@ -394,9 +433,9 @@ class TestWSEndpointRegistered(unittest.TestCase):
 
     def test_ws_audit_route_exists(self):
         from bridge.fastapi_wrapper import app
+
         ws_routes = [
-            r for r in app.routes
-            if hasattr(r, "path") and r.path == "/ws/audit"
+            r for r in app.routes if hasattr(r, "path") and r.path == "/ws/audit"
         ]
         self.assertEqual(len(ws_routes), 1, "/ws/audit route not found")
 

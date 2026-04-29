@@ -9,6 +9,7 @@ swarm attack is declared and the caller can trip the circuit breaker.
 Calibrate ``mu0``, ``mu1``, ``sigma2`` empirically using
 ``scripts/calibrate_bk_threshold.py`` or a production replay.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,14 +25,14 @@ _logger = logging.getLogger("aletheia.monitoring.swarm_detector")
 
 @dataclass
 class SwarmDetectorConfig:
-    window_size: int = 60          # number of windows to track
-    trim_fraction: float = 0.05   # trim top/bottom 5%
-    r_min: float = 0.05           # minimum INCONCLUSIVE rate floor
-    alpha: float = 1e-4           # false-positive target
-    beta: float = 1e-2            # false-negative target
-    mu0: float = 0.1              # benign mean drift (calibrated)
-    mu1: float = 0.4              # attack mean drift (calibrated)
-    sigma2: float = 0.04          # variance (calibrated)
+    window_size: int = 60  # number of windows to track
+    trim_fraction: float = 0.05  # trim top/bottom 5%
+    r_min: float = 0.05  # minimum INCONCLUSIVE rate floor
+    alpha: float = 1e-4  # false-positive target
+    beta: float = 1e-2  # false-negative target
+    mu0: float = 0.1  # benign mean drift (calibrated)
+    mu1: float = 0.4  # attack mean drift (calibrated)
+    sigma2: float = 0.04  # variance (calibrated)
 
 
 class SwarmDetector:

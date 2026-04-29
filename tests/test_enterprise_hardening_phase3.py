@@ -161,9 +161,9 @@ class TestXForwardedForRotation:
             )
             scores.append(score)
         # After 5 requests, score should spike to 7.5
-        assert (
-            scores[-1] >= 7.5
-        ), f"Scout should detect rapid meta-querying, got {scores[-1]}"
+        assert scores[-1] >= 7.5, (
+            f"Scout should detect rapid meta-querying, got {scores[-1]}"
+        )
 
     def test_single_ip_few_requests_clean(self):
         """A few requests from the same IP should not trigger rotation detection."""

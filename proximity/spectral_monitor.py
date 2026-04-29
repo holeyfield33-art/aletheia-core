@@ -3,19 +3,21 @@
 Layer 1: READ-ONLY observer. Calls Geometric Brain MCP to monitor spectral health.
 Detects degradation via r_ratio trending below threshold.
 """
+
 from __future__ import annotations
 import asyncio
 import os
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import AsyncIterator
 
 import httpx
 
 
 # Configuration (all overridable via env)
-GEOMETRIC_BRAIN_URL = os.getenv("GEOMETRIC_BRAIN_URL", "https://geometric-brain-mcp.onrender.com")
+GEOMETRIC_BRAIN_URL = os.getenv(
+    "GEOMETRIC_BRAIN_URL", "https://geometric-brain-mcp.onrender.com"
+)
 POLL_INTERVAL_SECONDS = int(os.getenv("SPECTRAL_POLL_INTERVAL", "30"))
 DEGRADATION_THRESHOLD = float(os.getenv("SPECTRAL_DEGRADATION_THRESHOLD", "0.50"))
 DEGRADATION_CONSECUTIVE = int(os.getenv("SPECTRAL_DEGRADATION_CONSECUTIVE", "3"))
@@ -29,6 +31,7 @@ POISSON_BASELINE = 0.386
 @dataclass
 class SpectralHealth:
     """Spectral health reading snapshot."""
+
     r_ratio: float
     spectral_gap: float
     coherence_index: float
@@ -42,7 +45,7 @@ class SpectralMonitor:
 
     def __init__(self, http_client: httpx.AsyncClient | None = None):
         """Initialize spectral monitor.
-        
+
         Args:
             http_client: Optional httpx.AsyncClient for testing. If None, will be created.
         """
@@ -57,7 +60,7 @@ class SpectralMonitor:
 
     async def start(self, session_id: str) -> None:
         """Start monitoring spectral health.
-        
+
         Args:
             session_id: Session identifier for tracking.
         """
@@ -162,7 +165,7 @@ class SpectralMonitor:
         baseline_gap: float = 1.0,
     ) -> float:
         """Compute coherence index.
-        
+
         CI = 0.6 × normalized_rigidity + 0.4 × spectral_gap/baseline
         """
         # Normalize rigidity to [0, 1]
@@ -176,9 +179,7 @@ class SpectralMonitor:
 
         # Normalize gap ratio
         gap_ratio = (
-            max(0.0, min(1.0, spectral_gap / baseline_gap))
-            if baseline_gap > 0
-            else 0.0
+            max(0.0, min(1.0, spectral_gap / baseline_gap)) if baseline_gap > 0 else 0.0
         )
 
         ci = 0.6 * normalized_rigidity + 0.4 * gap_ratio

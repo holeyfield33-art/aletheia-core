@@ -11,13 +11,15 @@ import asyncio
 import pytest
 
 # Skip entire module if testcontainers or asyncpg are not installed
-tc = pytest.importorskip("testcontainers.postgres", reason="testcontainers[postgres] not installed")
+tc = pytest.importorskip(
+    "testcontainers.postgres", reason="testcontainers[postgres] not installed"
+)
 asyncpg = pytest.importorskip("asyncpg", reason="asyncpg not installed")
 
-from testcontainers.postgres import PostgresContainer
+from testcontainers.postgres import PostgresContainer  # noqa: E402
 
-from core.persistence.pg_key_store import PgKeyStore
-from core.persistence.pg_decision_store import PgDecisionStore
+from core.persistence.pg_key_store import PgKeyStore  # noqa: E402
+from core.persistence.pg_decision_store import PgDecisionStore  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -29,7 +31,7 @@ def pg_url():
             # testcontainers returns psycopg2 URL; convert for asyncpg
             for prefix in ("postgresql+psycopg2://", "postgresql+psycopg://"):
                 if url.startswith(prefix):
-                    url = "postgresql://" + url[len(prefix):]
+                    url = "postgresql://" + url[len(prefix) :]
                     break
             yield url
     except Exception as exc:
@@ -51,6 +53,7 @@ class TestPgKeyStore:
     def test_init_and_tenant_isolation(self, pg_url):
         async def _test():
             import asyncpg as apg
+
             pool = await apg.create_pool(pg_url)
             try:
                 store = PgKeyStore()
@@ -87,6 +90,7 @@ class TestPgDecisionStore:
     def test_claim_and_isolation(self, pg_url):
         async def _test():
             import asyncpg as apg
+
             pool = await apg.create_pool(pg_url)
             try:
                 store = PgDecisionStore()
@@ -94,24 +98,30 @@ class TestPgDecisionStore:
 
                 # Claim token in tenant_a
                 r1 = await store.claim_token(
-                    token="tok-1", request_id="r1",
-                    policy_version="1.0", manifest_hash="abc",
+                    token="tok-1",
+                    request_id="r1",
+                    policy_version="1.0",
+                    manifest_hash="abc",
                     tenant_id="tenant_a",
                 )
                 assert r1.accepted is True
 
                 # Duplicate in same tenant rejected
                 r2 = await store.claim_token(
-                    token="tok-1", request_id="r2",
-                    policy_version="1.0", manifest_hash="abc",
+                    token="tok-1",
+                    request_id="r2",
+                    policy_version="1.0",
+                    manifest_hash="abc",
                     tenant_id="tenant_a",
                 )
                 assert r2.accepted is False
 
                 # Same token in different tenant is independent
                 r3 = await store.claim_token(
-                    token="tok-1", request_id="r3",
-                    policy_version="1.0", manifest_hash="abc",
+                    token="tok-1",
+                    request_id="r3",
+                    policy_version="1.0",
+                    manifest_hash="abc",
                     tenant_id="tenant_b",
                 )
                 assert r3.accepted is True

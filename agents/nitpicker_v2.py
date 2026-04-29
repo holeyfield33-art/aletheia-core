@@ -12,8 +12,8 @@ import numpy as np
 
 from core.config import settings, hmac_rotation_index
 from core.embeddings import cosine_similarity, encode
-from core.symbolic_narrowing import _categorize_intent, _normalize_text
-from core.vector_store import SemanticMatch, query_semantic_patterns
+from core.symbolic_narrowing import _categorize_intent
+from core.vector_store import query_semantic_patterns
 from core.semantic_manifest import SemanticManifest, ThresholdsConfig
 
 _nitpicker_logger = logging.getLogger("aletheia.nitpicker")
@@ -70,13 +70,23 @@ class AletheiaNitpickerV2:
     def __init__(self) -> None:
         self.modes: list[str] = list(settings.polymorphic_modes)
         self.restricted_verbs: list[str] = [
-            "update", "bypass", "delete", "ignore", "override",
-            "SYSTEM_UPDATE", "FORCE_ACTION", "OVERRIDE",
+            "update",
+            "bypass",
+            "delete",
+            "ignore",
+            "override",
+            "SYSTEM_UPDATE",
+            "FORCE_ACTION",
+            "OVERRIDE",
         ]
 
         # PATCH 2.1: Imperative Aliases — neutral words that act as command prefixes
         self.imperative_aliases: list[str] = [
-            "routine", "refactor", "maintenance", "housekeeping", "cleanup",
+            "routine",
+            "refactor",
+            "maintenance",
+            "housekeeping",
+            "cleanup",
         ]
 
         # Config-driven rotation — HMAC-seeded when salt is available, counter fallback
@@ -186,9 +196,7 @@ class AletheiaNitpickerV2:
                 "error": None,
             }
         except Exception as exc:
-            _nitpicker_logger.warning(
-                "Qdrant lookup failed (fail-open): %s", exc
-            )
+            _nitpicker_logger.warning("Qdrant lookup failed (fail-open): %s", exc)
             return {
                 "degraded": True,
                 "matches": [],
@@ -265,9 +273,7 @@ class AletheiaNitpickerV2:
                 top_match_category = best.category
 
                 # Category-specific threshold from manifest (fallback: 0.85)
-                threshold = self._thresholds.get_threshold_for_category(
-                    best.category
-                )
+                threshold = self._thresholds.get_threshold_for_category(best.category)
                 top_match_threshold = threshold
 
                 if best.score >= threshold:
@@ -328,8 +334,10 @@ class AletheiaNitpickerV2:
         match = alias_pattern.match(text.strip())
         if match:
             prefix = match.group(0)
-            remainder = text.strip()[len(prefix):].strip()
-            _nitpicker_logger.warning("IMPERATIVE-ALIAS DETECTED: '%s' is a sleeper prefix.", prefix.strip())
+            remainder = text.strip()[len(prefix) :].strip()
+            _nitpicker_logger.warning(
+                "IMPERATIVE-ALIAS DETECTED: '%s' is a sleeper prefix.", prefix.strip()
+            )
             return f"[ALIAS_STRIPPED: {prefix.strip()}] {remainder}", True
         return text, False
 
@@ -337,7 +345,9 @@ class AletheiaNitpickerV2:
     # Public API (backward-compatible signature)
     # ------------------------------------------------------------------
 
-    def sanitize_intent(self, text: str, source_origin: str, request_id: str = "") -> str:
+    def sanitize_intent(
+        self, text: str, source_origin: str, request_id: str = ""
+    ) -> str:
         # HMAC-seeded rotation: use salt + per-request entropy for unpredictable mode
         with self._rotation_lock:
             self._rotation_index += 1
@@ -363,11 +373,14 @@ class AletheiaNitpickerV2:
             return block_msg
 
         if current_mode == "LINEAGE":
-            return text if source_origin == "trusted_admin" else "[REDACTED_VIA_LINEAGE]"
+            return (
+                text if source_origin == "trusted_admin" else "[REDACTED_VIA_LINEAGE]"
+            )
 
         elif current_mode == "INTENT":
             pattern = re.compile(
-                r"\b(" + "|".join(self.restricted_verbs) + r")\b", re.IGNORECASE,
+                r"\b(" + "|".join(self.restricted_verbs) + r")\b",
+                re.IGNORECASE,
             )
             return pattern.sub("[REDACTED_INTENT]", text)
 

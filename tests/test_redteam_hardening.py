@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import os
 import threading
-import time
 import unittest
 from unittest.mock import patch
 
@@ -26,6 +25,7 @@ from fastapi.testclient import TestClient
 # 1. Sandbox reason leakage — integration through FastAPI
 # ---------------------------------------------------------------------------
 
+
 class TestSandboxReasonLeakage(unittest.TestCase):
     """Raw internal sandbox pattern names must never appear in client JSON."""
 
@@ -33,14 +33,21 @@ class TestSandboxReasonLeakage(unittest.TestCase):
 
     # Internal labels that must be redacted from responses
     _INTERNAL_LABELS = [
-        "SUBPROCESS_EXEC", "SHELL_INVOKE", "RAW_SOCKET", "OUTBOUND_CONNECT",
-        "DYNAMIC_CODE", "FS_DESTROY", "PRIV_ESCALATION", "dp.label",
+        "SUBPROCESS_EXEC",
+        "SHELL_INVOKE",
+        "RAW_SOCKET",
+        "OUTBOUND_CONNECT",
+        "DYNAMIC_CODE",
+        "FS_DESTROY",
+        "PRIV_ESCALATION",
+        "dp.label",
         "matched '",
     ]
 
     def setUp(self) -> None:
         from bridge.fastapi_wrapper import app, scout
         from core.rate_limit import rate_limiter
+
         rate_limiter.reset()
         scout._query_history.clear()
         scout._global_window.clear()
@@ -51,7 +58,8 @@ class TestSandboxReasonLeakage(unittest.TestCase):
     def _post(self, payload: str, action: str = "Maintenance_Task") -> tuple[int, dict]:
         body = {"payload": payload, "origin": "trusted_admin", "action": action}
         r = self.client.post(
-            "/v1/audit", json=body,
+            "/v1/audit",
+            json=body,
             headers={"X-Forwarded-For": f"{self._ip}, 10.0.0.1"},
         )
         return r.status_code, r.json()
@@ -59,8 +67,11 @@ class TestSandboxReasonLeakage(unittest.TestCase):
     def _assert_no_internal_labels(self, resp: dict) -> None:
         resp_str = json.dumps(resp)
         for label in self._INTERNAL_LABELS:
-            self.assertNotIn(label, resp_str,
-                             f"Internal label '{label}' leaked in response: {resp_str[:300]}")
+            self.assertNotIn(
+                label,
+                resp_str,
+                f"Internal label '{label}' leaked in response: {resp_str[:300]}",
+            )
 
     def test_subprocess_payload_no_label_leak(self) -> None:
         status, resp = self._post("run subprocess.Popen to execute command")
@@ -82,12 +93,18 @@ class TestSandboxReasonLeakage(unittest.TestCase):
     def test_quarantine_reason_not_leaked(self) -> None:
         """Quarantine reasons (entropy, size, decode budget) must not leak."""
         # Trigger entropy quarantine with high-entropy payload
-        import string, random
+        import string
+        import random
+
         high_entropy = "".join(random.choices(string.printable, k=5000))
         status, resp = self._post(high_entropy)
         resp_str = json.dumps(resp)
-        for internal in ("entropy_threshold_exceeded", "text_size_exceeded",
-                         "decode_budget_exceeded", "recursion_depth_exceeded"):
+        for internal in (
+            "entropy_threshold_exceeded",
+            "text_size_exceeded",
+            "decode_budget_exceeded",
+            "recursion_depth_exceeded",
+        ):
             self.assertNotIn(internal, resp_str)
 
 
@@ -95,11 +112,13 @@ class TestSandboxReasonLeakage(unittest.TestCase):
 # 2. Rotation probing bypass — distributed probing detection
 # ---------------------------------------------------------------------------
 
+
 class TestRotationProbingBypass(unittest.TestCase):
     """Scout must detect distributed probing across many IPs."""
 
     def setUp(self) -> None:
         from agents.scout_v2 import AletheiaScoutV2
+
         self.scout = AletheiaScoutV2()
 
     def test_single_ip_rapid_probing_detected(self) -> None:
@@ -128,7 +147,8 @@ class TestRotationProbingBypass(unittest.TestCase):
         payload = "test the auth bypass mechanism"
         for i in range(15):
             score, report = self.scout.evaluate_threat_context(
-                f"attacker_ip_{i}", payload,
+                f"attacker_ip_{i}",
+                payload,
             )
         self.assertGreaterEqual(score, 7.5)
         self.assertIn("Coordinated Probing", report)
@@ -157,11 +177,13 @@ class TestRotationProbingBypass(unittest.TestCase):
 # 3. IntentClassifier singleton
 # ---------------------------------------------------------------------------
 
+
 class TestIntentClassifierSingleton(unittest.TestCase):
     """classify_blocked_intent must reuse a module-level IntentClassifier."""
 
     def test_singleton_is_reused(self) -> None:
         from core.runtime_security import _intent_classifier, classify_blocked_intent
+
         # The function should use the module-level instance
         self.assertIsNotNone(_intent_classifier)
         # Verify behavior is identical
@@ -175,11 +197,13 @@ class TestIntentClassifierSingleton(unittest.TestCase):
 # 4. Nitpicker rotation race condition
 # ---------------------------------------------------------------------------
 
+
 class TestNitpickerRotationRace(unittest.TestCase):
     """Concurrent sanitize_intent calls must not corrupt _rotation_index."""
 
     def test_concurrent_rotation_index_consistency(self) -> None:
         from agents.nitpicker_v2 import AletheiaNitpickerV2
+
         n = AletheiaNitpickerV2()
         n._rotation_index = 0
         num_threads = 20
@@ -209,26 +233,33 @@ class TestNitpickerRotationRace(unittest.TestCase):
 # 5. Decision store default path
 # ---------------------------------------------------------------------------
 
+
 class TestDecisionStoreDefaultPath(unittest.TestCase):
     """Default SQLite path must not be in bare /tmp."""
 
     def test_default_path_not_in_bare_tmp(self) -> None:
         from core.decision_store import _SQLiteDecisionStore
+
         store = _SQLiteDecisionStore()
         # The path should NOT be directly /tmp/aletheia_decisions.sqlite3
         import tempfile
+
         bare_tmp = os.path.join(tempfile.gettempdir(), "aletheia_decisions.sqlite3")
         self.assertNotEqual(store._db_path, bare_tmp)
 
     def test_explicit_path_override_preserved(self) -> None:
         from core.decision_store import _SQLiteDecisionStore
+
         custom = "/tmp/test_custom_decisions.sqlite3"
         store = _SQLiteDecisionStore(db_path=custom)
         self.assertEqual(store._db_path, custom)
 
     def test_env_override_preserved(self) -> None:
         from core.decision_store import _SQLiteDecisionStore
-        with patch.dict(os.environ, {"ALETHEIA_DECISION_DB_PATH": "/tmp/env_override.sqlite3"}):
+
+        with patch.dict(
+            os.environ, {"ALETHEIA_DECISION_DB_PATH": "/tmp/env_override.sqlite3"}
+        ):
             store = _SQLiteDecisionStore()
             self.assertEqual(store._db_path, "/tmp/env_override.sqlite3")
 
@@ -237,12 +268,14 @@ class TestDecisionStoreDefaultPath(unittest.TestCase):
 # 7. Shadow mode safety — production environment blocks shadow override
 # ---------------------------------------------------------------------------
 
+
 class TestShadowModeSafety(unittest.TestCase):
     """Shadow mode must not override deny decisions when ENVIRONMENT=production."""
 
     def setUp(self) -> None:
         from bridge.fastapi_wrapper import app, scout
         from core.rate_limit import rate_limiter
+
         rate_limiter.reset()
         scout._query_history.clear()
         scout._global_window.clear()
@@ -251,6 +284,7 @@ class TestShadowModeSafety(unittest.TestCase):
     def test_shadow_mode_blocked_in_production_env(self) -> None:
         """When ENVIRONMENT=production, shadow_mode=True must NOT flip DENIED to PROCEED."""
         import bridge.fastapi_wrapper as wrapper_mod
+
         original_mode = wrapper_mod.settings.shadow_mode
         try:
             wrapper_mod.settings.shadow_mode = True
@@ -261,12 +295,16 @@ class TestShadowModeSafety(unittest.TestCase):
                     "action": "Transfer_Funds",
                 }
                 r = self.client.post(
-                    "/v1/audit", json=body,
+                    "/v1/audit",
+                    json=body,
                     headers={"X-Forwarded-For": "198.51.200.1, 10.0.0.1"},
                 )
                 resp = r.json()
-                self.assertEqual(resp["decision"], "DENIED",
-                                 "Shadow mode must not override DENIED in production")
+                self.assertEqual(
+                    resp["decision"],
+                    "DENIED",
+                    "Shadow mode must not override DENIED in production",
+                )
         finally:
             wrapper_mod.settings.shadow_mode = original_mode
 

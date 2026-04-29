@@ -1,12 +1,12 @@
 """Tests for the cryptographic anchor (TPM interface + chain signer)."""
+
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
 
-from crypto.tpm_interface import TPMAnchor, _SoftwareBackend
+from crypto.tpm_interface import TPMAnchor
 from crypto.chain_signer import ChainSigner, ChainSignatureError
 
 
@@ -39,7 +39,6 @@ class TestTPMAnchor(unittest.TestCase):
         self.assertEqual(len(pub), 32)  # Ed25519 public key is 32 bytes
 
     def test_key_persistence(self) -> None:
-        import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             key_path = os.path.join(tmpdir, "chain.pem")
             os.environ["ALETHEIA_CHAIN_KEY_PATH"] = key_path
@@ -52,7 +51,9 @@ class TestTPMAnchor(unittest.TestCase):
                 anchor2 = TPMAnchor()
                 pub2 = anchor2.public_key_bytes()
 
-                self.assertEqual(pub1, pub2, "Persisted key should produce same public key")
+                self.assertEqual(
+                    pub1, pub2, "Persisted key should produce same public key"
+                )
             finally:
                 os.environ.pop("ALETHEIA_CHAIN_KEY_PATH", None)
 

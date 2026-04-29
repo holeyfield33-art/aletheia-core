@@ -1,13 +1,11 @@
 """Tests for Spectral Monitor module."""
+
 import pytest
-import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 import httpx
 
 from proximity.spectral_monitor import (
     SpectralMonitor,
-    SpectralHealth,
     DEGRADATION_THRESHOLD,
     DEGRADATION_CONSECUTIVE,
     GUE_TARGET,
@@ -227,7 +225,10 @@ class TestDegradation:
         }
         mock_response_good.raise_for_status = Mock()
 
-        mock_client.get = AsyncMock(side_effect=[mock_response_low] * (DEGRADATION_CONSECUTIVE - 1) + [mock_response_good])
+        mock_client.get = AsyncMock(
+            side_effect=[mock_response_low] * (DEGRADATION_CONSECUTIVE - 1)
+            + [mock_response_good]
+        )
 
         monitor = SpectralMonitor(http_client=mock_client)
         for _ in range(DEGRADATION_CONSECUTIVE - 1):

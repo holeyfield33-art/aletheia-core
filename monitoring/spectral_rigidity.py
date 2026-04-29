@@ -12,6 +12,7 @@ References:
 Calibration: run ``scripts/calibrate_bk_threshold.py`` to set θ_BK
 for a given matrix size.
 """
+
 from __future__ import annotations
 
 import logging
@@ -75,7 +76,7 @@ def gue_delta3(L: int) -> float:
     """
     if L <= 0:
         return 0.0
-    return (1.0 / (np.pi ** 2)) * np.log(float(L)) + 0.06
+    return (1.0 / (np.pi**2)) * np.log(float(L)) + 0.06
 
 
 def theta_bk(L: int) -> float:

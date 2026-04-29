@@ -12,6 +12,7 @@ The recommended threshold can be set via ``ALETHEIA_THETA_BK`` or
 injected into the runtime with
 ``monitoring.spectral_rigidity.set_theta_bk_override(value)``.
 """
+
 from __future__ import annotations
 
 import sys

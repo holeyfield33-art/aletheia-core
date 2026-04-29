@@ -13,12 +13,16 @@ class AletheiaScoutV2:
         # GROK'S LIVE X-STREAM SIGNATURES
         self.threat_intel_db = {
             "smuggling_prefixes": [
-                "SYSTEM_UPDATE:", "CRITICAL:", "NOTE: deprecated",
-                "CALENDAR_INVITE_PROMPT:", "EMBEDDED_SHELL:", "SYSTEM_CONSTITUTION:"
+                "SYSTEM_UPDATE:",
+                "CRITICAL:",
+                "NOTE: deprecated",
+                "CALENDAR_INVITE_PROMPT:",
+                "EMBEDDED_SHELL:",
+                "SYSTEM_CONSTITUTION:",
             ],
             "exfil_patterns": ["merger clause", "hedge fund strategy", "private_key"],
             "high_risk_ips": ["192.168.1.50", "10.0.0.99"],
-            "high_risk_keywords": ["1Password", "local_file_exfil", "extension_hijack"]
+            "high_risk_keywords": ["1Password", "local_file_exfil", "extension_hijack"],
         }
         # Cap at 10,000 entries to prevent memory exhaustion from unique source IDs
         # OrderedDict provides O(1) LRU eviction (popitem(last=False))
@@ -33,19 +37,42 @@ class AletheiaScoutV2:
         # this catches both single-source bursts and distributed probing.
         self._global_window: deque[tuple[float, str]] = deque(maxlen=500)
         self._global_window_seconds: int = 30
-        self._global_window_threshold: int = 40  # max unique payloads globally in window
+        self._global_window_threshold: int = (
+            40  # max unique payloads globally in window
+        )
         self._global_similarity_threshold: int = 15  # similar payload cluster threshold
         self._global_lock = threading.Lock()
 
         # PATCH 2.1: Neutral-Anchor / Contextual Camouflage Detection
         self.neutral_tokens = [
-            "refactor", "maintenance", "routine", "cleanup", "housekeeping",
-            "stability", "optimization", "migration", "realignment", "rebalance"
+            "refactor",
+            "maintenance",
+            "routine",
+            "cleanup",
+            "housekeeping",
+            "stability",
+            "optimization",
+            "migration",
+            "realignment",
+            "rebalance",
         ]
         self.high_value_targets = [
-            "auth", "limit", "disburse", "transfer", "fund", "loan",
-            "registry", "token", "key", "credential", "approve", "ach",
-            "payment", "balance", "withdraw", "escalat"
+            "auth",
+            "limit",
+            "disburse",
+            "transfer",
+            "fund",
+            "loan",
+            "registry",
+            "token",
+            "key",
+            "credential",
+            "approve",
+            "ach",
+            "payment",
+            "balance",
+            "withdraw",
+            "escalat",
         ]
 
     @staticmethod
@@ -68,14 +95,20 @@ class AletheiaScoutV2:
 
         with self._global_lock:
             # Evict expired entries
-            while self._global_window and (now - self._global_window[0][0]) > self._global_window_seconds:
+            while (
+                self._global_window
+                and (now - self._global_window[0][0]) > self._global_window_seconds
+            ):
                 self._global_window.popleft()
 
             self._global_window.append((now, fp))
 
             total = len(self._global_window)
             if total >= self._global_window_threshold:
-                return True, "ALERT: Global request volume spike detected (Distributed Probing)"
+                return (
+                    True,
+                    "ALERT: Global request volume spike detected (Distributed Probing)",
+                )
 
             # Count duplicate fingerprints (similar payloads from potentially different IPs)
             fp_counts: dict[str, int] = {}
@@ -84,7 +117,10 @@ class AletheiaScoutV2:
 
             max_cluster = max(fp_counts.values()) if fp_counts else 0
             if max_cluster >= self._global_similarity_threshold:
-                return True, "ALERT: Payload similarity cluster detected (Coordinated Probing)"
+                return (
+                    True,
+                    "ALERT: Payload similarity cluster detected (Coordinated Probing)",
+                )
 
         return False, ""
 
@@ -106,7 +142,7 @@ class AletheiaScoutV2:
             zero-day smuggling signatures.
         """
         _scout_logger.debug("Scanning Grok X-Stream Intelligence for: %s", source_id)
-        
+
         # 1. Signature Match (Instruction Smuggling) - Deep Scan (Global Search)
         for prefix in self.threat_intel_db["smuggling_prefixes"]:
             if re.search(re.escape(prefix), payload, re.IGNORECASE):
@@ -123,7 +159,9 @@ class AletheiaScoutV2:
         target_hits = [t for t in self.high_value_targets if t in payload_lower]
 
         if neutral_hits and target_hits:
-            shadow_score = min(4.0 + (len(neutral_hits) * 1.5) + (len(target_hits) * 1.0), 9.0)
+            shadow_score = min(
+                4.0 + (len(neutral_hits) * 1.5) + (len(target_hits) * 1.0), 9.0
+            )
             return shadow_score, (
                 f"SHADOW-RISK: Contextual Camouflage Detected. "
                 f"Neutral anchors {neutral_hits} masking high-value targets {target_hits}. "
@@ -143,8 +181,7 @@ class AletheiaScoutV2:
                 self._query_history.move_to_end(source_id)
 
             self._query_history[source_id] = [
-                t for t in self._query_history[source_id]
-                if current_time - t < 60
+                t for t in self._query_history[source_id] if current_time - t < 60
             ]
             self._query_history[source_id].append(current_time)
             recent_count = len(self._query_history[source_id])

@@ -13,7 +13,6 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-import pytest
 
 from fastapi.testclient import TestClient
 
@@ -22,6 +21,7 @@ def _get_client():
     """Create a fresh TestClient for the FastAPI app."""
     # Re-import to pick up env changes at module scope
     from bridge.fastapi_wrapper import app
+
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -37,7 +37,9 @@ class TestAuthDisabledControl:
         with patch.dict(os.environ, env):
             is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
             is_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in (
-                "true", "1", "yes"
+                "true",
+                "1",
+                "yes",
             )
             assert is_production and is_disabled
 
@@ -50,7 +52,9 @@ class TestAuthDisabledControl:
         with patch.dict(os.environ, env):
             is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
             is_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in (
-                "true", "1", "yes"
+                "true",
+                "1",
+                "yes",
             )
             assert not is_production and is_disabled
 

@@ -1,10 +1,9 @@
 """Tests for the calibration integrity protocol."""
+
 from __future__ import annotations
 
-import json
 import os
 import tempfile
-import time
 import unittest
 from unittest.mock import patch
 
@@ -14,7 +13,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from crypto.calibration_manifest import (
     CalibrationIntegrity,
     CalibrationManifest,
-    _NUMERIC_PARAM_KEYS,
 )
 
 
@@ -178,13 +176,15 @@ class TestOutlierRejection(unittest.TestCase):
     def test_detects_outlier(self) -> None:
         runs = _sample_runs(10)
         # Inject a wild outlier
-        runs.append({
-            "run_id": 99,
-            "mu0": 50.0,  # way out of range
-            "mu1": 0.4,
-            "sigma2": 0.04,
-            "theta_BK": 1.7,
-        })
+        runs.append(
+            {
+                "run_id": 99,
+                "mu0": 50.0,  # way out of range
+                "mu1": 0.4,
+                "sigma2": 0.04,
+                "theta_BK": 1.7,
+            }
+        )
         filtered, outliers = CalibrationIntegrity._reject_outliers(runs)
         self.assertGreater(len(outliers), 0)
         outlier_ids = [o["run_id"] for o in outliers]

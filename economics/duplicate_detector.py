@@ -3,6 +3,7 @@
 Mitigates slow model-extraction attacks by flagging bursts of
 semantically-near-duplicate queries within a sliding window.
 """
+
 from __future__ import annotations
 
 import logging

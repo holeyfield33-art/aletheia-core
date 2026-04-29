@@ -7,6 +7,7 @@ Security note: software fallback is **not** FIPS 140-3 Level 2 —
 it protects chain integrity but not against host-level key extraction.
 Set ``ALETHEIA_REQUIRE_TPM=true`` in production to hard-fail without TPM.
 """
+
 from __future__ import annotations
 
 import fcntl
@@ -53,7 +54,9 @@ class _SoftwareBackend:
         key_path = os.getenv("ALETHEIA_CHAIN_KEY_PATH", "").strip()
         if key_path and os.path.isfile(key_path):
             with open(key_path, "rb") as fh:
-                self._private = serialization.load_pem_private_key(fh.read(), password=None)  # type: ignore[assignment]
+                self._private = serialization.load_pem_private_key(
+                    fh.read(), password=None
+                )  # type: ignore[assignment]
             _logger.info("Loaded chain signing key from %s", key_path)
         else:
             self._private = Ed25519PrivateKey.generate()
@@ -111,14 +114,18 @@ class _TPMBackend:
     def _load_or_create_key(self) -> None:
         try:
             self._key_handle = self._ctx.load_persistent(_TPM_PERSISTENT_HANDLE)
-            _logger.info("Loaded TPM persistent key at handle 0x%08X", _TPM_PERSISTENT_HANDLE)
+            _logger.info(
+                "Loaded TPM persistent key at handle 0x%08X", _TPM_PERSISTENT_HANDLE
+            )
         except Exception:
             primary = self._ctx.create_primary(alg="ecc", curve="NIST_P256")
             self._key_handle = self._ctx.evict_control(
                 primary.handle,
                 persistent_handle=_TPM_PERSISTENT_HANDLE,
             )
-            _logger.info("Created new TPM primary key at handle 0x%08X", _TPM_PERSISTENT_HANDLE)
+            _logger.info(
+                "Created new TPM primary key at handle 0x%08X", _TPM_PERSISTENT_HANDLE
+            )
 
     def sign(self, digest: bytes) -> bytes:
         sig = self._ctx.sign(
@@ -202,7 +209,8 @@ class TPMAnchor:
     @property
     def _counter_log_path(self) -> str:
         return os.getenv(
-            "ALETHEIA_COUNTER_LOG_PATH", "/var/lib/aletheia/counter.log",
+            "ALETHEIA_COUNTER_LOG_PATH",
+            "/var/lib/aletheia/counter.log",
         )
 
     def get_monotonic_counter(self, counter_index: int = 0) -> int | None:

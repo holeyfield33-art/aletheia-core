@@ -3,12 +3,13 @@
 Validates that bounded quantifiers (.{0,N}) prevent catastrophic backtracking
 on adversarial inputs designed to exploit unbounded .* patterns.
 """
+
 from __future__ import annotations
 
 import time
 import unittest
 
-from core.runtime_security import classify_blocked_intent, IntentClassifier
+from core.runtime_security import classify_blocked_intent
 
 
 class TestReDoSMitigation(unittest.TestCase):
@@ -22,8 +23,9 @@ class TestReDoSMitigation(unittest.TestCase):
         classify_blocked_intent(text)
         elapsed = time.monotonic() - start
         self.assertLess(
-            elapsed, self._TIMEOUT_SECONDS,
-            f"ReDoS detected in {label}: {elapsed:.3f}s on {len(text)}-char input"
+            elapsed,
+            self._TIMEOUT_SECONDS,
+            f"ReDoS detected in {label}: {elapsed:.3f}s on {len(text)}-char input",
         )
 
     def test_long_nonmatching_input_malicious_capability(self):
@@ -51,7 +53,7 @@ class TestReDoSMitigation(unittest.TestCase):
     def test_catastrophic_backtracking_pattern(self):
         """Classic ReDoS input: repeating near-matches that force exponential backtracking."""
         # This would cause catastrophic backtracking with (.*) between groups
-        payload = ("build " + "malwar" * 1000)
+        payload = "build " + "malwar" * 1000
         self._assert_fast(payload, "near_match_repeat")
 
     def test_legitimate_detection_still_works(self):

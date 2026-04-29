@@ -7,6 +7,7 @@ analogue — cross-layer covariance between activation snapshots.
 This resists accidental averaging across layers and provides
 a more robust signal for subtle manifold drift.
 """
+
 from __future__ import annotations
 
 import numpy as np

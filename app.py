@@ -21,7 +21,7 @@ def index() -> str:
 
     html = "<h1>Todos</h1><ul>"
     for todo in todos:
-        html += f'<li>{todo["name"]}</li>'
+        html += f"<li>{todo['name']}</li>"
     html += "</ul>"
 
     return html

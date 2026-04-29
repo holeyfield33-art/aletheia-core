@@ -5,6 +5,7 @@ Verifies that signing.py correctly handles:
 - Recently expired manifests (within grace) → accepted with warning
 - Expired beyond grace period → hard rejection
 """
+
 from __future__ import annotations
 
 import json
@@ -12,7 +13,6 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
 
 from manifest.signing import (
     generate_keypair,
@@ -23,7 +23,9 @@ from manifest.signing import (
 )
 
 
-def _create_manifest(tmp_dir: str, expires_at: str, version: str = "test.1") -> dict[str, Path]:
+def _create_manifest(
+    tmp_dir: str, expires_at: str, version: str = "test.1"
+) -> dict[str, Path]:
     """Create a test manifest with a specific expiry and sign it."""
     manifest_path = Path(tmp_dir) / "policy.json"
     sig_path = Path(tmp_dir) / "policy.json.sig"
@@ -52,7 +54,6 @@ def _create_manifest(tmp_dir: str, expires_at: str, version: str = "test.1") -> 
 
 
 class TestManifestExpiry(unittest.TestCase):
-
     def test_valid_manifest_accepted(self):
         """Manifest expiring in the future is accepted."""
         future = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
@@ -75,7 +76,9 @@ class TestManifestExpiry(unittest.TestCase):
 
     def test_expired_beyond_grace_rejected(self):
         """Manifest expired > 7 days ago is hard-rejected."""
-        expired = (datetime.now(timezone.utc) - timedelta(days=_GRACE_PERIOD_DAYS + 1)).isoformat()
+        expired = (
+            datetime.now(timezone.utc) - timedelta(days=_GRACE_PERIOD_DAYS + 1)
+        ).isoformat()
         with tempfile.TemporaryDirectory() as tmp:
             paths = _create_manifest(tmp, expired)
             with self.assertRaises(ManifestTamperedError) as ctx:
@@ -89,7 +92,9 @@ class TestManifestExpiry(unittest.TestCase):
 
     def test_expired_exactly_at_grace_boundary(self):
         """Manifest expired 6 days ago — safely within 7-day grace."""
-        expired = (datetime.now(timezone.utc) - timedelta(days=_GRACE_PERIOD_DAYS - 1)).isoformat()
+        expired = (
+            datetime.now(timezone.utc) - timedelta(days=_GRACE_PERIOD_DAYS - 1)
+        ).isoformat()
         with tempfile.TemporaryDirectory() as tmp:
             paths = _create_manifest(tmp, expired)
             # 6 days < 7-day grace period → accepted

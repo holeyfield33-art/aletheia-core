@@ -1,11 +1,16 @@
 """Tests for Proximity Score module."""
+
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
-import httpx
 
 from proximity.proximity_score import ProximityScorer
-from proximity.spectral_monitor import SpectralMonitor, SpectralHealth, GUE_TARGET, POISSON_BASELINE
+from proximity.spectral_monitor import (
+    SpectralMonitor,
+    SpectralHealth,
+    GUE_TARGET,
+    POISSON_BASELINE,
+)
 from proximity.identity_anchor import IdentityAnchor
 from proximity.sovereign_relay import SovereignRelay, RelayStatus
 
@@ -270,9 +275,9 @@ class TestMathValidation:
 
         # Check that components sum to CP score (with tolerance)
         computed_cp = (
-            weights[0] * score.spectral_component +
-            weights[1] * score.identity_component +
-            weights[2] * score.relay_component
+            weights[0] * score.spectral_component
+            + weights[1] * score.identity_component
+            + weights[2] * score.relay_component
         )
         assert abs(computed_cp - score.cp_score) < 0.001
 
@@ -288,7 +293,9 @@ class TestWeights:
 
         with pytest.raises(AssertionError):
             ProximityScorer(
-                monitor, anchor, relay,
+                monitor,
+                anchor,
+                relay,
                 weights=(0.5, 0.3, 0.3),  # sums to 1.1
             )
 

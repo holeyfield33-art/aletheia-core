@@ -1,4 +1,5 @@
 """Tests for near-duplicate query detection (Phase 5)."""
+
 from __future__ import annotations
 
 import threading
@@ -125,9 +126,12 @@ class TestCosineSimilarity(unittest.TestCase):
 
 class TestReset(unittest.TestCase):
     def test_reset_clears_history(self) -> None:
-        det = NearDuplicateDetector(DuplicateDetectorConfig(
-            rate_limit_per_window=2, embedding_dim=384,
-        ))
+        det = NearDuplicateDetector(
+            DuplicateDetectorConfig(
+                rate_limit_per_window=2,
+                embedding_dim=384,
+            )
+        )
         emb = _random_emb(_rng())
         for _ in range(3):
             det.check_and_record(emb)
@@ -139,9 +143,12 @@ class TestReset(unittest.TestCase):
 
 class TestThreadSafety(unittest.TestCase):
     def test_concurrent_inserts_no_crash(self) -> None:
-        det = NearDuplicateDetector(DuplicateDetectorConfig(
-            window_size=200, embedding_dim=384,
-        ))
+        det = NearDuplicateDetector(
+            DuplicateDetectorConfig(
+                window_size=200,
+                embedding_dim=384,
+            )
+        )
         gen = _rng(99)
         embeddings = [_random_emb(gen) for _ in range(50)]
         errors: list[Exception] = []
@@ -163,9 +170,13 @@ class TestThreadSafety(unittest.TestCase):
 
     def test_concurrent_duplicates_all_counted(self) -> None:
         """All duplicate inserts should be recorded in the history."""
-        det = NearDuplicateDetector(DuplicateDetectorConfig(
-            window_size=200, rate_limit_per_window=100, embedding_dim=384,
-        ))
+        det = NearDuplicateDetector(
+            DuplicateDetectorConfig(
+                window_size=200,
+                rate_limit_per_window=100,
+                embedding_dim=384,
+            )
+        )
         emb = _random_emb(_rng(42))
         n_threads = 4
         n_per_thread = 10

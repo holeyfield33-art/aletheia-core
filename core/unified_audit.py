@@ -13,12 +13,12 @@ evaluation (Scout → Nitpicker → Judge) has completed.
 The three anchors are independent fail-closed gates: any single
 anchor failure results in an ABORT decision.
 """
+
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any
 
 import numpy as np
 
@@ -44,6 +44,7 @@ _logger = logging.getLogger("aletheia.unified_audit")
 @dataclass(frozen=True)
 class SovereignDecision:
     """Result from the Unified Sovereign Runtime."""
+
     status: str  # "PROCEED", "ABORT", "CIRCUIT_OPEN"
     reason: str = ""
     chain_signature: str = ""
@@ -104,9 +105,7 @@ class UnifiedSovereignRuntime:
             )
 
         # Gate E1: Zero Standing Privileges
-        privileges = RequestPrivileges.from_list(
-            request.get("required_resources")
-        )
+        privileges = RequestPrivileges.from_list(request.get("required_resources"))
         zsp_result = self._zsp.enforce(session_id, privileges)
         if not zsp_result.allowed:
             self._breaker.record_failure()
@@ -161,7 +160,9 @@ class UnifiedSovereignRuntime:
         if D > threshold:
             _logger.error(
                 "ASI-22: Manifold drift at step %d — D=%.6f > θ_BK=%.6f",
-                step, D, threshold,
+                step,
+                D,
+                threshold,
             )
             return SovereignDecision(
                 status="ABORT",
@@ -276,15 +277,15 @@ class UnifiedSovereignRuntime:
         True if a swarm attack is declared (circuit breaker tripped).
         """
         drifts = [
-            r["drift_score"]
-            for r in session_results
-            if r.get("drift_score", -1.0) >= 0
+            r["drift_score"] for r in session_results if r.get("drift_score", -1.0) >= 0
         ]
         inconclusive_count = sum(
             1 for r in session_results if r.get("drift_score") == -1.0
         )
         attack, llr = self._swarm.update(
-            drifts, inconclusive_count, len(session_results),
+            drifts,
+            inconclusive_count,
+            len(session_results),
         )
         if attack:
             self._breaker.open()

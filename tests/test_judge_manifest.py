@@ -60,10 +60,13 @@ def _make_valid_judge(tmp_dir: Path) -> AletheiaJudge:
         public_key_path=str(pub),
     )
 
-    with patch.dict(os.environ, {
-        "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-        "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+            "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
+        },
+    ):
         return AletheiaJudge(policy_path=str(manifest_path))
 
 
@@ -99,10 +102,13 @@ class TestManifestTamperDetection(unittest.TestCase):
             tampered["injected"] = "EVIL_ACTION"
             manifest_path.write_text(json.dumps(tampered), encoding="utf-8")
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -121,10 +127,13 @@ class TestManifestTamperDetection(unittest.TestCase):
 
             missing_sig = tmp_dir / "no_such.sig"
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(missing_sig),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(missing_sig),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -150,10 +159,13 @@ class TestManifestTamperDetection(unittest.TestCase):
 
             missing_pub = tmp_dir / "no_such.pub"
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(missing_pub),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(missing_pub),
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -181,10 +193,13 @@ class TestManifestTamperDetection(unittest.TestCase):
                 public_key_path=str(pub1),
             )
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub2),  # wrong key
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub2),  # wrong key
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 

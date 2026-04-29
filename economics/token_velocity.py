@@ -7,6 +7,7 @@ Enforces three limits:
 
 Thread-safe: all mutable state is guarded by a lock.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,6 +22,7 @@ _logger = logging.getLogger("aletheia.economics.velocity")
 @dataclass(frozen=True)
 class VelocityDecision:
     """Result of a velocity/budget check."""
+
     allowed: bool
     reason: str = ""
     tokens_in_window: int = 0

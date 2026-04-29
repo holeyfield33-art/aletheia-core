@@ -1,18 +1,16 @@
 """Tests for Sovereign Relay module."""
+
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock
-import httpx
+from unittest.mock import AsyncMock
 
 from proximity.sovereign_relay import (
     SovereignRelay,
     PolicyConfig,
     Action,
-    RelayDecision,
 )
 from proximity.spectral_monitor import SpectralMonitor, SpectralHealth
 from proximity.identity_anchor import IdentityAnchor
-from proximity.safety_bounds import SafetyBounds
 
 
 class TestBasicEvaluation:

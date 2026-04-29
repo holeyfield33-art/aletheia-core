@@ -1,8 +1,8 @@
 """Tests for the distributed state backend (Redis + Lua)."""
+
 from __future__ import annotations
 
 import time
-import unittest
 
 import pytest
 import redis
@@ -10,7 +10,6 @@ import redis
 from economics.distributed_state import (
     DistributedBreakerState,
     DistributedStateManager,
-    VelocityState,
 )
 
 # All tests require a live Redis on localhost:6379.
@@ -46,7 +45,9 @@ def state_manager(redis_client):
 class TestBreakerCRUD:
     def test_set_and_get(self, state_manager):
         state = DistributedBreakerState(
-            state="CLOSED", failures=0, cooldown_expiry=0,
+            state="CLOSED",
+            failures=0,
+            cooldown_expiry=0,
             updated_at=int(time.time() * 1000),
         )
         state_manager.set_breaker("session1", state)
@@ -61,7 +62,9 @@ class TestBreakerCRUD:
     def test_overwrite(self, state_manager):
         now = int(time.time() * 1000)
         state_manager.set_breaker("s1", DistributedBreakerState("CLOSED", 0, 0, now))
-        state_manager.set_breaker("s1", DistributedBreakerState("OPEN", 5, now + 60000, now))
+        state_manager.set_breaker(
+            "s1", DistributedBreakerState("OPEN", 5, now + 60000, now)
+        )
         retrieved = state_manager.get_breaker("s1")
         assert retrieved.state == "OPEN"
         assert retrieved.failures == 5
@@ -71,7 +74,10 @@ class TestBreakerCRUD:
 class TestAtomicTransition:
     def test_transition_to_open(self, state_manager):
         result = state_manager.atomic_transition_breaker(
-            "session1", "OPEN", 3, int(time.time() * 1000) + 60000,
+            "session1",
+            "OPEN",
+            3,
+            int(time.time() * 1000) + 60000,
         )
         assert result[0] == 1
         breaker = state_manager.get_breaker("session1")
@@ -80,21 +86,33 @@ class TestAtomicTransition:
     def test_open_blocks_non_halfopen_transition(self, state_manager):
         # First set to OPEN
         state_manager.atomic_transition_breaker(
-            "s1", "OPEN", 3, int(time.time() * 1000) + 60000,
+            "s1",
+            "OPEN",
+            3,
+            int(time.time() * 1000) + 60000,
         )
         # Try to go to CLOSED — should be blocked
         result = state_manager.atomic_transition_breaker(
-            "s1", "CLOSED", 0, 0,
+            "s1",
+            "CLOSED",
+            0,
+            0,
         )
         assert result[0] == 0
         assert state_manager.get_breaker("s1").state == "OPEN"
 
     def test_open_allows_halfopen_transition(self, state_manager):
         state_manager.atomic_transition_breaker(
-            "s1", "OPEN", 3, int(time.time() * 1000) + 60000,
+            "s1",
+            "OPEN",
+            3,
+            int(time.time() * 1000) + 60000,
         )
         result = state_manager.atomic_transition_breaker(
-            "s1", "HALF_OPEN", 3, 0,
+            "s1",
+            "HALF_OPEN",
+            3,
+            0,
         )
         assert result[0] == 1
         assert state_manager.get_breaker("s1").state == "HALF_OPEN"
@@ -133,7 +151,10 @@ class TestVelocityIncrement:
 class TestSwarmBucket:
     def test_first_update(self, state_manager):
         bucket = state_manager.update_swarm_bucket(
-            "window1", drift=0.5, inconclusive=False, total_sessions=10,
+            "window1",
+            drift=0.5,
+            inconclusive=False,
+            total_sessions=10,
         )
         assert bucket.sessions == 10
         assert bucket.inconclusive_count == 0
@@ -141,19 +162,30 @@ class TestSwarmBucket:
 
     def test_inconclusive_flag(self, state_manager):
         bucket = state_manager.update_swarm_bucket(
-            "w1", drift=0.3, inconclusive=True, total_sessions=5,
+            "w1",
+            drift=0.3,
+            inconclusive=True,
+            total_sessions=5,
         )
         assert bucket.inconclusive_count == 1
 
     def test_ema_drift(self, state_manager):
-        state_manager.update_swarm_bucket("w1", drift=1.0, inconclusive=False, total_sessions=1)
-        bucket = state_manager.update_swarm_bucket("w1", drift=0.0, inconclusive=False, total_sessions=1)
+        state_manager.update_swarm_bucket(
+            "w1", drift=1.0, inconclusive=False, total_sessions=1
+        )
+        bucket = state_manager.update_swarm_bucket(
+            "w1", drift=0.0, inconclusive=False, total_sessions=1
+        )
         # EMA: 0.3 * 0.0 + 0.7 * 1.0 = 0.7
         assert bucket.trimmed_mean_drift == pytest.approx(0.7, abs=0.01)
 
     def test_sessions_accumulate(self, state_manager):
-        state_manager.update_swarm_bucket("w1", drift=0.1, inconclusive=False, total_sessions=10)
-        bucket = state_manager.update_swarm_bucket("w1", drift=0.2, inconclusive=False, total_sessions=5)
+        state_manager.update_swarm_bucket(
+            "w1", drift=0.1, inconclusive=False, total_sessions=10
+        )
+        bucket = state_manager.update_swarm_bucket(
+            "w1", drift=0.2, inconclusive=False, total_sessions=5
+        )
         assert bucket.sessions == 15
 
 

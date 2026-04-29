@@ -4,6 +4,7 @@ from core.runtime_security import normalize_untrusted_text
 
 _utils_logger = logging.getLogger("aletheia.bridge.utils")
 
+
 def normalize_shadow_text(text: str, _depth: int = 0) -> str:
     """Legacy facade for runtime normalization.
 
@@ -12,6 +13,7 @@ def normalize_shadow_text(text: str, _depth: int = 0) -> str:
     result = normalize_untrusted_text(text)
     if result.quarantined:
         _utils_logger.warning(
-            "Input quarantined by runtime normalization: reason=%s", result.quarantine_reason
+            "Input quarantined by runtime normalization: reason=%s",
+            result.quarantine_reason,
         )
     return result.normalized_form

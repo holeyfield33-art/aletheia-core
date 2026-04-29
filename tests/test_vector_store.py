@@ -3,12 +3,9 @@
 import os
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from core.vector_store import (
-    QDRANT_COLLECTION,
     SemanticMatch,
-    _get_client,
     query_semantic_patterns,
 )
 

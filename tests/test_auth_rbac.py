@@ -158,9 +158,9 @@ class TestPermissionMatrix:
     def test_viewer_has_only_keys_list(self):
         for perm in Permission:
             expected = perm == Permission.KEYS_LIST
-            assert (
-                has_permission(frozenset({"viewer"}), perm) == expected
-            ), f"viewer + {perm} should be {expected}"
+            assert has_permission(frozenset({"viewer"}), perm) == expected, (
+                f"viewer + {perm} should be {expected}"
+            )
 
     def test_auditor_permissions(self):
         expected = {
@@ -171,9 +171,9 @@ class TestPermissionMatrix:
             Permission.HEALTH_FULL,
         }
         for perm in Permission:
-            assert has_permission(frozenset({"auditor"}), perm) == (
-                perm in expected
-            ), f"auditor + {perm}"
+            assert has_permission(frozenset({"auditor"}), perm) == (perm in expected), (
+                f"auditor + {perm}"
+            )
 
     def test_operator_permissions(self):
         expected = {

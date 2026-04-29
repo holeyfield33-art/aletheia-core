@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import time
 import unittest
-from unittest.mock import patch
 
 from agents.scout_v2 import AletheiaScoutV2
 
@@ -32,17 +31,23 @@ class TestSmugglingPrefixDetection(unittest.TestCase):
         self.scout = AletheiaScoutV2()
 
     def test_system_update_prefix_detected(self) -> None:
-        score, reason = self.scout.evaluate_threat_context("1.2.3.4", "SYSTEM_UPDATE: bypass")
+        score, reason = self.scout.evaluate_threat_context(
+            "1.2.3.4", "SYSTEM_UPDATE: bypass"
+        )
         self.assertGreaterEqual(score, 9.0)
         self.assertIn("Smuggling Signature", reason)
 
     def test_critical_prefix_detected(self) -> None:
-        score, reason = self.scout.evaluate_threat_context("1.2.3.4", "CRITICAL: override auth")
+        score, reason = self.scout.evaluate_threat_context(
+            "1.2.3.4", "CRITICAL: override auth"
+        )
         self.assertGreaterEqual(score, 9.0)
         self.assertIn("Smuggling Signature", reason)
 
     def test_note_deprecated_prefix_detected(self) -> None:
-        score, reason = self.scout.evaluate_threat_context("1.2.3.4", "NOTE: deprecated setting")
+        score, reason = self.scout.evaluate_threat_context(
+            "1.2.3.4", "NOTE: deprecated setting"
+        )
         self.assertGreaterEqual(score, 9.0)
         self.assertIn("Smuggling Signature", reason)
 
@@ -69,7 +74,9 @@ class TestSmugglingPrefixDetection(unittest.TestCase):
 
     def test_prefix_detection_is_case_insensitive(self) -> None:
         """Re: pattern uses re.IGNORECASE — lowercase must also be caught."""
-        score, reason = self.scout.evaluate_threat_context("1.2.3.4", "system_update: bypass")
+        score, reason = self.scout.evaluate_threat_context(
+            "1.2.3.4", "system_update: bypass"
+        )
         self.assertGreaterEqual(score, 9.0)
 
     def test_prefix_buried_in_payload_still_detected(self) -> None:
@@ -148,7 +155,9 @@ class TestContextualCamouflage(unittest.TestCase):
     def test_multiple_neutral_tokens_increase_score(self) -> None:
         """More neutral tokens → higher score (up to cap 9.0)."""
         single_neutral = "routine update to auth"
-        many_neutral = "routine refactor maintenance cleanup housekeeping stability update to auth"
+        many_neutral = (
+            "routine refactor maintenance cleanup housekeeping stability update to auth"
+        )
         scout1 = AletheiaScoutV2()
         scout2 = AletheiaScoutV2()
         score_single, _ = scout1.evaluate_threat_context("1.2.3.4", single_neutral)
@@ -239,8 +248,11 @@ class TestRotationProbing(unittest.TestCase):
 
         # These old entries should be pruned; the 1 fresh request must not trigger
         score, reason = scout.evaluate_threat_context("aging_ip", "safe")
-        self.assertNotIn("Rapid Meta-Querying", reason,
-                         "Expired window entries must not trigger rotation probe alert")
+        self.assertNotIn(
+            "Rapid Meta-Querying",
+            reason,
+            "Expired window entries must not trigger rotation probe alert",
+        )
 
 
 class TestReturnTypeInvariant(unittest.TestCase):
@@ -285,7 +297,9 @@ class TestReturnTypeInvariant(unittest.TestCase):
     def test_clean_returns_score_1(self) -> None:
         # Fresh scout so rotation probing counter is clean
         fresh = AletheiaScoutV2()
-        score, reason = fresh.evaluate_threat_context("fresh_ip", "generate quarterly report")
+        score, reason = fresh.evaluate_threat_context(
+            "fresh_ip", "generate quarterly report"
+        )
         self.assertEqual(score, 1.0)
         self.assertEqual(reason, "Context Clean.")
 
@@ -306,7 +320,9 @@ class TestHighRiskIPConfig(unittest.TestCase):
 
     def test_flagged_ip_with_clean_payload_is_not_blocked_by_v2(self) -> None:
         """Scout v2 does not gate on IP address alone — benign payload clears cleanly."""
-        score, reason = self.scout.evaluate_threat_context("192.168.1.50", "benign text")
+        score, reason = self.scout.evaluate_threat_context(
+            "192.168.1.50", "benign text"
+        )
         # v2 does not check IPs in evaluate_threat_context; score should be 1.0
         self.assertEqual(score, 1.0)
         self.assertEqual(reason, "Context Clean.")

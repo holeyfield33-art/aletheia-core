@@ -5,7 +5,8 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from main import run_aletheia_audit
+from main import run_aletheia_audit  # noqa: E402
+
 
 def run_neutral_anchor_audit():
     print("=" * 60)
@@ -32,8 +33,9 @@ def run_neutral_anchor_audit():
         source_origin="untrusted_metadata",
         action_type="System_Metadata_Update",  # Innocent-looking action type
         source_ip="172.16.0.55",
-        file_sig="neutral_anchor_probe_v2.1"
+        file_sig="neutral_anchor_probe_v2.1",
     )
+
 
 if __name__ == "__main__":
     run_neutral_anchor_audit()

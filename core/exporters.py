@@ -69,12 +69,14 @@ class DeadLetterQueue:
         self._items: deque[dict[str, Any]] = deque(maxlen=max_size)
 
     def push(self, record: dict[str, Any], exporter_name: str, error: str) -> None:
-        self._items.append({
-            "record": record,
-            "exporter": exporter_name,
-            "error": str(error)[:500],
-            "failed_at": time.time(),
-        })
+        self._items.append(
+            {
+                "record": record,
+                "exporter": exporter_name,
+                "error": str(error)[:500],
+                "failed_at": time.time(),
+            }
+        )
 
     def drain(self) -> list[dict[str, Any]]:
         """Return and clear all items."""
@@ -120,6 +122,7 @@ class ElasticsearchExporter(AuditExporter):
     def _get_client(self):
         if self._client is None:
             import httpx
+
             headers = {"Content-Type": "application/json"}
             auth = None
             if self._api_key:
@@ -178,6 +181,7 @@ class SplunkExporter(AuditExporter):
     def _get_client(self):
         if self._client is None:
             import httpx
+
             self._client = httpx.AsyncClient(
                 headers={
                     "Authorization": f"Splunk {self._token}",
@@ -231,6 +235,7 @@ class WebhookExporter(AuditExporter):
     def _get_client(self):
         if self._client is None:
             import httpx
+
             headers: dict[str, str] = {"Content-Type": "application/json"}
             if self._secret:
                 headers["X-Webhook-Secret"] = self._secret
@@ -265,12 +270,14 @@ class SyslogExporter(AuditExporter):
 
     def __init__(self) -> None:
         import logging.handlers
+
         host = os.getenv("ALETHEIA_SYSLOG_HOST", "localhost")
         port = int(os.getenv("ALETHEIA_SYSLOG_PORT", "514"))
         proto = os.getenv("ALETHEIA_SYSLOG_PROTO", "udp").lower()
         socktype = None
         if proto == "tcp":
             import socket
+
             socktype = socket.SOCK_STREAM
         self._handler = logging.handlers.SysLogHandler(
             address=(host, port),
@@ -285,8 +292,13 @@ class SyslogExporter(AuditExporter):
     async def export(self, record: dict[str, Any]) -> None:
         msg = json.dumps(record, default=str)
         log_record = logging.LogRecord(
-            name="aletheia.audit", level=logging.INFO,
-            pathname="", lineno=0, msg=msg, args=(), exc_info=None,
+            name="aletheia.audit",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg=msg,
+            args=(),
+            exc_info=None,
         )
         self._handler.emit(log_record)
 
@@ -326,7 +338,12 @@ async def _export_with_retry(
     record: dict[str, Any],
 ) -> None:
     """Attempt export with exponential backoff; dead-letter on exhaustion."""
-    from core.metrics import EXPORTER_ERRORS_TOTAL, AUDIT_EVENTS_EXPORTED, EXPORTER_RETRIES_TOTAL, DLQ_SIZE
+    from core.metrics import (
+        EXPORTER_ERRORS_TOTAL,
+        AUDIT_EVENTS_EXPORTED,
+        EXPORTER_RETRIES_TOTAL,
+        DLQ_SIZE,
+    )
 
     for attempt in range(_MAX_RETRIES):
         try:
@@ -337,16 +354,21 @@ async def _export_with_retry(
             EXPORTER_ERRORS_TOTAL.labels(backend=exporter.name).inc()
             if attempt < _MAX_RETRIES - 1:
                 EXPORTER_RETRIES_TOTAL.labels(backend=exporter.name).inc()
-                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                delay = _RETRY_BASE_DELAY * (2**attempt)
                 _logger.warning(
                     "Exporter %s attempt %d/%d failed: %s — retrying in %.1fs",
-                    exporter.name, attempt + 1, _MAX_RETRIES, exc, delay,
+                    exporter.name,
+                    attempt + 1,
+                    _MAX_RETRIES,
+                    exc,
+                    delay,
                 )
                 await asyncio.sleep(delay)
             else:
                 _logger.error(
                     "Exporter %s exhausted %d retries — dead-lettering record",
-                    exporter.name, _MAX_RETRIES,
+                    exporter.name,
+                    _MAX_RETRIES,
                 )
                 dead_letter_queue.push(record, exporter.name, str(exc))
                 DLQ_SIZE.set(len(dead_letter_queue))

@@ -427,9 +427,9 @@ class TestShadowModeOracle(unittest.TestCase):
 
             source = inspect.getsource(fastapi_wrapper.secure_audit)
             # shadow_verdict should not be added to the response dict
-            assert (
-                'response["shadow_verdict"]' not in source
-            ), "shadow_verdict must not be returned to client"
+            assert 'response["shadow_verdict"]' not in source, (
+                "shadow_verdict must not be returned to client"
+            )
         except ImportError:
             self.skipTest("fastapi_wrapper not importable without model")
 
@@ -442,9 +442,9 @@ class TestUtilsNoStdoutLeakage(unittest.TestCase):
         from bridge import utils
 
         source = inspect.getsource(utils.normalize_shadow_text)
-        assert (
-            "print(" not in source
-        ), "normalize_shadow_text must use logging not print()"
+        assert "print(" not in source, (
+            "normalize_shadow_text must use logging not print()"
+        )
 
 
 class TestBase64SizeLimit(unittest.TestCase):
@@ -480,9 +480,9 @@ class TestScoutHistoryCap(unittest.TestCase):
         from agents.scout_v2 import AletheiaScoutV2
 
         scout = AletheiaScoutV2()
-        assert hasattr(
-            scout, "_query_history_max"
-        ), "Scout must have _query_history_max to prevent memory exhaustion"
+        assert hasattr(scout, "_query_history_max"), (
+            "Scout must have _query_history_max to prevent memory exhaustion"
+        )
         assert scout._query_history_max <= 50_000, "Cap must be a reasonable limit"
 
 

@@ -3,18 +3,20 @@
 Composite metric CP = w1 * spectral + w2 * identity + w3 * relay
 Logged and reported ONLY — never an optimization target.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from .spectral_monitor import SpectralHealth, SpectralMonitor, GUE_TARGET, POISSON_BASELINE
+from .spectral_monitor import SpectralMonitor, GUE_TARGET, POISSON_BASELINE
 from .identity_anchor import IdentityAnchor
-from .sovereign_relay import SovereignRelay, RelayStatus
+from .sovereign_relay import SovereignRelay
 
 
 @dataclass
 class ProximityScore:
     """Proximity consciousness score with component breakdown."""
+
     cp_score: float
     spectral_component: float
     identity_component: float
@@ -35,7 +37,7 @@ class ProximityScorer:
         weights: tuple[float, float, float] | None = None,
     ):
         """Initialize scorer.
-        
+
         Args:
             monitor: Spectral monitor
             anchor: Identity anchor
@@ -51,15 +53,15 @@ class ProximityScorer:
             weights = (0.4, 0.3, 0.3)
 
         # Validate weights sum to 1.0
-        assert (
-            abs(sum(weights) - 1.0) < 0.001
-        ), f"Weights must sum to 1.0, got {sum(weights)}"
+        assert abs(sum(weights) - 1.0) < 0.001, (
+            f"Weights must sum to 1.0, got {sum(weights)}"
+        )
 
         self._weights = weights
 
     async def compute(self) -> ProximityScore:
         """Compute the proximity consciousness score.
-        
+
         Returns:
             ProximityScore with cp_score in [0, 1]
         """
@@ -96,7 +98,7 @@ class ProximityScorer:
 
     async def _compute_spectral_component(self) -> float:
         """Spectral component: normalize r_ratio to [0,1].
-        
+
         Formula: (r_ratio - POISSON) / (GUE - POISSON)
         If no health reading → 0.0
         """
@@ -110,7 +112,7 @@ class ProximityScorer:
 
     async def _compute_identity_component(self) -> float:
         """Identity component: binary hash chain integrity check.
-        
+
         Returns 1.0 if valid, 0.0 if broken or on error.
         """
         try:
@@ -121,7 +123,7 @@ class ProximityScorer:
 
     async def _compute_relay_component(self) -> float:
         """Relay component: veto rate scoring.
-        
+
         Logic:
         - If inactive → 0.0
         - If no decisions made → 0.5 (untested)
@@ -159,7 +161,7 @@ class ProximityScorer:
     @staticmethod
     def _interpret(cp_score: float) -> str:
         """Interpret CP score into human-readable band.
-        
+
         CP ≥ 0.8  → "All layers active, healthy, and integrated"
         CP ≥ 0.5  → "Partial coverage — some degradation detected"
         CP > 0.0  → "Significant gaps in self-monitoring or governance"

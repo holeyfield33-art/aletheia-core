@@ -1,12 +1,12 @@
 """Tests for core/secret_rotation.py — hot secret rotation without restart."""
+
 from __future__ import annotations
 
 import os
-import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from core.secret_rotation import rotate_secrets, install_sigusr1_handler, _ROTATION_COOLDOWN_SECONDS
+from core.secret_rotation import rotate_secrets, install_sigusr1_handler
 
 
 class TestRotateSecrets(unittest.TestCase):
@@ -15,14 +15,18 @@ class TestRotateSecrets(unittest.TestCase):
     def setUp(self):
         # Reset cooldown between tests
         import core.secret_rotation as mod
+
         mod._last_rotation_time = 0.0
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_RECEIPT_SECRET": "test-secret-32chars-long-enough!",
-        "ALETHEIA_API_KEYS": "key1,key2,key3",
-        "ALETHEIA_ALIAS_SALT": "test-salt",
-        "ALETHEIA_ADMIN_KEY": "admin-key",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_RECEIPT_SECRET": "test-secret-32chars-long-enough!",
+            "ALETHEIA_API_KEYS": "key1,key2,key3",
+            "ALETHEIA_ALIAS_SALT": "test-salt",
+            "ALETHEIA_ADMIN_KEY": "admin-key",
+        },
+    )
     def test_rotation_returns_summary(self):
         result = rotate_secrets()
         self.assertEqual(result["status"], "rotated")
@@ -32,12 +36,15 @@ class TestRotateSecrets(unittest.TestCase):
         self.assertTrue(result["admin_key_set"])
         self.assertIn("timestamp", result)
 
-    @patch.dict(os.environ, {
-        "ALETHEIA_RECEIPT_SECRET": "",
-        "ALETHEIA_API_KEYS": "",
-        "ALETHEIA_ALIAS_SALT": "",
-        "ALETHEIA_ADMIN_KEY": "",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_RECEIPT_SECRET": "",
+            "ALETHEIA_API_KEYS": "",
+            "ALETHEIA_ALIAS_SALT": "",
+            "ALETHEIA_ADMIN_KEY": "",
+        },
+    )
     def test_rotation_empty_env(self):
         result = rotate_secrets()
         self.assertEqual(result["status"], "rotated")
@@ -47,6 +54,7 @@ class TestRotateSecrets(unittest.TestCase):
     def test_rotation_cooldown(self):
         """Second rotation within cooldown period returns cooldown status."""
         import core.secret_rotation as mod
+
         mod._last_rotation_time = 0.0
 
         result1 = rotate_secrets()
@@ -100,6 +108,7 @@ class TestSIGUSR1Handler(unittest.TestCase):
     def test_install_sigusr1_handler(self):
         """Handler installs without error."""
         import core.secret_rotation as mod
+
         mod._last_rotation_time = 0.0
         # Should not raise
         install_sigusr1_handler()
@@ -108,6 +117,7 @@ class TestSIGUSR1Handler(unittest.TestCase):
         """Sending SIGUSR1 to self triggers rotation."""
         import signal
         import core.secret_rotation as mod
+
         mod._last_rotation_time = 0.0
 
         rotated = []

@@ -1,4 +1,5 @@
 """Tests for the Unified Sovereign Runtime."""
+
 from __future__ import annotations
 
 import unittest
@@ -47,9 +48,7 @@ class TestUnifiedSovereignRuntime(unittest.TestCase):
         self.assertEqual(result.status, "ABORT")
 
     def test_pre_gate_velocity_exceeded(self) -> None:
-        rt = UnifiedSovereignRuntime(
-            max_tokens_per_sec=5, max_session_budget=10000
-        )
+        rt = UnifiedSovereignRuntime(max_tokens_per_sec=5, max_session_budget=10000)
         req = {"required_resources": ["tool:any"]}
         # Consume all velocity budget
         for _ in range(5):
@@ -125,9 +124,7 @@ class TestUnifiedSovereignRuntime(unittest.TestCase):
             "required_resources": ["tool:calculator"],
         }
         resp = {"decision": "PROCEED"}
-        result = self.runtime.execute(
-            req, resp, session_id="test", token_estimate=1
-        )
+        result = self.runtime.execute(req, resp, session_id="test", token_estimate=1)
         self.assertEqual(result.status, "PROCEED")
         self.assertGreater(len(result.chain_signature), 0)
 
@@ -144,7 +141,8 @@ class TestUnifiedSovereignRuntime(unittest.TestCase):
         }
         resp = {"decision": "PROCEED"}
         result = self.runtime.execute(
-            req, resp,
+            req,
+            resp,
             session_id="test",
             token_estimate=1,
             activation_snapshots=activations,

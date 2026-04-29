@@ -74,15 +74,12 @@ def migrate_key_store(db_path: str, *, dry_run: bool = False) -> int:
     conn = sqlite3.connect(db_path)
     try:
         columns = {
-            row[1]
-            for row in conn.execute("PRAGMA table_info(api_keys)").fetchall()
+            row[1] for row in conn.execute("PRAGMA table_info(api_keys)").fetchall()
         }
         needs_column = "tenant_id" not in columns
 
         if needs_column:
-            backfill_count = conn.execute(
-                "SELECT COUNT(*) FROM api_keys"
-            ).fetchone()[0]
+            backfill_count = conn.execute("SELECT COUNT(*) FROM api_keys").fetchone()[0]
         else:
             backfill_count = conn.execute(
                 "SELECT COUNT(*) FROM api_keys "
@@ -94,7 +91,7 @@ def migrate_key_store(db_path: str, *, dry_run: bool = False) -> int:
 
         if dry_run:
             if needs_column:
-                _warn(f"Would add tenant_id column to api_keys")
+                _warn("Would add tenant_id column to api_keys")
                 _warn(f"Would backfill {backfill_count} rows with tenant_id='default'")
             elif backfill_count:
                 _warn(f"Would backfill {backfill_count} rows with tenant_id='default'")
@@ -156,8 +153,7 @@ def migrate_decision_store(db_path: str, *, dry_run: bool = False) -> int:
         migrated = 0
         for table in ("decision_tokens", "deployment_bundle"):
             columns = {
-                row[1]
-                for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+                row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
             }
             needs_column = "tenant_id" not in columns
 
@@ -218,7 +214,11 @@ def _detect_production() -> bool:
         os.getenv("ALETHEIA_KEYSTORE_PATH", ""),
         os.getenv("ALETHEIA_DECISION_DB_PATH", ""),
     ):
-        if path and (path.startswith("/var/") or path.startswith("/opt/") or path.startswith("/mnt/")):
+        if path and (
+            path.startswith("/var/")
+            or path.startswith("/opt/")
+            or path.startswith("/mnt/")
+        ):
             return True
     return False
 
@@ -265,6 +265,7 @@ def main() -> None:
     print()
 
     import tempfile
+
     decision_db = os.getenv(
         "ALETHEIA_DECISION_DB_PATH",
         os.path.join(tempfile.gettempdir(), "aletheia", "decisions.sqlite3"),

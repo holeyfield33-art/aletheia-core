@@ -38,7 +38,6 @@ def _write_manifest(
 
 
 class TestGenerateKeypair(unittest.TestCase):
-
     def test_creates_private_key_file(self) -> None:
         d = _tmp_dir()
         generate_keypair(d / "priv.key", d / "pub.key")
@@ -90,7 +89,6 @@ class TestGenerateKeypair(unittest.TestCase):
 
 
 class TestSignManifest(unittest.TestCase):
-
     def _setup(self):
         d = _tmp_dir()
         manifest = _write_manifest(d)
@@ -115,7 +113,13 @@ class TestSignManifest(unittest.TestCase):
         d, manifest, priv, pub, sig = self._setup()
         sign_manifest(manifest, sig, priv, pub)
         data = json.loads(sig.read_text(encoding="utf-8"))
-        for field in ("algorithm", "key_id", "payload_sha256", "signature", "signed_at"):
+        for field in (
+            "algorithm",
+            "key_id",
+            "payload_sha256",
+            "signature",
+            "signed_at",
+        ):
             self.assertIn(field, data, f"Missing field: {field}")
 
     def test_algorithm_is_ed25519(self) -> None:
@@ -157,7 +161,6 @@ class TestSignManifest(unittest.TestCase):
 
 
 class TestVerifyManifestSignature(unittest.TestCase):
-
     def _signed_setup(self, content: str = '{"policy": "v1"}'):
         if content == '{"policy": "v1"}':
             content = '{"policy": "v1", "version": "1.0", "expires_at": "2099-01-01T00:00:00+00:00"}'

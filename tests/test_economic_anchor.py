@@ -1,4 +1,5 @@
 """Tests for the economic anchor: ZSP, token velocity, circuit breaker."""
+
 from __future__ import annotations
 
 import time
