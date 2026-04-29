@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import secrets
 import time as _time
+import asyncio
 
 import hashlib
 import os
@@ -39,6 +40,10 @@ from core.metrics import (
 
 _logger = logging.getLogger("aletheia.api")
 
+_BOOT_TIME = _time.time()
+_ready = False
+_startup_error_detail = "startup not completed"
+
 _TRUSTED_PROXY_DEPTH: int = int(os.getenv("ALETHEIA_TRUSTED_PROXY_DEPTH", "1"))
 if not (0 <= _TRUSTED_PROXY_DEPTH <= 5):
     raise ValueError(
@@ -60,101 +65,120 @@ async def _lifespan(application: FastAPI):
     from core.redis_pool import get_redis_pool, close_redis_pool
     from core.config import validate_production_config, validate_fips_compliance
 
+    global _ready, _startup_error_detail
+    _ready = False
+    _startup_error_detail = "startup in progress"
+
     _logger.info("Lifespan startup: initialising connection pools…")
 
-    # --- Production readiness gate ---
-    if os.getenv("ENVIRONMENT", "").lower() == "production":
-        issues = validate_production_config()
-        if issues:
-            for issue in issues:
-                _logger.critical("PRODUCTION CONFIG ERROR: %s", issue)
-            _logger.critical(
-                "FATAL: %d production config issue(s) found. Refusing to start.",
-                len(issues),
-            )
-            sys.exit(1)
-
-    # --- FIPS-140 compliance check ---
-    if settings.fips_mode:
-        violations = validate_fips_compliance()
-        if violations:
-            for v in violations:
-                _logger.critical("FIPS VIOLATION: %s", v)
-            _logger.critical(
-                "FATAL: %d FIPS-140 violation(s) found. Refusing to start.",
-                len(violations),
-            )
-            sys.exit(1)
-        _logger.info("FIPS-140 mode: all checks passed")
-
-    # Redis pool (standard, not Upstash)
-    pool = await get_redis_pool()
-    if pool is not None:
-        try:
-            await pool.ping()  # type: ignore[union-attr]
-            _logger.info("Redis pool: connected and healthy")
-        except Exception as exc:
-            _logger.error("Redis pool: ping failed — %s", exc)
-    else:
-        _logger.info("Redis pool: not configured (using Upstash or in-memory)")
-
-    # Postgres pool (optional)
     pg_pool = None
-    if settings.database_backend == "postgres":
-        db_url = settings.database_url or os.getenv("DATABASE_URL", "")
-        if db_url:
+    startup_ok = False
+
+    try:
+        # --- Production readiness gate ---
+        if os.getenv("ENVIRONMENT", "").lower() == "production":
+            issues = validate_production_config()
+            if issues:
+                for issue in issues:
+                    _logger.critical("PRODUCTION CONFIG ERROR: %s", issue)
+                _logger.critical(
+                    "FATAL: %d production config issue(s) found. Refusing to start.",
+                    len(issues),
+                )
+                sys.exit(1)
+
+        # --- FIPS-140 compliance check ---
+        if settings.fips_mode:
+            violations = validate_fips_compliance()
+            if violations:
+                for v in violations:
+                    _logger.critical("FIPS VIOLATION: %s", v)
+                _logger.critical(
+                    "FATAL: %d FIPS-140 violation(s) found. Refusing to start.",
+                    len(violations),
+                )
+                sys.exit(1)
+            _logger.info("FIPS-140 mode: all checks passed")
+
+        # Redis pool (standard, not Upstash)
+        pool = await get_redis_pool()
+        if pool is not None:
             try:
-                import asyncpg
-
-                pg_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
-                async with pg_pool.acquire() as conn:
-                    await conn.execute("SELECT 1")
-                _logger.info("Postgres pool: connected and healthy")
+                await pool.ping()  # type: ignore[union-attr]
+                _logger.info("Redis pool: connected and healthy")
             except Exception as exc:
-                _logger.error("Postgres pool: connection failed — %s", exc)
-                if os.getenv("ENVIRONMENT", "").lower() == "production":
-                    import sys
+                _logger.error("Redis pool: ping failed — %s", exc)
+        else:
+            _logger.info("Redis pool: not configured (using Upstash or in-memory)")
 
-                    _logger.critical(
-                        "FATAL: cannot reach Postgres in production. Refusing to start."
-                    )
-                    sys.exit(1)
+        # Postgres pool (optional)
+        if settings.database_backend == "postgres":
+            db_url = settings.database_url or os.getenv("DATABASE_URL", "")
+            if db_url:
+                try:
+                    import asyncpg
 
-    # Audit export workers (Task 4 — Elasticsearch, Splunk, Webhook, Syslog)
-    from core.exporters import start_export_workers, stop_export_workers
+                    pg_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
+                    async with pg_pool.acquire() as conn:
+                        await conn.execute("SELECT 1")
+                    _logger.info("Postgres pool: connected and healthy")
+                except Exception as exc:
+                    _logger.error("Postgres pool: connection failed — %s", exc)
+                    if os.getenv("ENVIRONMENT", "").lower() == "production":
+                        raise RuntimeError(
+                            "critical startup failure: postgres unavailable"
+                        )
 
-    await _startup_checks()
-    start_export_workers()
+        # Audit export workers (Task 4 — Elasticsearch, Splunk, Webhook, Syslog)
+        from core.exporters import start_export_workers
 
-    # Idempotent demo-key seed: lets the public /demo flow survive restarts
-    # without re-introducing the deprecated ALETHEIA_API_KEYS env-var auth path.
-    # No-op if the key is already known to the KeyStore, or if the env var is unset.
-    _seed_demo_key()
-    demo_key = _demo_key_health_signal()
-    if not demo_key["configured"]:
-        _logger.info("demo-key health: not configured")
-    elif demo_key["status"] == "registered":
-        _logger.info(
-            "demo-key health: registered in KeyStore (%s)",
-            demo_key["source"],
-        )
-    elif demo_key["status"] == "missing":
-        _logger.warning(
-            "demo-key health: configured via %s but missing in KeyStore; "
-            "the hosted /demo proxy may receive upstream 401",
-            demo_key["source"],
-        )
-    else:
-        _logger.warning(
-            "demo-key health: lookup failed for configured key (%s)",
-            demo_key["source"],
-        )
+        await _startup_checks()
+        start_export_workers()
+
+        # Warmup is best-effort and non-blocking for health/readiness checks.
+        asyncio.create_task(asyncio.to_thread(warm_up))
+
+        # Idempotent demo-key seed: lets the public /demo flow survive restarts
+        # without re-introducing the deprecated ALETHEIA_API_KEYS env-var auth path.
+        # No-op if the key is already known to the KeyStore, or if the env var is unset.
+        _seed_demo_key()
+        demo_key = _demo_key_health_signal()
+        if not demo_key["configured"]:
+            _logger.info("demo-key health: not configured")
+        elif demo_key["status"] == "registered":
+            _logger.info(
+                "demo-key health: registered in KeyStore (%s)",
+                demo_key["source"],
+            )
+        elif demo_key["status"] == "missing":
+            _logger.warning(
+                "demo-key health: configured via %s but missing in KeyStore; "
+                "the hosted /demo proxy may receive upstream 401",
+                demo_key["source"],
+            )
+        else:
+            _logger.warning(
+                "demo-key health: lookup failed for configured key (%s)",
+                demo_key["source"],
+            )
+
+        _ready = True
+        _startup_error_detail = ""
+        startup_ok = True
+    except BaseException as exc:
+        _ready = False
+        _startup_error_detail = str(exc) or "critical startup failure"
+        _logger.exception("Startup failed; service will report not ready: %s", exc)
+
+    # Import for shutdown path regardless of startup outcome.
+    from core.exporters import stop_export_workers
 
     yield
 
     # Shutdown: close pools + exporters
     _logger.info("Lifespan shutdown: closing connection pools…")
-    await stop_export_workers()
+    if startup_ok:
+        await stop_export_workers()
     await close_redis_pool()
     if pg_pool is not None:
         await pg_pool.close()
@@ -168,8 +192,6 @@ app = FastAPI(
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
     lifespan=_lifespan,
 )
-
-_BOOT_TIME = _time.time()
 
 _CORS_ORIGINS: list[str] = [
     o.strip()
@@ -243,7 +265,7 @@ async def enterprise_auth_middleware(request: Request, call_next):
     just pre-populates the context for RBAC checks.
     """
     # Skip auth for fully unauthenticated endpoints (no optional auth either).
-    unauthenticated_paths = {"/ready", "/docs", "/openapi.json"}
+    unauthenticated_paths = {"/health", "/ready", "/docs", "/openapi.json"}
     if request.url.path in unauthenticated_paths:
         return await call_next(request)
 
@@ -508,8 +530,6 @@ async def _startup_checks() -> None:
             "Pin the hash: sha256sum manifest/security_policy.json"
         )
 
-    warm_up()
-
     # --- Production HA checks: require DATABASE_URL + REDIS_URL for postgres backend ---
     if os.getenv("ENVIRONMENT", "").lower() == "production":
         if settings.database_backend == "postgres":
@@ -722,50 +742,29 @@ def _verify_manifest() -> bool:
 
 
 @app.get("/health")
-async def health_check(request: Request) -> dict:
-    """Health endpoint. Public response is minimal; authenticated response includes diagnostics."""
-    import datetime
+async def health_check() -> JSONResponse:
+    """Gateway health and readiness endpoint.
 
-    manifest_ok = _verify_manifest()
-    manifest_status = "VALID" if manifest_ok else "INVALID"
-    status = "ok" if manifest_ok else "degraded"
+    This endpoint intentionally avoids policy/model checks so it stays fast
+    even while heavy components are still warming up.
+    """
+    if not _ready:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "detail": _startup_error_detail or "critical startup failure",
+            },
+        )
 
-    # Check Redis connectivity
-    redis_status = "not_configured"
-    try:
-        from core.redis_pool import get_redis_pool
-
-        pool = await get_redis_pool()
-        if pool is not None:
-            await pool.ping()  # type: ignore[union-attr]
-            redis_status = "ok"
-    except Exception:
-        redis_status = "error"
-        status = "degraded"
-
-    # Public response: minimal — no version, uptime, or manifest details
-    ctx: AuthContext | None = getattr(request.state, "auth_context", None)
-    is_admin = ctx is not None and ctx.user.is_admin
-
-    if not is_admin:
-        return {"status": status, "service": "aletheia-core"}
-
-    demo_key = _demo_key_health_signal()
-
-    # Authenticated response: full diagnostics
-    return {
-        "status": status,
-        "service": "aletheia-core",
-        "version": app.version,
-        "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "manifest_signature": manifest_status,
-        "database_backend": settings.database_backend,
-        "redis": redis_status,
-        "demo_key_configured": demo_key["configured"],
-        "demo_key_registered": demo_key["registered"],
-        "demo_key_status": demo_key["status"],
-    }
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "ok",
+            "version": app.version,
+            "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
+        },
+    )
 
 
 @app.get("/ready")
