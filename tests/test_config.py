@@ -28,7 +28,7 @@ class TestAletheiaSettingsDefaults(unittest.TestCase):
 
     def test_default_embedding_model(self) -> None:
         s = self._load_clean()
-        self.assertEqual(s.embedding_model, "all-MiniLM-L6-v2")
+        self.assertEqual(s.embedding_model, "sentence-transformers/all-MiniLM-L6-v2")
 
     def test_default_intent_threshold(self) -> None:
         s = self._load_clean()

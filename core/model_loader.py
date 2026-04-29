@@ -28,7 +28,9 @@ def _model_hash(model_name: str) -> str:
 def _has_cached_weights(model_dir: Path) -> bool:
     if not model_dir.is_dir():
         return False
-    return any(model_dir.rglob("pytorch_model.bin"))
+    return any(model_dir.rglob("pytorch_model.bin")) or any(
+        model_dir.rglob("*.safetensors")
+    )
 
 
 def load_cached_sentence_transformer(

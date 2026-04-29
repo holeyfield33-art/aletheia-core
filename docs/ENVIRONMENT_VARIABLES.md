@@ -50,7 +50,7 @@ Aletheia Core v1.9.2 environment reference.
 | `ALETHEIA_INTENT_THRESHOLD` | Optional | Optional | Judge semantic threshold. |
 | `ALETHEIA_GREY_ZONE_LOWER` | Optional | Optional | Grey-zone lower bound. |
 | `ALETHEIA_NITPICKER_SIMILARITY_THRESHOLD` | Optional | Optional | Nitpicker threshold. |
-| `ALETHEIA_EMBEDDING_MODEL` | Optional | Optional | Default `all-MiniLM-L6-v2`. |
+| `ALETHEIA_EMBEDDING_MODEL` | Optional | Optional | Default `sentence-transformers/all-MiniLM-L6-v2`. |
 | `ALETHEIA_MODEL_CACHE_DIR` | Optional | Optional | Override local model cache root (default `~/.cache/aletheia/models`). |
 | `ALETHEIA_POLYMORPHIC_MODES` | Optional | Optional | Nitpicker mode list override. |
 | `ALETHEIA_CLIENT_ID` | Optional | Optional | Metadata client ID label. |

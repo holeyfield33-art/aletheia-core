@@ -83,7 +83,7 @@ class AletheiaSettings:
     """Single source of truth for runtime configuration."""
 
     # --- Semantic intent analysis ---
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     intent_threshold: float = 0.55  # Judge veto cosine-sim threshold
     grey_zone_lower: float = 0.40  # Grey-zone second-pass lower bound
     nitpicker_similarity_threshold: float = 0.45  # Nitpicker blocked-pattern threshold
@@ -207,7 +207,7 @@ class AletheiaSettings:
 
         defaults = cls.__new__(cls)
         # Set raw defaults without validation for the _get helper
-        defaults.embedding_model = "all-MiniLM-L6-v2"
+        defaults.embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
         defaults.intent_threshold = 0.55
         defaults.grey_zone_lower = 0.40
         defaults.nitpicker_similarity_threshold = 0.45
