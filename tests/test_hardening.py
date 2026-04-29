@@ -1,9 +1,13 @@
 """Tests for Phase 2 hardening features: sandbox, grey-zone classifier, alias rotation, pre-warming."""
 
+import importlib.util
 import unittest
 
 from agents.judge_v1 import AletheiaJudge
 from core.sandbox import check_action_sandbox, check_payload_sandbox
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +113,7 @@ class TestJudgeSandboxIntegration(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@_needs_real_model
 class TestGreyZoneClassifier(unittest.TestCase):
     """Payloads in the ambiguous similarity band (0.40–0.55) that contain
     high-risk keywords should be escalated to a veto."""

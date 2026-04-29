@@ -323,7 +323,7 @@ class TestWSAuthentication(unittest.TestCase):
     def test_valid_api_key_returns_tenant(self, mock_ks):
         mock_record = MagicMock()
         mock_record.tenant_id = "acme"
-        mock_ks.validate_key.return_value = mock_record
+        mock_ks.lookup_by_hash.return_value = mock_record
 
         with patch.dict(os.environ, {"ALETHEIA_ADMIN_KEY": "admin-key"}):
             from core.ws_audit import _authenticate_ws_token

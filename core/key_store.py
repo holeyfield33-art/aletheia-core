@@ -87,6 +87,7 @@ class KeyRecord:
     last_used_at: Optional[str]
     user_id: str | None = None
     role: str = "operator"  # RBAC role (viewer/auditor/operator/admin)
+    tenant_id: str = "default"
 
     def to_public_dict(self) -> dict:
         """Return a dict safe for API responses (omits key_hash)."""
@@ -570,6 +571,11 @@ class KeyStore:
             role = row["role"]
         except (IndexError, KeyError):
             role = "operator"
+        # tenant_id may not exist on older schemas (before v2 migration)
+        try:
+            tid = row["tenant_id"] or "default"
+        except (IndexError, KeyError):
+            tid = "default"
         return KeyRecord(
             id=row["id"],
             name=row["name"],
@@ -585,6 +591,7 @@ class KeyStore:
             last_used_at=row["last_used_at"],
             user_id=uid,
             role=role,
+            tenant_id=tid,
         )
 
     def list_keys_for_user(

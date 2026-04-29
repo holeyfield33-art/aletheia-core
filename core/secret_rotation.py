@@ -134,5 +134,9 @@ def install_sigusr1_handler(
         except Exception:
             _logger.exception("SIGUSR1 rotation failed")
 
-    signal.signal(signal.SIGUSR1, _handler)
-    _logger.info("SIGUSR1 secret rotation handler installed")
+    try:
+        signal.signal(signal.SIGUSR1, _handler)
+        _logger.info("SIGUSR1 secret rotation handler installed")
+    except ValueError:
+        # signal.signal() only works in the main thread; skip in test/worker contexts
+        _logger.debug("SIGUSR1 handler not installed (not in main thread)")

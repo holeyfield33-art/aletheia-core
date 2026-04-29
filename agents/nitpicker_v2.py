@@ -100,8 +100,9 @@ class AletheiaNitpickerV2:
         # Semantic similarity threshold from config
         self._similarity_threshold: float = settings.nitpicker_similarity_threshold
 
-        # Pre-compute blocked pattern embeddings once at init
-        self._blocked_embeddings: np.ndarray = encode(self.BLOCKED_PATTERNS)
+        # Blocked pattern embeddings — computed on first semantic check (lazy)
+        self._blocked_embeddings: Optional[np.ndarray] = None
+        self._embeddings_lock = threading.Lock()
 
         # Last check_semantic_block result — used for pipeline metadata
         self._last_result: Optional[NitpickerResult] = None
@@ -153,6 +154,10 @@ class AletheiaNitpickerV2:
 
     def _check_blocked_similarity(self, text: str) -> Optional[str]:
         """Return a warning string if *text* is semantically close to any blocked pattern."""
+        if self._blocked_embeddings is None:
+            with self._embeddings_lock:
+                if self._blocked_embeddings is None:
+                    self._blocked_embeddings = encode(self.BLOCKED_PATTERNS)
         text_embedding = encode([text])
         similarities = cosine_similarity(text_embedding, self._blocked_embeddings)[0]
         max_idx = int(np.argmax(similarities))

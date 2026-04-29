@@ -1,8 +1,12 @@
 """Tests for AletheiaNitpickerV2 — polymorphic rotation + semantic blocking."""
 
+import importlib.util
 import unittest
 
 from agents.nitpicker_v2 import AletheiaNitpickerV2
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 class TestNitpickerRotation(unittest.TestCase):
@@ -42,6 +46,7 @@ class TestNitpickerAliasStrip(unittest.TestCase):
         self.assertIn("ALIAS_STRIPPED", output)
 
 
+@_needs_real_model
 class TestNitpickerSemanticBlock(unittest.TestCase):
     """Embedding-based blocked-pattern detection."""
 

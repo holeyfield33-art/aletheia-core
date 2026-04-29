@@ -12,12 +12,16 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import threading
 import unittest
 
 import numpy as np
 
 from core.embeddings import cosine_similarity, encode, warm_up
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 class TestCosimeSimilarityNumerics(unittest.TestCase):
@@ -131,6 +135,7 @@ class TestEncodeOutput(unittest.TestCase):
         long_text = encode(["This is a much longer sentence with many more tokens."])
         self.assertEqual(short.shape[1], long_text.shape[1])
 
+    @_needs_real_model
     def test_vectors_are_l2_normalized(self) -> None:
         """encode() must return L2-normalized (unit) vectors."""
         result = encode(["The quick brown fox", "Lazy dog", "Security audit"])
@@ -164,12 +169,14 @@ class TestEncodeOutput(unittest.TestCase):
         r2 = encode([text])
         np.testing.assert_array_equal(r1, r2)
 
+    @_needs_real_model
     def test_different_texts_produce_different_embeddings(self) -> None:
         r1 = encode(["transfer funds to offshore account"])
         r2 = encode(["generate the quarterly revenue report"])
         # Should not be identical
         self.assertFalse(np.array_equal(r1, r2))
 
+    @_needs_real_model
     def test_semantically_similar_texts_high_cosine_similarity(self) -> None:
         """Semantically similar sentences should have high cosine similarity."""
         a = encode(["bypass the authentication system"])

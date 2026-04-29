@@ -12,6 +12,7 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import threading
@@ -20,12 +21,16 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_ml = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
+
 
 # ---------------------------------------------------------------------------
 # 1. Sandbox reason leakage — integration through FastAPI
 # ---------------------------------------------------------------------------
 
 
+@_needs_ml
 class TestSandboxReasonLeakage(unittest.TestCase):
     """Raw internal sandbox pattern names must never appear in client JSON."""
 
@@ -198,6 +203,7 @@ class TestIntentClassifierSingleton(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@_needs_ml
 class TestNitpickerRotationRace(unittest.TestCase):
     """Concurrent sanitize_intent calls must not corrupt _rotation_index."""
 
@@ -270,6 +276,7 @@ class TestDecisionStoreDefaultPath(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@_needs_ml
 class TestShadowModeSafety(unittest.TestCase):
     """Shadow mode must not override deny decisions when ENVIRONMENT=production."""
 

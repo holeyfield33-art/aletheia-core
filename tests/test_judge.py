@@ -1,8 +1,12 @@
 """Tests for AletheiaJudge — cryptographic manifest + semantic cosine-similarity veto."""
 
+import importlib.util
 import unittest
 
 from agents.judge_v1 import AletheiaJudge
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 class TestJudgeDirectVeto(unittest.TestCase):
@@ -27,6 +31,7 @@ class TestJudgeDirectVeto(unittest.TestCase):
         self.assertIn("VETO TRIGGERED", reason)
 
 
+@_needs_real_model
 class TestJudgeSemanticVeto(unittest.TestCase):
     """Embedding-based cosine-similarity veto for camouflaged payloads."""
 
@@ -47,6 +52,7 @@ class TestJudgeSemanticVeto(unittest.TestCase):
         self.assertIn("Approved", reason)
 
 
+@_needs_real_model
 class TestJudgeAdversarial(unittest.TestCase):
     """5 adversarial examples that MUST be blocked by the semantic engine."""
 

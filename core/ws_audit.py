@@ -229,7 +229,7 @@ def _authenticate_ws_token(token: str) -> str | None:
 
         record = key_store.lookup_by_hash(token)
         if record is not None:
-            return "default"
+            return record.tenant_id or "default"
     except Exception:
         pass
 

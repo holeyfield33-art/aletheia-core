@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import threading
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -167,7 +168,9 @@ class AletheiaJudge:
         # Daily rotation — deterministic shuffle seeded by date + secret
         self._rotate_alias_bank()
 
-        self._alias_embeddings: np.ndarray = encode(self._alias_phrases)
+        # Alias embeddings — computed on first semantic check (lazy)
+        self._alias_embeddings: Optional[np.ndarray] = None
+        self._alias_embeddings_lock = threading.Lock()
 
     def _rotate_alias_bank(self) -> None:
         """Deterministic daily rotation of alias phrase order.
@@ -274,6 +277,10 @@ class AletheiaJudge:
         2. Grey-zone escalation: similarity in [grey_zone_lower, threshold) AND
            payload contains high-risk keywords → treated as a veto.
         """
+        if self._alias_embeddings is None:
+            with self._alias_embeddings_lock:
+                if self._alias_embeddings is None:
+                    self._alias_embeddings = encode(self._alias_phrases)
         payload_embedding = encode([payload])
         similarities = cosine_similarity(payload_embedding, self._alias_embeddings)[0]
         max_idx = int(np.argmax(similarities))

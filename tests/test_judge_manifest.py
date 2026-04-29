@@ -15,6 +15,7 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import tempfile
@@ -24,6 +25,9 @@ from unittest.mock import patch
 
 from manifest.signing import ManifestTamperedError, generate_keypair, sign_manifest
 from agents.judge_v1 import AletheiaJudge
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 def _make_valid_judge(tmp_dir: Path) -> AletheiaJudge:
@@ -264,6 +268,7 @@ class TestValidJudgeFunctionality(unittest.TestCase):
         self.assertGreater(len(self.judge.policy["restricted_actions"]), 0)
 
 
+@_needs_real_model
 class TestGreyZoneBoundaries(unittest.TestCase):
     """Grey-zone second-pass classifier edge cases."""
 
