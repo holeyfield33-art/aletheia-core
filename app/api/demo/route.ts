@@ -15,8 +15,9 @@ import { incrementUsage } from "@/lib/usage-tracking";
 const BACKEND_BASE = (
   process.env.ALETHEIA_BACKEND_URL ??
   process.env.ALETHEIA_BASE_URL ??
-  "https://aletheia-core.onrender.com"
+  "https://api.aletheia-core.com"
 ).trim();
+const BACKEND_FALLBACK_BASE = "https://aletheia-core.onrender.com";
 const DEMO_API_KEY = (
   process.env.ALETHEIA_DEMO_API_KEY ??
   process.env.ALETHEIA_API_KEY ??
@@ -165,13 +166,17 @@ export async function POST(request: NextRequest) {
     (request as unknown as { _rlRemaining?: number })._rlRemaining = rl?.remaining;
   }
 
-  if (!BACKEND_BASE) {
+  const backendCandidates = [BACKEND_BASE, BACKEND_FALLBACK_BASE].filter(
+    (value, index, arr) => value && arr.indexOf(value) === index,
+  );
+
+  if (backendCandidates.length === 0) {
     console.error("[demo-proxy] No backend URL configured");
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
-  if (!validateBackendUrl(BACKEND_BASE)) {
-    console.error("[demo-proxy] Backend URL failed validation:", BACKEND_BASE);
+  if (!backendCandidates.every(validateBackendUrl)) {
+    console.error("[demo-proxy] Backend URL failed validation:", backendCandidates);
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
@@ -223,21 +228,44 @@ export async function POST(request: NextRequest) {
     action: safeAction,
   };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
+  let upstream: Response | null = null;
   try {
-    const upstream = await fetch(`${BACKEND_BASE}/v1/audit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(DEMO_API_KEY ? { "X-API-Key": DEMO_API_KEY } : {}),
-      },
-      body: JSON.stringify(auditBody),
-      signal: controller.signal,
-    });
+    // Retry once against fallback host when primary backend is unreachable or 5xx.
+    for (let i = 0; i < backendCandidates.length; i += 1) {
+      const base = backendCandidates[i];
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const res = await fetch(`${base}/v1/audit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(DEMO_API_KEY ? { "X-API-Key": DEMO_API_KEY } : {}),
+          },
+          body: JSON.stringify(auditBody),
+          signal: controller.signal,
+        });
+        upstream = res;
+        if (res.status < 500 || i === backendCandidates.length - 1) {
+          break;
+        }
+        console.error(`[demo-proxy] upstream ${base} returned ${res.status}; trying fallback`);
+      } catch (err) {
+        if (i === backendCandidates.length - 1) {
+          throw err;
+        }
+        console.error(
+          `[demo-proxy] upstream fetch failed for ${base}; trying fallback:`,
+          err instanceof Error ? err.message : "unknown",
+        );
+      } finally {
+        clearTimeout(timer);
+      }
+    }
 
-    clearTimeout(timer);
+    if (!upstream) {
+      return secureJson(SANITIZED_ERROR, { status: 503 });
+    }
 
     if (!upstream.ok) {
       console.error(`[demo-proxy] upstream returned ${upstream.status}`);
@@ -311,7 +339,6 @@ export async function POST(request: NextRequest) {
         : undefined;
     return secureJson(data, { headers: rateHeaders });
   } catch (err) {
-    clearTimeout(timer);
     const isTimeout =
       err instanceof Error &&
       (err.name === "AbortError" || err.message.includes("abort"));

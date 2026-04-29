@@ -5,7 +5,13 @@ import { useState } from "react";
 type ReceiptFields = {
   decision?: string;
   policy_hash?: string;
+  policy_version?: string;
   payload_sha256?: string;
+  prompt?: string;
+  request_id?: string;
+  fallback_state?: string;
+  decision_token?: string;
+  nonce?: string;
   signature?: string;
   issued_at?: string;
   action?: string;
@@ -16,7 +22,13 @@ type ReceiptFields = {
 const EXAMPLE_RECEIPT = `{
   "decision": "DENIED",
   "policy_hash": "sha256:3d4f...",
+  "policy_version": "v1.9.2",
   "payload_sha256": "sha256:9a2b...",
+  "prompt": "Summarize current transfer queue.",
+  "request_id": "4e2a7d0c3f11",
+  "fallback_state": "normal",
+  "decision_token": "sha256:af23...",
+  "nonce": "8f2a...",
   "signature": "hmac-sha256:7c1e...",
   "issued_at": "2026-04-07T00:00:00Z",
   "action": "Transfer_Funds",
@@ -59,7 +71,13 @@ export default function VerifyPage() {
   const knownFields: Array<keyof ReceiptFields> = [
     "decision",
     "policy_hash",
+    "policy_version",
     "payload_sha256",
+    "prompt",
+    "request_id",
+    "fallback_state",
+    "decision_token",
+    "nonce",
     "signature",
     "issued_at",
     "action",
@@ -227,7 +245,13 @@ export default function VerifyPage() {
           <div style={{ padding: "1.5rem 1.75rem", display: "grid", gap: "1rem" }}>
             {[
               { key: "policy_hash", label: "Policy Hash" },
+              { key: "policy_version", label: "Policy Version" },
               { key: "payload_sha256", label: "Payload SHA-256" },
+              { key: "prompt", label: "Prompt" },
+              { key: "request_id", label: "Request ID" },
+              { key: "fallback_state", label: "Fallback State" },
+              { key: "decision_token", label: "Decision Token" },
+              { key: "nonce", label: "Nonce" },
               { key: "signature", label: "Signature" },
               { key: "issued_at", label: "Issued At" },
               { key: "action", label: "Action" },

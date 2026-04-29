@@ -167,7 +167,13 @@ type AuditResult = {
   receipt?: {
     decision?: string;
     policy_hash?: string;
+    policy_version?: string;
     payload_sha256?: string;
+    prompt?: string;
+    request_id?: string;
+    fallback_state?: string;
+    decision_token?: string;
+    nonce?: string;
     signature?: string;
     issued_at?: string;
     action?: string;
@@ -743,6 +749,30 @@ export default function DemoPage() {
                       value={safeReceipt.payload_sha256}
                     />
                   )}
+                  {safeReceipt.prompt && (
+                    <ReceiptField
+                      label="Prompt"
+                      value={safeReceipt.prompt}
+                    />
+                  )}
+                  {safeReceipt.policy_version && (
+                    <ReceiptField
+                      label="Policy Version"
+                      value={safeReceipt.policy_version}
+                    />
+                  )}
+                  {safeReceipt.nonce && (
+                    <ReceiptField
+                      label="Nonce"
+                      value={safeReceipt.nonce}
+                    />
+                  )}
+                  {safeReceipt.decision_token && (
+                    <ReceiptField
+                      label="Decision Token"
+                      value={safeReceipt.decision_token}
+                    />
+                  )}
                   {safeReceipt.signature && (
                     <ReceiptField
                       label="Signature"
@@ -759,6 +789,12 @@ export default function DemoPage() {
                     <ReceiptField
                       label="Request ID"
                       value={result.metadata.request_id}
+                    />
+                  )}
+                  {safeReceipt.request_id && !result.metadata?.request_id && (
+                    <ReceiptField
+                      label="Request ID"
+                      value={safeReceipt.request_id}
                     />
                   )}
                 </div>
@@ -865,7 +901,15 @@ function getPublicReceipt(
     issued_at: receipt.issued_at,
     signature: receipt.signature,
     policy_hash: receipt.policy_hash,
+    policy_version: receipt.policy_version,
     payload_sha256: receipt.payload_sha256,
+    prompt: receipt.prompt,
+    request_id: receipt.request_id,
+    fallback_state: receipt.fallback_state,
+    decision_token: receipt.decision_token,
+    nonce: receipt.nonce,
+    action: receipt.action,
+    origin: receipt.origin,
   };
 }
 
