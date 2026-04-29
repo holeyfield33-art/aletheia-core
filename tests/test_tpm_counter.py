@@ -1,4 +1,5 @@
 """Tests for TPM anti-rollback monotonic counter (Phase 4)."""
+
 from __future__ import annotations
 
 import os
@@ -162,7 +163,11 @@ class TestTPMBackendDispatch(unittest.TestCase):
         anchor = self._make_tpm_anchor()
         anchor._backend.nv_read_counter.return_value = 42
         # backend_type must return "tpm"
-        with patch.object(type(anchor), "backend_type", new_callable=lambda: property(lambda self: "tpm")):
+        with patch.object(
+            type(anchor),
+            "backend_type",
+            new_callable=lambda: property(lambda self: "tpm"),
+        ):
             result = anchor.get_monotonic_counter(counter_index=3)
         anchor._backend.nv_read_counter.assert_called_once_with(3)
         self.assertEqual(result, 42)
@@ -170,7 +175,11 @@ class TestTPMBackendDispatch(unittest.TestCase):
     def test_increment_delegates_to_nv_increment(self) -> None:
         anchor = self._make_tpm_anchor()
         anchor._backend.nv_increment_counter.return_value = 43
-        with patch.object(type(anchor), "backend_type", new_callable=lambda: property(lambda self: "tpm")):
+        with patch.object(
+            type(anchor),
+            "backend_type",
+            new_callable=lambda: property(lambda self: "tpm"),
+        ):
             result = anchor.increment_monotonic_counter(counter_index=1)
         anchor._backend.nv_increment_counter.assert_called_once_with(1)
         self.assertTrue(result)
@@ -178,14 +187,22 @@ class TestTPMBackendDispatch(unittest.TestCase):
     def test_tpm_read_failure_returns_none(self) -> None:
         anchor = self._make_tpm_anchor()
         anchor._backend.nv_read_counter.side_effect = RuntimeError("TPM error")
-        with patch.object(type(anchor), "backend_type", new_callable=lambda: property(lambda self: "tpm")):
+        with patch.object(
+            type(anchor),
+            "backend_type",
+            new_callable=lambda: property(lambda self: "tpm"),
+        ):
             result = anchor.get_monotonic_counter()
         self.assertIsNone(result)
 
     def test_tpm_increment_failure_returns_false(self) -> None:
         anchor = self._make_tpm_anchor()
         anchor._backend.nv_increment_counter.side_effect = RuntimeError("TPM error")
-        with patch.object(type(anchor), "backend_type", new_callable=lambda: property(lambda self: "tpm")):
+        with patch.object(
+            type(anchor),
+            "backend_type",
+            new_callable=lambda: property(lambda self: "tpm"),
+        ):
             result = anchor.increment_monotonic_counter()
         self.assertFalse(result)
 

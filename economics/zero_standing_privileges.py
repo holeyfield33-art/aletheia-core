@@ -6,10 +6,11 @@ from a zero-trust baseline.
 
 Integrates with the existing policy manifest for resource allowlists.
 """
+
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 _logger = logging.getLogger("aletheia.economics.zsp")
 
@@ -17,6 +18,7 @@ _logger = logging.getLogger("aletheia.economics.zsp")
 @dataclass(frozen=True)
 class RequestPrivileges:
     """Resources a request declares it needs."""
+
     required_resources: tuple[str, ...] = ()
 
     @classmethod
@@ -29,6 +31,7 @@ class RequestPrivileges:
 @dataclass
 class ZSPDecision:
     """Result of a ZSP enforcement check."""
+
     allowed: bool
     reason: str = ""
 
@@ -70,7 +73,8 @@ class ZSPEnforcer:
 
         if self._allowed_resources:
             denied = [
-                r for r in privileges.required_resources
+                r
+                for r in privileges.required_resources
                 if r not in self._allowed_resources
             ]
             if denied:

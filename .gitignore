@@ -25,9 +25,12 @@ audit.log
 *.audit.log
 /logs/
 .hypothesis/
+.pytest_cache/
+htmlcov/
 data/*.db
 data/*.sqlite3
 .coverage
+coverage.xml
 
 /lib/generated/prisma
 tsconfig.tsbuildinfo

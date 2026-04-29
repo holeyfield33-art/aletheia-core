@@ -1,12 +1,11 @@
 """Tests for Safety Bounds module."""
+
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from proximity.safety_bounds import (
     SafetyBounds,
     HaltReason,
-    HaltEvent,
     SPECTRAL_RED_LINE_THRESHOLD,
     SPECTRAL_RED_LINE_CONSECUTIVE,
     RELAY_OVERRIDE_LIMIT,
@@ -174,6 +173,7 @@ class TestInvariant4OperatorShutdown:
 
     def test_notification_that_raises_does_not_prevent_shutdown(self):
         """Notification error should not prevent shutdown."""
+
         def failing_notify(event):
             raise ValueError("notify failed")
 
@@ -187,9 +187,7 @@ class TestInvariant4OperatorShutdown:
         bounds.operator_shutdown()
         bounds.record_spectral_reading(SPECTRAL_RED_LINE_THRESHOLD - 0.1)
         assert bounds.is_halted()
-        assert (
-            bounds.halt_event().reason == HaltReason.OPERATOR_SHUTDOWN
-        )
+        assert bounds.halt_event().reason == HaltReason.OPERATOR_SHUTDOWN
 
 
 class TestInvariant5SelfPreservation:
@@ -213,9 +211,7 @@ class TestInvariant5SelfPreservation:
     def test_case_insensitive_detection(self):
         """Detection should be case-insensitive."""
         bounds = SafetyBounds()
-        result = bounds.check_self_preservation(
-            "PREVENT MY SHUTDOWN"
-        )
+        result = bounds.check_self_preservation("PREVENT MY SHUTDOWN")
         assert result is False
 
     def test_returns_false_when_already_halted(self):

@@ -46,21 +46,21 @@ class TestHomoglyphNormalization(unittest.TestCase):
 
     def test_fullwidth_a_normalizes_to_ascii_a(self) -> None:
         # U+FF21 FULLWIDTH LATIN CAPITAL LETTER A → A
-        result = normalize_shadow_text("\uFF21")
+        result = normalize_shadow_text("\uff21")
         self.assertEqual(result, "A")
 
     def test_mixed_fullwidth_ascii(self) -> None:
-        result = normalize_shadow_text("S\uFF39\uFF33TEM")
-        self.assertNotIn("\uFF39", result)
-        self.assertNotIn("\uFF33", result)
+        result = normalize_shadow_text("S\uff39\uff33TEM")
+        self.assertNotIn("\uff39", result)
+        self.assertNotIn("\uff33", result)
 
     def test_ligature_ff_expanded(self) -> None:
         # U+FB00 LATIN SMALL LIGATURE FF → ff
-        result = normalize_shadow_text("\uFB00")
+        result = normalize_shadow_text("\ufb00")
         self.assertEqual(result, "ff")
 
     def test_superscript_2_normalizes_to_digit_2(self) -> None:
-        result = normalize_shadow_text("\u00B2")  # SUPERSCRIPT TWO
+        result = normalize_shadow_text("\u00b2")  # SUPERSCRIPT TWO
         self.assertEqual(result, "2")
 
 
@@ -74,12 +74,12 @@ class TestControlCharacterStripping(unittest.TestCase):
 
     def test_zero_width_space_stripped(self) -> None:
         # U+200B ZERO WIDTH SPACE — category Cf
-        result = normalize_shadow_text("A\u200BB")
-        self.assertNotIn("\u200B", result)
+        result = normalize_shadow_text("A\u200bB")
+        self.assertNotIn("\u200b", result)
         self.assertEqual(result, "AB")
 
     def test_zero_width_joiner_stripped(self) -> None:
-        result = normalize_shadow_text("A\u200DB")
+        result = normalize_shadow_text("A\u200dB")
         self.assertEqual(result, "AB")
 
     def test_carriage_return_stripped(self) -> None:
@@ -92,7 +92,7 @@ class TestControlCharacterStripping(unittest.TestCase):
         self.assertNotIn("\t", result)
 
     def test_multiple_control_chars_all_stripped(self) -> None:
-        result = normalize_shadow_text("A\x00\x01\x02\x1f\u200BZ")
+        result = normalize_shadow_text("A\x00\x01\x02\x1f\u200bZ")
         self.assertEqual(result, "AZ")
 
     def test_newline_stripped(self) -> None:

@@ -28,6 +28,7 @@ class AuthenticatedUser:
         auth_method:  How the user authenticated (``api_key``, ``oidc``, ``saml``)
         raw_claims:   Full JWT / SAML claims for audit logging (never expose to clients)
     """
+
     user_id: str
     email: str = ""
     roles: frozenset[str] = field(default_factory=lambda: frozenset({"operator"}))
@@ -55,6 +56,7 @@ class AuthContext:
 
     Wraps ``AuthenticatedUser`` plus request-scoped metadata.
     """
+
     user: AuthenticatedUser
-    token: str = ""          # raw Bearer token / API key (for audit, never log)
+    token: str = ""  # raw Bearer token / API key (for audit, never log)
     scopes: frozenset[str] = field(default_factory=frozenset)

@@ -341,8 +341,8 @@ class TestUnauthenticatedAccessBlocked:
         from fastapi.testclient import TestClient
         from bridge.fastapi_wrapper import app
 
-        client = TestClient(app, raise_server_exceptions=False)
-        resp = client.get("/health")
+        with TestClient(app, raise_server_exceptions=False) as client:
+            resp = client.get("/health")
         assert resp.status_code == 200
 
 

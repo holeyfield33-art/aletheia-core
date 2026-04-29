@@ -5,7 +5,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: aletheia
-      POSTGRES_PASSWORD: aletheia_dev
+      POSTGRES_PASSWORD: aletheia_dev  # pragma: allowlist secret – dev-only Docker Compose password
       POSTGRES_DB: aletheia
     ports:
       - "5432:5432"

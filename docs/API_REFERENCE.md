@@ -277,7 +277,8 @@ Create a new API key.
 | Field | Type | Required | Constraints | Description |
 |-------|------|----------|-------------|-------------|
 | `name` | string | Yes | 1–64 chars | Human-readable key name |
-| `plan` | string | No | `trial` or `pro` | Plan tier. Default: `trial` |
+| `plan` | string | No | `trial`, `pro`, or `max` | Plan tier. Default: `trial` |
+| `role` | string | No | `viewer`, `auditor`, `operator`, or `admin` | RBAC role. Default: `operator` |
 
 **Response** (201 Created):
 
@@ -359,6 +360,47 @@ Get usage statistics for a specific key.
 ```
 
 Returns HTTP 404 if the key does not exist.
+
+---
+
+## WebSocket Audit Stream
+
+### `GET /ws/audit`
+
+Live, tenant-scoped, PII-redacted stream of audit events over WebSocket.
+
+**Authentication** (via `?token=<value>` query parameter):
+
+| Mode | Token | Scope |
+|------|-------|-------|
+| Admin API key (role: `admin`) | API key string | All tenants |
+| Short-lived JWT | Signed with `ALETHEIA_WS_JWT_SECRET` | Tenant scope + expiry encoded in claims |
+| Standard API key | API key string | Tenant-scoped via KeyStore |
+
+**Connection limits:** Max `ALETHEIA_WS_MAX_PER_TENANT` (default: 10) concurrent connections per tenant.
+
+**Heartbeat:** Server sends `{"type": "ping", "ts": <epoch>}` every `ALETHEIA_WS_HEARTBEAT_SECONDS` (default: 30s).
+
+**Event format:**
+
+```json
+{
+  "type": "audit_event",
+  "ts": 1714000000.123,
+  "decision": "PROCEED | DENIED | RATE_LIMITED | SANDBOX_BLOCKED",
+  "action": "Task_Name",
+  "origin": "trusted_admin",
+  "threat_level": "LOW | MEDIUM | HIGH | CRITICAL",
+  "receipt_id": "tmr_abc123"
+}
+```
+
+**Error codes:**
+
+| Code | Reason |
+|------|--------|
+| 1008 | Missing or invalid authentication token |
+| 1011 | Internal server error |
 
 ---
 

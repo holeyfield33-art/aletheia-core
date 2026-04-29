@@ -10,6 +10,7 @@ The signing key should be the same Ed25519 key used for policy
 manifest signing (``manifest/signing.py``) or a dedicated
 calibration-only key.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -56,9 +57,7 @@ class CalibrationIntegrity:
             )
         self._signing_key = signing_key
         self._verifying_key = (
-            verifying_key
-            if verifying_key is not None
-            else signing_key.public_key()  # type: ignore[union-attr]
+            verifying_key if verifying_key is not None else signing_key.public_key()  # type: ignore[union-attr]
         )
 
     # ------------------------------------------------------------------
@@ -82,7 +81,8 @@ class CalibrationIntegrity:
         dataset_hash = self._hash_dataset(dataset_path)
 
         filtered_runs, outliers = self._reject_outliers(
-            run_results, threshold=outlier_threshold,
+            run_results,
+            threshold=outlier_threshold,
         )
         if len(filtered_runs) < len(run_results) * 0.5:
             raise ValueError(
@@ -91,7 +91,8 @@ class CalibrationIntegrity:
             )
         if outliers:
             _logger.warning(
-                "Rejected %d outlier run(s) from calibration", len(outliers),
+                "Rejected %d outlier run(s) from calibration",
+                len(outliers),
             )
 
         median_params = self._median_across_runs(filtered_runs)
@@ -170,7 +171,8 @@ class CalibrationIntegrity:
                 if key not in run or not isinstance(run[key], (int, float)):
                     continue
                 values = [
-                    r[key] for r in runs
+                    r[key]
+                    for r in runs
                     if key in r and isinstance(r[key], (int, float))
                 ]
                 if len(values) < 3:

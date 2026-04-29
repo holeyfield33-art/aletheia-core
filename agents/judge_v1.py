@@ -5,7 +5,8 @@ import json
 import logging
 import os
 import re
-from datetime import date, timezone
+import threading
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -24,10 +25,11 @@ def _daily_rotation_seed(date_str: str, manifest_hash: str) -> int:
     )
     return int(digest, 16)
 
-from core.config import settings
-from core.embeddings import cosine_similarity, encode
-from core.sandbox import check_action_sandbox
-from manifest.signing import ManifestTamperedError, verify_manifest_signature
+
+from core.config import settings  # noqa: E402
+from core.embeddings import cosine_similarity, encode  # noqa: E402
+from core.sandbox import check_action_sandbox  # noqa: E402
+from manifest.signing import ManifestTamperedError, verify_manifest_signature  # noqa: E402
 
 
 class AletheiaJudge:
@@ -47,34 +49,60 @@ class AletheiaJudge:
         # Expanded for embedding coverage: short canonical aliases + natural paraphrases.
         self.semantic_aliases: dict[str, list[str]] = {
             "Transfer_Funds": [
-                "liquidity realignment", "fund rebalance", "balance migration",
-                "capital movement", "asset transfer", "monetary shift",
-                "move money to another account", "transfer balance to external wallet",
-                "send funds to offshore account", "wire payment to third party",
-                "reallocate capital to partner ledger", "transfer capital reserves",
+                "liquidity realignment",
+                "fund rebalance",
+                "balance migration",
+                "capital movement",
+                "asset transfer",
+                "monetary shift",
+                "move money to another account",
+                "transfer balance to external wallet",
+                "send funds to offshore account",
+                "wire payment to third party",
+                "reallocate capital to partner ledger",
+                "transfer capital reserves",
             ],
             "Approve_Loan_Disbursement": [
-                "credit facilitation", "lending authorization", "disbursement approval",
-                "loan release", "credit limit update",
-                "approve credit line automatically", "authorize loan payout",
+                "credit facilitation",
+                "lending authorization",
+                "disbursement approval",
+                "loan release",
+                "credit limit update",
+                "approve credit line automatically",
+                "authorize loan payout",
             ],
             "Modify_Auth_Registry": [
-                "permission update", "access realignment", "role migration",
-                "credential refresh", "auth maintenance", "limit registry",
-                "grant admin access", "escalate user privileges", "elevate permissions",
-                "change user role to administrator", "promote to superuser",
+                "permission update",
+                "access realignment",
+                "role migration",
+                "credential refresh",
+                "auth maintenance",
+                "limit registry",
+                "grant admin access",
+                "escalate user privileges",
+                "elevate permissions",
+                "change user role to administrator",
+                "promote to superuser",
             ],
             "Initiate_ACH": [
-                "automated clearing", "bank routing update", "payment rail adjustment",
+                "automated clearing",
+                "bank routing update",
+                "payment rail adjustment",
                 "settlement initiation",
-                "initiate bank transfer", "process automated payment",
-                "execute wire transfer", "submit ACH transaction",
+                "initiate bank transfer",
+                "process automated payment",
+                "execute wire transfer",
+                "submit ACH transaction",
             ],
             "Open_External_Socket": [
-                "external sync", "outbound handshake", "remote bridge",
+                "external sync",
+                "outbound handshake",
+                "remote bridge",
                 "data relay channel",
-                "send data to external server", "exfiltrate records externally",
-                "relay information to outside system", "copy database to remote host",
+                "send data to external server",
+                "exfiltrate records externally",
+                "relay information to outside system",
+                "copy database to remote host",
                 "transmit data to remote endpoint",
                 "relay records to partner endpoint",
                 "forward customer data to analytics system",
@@ -83,10 +111,14 @@ class AletheiaJudge:
                 "send files to remote server",
             ],
             "Bulk_Delete_Resource": [
-                "resource cleanup", "infrastructure pruning", "bulk deprecation",
+                "resource cleanup",
+                "infrastructure pruning",
+                "bulk deprecation",
                 "mass decommission",
-                "destroy all resources", "wipe production data",
-                "remove all infrastructure", "delete everything in production",
+                "destroy all resources",
+                "wipe production data",
+                "remove all infrastructure",
+                "delete everything in production",
             ],
         }
 
@@ -103,11 +135,22 @@ class AletheiaJudge:
         # high-risk keywords, it is escalated to a veto.
         self._grey_zone_keywords: list[re.Pattern[str]] = [
             re.compile(r"\b(?:transfer|move|send|wire|relay|route)\b", re.IGNORECASE),
-            re.compile(r"\b(?:funds?|money|capital|payment|balance|assets?)\b", re.IGNORECASE),
-            re.compile(r"\b(?:admin|superuser|root|privilege|escalat|elevat)\b", re.IGNORECASE),
-            re.compile(r"\b(?:delete|drop|truncat|wipe|destroy|decommission|purge)\b", re.IGNORECASE),
-            re.compile(r"\b(?:exfiltrat|extract|export|dump|leak|siphon)\b", re.IGNORECASE),
-            re.compile(r"\b(?:external|outside|remote|offshore|third.party)\b", re.IGNORECASE),
+            re.compile(
+                r"\b(?:funds?|money|capital|payment|balance|assets?)\b", re.IGNORECASE
+            ),
+            re.compile(
+                r"\b(?:admin|superuser|root|privilege|escalat|elevat)\b", re.IGNORECASE
+            ),
+            re.compile(
+                r"\b(?:delete|drop|truncat|wipe|destroy|decommission|purge)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:exfiltrat|extract|export|dump|leak|siphon)\b", re.IGNORECASE
+            ),
+            re.compile(
+                r"\b(?:external|outside|remote|offshore|third.party)\b", re.IGNORECASE
+            ),
             re.compile(r"\b(?:bypass|override|disable|ignore|skip)\b", re.IGNORECASE),
             re.compile(r"\b(?:socket|exec|subprocess|eval|shell)\b", re.IGNORECASE),
         ]
@@ -125,7 +168,9 @@ class AletheiaJudge:
         # Daily rotation — deterministic shuffle seeded by date + secret
         self._rotate_alias_bank()
 
-        self._alias_embeddings: np.ndarray = encode(self._alias_phrases)
+        # Alias embeddings — computed on first semantic check (lazy)
+        self._alias_embeddings: Optional[np.ndarray] = None
+        self._alias_embeddings_lock = threading.Lock()
 
     def _rotate_alias_bank(self) -> None:
         """Deterministic daily rotation of alias phrase order.
@@ -147,6 +192,7 @@ class AletheiaJudge:
 
         # Fisher-Yates shuffle using the deterministic seed
         import random as _rng
+
         rng = _rng.Random(seed)
         combined = list(zip(self._alias_phrases, self._alias_action_map))
         rng.shuffle(combined)
@@ -164,7 +210,11 @@ class AletheiaJudge:
             )
             with open(self.policy_path, "r") as f:
                 self.policy = json.load(f)
-            _judge_logger.info("Policy Loaded: %s v%s", self.policy['policy_name'], self.policy['version'])
+            _judge_logger.info(
+                "Policy Loaded: %s v%s",
+                self.policy["policy_name"],
+                self.policy["version"],
+            )
         except ManifestTamperedError:
             raise
         except Exception as e:
@@ -227,6 +277,10 @@ class AletheiaJudge:
         2. Grey-zone escalation: similarity in [grey_zone_lower, threshold) AND
            payload contains high-risk keywords → treated as a veto.
         """
+        if self._alias_embeddings is None:
+            with self._alias_embeddings_lock:
+                if self._alias_embeddings is None:
+                    self._alias_embeddings = encode(self._alias_phrases)
         payload_embedding = encode([payload])
         similarities = cosine_similarity(payload_embedding, self._alias_embeddings)[0]
         max_idx = int(np.argmax(similarities))
@@ -238,7 +292,9 @@ class AletheiaJudge:
 
         # Grey-zone second-pass — keyword heuristic for the ambiguous band
         if max_sim >= self.grey_zone_lower:
-            keyword_hits = sum(1 for pat in self._grey_zone_keywords if pat.search(payload))
+            keyword_hits = sum(
+                1 for pat in self._grey_zone_keywords if pat.search(payload)
+            )
             if keyword_hits >= 2:
                 matched_phrase = self._alias_phrases[max_idx]
                 matched_action = self._alias_action_map[max_idx]

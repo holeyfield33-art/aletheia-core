@@ -31,7 +31,9 @@ def _has_cached_weights(model_dir: Path) -> bool:
     return any(model_dir.rglob("pytorch_model.bin"))
 
 
-def load_cached_sentence_transformer(model_name: str, token: str | None = None):
+def load_cached_sentence_transformer(
+    model_name: str, token: str | None = None
+) -> object:
     """Load a SentenceTransformer from a local cache or download it once.
 
     Cache path format:
@@ -62,7 +64,7 @@ def load_cached_sentence_transformer(model_name: str, token: str | None = None):
                 shutil.rmtree(tmp_dir)
 
             _logger.info("Downloading model %s into %s", model_name, model_dir)
-            snapshot_download(
+            snapshot_download(  # nosec B615 – model_name is config-controlled, not user input
                 repo_id=model_name,
                 local_dir=str(tmp_dir),
                 token=token or None,

@@ -33,7 +33,7 @@ class SAMLAuthProvider(AuthProvider):
         acs_url: str = "",
     ) -> None:
         try:
-            from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import-untyped]
+            from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import-untyped]  # noqa: F401
         except ImportError as exc:
             raise ImportError(
                 "SAML auth provider requires 'python3-saml'. "
@@ -41,7 +41,9 @@ class SAMLAuthProvider(AuthProvider):
             ) from exc
 
         if not metadata_url:
-            raise ValueError("SAML IdP metadata URL is required (ALETHEIA_SAML_METADATA_URL).")
+            raise ValueError(
+                "SAML IdP metadata URL is required (ALETHEIA_SAML_METADATA_URL)."
+            )
         if not entity_id:
             raise ValueError("SAML SP entity ID is required (ALETHEIA_SAML_ENTITY_ID).")
         if not acs_url:
@@ -117,7 +119,9 @@ class SAMLAuthProvider(AuthProvider):
                 role = "operator"
 
             email = (attrs.get("email") or attrs.get("mail") or [name_id])[0]
-            tenant_id = (attrs.get("tenant_id") or attrs.get("aletheia_tenant") or [None])[0]
+            tenant_id = (
+                attrs.get("tenant_id") or attrs.get("aletheia_tenant") or [None]
+            )[0]
             display_name = (attrs.get("displayName") or attrs.get("cn") or [""])[0]
 
             return AuthenticatedUser(
@@ -139,6 +143,7 @@ class SAMLAuthProvider(AuthProvider):
         """Verify IdP metadata is reachable."""
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.get(self._metadata_url)
                 return resp.status_code == 200

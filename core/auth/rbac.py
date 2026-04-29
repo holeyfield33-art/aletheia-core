@@ -17,9 +17,9 @@ import enum
 import logging
 from typing import Callable
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
-from core.auth.models import AuthContext, VALID_ROLES
+from core.auth.models import AuthContext
 
 _logger = logging.getLogger("aletheia.auth.rbac")
 
@@ -28,8 +28,10 @@ _logger = logging.getLogger("aletheia.auth.rbac")
 # Permissions
 # ---------------------------------------------------------------------------
 
+
 class Permission(str, enum.Enum):
     """Named operations that can be guarded by RBAC."""
+
     AUDIT_SUBMIT = "audit:submit"
     AUDIT_READ = "audit:read"
     KEYS_CREATE = "keys:create"
@@ -45,24 +47,30 @@ class Permission(str, enum.Enum):
 # Static permission matrix — intentionally not DB-driven to avoid
 # privilege escalation via data-plane tampering.
 ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
-    "viewer": frozenset({
-        Permission.KEYS_LIST,
-    }),
-    "auditor": frozenset({
-        Permission.AUDIT_READ,
-        Permission.KEYS_LIST,
-        Permission.KEYS_USAGE,
-        Permission.METRICS_READ,
-        Permission.HEALTH_FULL,
-    }),
-    "operator": frozenset({
-        Permission.AUDIT_SUBMIT,
-        Permission.AUDIT_READ,
-        Permission.KEYS_LIST,
-        Permission.KEYS_USAGE,
-        Permission.METRICS_READ,
-        Permission.HEALTH_FULL,
-    }),
+    "viewer": frozenset(
+        {
+            Permission.KEYS_LIST,
+        }
+    ),
+    "auditor": frozenset(
+        {
+            Permission.AUDIT_READ,
+            Permission.KEYS_LIST,
+            Permission.KEYS_USAGE,
+            Permission.METRICS_READ,
+            Permission.HEALTH_FULL,
+        }
+    ),
+    "operator": frozenset(
+        {
+            Permission.AUDIT_SUBMIT,
+            Permission.AUDIT_READ,
+            Permission.KEYS_LIST,
+            Permission.KEYS_USAGE,
+            Permission.METRICS_READ,
+            Permission.HEALTH_FULL,
+        }
+    ),
     "admin": frozenset(Permission),  # all permissions
 }
 
@@ -79,6 +87,7 @@ def has_permission(roles: frozenset[str], permission: Permission) -> bool:
 # FastAPI dependency factory
 # ---------------------------------------------------------------------------
 
+
 def require_permission(permission: Permission) -> Callable:
     """Return a FastAPI dependency that enforces *permission*.
 
@@ -90,6 +99,7 @@ def require_permission(permission: Permission) -> Callable:
     The dependency reads ``request.state.auth_context`` which is set by
     the unified auth middleware in ``bridge/fastapi_wrapper.py``.
     """
+
     async def _check(request: Request) -> None:
         ctx: AuthContext | None = getattr(request.state, "auth_context", None)
         if ctx is None:
@@ -100,7 +110,9 @@ def require_permission(permission: Permission) -> Callable:
         if not has_permission(ctx.user.roles, permission):
             _logger.warning(
                 "RBAC denied: user=%s roles=%s needs=%s",
-                ctx.user.user_id, ctx.user.roles, permission.value,
+                ctx.user.user_id,
+                ctx.user.roles,
+                permission.value,
             )
             raise HTTPException(
                 status_code=403,
@@ -109,6 +121,7 @@ def require_permission(permission: Permission) -> Callable:
                     "message": f"Insufficient permissions. Required: {permission.value}",
                 },
             )
+
     return _check
 
 
@@ -132,7 +145,9 @@ def require_role(*roles: str) -> Callable:
         if not ctx.user.roles & allowed:
             _logger.warning(
                 "RBAC denied: user=%s roles=%s required_any=%s",
-                ctx.user.user_id, ctx.user.roles, allowed,
+                ctx.user.user_id,
+                ctx.user.roles,
+                allowed,
             )
             raise HTTPException(
                 status_code=403,
@@ -141,4 +156,5 @@ def require_role(*roles: str) -> Callable:
                     "message": f"Required role: {' or '.join(sorted(allowed))}",
                 },
             )
+
     return _check

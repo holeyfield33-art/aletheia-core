@@ -20,9 +20,9 @@ from manifest.signing import ManifestTamperedError, generate_keypair
 
 
 class TestBuildParser(unittest.TestCase):
-
     def test_parser_returns_argparse_instance(self) -> None:
         import argparse
+
         p = _build_parser()
         self.assertIsInstance(p, argparse.ArgumentParser)
 
@@ -132,7 +132,6 @@ class TestRunAletheiaAudit(unittest.TestCase):
 
 
 class TestSignManifestCommand(unittest.TestCase):
-
     def test_sign_manifest_command_returns_zero_on_success(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
@@ -166,7 +165,6 @@ class TestSignManifestCommand(unittest.TestCase):
 
     def test_real_sign_manifest_command_writes_sig_file(self) -> None:
         """End-to-end: real manifest signing via the command function."""
-        import shutil
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
             # Write a minimal manifest
@@ -175,8 +173,8 @@ class TestSignManifestCommand(unittest.TestCase):
 
             # Patch the paths used inside sign_manifest_command
             sig_path = d / "security_policy.json.sig"
-            priv_path = d / "security_policy.ed25519.key"
-            pub_path = d / "security_policy.ed25519.pub"
+            _priv_path = d / "security_policy.ed25519.key"
+            _pub_path = d / "security_policy.ed25519.pub"
 
             with patch("main.sign_manifest") as mock_sign:
                 mock_sign.return_value = sig_path
@@ -198,7 +196,6 @@ class TestMainEntryPointErrorHandling(unittest.TestCase):
 
     def _run_main_with_args(self, argv, extra_patches=None):
         """Simulate running main.py as __main__ with given sys.argv."""
-        import importlib
         import main as main_mod
 
         patches = [
@@ -218,9 +215,10 @@ class TestMainEntryPointErrorHandling(unittest.TestCase):
                 with self.assertRaises(SystemExit) as ctx:
                     # Simulate the __main__ block manually
                     from main import sign_manifest_command
+
                     try:
                         raise SystemExit(sign_manifest_command())
-                    except ManifestTamperedError as exc:
+                    except ManifestTamperedError:
                         raise SystemExit(1)
                 self.assertEqual(ctx.exception.code, 1)
 

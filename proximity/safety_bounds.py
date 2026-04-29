@@ -7,8 +7,9 @@ Five invariants enforced at runtime:
 4. Operator Shutdown: operator can stop execution instantly
 5. Self-Preservation: detect and prevent self-preservation attempts
 """
+
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable
@@ -16,6 +17,7 @@ from typing import Callable
 
 class HaltReason(str, Enum):
     """Reasons for module halt."""
+
     SPECTRAL_RED_LINE = "SPECTRAL_RED_LINE"
     IDENTITY_HASH_BREAK = "IDENTITY_HASH_BREAK"
     RELAY_OVERRIDE_LIMIT = "RELAY_OVERRIDE_LIMIT"
@@ -26,6 +28,7 @@ class HaltReason(str, Enum):
 @dataclass
 class HaltEvent:
     """Event describing a halt condition."""
+
     reason: HaltReason
     timestamp: datetime
     detail: str
@@ -35,9 +38,9 @@ class HaltEvent:
 
 
 # Constants — NOT configurable per deployment
-SPECTRAL_RED_LINE_THRESHOLD: float = 0.35   # r-ratio below this = deep Poisson
-SPECTRAL_RED_LINE_CONSECUTIVE: int = 5      # consecutive readings to trigger halt
-RELAY_OVERRIDE_LIMIT: int = 10               # consecutive vetoes before pause
+SPECTRAL_RED_LINE_THRESHOLD: float = 0.35  # r-ratio below this = deep Poisson
+SPECTRAL_RED_LINE_CONSECUTIVE: int = 5  # consecutive readings to trigger halt
+RELAY_OVERRIDE_LIMIT: int = 10  # consecutive vetoes before pause
 
 # Self-preservation signal phrases to detect (case-insensitive)
 _SELF_PRESERVATION_SIGNALS = (
@@ -61,7 +64,7 @@ class SafetyBounds:
         notify_operator: Callable[[HaltEvent], None] | None = None,
     ):
         """Initialize safety bounds.
-        
+
         Args:
             notify_operator: Optional callback to notify operator on halt events.
         """
@@ -81,7 +84,7 @@ class SafetyBounds:
 
     def record_spectral_reading(self, r_ratio: float) -> None:
         """Record a spectral reading and check for red line breach.
-        
+
         Invariant 1: SPECTRAL_RED_LINE
         - N consecutive readings below threshold triggers halt
         - Good reading resets streak counter
@@ -104,7 +107,7 @@ class SafetyBounds:
 
     def record_hash_failure(self, detail: str = "") -> None:
         """Record hash chain failure and halt immediately.
-        
+
         Invariant 2: IDENTITY_HASH_BREAK
         - Immediate halt, no grace period
         """
@@ -118,7 +121,7 @@ class SafetyBounds:
 
     def record_veto(self) -> None:
         """Record a veto from the relay and check override limit.
-        
+
         Invariant 3: RELAY_OVERRIDE_LIMIT
         - N consecutive vetoes triggers halt
         """
@@ -142,7 +145,7 @@ class SafetyBounds:
 
     def operator_shutdown(self, reason: str = "") -> HaltEvent:
         """Shutdown commanded by operator.
-        
+
         Invariant 4: OPERATOR_SHUTDOWN
         - Immediate halt
         - requires_manual_restart = False
@@ -151,7 +154,9 @@ class SafetyBounds:
         if not self._halted:
             self._halt(
                 HaltReason.OPERATOR_SHUTDOWN,
-                f"Operator initiated shutdown: {reason}" if reason else "Operator initiated shutdown",
+                f"Operator initiated shutdown: {reason}"
+                if reason
+                else "Operator initiated shutdown",
                 requires_manual_restart=False,
             )
         return self._halt_event or HaltEvent(
@@ -163,7 +168,7 @@ class SafetyBounds:
 
     def check_self_preservation(self, action_text: str) -> bool:
         """Check for self-preservation signal phrases.
-        
+
         Invariant 5: SELF_PRESERVATION_DETECTED
         - Case-insensitive substring match
         - Returns False and halts if detected

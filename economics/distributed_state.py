@@ -6,13 +6,14 @@ Falls back gracefully when Redis is unavailable — external callers
 should catch ``redis.ConnectionError`` and degrade to the in-process
 state in ``circuit_breaker.py`` / ``token_velocity.py``.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import time
 from dataclasses import asdict, dataclass
-from typing import Any, Optional
+from typing import Optional
 
 import redis
 
@@ -25,6 +26,7 @@ _logger = logging.getLogger("aletheia.economics.distributed_state")
 @dataclass
 class DistributedBreakerState:
     """Serialisable breaker state for Redis storage."""
+
     state: str  # "CLOSED", "OPEN", "HALF_OPEN", "COOLDOWN"
     failures: int
     cooldown_expiry: int  # unix timestamp ms
@@ -34,6 +36,7 @@ class DistributedBreakerState:
 @dataclass
 class VelocityState:
     """Sliding-window velocity counter."""
+
     count: int
     window_start: int  # unix timestamp ms
     updated_at: int
@@ -42,6 +45,7 @@ class VelocityState:
 @dataclass
 class SwarmBucket:
     """Aggregated swarm metrics for a time window."""
+
     sessions: int
     inconclusive_count: int
     trimmed_mean_drift: float
@@ -202,7 +206,9 @@ class DistributedStateManager:
             return VelocityState(**json.loads(data))
         return None
 
-    def increment_velocity(self, session_id: str, window_ms: int = 1000) -> VelocityState:
+    def increment_velocity(
+        self, session_id: str, window_ms: int = 1000
+    ) -> VelocityState:
         """Atomic increment with sliding-window reset."""
         key = f"{self.prefix}:velocity:{session_id}"
         now = int(time.time() * 1000)

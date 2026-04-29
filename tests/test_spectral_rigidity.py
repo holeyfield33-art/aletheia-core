@@ -1,4 +1,5 @@
 """Tests for GUE spectral rigidity and TMRP escalation."""
+
 from __future__ import annotations
 
 import unittest
@@ -123,7 +124,9 @@ class TestDriftScore(unittest.TestCase):
         threshold = theta_bk(n)
         # GUE should typically be below threshold
         if score != INCONCLUSIVE:
-            self.assertLess(score, threshold * 10, "GUE matrix should have moderate drift")
+            self.assertLess(
+                score, threshold * 10, "GUE matrix should have moderate drift"
+            )
 
 
 class TestEscalationProbe(unittest.TestCase):

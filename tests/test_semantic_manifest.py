@@ -185,7 +185,9 @@ class TestSemanticManifest:
             version="1.0.0",
             entries=[
                 SemanticEntry(id="a", text="pattern one", category="policy_evasion"),
-                SemanticEntry(id="b", text="pattern two", category="direct_exfiltration"),
+                SemanticEntry(
+                    id="b", text="pattern two", category="direct_exfiltration"
+                ),
             ],
         )
         assert manifest.validate_entries() == []
@@ -195,7 +197,9 @@ class TestSemanticManifest:
             version="1.0.0",
             entries=[
                 SemanticEntry(id="dup", text="pattern one", category="policy_evasion"),
-                SemanticEntry(id="dup", text="pattern two", category="direct_exfiltration"),
+                SemanticEntry(
+                    id="dup", text="pattern two", category="direct_exfiltration"
+                ),
             ],
         )
         errors = manifest.validate_entries()

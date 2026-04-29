@@ -198,9 +198,9 @@ Request:
 
 ```json
 {
-  "payload": "string (max 10,000 chars)",
+  "payload": "string (max 2,048 chars)",
   "origin": "string (max 128 chars)",
-  "action": "string — pattern: ^[A-Za-z0-9_\\-:.]+$",
+  "action": "string — pattern: ^[A-Za-z0-9_\\-]+$",
   "client_ip_claim": "string (optional, audit/debug only — never used for enforcement)"
 }
 ```
@@ -607,7 +607,7 @@ Required environment variables:
 |---|---|---|---|
 | `ALETHEIA_RECEIPT_SECRET` | YES (active mode) | 32 chars | Generate: `openssl rand -hex 32` |
 | `ALETHEIA_ALIAS_SALT` | RECOMMENDED | 32 chars | Generate: `openssl rand -hex 32` |
-| `ALETHEIA_API_KEYS` | RECOMMENDED | — | Comma-separated. Unset = open mode. |
+| `ALETHEIA_KEY_SALT` | RECOMMENDED | — | HMAC salt for API key hashing. |
 | `ALETHEIA_MODE` | No | — | `active` (default), `shadow`, `monitor` |
 | `ALETHEIA_RATE_LIMIT_PER_SECOND` | No | — | Default: `10` |
 | `ALETHEIA_LOG_LEVEL` | No | — | Default: `INFO` |
@@ -720,7 +720,7 @@ Connect to `ws://<host>/ws/audit?token=<api_key>` for a live, tenant-scoped, PII
 stream of audit events. Admin keys see all tenants.
 
 **Authentication modes:**
-1. **Admin key** — `?token=<ALETHEIA_ADMIN_KEY>` → sees all tenants
+1. **Admin key** — API key with `admin` role → sees all tenants
 2. **Short-lived JWT** — `?token=<jwt>` → signed with `ALETHEIA_WS_JWT_SECRET`, includes tenant scope and expiry
 3. **API key** — `?token=<api_key>` → tenant scoped via key_store
 

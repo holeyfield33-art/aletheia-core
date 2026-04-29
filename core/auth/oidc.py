@@ -40,7 +40,6 @@ class OIDCAuthProvider(AuthProvider):
     ) -> None:
         try:
             from authlib.jose import JsonWebToken, JsonWebKey  # type: ignore[import-untyped]
-            import httpx  # already a dependency
         except ImportError as exc:
             raise ImportError(
                 "OIDC auth provider requires 'authlib'. "
@@ -73,6 +72,7 @@ class OIDCAuthProvider(AuthProvider):
             return self._jwks
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             if not self._jwks_uri:
                 disc = await client.get(self._discovery_url)
@@ -121,7 +121,9 @@ class OIDCAuthProvider(AuthProvider):
             # Extract role.
             role = claims.get(self._role_claim, "operator")
             if role not in VALID_ROLES:
-                _logger.warning("OIDC: unknown role claim '%s', defaulting to operator", role)
+                _logger.warning(
+                    "OIDC: unknown role claim '%s', defaulting to operator", role
+                )
                 role = "operator"
 
             tenant_id = claims.get("tenant_id") or claims.get("aletheia_tenant")
@@ -143,6 +145,7 @@ class OIDCAuthProvider(AuthProvider):
         """Verify IdP discovery endpoint is reachable."""
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.get(self._discovery_url)
                 return resp.status_code == 200

@@ -1,9 +1,13 @@
 """Tests for Phase 2 hardening features: sandbox, grey-zone classifier, alias rotation, pre-warming."""
 
+import importlib.util
 import unittest
 
 from agents.judge_v1 import AletheiaJudge
 from core.sandbox import check_action_sandbox, check_payload_sandbox
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +113,7 @@ class TestJudgeSandboxIntegration(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+@_needs_real_model
 class TestGreyZoneClassifier(unittest.TestCase):
     """Payloads in the ambiguous similarity band (0.40–0.55) that contain
     high-risk keywords should be escalated to a veto."""
@@ -427,9 +432,9 @@ class TestShadowModeOracle(unittest.TestCase):
 
             source = inspect.getsource(fastapi_wrapper.secure_audit)
             # shadow_verdict should not be added to the response dict
-            assert (
-                'response["shadow_verdict"]' not in source
-            ), "shadow_verdict must not be returned to client"
+            assert 'response["shadow_verdict"]' not in source, (
+                "shadow_verdict must not be returned to client"
+            )
         except ImportError:
             self.skipTest("fastapi_wrapper not importable without model")
 
@@ -442,9 +447,9 @@ class TestUtilsNoStdoutLeakage(unittest.TestCase):
         from bridge import utils
 
         source = inspect.getsource(utils.normalize_shadow_text)
-        assert (
-            "print(" not in source
-        ), "normalize_shadow_text must use logging not print()"
+        assert "print(" not in source, (
+            "normalize_shadow_text must use logging not print()"
+        )
 
 
 class TestBase64SizeLimit(unittest.TestCase):
@@ -480,9 +485,9 @@ class TestScoutHistoryCap(unittest.TestCase):
         from agents.scout_v2 import AletheiaScoutV2
 
         scout = AletheiaScoutV2()
-        assert hasattr(
-            scout, "_query_history_max"
-        ), "Scout must have _query_history_max to prevent memory exhaustion"
+        assert hasattr(scout, "_query_history_max"), (
+            "Scout must have _query_history_max to prevent memory exhaustion"
+        )
         assert scout._query_history_max <= 50_000, "Cap must be a reasonable limit"
 
 

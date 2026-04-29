@@ -12,7 +12,6 @@ Covers:
 from __future__ import annotations
 
 import asyncio
-import time
 
 import pytest
 
@@ -22,6 +21,7 @@ from core.rate_limit import InMemoryRateLimiter, UpstashRateLimiter, rate_limite
 # ---------------------------------------------------------------------------
 # Sliding-window expiry
 # ---------------------------------------------------------------------------
+
 
 class TestSlidingWindowExpiry:
     """The 1-second window must slide: old requests expire so new ones are allowed."""
@@ -61,15 +61,17 @@ class TestSlidingWindowExpiry:
         await asyncio.sleep(1.05)
 
         for i in range(n):
-            assert await limiter.allow("burst_ip") is True, f"Request {i+1} denied after expiry"
+            assert await limiter.allow("burst_ip") is True, (
+                f"Request {i + 1} denied after expiry"
+            )
 
 
 # ---------------------------------------------------------------------------
 # Reset semantics
 # ---------------------------------------------------------------------------
 
-class TestResetSemantics:
 
+class TestResetSemantics:
     @pytest.mark.asyncio
     async def test_reset_single_key_clears_that_key(self) -> None:
         limiter = InMemoryRateLimiter(max_per_second=1)
@@ -122,8 +124,8 @@ class TestResetSemantics:
 # Boundary values
 # ---------------------------------------------------------------------------
 
-class TestMaxPerSecondBoundaryValues:
 
+class TestMaxPerSecondBoundaryValues:
     @pytest.mark.asyncio
     async def test_max_1_allows_first_blocks_second(self) -> None:
         limiter = InMemoryRateLimiter(max_per_second=1)
@@ -148,8 +150,8 @@ class TestMaxPerSecondBoundaryValues:
 # Per-key independence
 # ---------------------------------------------------------------------------
 
-class TestPerKeyIndependence:
 
+class TestPerKeyIndependence:
     @pytest.mark.asyncio
     async def test_10_keys_each_independent_limit(self) -> None:
         limiter = InMemoryRateLimiter(max_per_second=3)
@@ -177,8 +179,8 @@ class TestPerKeyIndependence:
 # Async concurrency safety
 # ---------------------------------------------------------------------------
 
-class TestAsyncConcurrency:
 
+class TestAsyncConcurrency:
     @pytest.mark.asyncio
     async def test_concurrent_hammering_does_not_exceed_limit(self) -> None:
         limiter = InMemoryRateLimiter(max_per_second=50)
@@ -234,8 +236,8 @@ class TestAsyncConcurrency:
 # Module-level singleton
 # ---------------------------------------------------------------------------
 
-class TestModuleSingleton:
 
+class TestModuleSingleton:
     @pytest.mark.asyncio
     async def test_singleton_is_valid_limiter_instance(self) -> None:
         assert isinstance(rate_limiter, (InMemoryRateLimiter, UpstashRateLimiter))

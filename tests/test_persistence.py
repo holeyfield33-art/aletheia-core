@@ -49,7 +49,10 @@ class TestRedisTenantKey:
         assert redis_tenant_key("acme", "rl", "10.0.0.1") == "tenant:acme:rl:10.0.0.1"
 
     def test_none_tenant_uses_default(self):
-        assert redis_tenant_key(None, "decision", "tok123") == "tenant:default:decision:tok123"
+        assert (
+            redis_tenant_key(None, "decision", "tok123")
+            == "tenant:default:decision:tok123"
+        )
 
     def test_different_tenants_different_keys(self):
         k1 = redis_tenant_key("tenant_a", "rl", "ip1")

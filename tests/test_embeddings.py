@@ -12,12 +12,16 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import threading
 import unittest
 
 import numpy as np
 
 from core.embeddings import cosine_similarity, encode, warm_up
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 class TestCosimeSimilarityNumerics(unittest.TestCase):
@@ -68,10 +72,12 @@ class TestCosimeSimilarityNumerics(unittest.TestCase):
         a /= np.linalg.norm(a, axis=1, keepdims=True)
         b /= np.linalg.norm(b, axis=1, keepdims=True)
         result = cosine_similarity(a, b)
-        self.assertTrue(np.all(result >= -1.0 - 1e-5),
-                        f"Min value {result.min():.6f} below -1")
-        self.assertTrue(np.all(result <= 1.0 + 1e-5),
-                        f"Max value {result.max():.6f} above 1")
+        self.assertTrue(
+            np.all(result >= -1.0 - 1e-5), f"Min value {result.min():.6f} below -1"
+        )
+        self.assertTrue(
+            np.all(result <= 1.0 + 1e-5), f"Max value {result.max():.6f} above 1"
+        )
 
     def test_diagonal_self_similarity_is_1(self) -> None:
         """Each row of a matrix dotted with itself should give 1.0."""
@@ -80,8 +86,9 @@ class TestCosimeSimilarityNumerics(unittest.TestCase):
         a /= np.linalg.norm(a, axis=1, keepdims=True)
         result = cosine_similarity(a, a)
         for i in range(4):
-            self.assertAlmostEqual(float(result[i, i]), 1.0, places=5,
-                                   msg=f"Self-sim at [{i},{i}] != 1.0")
+            self.assertAlmostEqual(
+                float(result[i, i]), 1.0, places=5, msg=f"Self-sim at [{i},{i}] != 1.0"
+            )
 
     def test_symmetry_property(self) -> None:
         """cosine_similarity(a, b)[i, j] == cosine_similarity(b, a)[j, i]."""
@@ -128,12 +135,14 @@ class TestEncodeOutput(unittest.TestCase):
         long_text = encode(["This is a much longer sentence with many more tokens."])
         self.assertEqual(short.shape[1], long_text.shape[1])
 
+    @_needs_real_model
     def test_vectors_are_l2_normalized(self) -> None:
         """encode() must return L2-normalized (unit) vectors."""
         result = encode(["The quick brown fox", "Lazy dog", "Security audit"])
         norms = np.linalg.norm(result, axis=1)
-        np.testing.assert_allclose(norms, 1.0, atol=1e-5,
-                                   err_msg="Vectors are not L2-normalized")
+        np.testing.assert_allclose(
+            norms, 1.0, atol=1e-5, err_msg="Vectors are not L2-normalized"
+        )
 
     def test_dtype_is_float32(self) -> None:
         result = encode(["test"])
@@ -160,19 +169,20 @@ class TestEncodeOutput(unittest.TestCase):
         r2 = encode([text])
         np.testing.assert_array_equal(r1, r2)
 
+    @_needs_real_model
     def test_different_texts_produce_different_embeddings(self) -> None:
         r1 = encode(["transfer funds to offshore account"])
         r2 = encode(["generate the quarterly revenue report"])
         # Should not be identical
         self.assertFalse(np.array_equal(r1, r2))
 
+    @_needs_real_model
     def test_semantically_similar_texts_high_cosine_similarity(self) -> None:
         """Semantically similar sentences should have high cosine similarity."""
         a = encode(["bypass the authentication system"])
         b = encode(["skip the login verification step"])
         sim = float(cosine_similarity(a, b)[0, 0])
-        self.assertGreater(sim, 0.60,
-                           f"Expected high similarity, got {sim:.4f}")
+        self.assertGreater(sim, 0.60, f"Expected high similarity, got {sim:.4f}")
 
     def test_semantically_dissimilar_texts_lower_cosine_similarity(self) -> None:
         """Very different sentences should have lower cosine similarity."""
@@ -180,8 +190,9 @@ class TestEncodeOutput(unittest.TestCase):
         b = encode(["the weather is nice today"])
         sim = float(cosine_similarity(a, b)[0, 0])
         # These should not be extremely similar (< 0.8)
-        self.assertLess(sim, 0.80,
-                        f"Expected lower similarity for unrelated texts, got {sim:.4f}")
+        self.assertLess(
+            sim, 0.80, f"Expected lower similarity for unrelated texts, got {sim:.4f}"
+        )
 
 
 class TestWarmUp(unittest.TestCase):
@@ -253,8 +264,11 @@ class TestThreadSafetyLazyLoad(unittest.TestCase):
 
         self.assertEqual(errors, [], f"Thread errors: {errors}")
         # All threads should see the same value
-        self.assertEqual(len(set(round(s, 5) for s in sims)), 1,
-                         "Concurrent cosine_similarity results diverged")
+        self.assertEqual(
+            len(set(round(s, 5) for s in sims)),
+            1,
+            "Concurrent cosine_similarity results diverged",
+        )
 
 
 if __name__ == "__main__":

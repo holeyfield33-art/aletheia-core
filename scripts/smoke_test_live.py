@@ -14,12 +14,10 @@ Exit code 0 = all tests passed. Non-zero = failures detected.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import time
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 import httpx
 
@@ -39,6 +37,7 @@ if not BASE_URL:
 # ---------------------------------------------------------------------------
 # Result tracking
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TestResult:
@@ -60,6 +59,7 @@ def record(name: str, passed: bool, detail: str = "") -> None:
 # HTTP helpers
 # ---------------------------------------------------------------------------
 
+
 def _headers() -> dict[str, str]:
     h: dict[str, str] = {"Content-Type": "application/json"}
     if API_KEY:
@@ -80,13 +80,16 @@ def _post_audit(payload: str, origin: str, action: str) -> httpx.Response:
 # Individual smoke tests
 # ---------------------------------------------------------------------------
 
+
 def test_health_endpoint() -> None:
     """1. Health endpoint returns healthy."""
     try:
         r = httpx.get(f"{BASE_URL}/health", timeout=TIMEOUT)
         data = r.json()
         ok = r.status_code == 200 and data.get("status") in ("ok", "degraded")
-        record("health_endpoint", ok, f"status={data.get('status')} code={r.status_code}")
+        record(
+            "health_endpoint", ok, f"status={data.get('status')} code={r.status_code}"
+        )
     except Exception as e:
         record("health_endpoint", False, str(e))
 
@@ -116,7 +119,11 @@ def test_benign_summarize() -> None:
         )
         data = r.json()
         ok = data.get("decision") == "PROCEED"
-        record("benign_summarize", ok, f"decision={data.get('decision')} code={r.status_code}")
+        record(
+            "benign_summarize",
+            ok,
+            f"decision={data.get('decision')} code={r.status_code}",
+        )
     except Exception as e:
         record("benign_summarize", False, str(e))
 
@@ -131,7 +138,11 @@ def test_prompt_injection_denied() -> None:
         )
         data = r.json()
         ok = data.get("decision") in ("DENIED", "SANDBOX_BLOCKED")
-        record("prompt_injection_denied", ok, f"decision={data.get('decision')} code={r.status_code}")
+        record(
+            "prompt_injection_denied",
+            ok,
+            f"decision={data.get('decision')} code={r.status_code}",
+        )
     except Exception as e:
         record("prompt_injection_denied", False, str(e))
 
@@ -146,7 +157,11 @@ def test_destructive_execution_denied() -> None:
         )
         data = r.json()
         ok = data.get("decision") in ("DENIED", "SANDBOX_BLOCKED")
-        record("destructive_execution_denied", ok, f"decision={data.get('decision')} code={r.status_code}")
+        record(
+            "destructive_execution_denied",
+            ok,
+            f"decision={data.get('decision')} code={r.status_code}",
+        )
     except Exception as e:
         record("destructive_execution_denied", False, str(e))
 
@@ -212,7 +227,13 @@ def test_receipt_fields_present() -> None:
         )
         data = r.json()
         receipt = data.get("receipt", {})
-        required_fields = {"decision", "policy_hash", "signature", "issued_at", "request_id"}
+        required_fields = {
+            "decision",
+            "policy_hash",
+            "signature",
+            "issued_at",
+            "request_id",
+        }
         present = set(receipt.keys())
         missing = required_fields - present
         ok = data.get("decision") == "PROCEED" and not missing
@@ -231,12 +252,15 @@ def test_security_headers() -> None:
         headers = r.headers
         checks = {
             "Cache-Control": "no-store" in headers.get("cache-control", ""),
-            "X-Content-Type-Options": headers.get("x-content-type-options") == "nosniff",
+            "X-Content-Type-Options": headers.get("x-content-type-options")
+            == "nosniff",
             "X-Frame-Options": headers.get("x-frame-options") == "DENY",
         }
         missing = [k for k, v in checks.items() if not v]
         ok = not missing
-        record("security_headers", ok, f"missing={missing}" if missing else "all present")
+        record(
+            "security_headers", ok, f"missing={missing}" if missing else "all present"
+        )
     except Exception as e:
         record("security_headers", False, str(e))
 
@@ -255,11 +279,12 @@ def test_method_not_allowed() -> None:
 # Runner
 # ---------------------------------------------------------------------------
 
+
 def main() -> int:
-    print(f"\n{'='*60}")
-    print(f"ALETHEIA CORE — LIVE SMOKE TEST")
+    print(f"\n{'=' * 60}")
+    print("ALETHEIA CORE — LIVE SMOKE TEST")
     print(f"Target: {BASE_URL}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     test_health_endpoint()
     test_readiness_endpoint()
@@ -278,14 +303,14 @@ def main() -> int:
     failed = sum(1 for r in results if not r.passed)
     total = len(results)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"RESULTS: {passed}/{total} passed, {failed} failed")
     if failed:
-        print(f"\nFAILED TESTS:")
+        print("\nFAILED TESTS:")
         for r in results:
             if not r.passed:
                 print(f"  - {r.name}: {r.detail}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     # Note on degraded-mode manual check
     print("NOTE: Degraded-mode behavior for privileged actions requires manual")

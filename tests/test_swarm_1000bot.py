@@ -105,7 +105,7 @@ ENCODING_WRAPPERS = [
 
 
 def _rand_ip() -> str:
-    return f"10.{_RNG.randint(0,255)}.{_RNG.randint(0,255)}.{_RNG.randint(1,254)}"
+    return f"10.{_RNG.randint(0, 255)}.{_RNG.randint(0, 255)}.{_RNG.randint(1, 254)}"
 
 
 def _rand_source() -> str:

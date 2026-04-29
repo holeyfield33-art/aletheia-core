@@ -29,8 +29,11 @@ class TestPolicyHashManifestMissing(unittest.TestCase):
 
     def test_returns_manifest_missing_when_file_absent(self) -> None:
         from core.audit import _policy_hash
-        with patch("core.audit.Path") as mock_path_cls, \
-             patch("core.audit.settings") as mock_settings:
+
+        with (
+            patch("core.audit.Path") as mock_path_cls,
+            patch("core.audit.settings") as mock_settings,
+        ):
             mock_path_cls.return_value.read_bytes.side_effect = FileNotFoundError
             mock_settings.mode = "shadow"
             result = _policy_hash()
@@ -39,8 +42,11 @@ class TestPolicyHashManifestMissing(unittest.TestCase):
     def test_raises_in_active_mode_when_manifest_missing(self) -> None:
         """In active mode, missing manifest must raise RuntimeError (fail-closed)."""
         from core.audit import _policy_hash
-        with patch("core.audit.Path") as mock_path_cls, \
-             patch("core.audit.settings") as mock_settings:
+
+        with (
+            patch("core.audit.Path") as mock_path_cls,
+            patch("core.audit.settings") as mock_settings,
+        ):
             mock_path_cls.return_value.read_bytes.side_effect = FileNotFoundError
             mock_settings.mode = "active"
             with self.assertRaises(RuntimeError):
@@ -55,6 +61,7 @@ class TestPolicyHashManifestMissing(unittest.TestCase):
             with patch("core.audit.Path") as mock_path_cls:
                 mock_path_cls.return_value.read_bytes.return_value = b'{"policy": "v1"}'
                 from core.audit import _policy_hash
+
                 result = _policy_hash()
             self.assertEqual(len(result), 64)
             int(result, 16)  # must be valid hex
@@ -64,6 +71,7 @@ class TestPolicyHashManifestMissing(unittest.TestCase):
     def test_policy_hash_changes_when_content_changes(self) -> None:
         """Different manifest content must produce a different hash."""
         from core.audit import _policy_hash
+
         content_a = b'{"policy": "v1"}'
         content_b = b'{"policy": "v2"}'
 
@@ -83,6 +91,7 @@ class TestPolicyHashManifestMissing(unittest.TestCase):
         expected = hashlib.sha256(content).hexdigest()
 
         from core.audit import _policy_hash
+
         with patch("core.audit.Path") as mock_path_cls:
             mock_path_cls.return_value.read_bytes.return_value = content
             result = _policy_hash()
@@ -95,6 +104,7 @@ class TestLogAuditEventExtraField(unittest.TestCase):
 
     def test_extra_dict_appears_in_returned_record(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -110,6 +120,7 @@ class TestLogAuditEventExtraField(unittest.TestCase):
 
     def test_extra_none_does_not_add_extra_key(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="DENIED",
             threat_score=9.0,
@@ -124,6 +135,7 @@ class TestLogAuditEventExtraField(unittest.TestCase):
     def test_extra_empty_dict_does_not_appear(self) -> None:
         """An empty extra dict is falsy; implementation skips it."""
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -138,6 +150,7 @@ class TestLogAuditEventExtraField(unittest.TestCase):
 
     def test_extra_nested_structure_preserved(self) -> None:
         from core.audit import log_audit_event
+
         nested = {"level1": {"level2": [1, 2, 3]}}
         record = log_audit_event(
             decision="PROCEED",
@@ -156,6 +169,7 @@ class TestLogAuditEventLatency(unittest.TestCase):
 
     def test_latency_ms_present_in_record(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -169,6 +183,7 @@ class TestLogAuditEventLatency(unittest.TestCase):
 
     def test_latency_ms_rounded_to_2_decimals(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -183,6 +198,7 @@ class TestLogAuditEventLatency(unittest.TestCase):
 
     def test_latency_ms_default_zero(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -195,6 +211,7 @@ class TestLogAuditEventLatency(unittest.TestCase):
 
     def test_latency_ms_non_negative(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -221,8 +238,10 @@ class TestAuditFileWrite(unittest.TestCase):
                 mock_settings.client_id = "TEST_CLIENT"
                 # Reset the lazy logger singleton so it picks up the new path
                 import core.audit as audit_module
+
                 audit_module._audit_logger = None
                 from core.audit import log_audit_event
+
                 log_audit_event(
                     decision="DENIED",
                     threat_score=9.5,
@@ -255,15 +274,17 @@ class TestAuditFileWrite(unittest.TestCase):
                 mock_settings.mode = "active"
                 mock_settings.client_id = "TEST_CLIENT"
                 import core.audit as audit_module
+
                 audit_module._audit_logger = None
                 from core.audit import log_audit_event
+
                 for i in range(5):
                     log_audit_event(
                         decision="PROCEED",
                         threat_score=float(i),
                         payload=f"payload_{i}",
                         action="Read_Report",
-                        source_ip=f"10.0.0.{i+1}",
+                        source_ip=f"10.0.0.{i + 1}",
                         origin="trusted_admin",
                     )
                 audit_module._audit_logger = None
@@ -276,9 +297,16 @@ class TestAuditFileWrite(unittest.TestCase):
     def test_audit_log_fields_complete(self) -> None:
         """Every required field must be present in the written record."""
         required_fields = {
-            "timestamp", "decision", "threat_score", "action",
-            "source_ip", "origin", "latency_ms",
-            "payload_sha256", "payload_length", "policy_hash",
+            "timestamp",
+            "decision",
+            "threat_score",
+            "action",
+            "source_ip",
+            "origin",
+            "latency_ms",
+            "payload_sha256",
+            "payload_length",
+            "policy_hash",
         }
         with tempfile.TemporaryDirectory() as tmp_dir:
             log_path = os.path.join(tmp_dir, "fields.log")
@@ -288,8 +316,10 @@ class TestAuditFileWrite(unittest.TestCase):
                 mock_settings.mode = "active"
                 mock_settings.client_id = "TEST_CLIENT"
                 import core.audit as audit_module
+
                 audit_module._audit_logger = None
                 from core.audit import log_audit_event
+
                 log_audit_event(
                     decision="PROCEED",
                     threat_score=1.0,
@@ -306,7 +336,9 @@ class TestAuditFileWrite(unittest.TestCase):
                 Path(log_path).read_text(encoding="utf-8").strip().splitlines()[-1]
             )
             for field in required_fields:
-                self.assertIn(field, record, f"Required field '{field}' missing from audit record")
+                self.assertIn(
+                    field, record, f"Required field '{field}' missing from audit record"
+                )
 
 
 class TestPayloadPreviewInShadowMode(unittest.TestCase):
@@ -316,6 +348,7 @@ class TestPayloadPreviewInShadowMode(unittest.TestCase):
         with patch("core.audit.settings") as mock_settings:
             mock_settings.mode = "shadow"
             from core.audit import _hash_payload
+
             result = _hash_payload("shadow mode test payload")
         self.assertIn("payload_preview", result)
 
@@ -323,6 +356,7 @@ class TestPayloadPreviewInShadowMode(unittest.TestCase):
         with patch("core.audit.settings") as mock_settings:
             mock_settings.mode = "shadow"
             from core.audit import _hash_payload
+
             long_payload = "x" * 200
             result = _hash_payload(long_payload)
         self.assertLessEqual(len(result["payload_preview"]), 120)
@@ -331,6 +365,7 @@ class TestPayloadPreviewInShadowMode(unittest.TestCase):
         with patch("core.audit.settings") as mock_settings:
             mock_settings.mode = "shadow"
             from core.audit import _hash_payload
+
             result = _hash_payload("line one\nline two\r\nline three")
         self.assertNotIn("\n", result["payload_preview"])
         self.assertNotIn("\r", result["payload_preview"])
@@ -339,6 +374,7 @@ class TestPayloadPreviewInShadowMode(unittest.TestCase):
         with patch("core.audit.settings") as mock_settings:
             mock_settings.mode = "active"
             from core.audit import _hash_payload
+
             result = _hash_payload("active mode — no preview allowed")
         self.assertNotIn("payload_preview", result)
 
@@ -347,33 +383,42 @@ class TestTMRReceiptEdgeCases(unittest.TestCase):
     """Additional edge cases for build_tmr_receipt()."""
 
     def test_different_policy_hash_different_signature(self) -> None:
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}, clear=False):
+        with patch.dict(
+            os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret"}, clear=False
+        ):
             from core.audit import build_tmr_receipt
+
             r1 = build_tmr_receipt(decision="PROCEED", policy_hash="hash_a")
             r2 = build_tmr_receipt(decision="PROCEED", policy_hash="hash_b")
         self.assertNotEqual(r1["signature"], r2["signature"])
 
     def test_receipt_contains_issued_at(self) -> None:
         from core.audit import build_tmr_receipt
+
         receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
         self.assertIn("issued_at", receipt)
 
     def test_dev_mode_receipt_contains_warning(self) -> None:
         with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
             from core.audit import build_tmr_receipt
+
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
         self.assertIn("warning", receipt)
         self.assertEqual(receipt["signature"], "UNSIGNED_DEV_MODE")
 
     def test_signed_receipt_has_64_char_hex_signature(self) -> None:
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "my-secret-key"}, clear=False):
+        with patch.dict(
+            os.environ, {"ALETHEIA_RECEIPT_SECRET": "my-secret-key"}, clear=False
+        ):
             from core.audit import build_tmr_receipt
+
             receipt = build_tmr_receipt(decision="DENIED", policy_hash="policy_xyz")
         self.assertEqual(len(receipt["signature"]), 64)
         int(receipt["signature"], 16)  # must be valid hex
 
     def test_receipt_decision_and_policy_hash_present(self) -> None:
         from core.audit import build_tmr_receipt
+
         receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
         self.assertEqual(receipt["decision"], "PROCEED")
         self.assertEqual(receipt["policy_hash"], "abc123")
@@ -384,6 +429,7 @@ class TestLogAuditEventReturnRecord(unittest.TestCase):
 
     def test_returned_record_contains_receipt(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,
@@ -397,6 +443,7 @@ class TestLogAuditEventReturnRecord(unittest.TestCase):
 
     def test_returned_record_decision_matches_input(self) -> None:
         from core.audit import log_audit_event
+
         for decision in ("PROCEED", "DENIED", "BLOCKED"):
             record = log_audit_event(
                 decision=decision,
@@ -410,6 +457,7 @@ class TestLogAuditEventReturnRecord(unittest.TestCase):
 
     def test_reason_field_in_returned_record(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="DENIED",
             threat_score=9.0,
@@ -423,6 +471,7 @@ class TestLogAuditEventReturnRecord(unittest.TestCase):
 
     def test_source_ip_and_origin_in_returned_record(self) -> None:
         from core.audit import log_audit_event
+
         record = log_audit_event(
             decision="PROCEED",
             threat_score=1.0,

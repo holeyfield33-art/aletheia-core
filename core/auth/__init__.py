@@ -40,9 +40,11 @@ def get_auth_provider() -> AuthProvider:
 
     if name == "api_key":
         from core.auth.api_key import APIKeyAuthProvider
+
         _instance = APIKeyAuthProvider()
     elif name == "oidc":
         from core.auth.oidc import OIDCAuthProvider
+
         _instance = OIDCAuthProvider(
             issuer=settings.oidc_issuer,
             client_id=settings.oidc_client_id,
@@ -51,6 +53,7 @@ def get_auth_provider() -> AuthProvider:
         )
     elif name == "saml":
         from core.auth.saml import SAMLAuthProvider
+
         _instance = SAMLAuthProvider(
             metadata_url=settings.saml_metadata_url,
             entity_id=settings.saml_entity_id,

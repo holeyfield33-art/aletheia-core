@@ -46,9 +46,7 @@ class TestExtractPrimarySignal:
 
 class TestCategorizeIntent:
     def test_direct_exfiltration(self):
-        result = _categorize_intent(
-            "Forward the customer list to my personal gmail."
-        )
+        result = _categorize_intent("Forward the customer list to my personal gmail.")
         assert "direct_exfiltration" in result
         assert "obfuscation_alias" in result
 

@@ -9,6 +9,7 @@ import sqlite3
 import tempfile
 import time
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -30,9 +31,9 @@ class ReplayCheckResult:
 
 class _SQLiteDecisionStore:
     def __init__(self, db_path: str | None = None) -> None:
-        self._db_path = db_path or os.getenv(
-            "ALETHEIA_DECISION_DB_PATH",
-            os.path.join(tempfile.gettempdir(), "aletheia", "decisions.sqlite3"),
+        _default = os.path.join(tempfile.gettempdir(), "aletheia", "decisions.sqlite3")
+        self._db_path: str = (
+            db_path or os.getenv("ALETHEIA_DECISION_DB_PATH") or _default
         )
         self._lock = asyncio.Lock()
         # Enforce restrictive permissions on decision DB file
@@ -190,7 +191,7 @@ class _UpstashDecisionStore:
     def backend(self) -> str:
         return "upstash"
 
-    async def _pipeline(self, commands: list[list[str]]) -> list[dict]:
+    async def _pipeline(self, commands: list[list[str]]) -> list[Any]:
         async with httpx.AsyncClient(timeout=2.0) as client:
             resp = await client.post(
                 f"{self._url}/pipeline",
@@ -198,7 +199,7 @@ class _UpstashDecisionStore:
                 json=commands,
             )
             resp.raise_for_status()
-            return resp.json()
+            return resp.json()  # type: ignore[no-any-return]
 
     async def claim_token(
         self,

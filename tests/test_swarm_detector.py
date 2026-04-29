@@ -1,10 +1,10 @@
 """Tests for SPRT swarm detector and unified_audit integration."""
+
 from __future__ import annotations
 
 import math
 import unittest
 
-import numpy as np
 
 from monitoring.swarm_detector import SwarmDetector, SwarmDetectorConfig
 from core.unified_audit import UnifiedSovereignRuntime
@@ -125,7 +125,9 @@ class TestSPRTDetection(unittest.TestCase):
             if result:
                 detected = True
                 break
-        self.assertTrue(detected, "Sustained attack-level drift should trigger detection")
+        self.assertTrue(
+            detected, "Sustained attack-level drift should trigger detection"
+        )
         self.assertTrue(det.attack_declared)
 
     def test_benign_drift_does_not_trigger(self) -> None:
@@ -161,7 +163,11 @@ class TestSPRTThresholds(unittest.TestCase):
     def test_negative_llr_resets(self) -> None:
         """Strong benign evidence should reset LLR to zero."""
         cfg = SwarmDetectorConfig(
-            window_size=20, r_min=0.0, mu0=0.1, mu1=0.4, sigma2=0.04,
+            window_size=20,
+            r_min=0.0,
+            mu0=0.1,
+            mu1=0.4,
+            sigma2=0.04,
         )
         det = SwarmDetector(cfg)
         # Feed very low drifts to push LLR negative
@@ -204,10 +210,9 @@ class TestSwarmIntegration(unittest.TestCase):
         tripped = False
         for _ in range(100):
             # Mix of high drift and INCONCLUSIVE
-            sessions = (
-                [{"drift_score": 0.5} for _ in range(15)]
-                + [{"drift_score": -1.0} for _ in range(5)]
-            )
+            sessions = [{"drift_score": 0.5} for _ in range(15)] + [
+                {"drift_score": -1.0} for _ in range(5)
+            ]
             result = self.runtime.aggregate_swarm_window(sessions)
             if result:
                 tripped = True

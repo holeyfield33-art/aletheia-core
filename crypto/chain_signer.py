@@ -4,13 +4,13 @@ Verifies that ``request.tool == request.intent.specified_tool``
 (confused-deputy prevention), then computes and signs
 SHA3-256(R || S || nonce) using the TPM anchor.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from crypto.tpm_interface import TPMAnchor
 
@@ -70,7 +70,8 @@ class ChainSigner:
         req_bytes = _canonical(request)
         # Build response without chain metadata for verification
         res_copy = {
-            k: v for k, v in response.items()
+            k: v
+            for k, v in response.items()
             if k not in ("_chain_signature", "_chain_nonce", "_chain_signer")
         }
         res_bytes = _canonical(res_copy)
@@ -99,4 +100,5 @@ def _canonical(obj: dict) -> bytes:
     insertion order.
     """
     import json
+
     return json.dumps(obj, sort_keys=True, default=str).encode("utf-8")

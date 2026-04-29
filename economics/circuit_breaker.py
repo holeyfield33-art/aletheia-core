@@ -9,6 +9,7 @@ States:
   OPEN    — all calls rejected until cooldown expires.
   HALF_OPEN — one probe call allowed; success → CLOSED, failure → OPEN.
 """
+
 from __future__ import annotations
 
 import logging

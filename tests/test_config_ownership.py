@@ -1,8 +1,8 @@
 """Tests for config ownership validation in core/config.py."""
+
 from __future__ import annotations
 
 import os
-import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +15,7 @@ class TestConfigOwnershipValidation(unittest.TestCase):
     def test_owned_config_accepted(self):
         """Config file owned by current user with safe permissions passes."""
         from core.config import _validate_config_ownership
+
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"mode: shadow\n")
             f.flush()
@@ -29,12 +30,13 @@ class TestConfigOwnershipValidation(unittest.TestCase):
     def test_group_writable_foreign_config_rejected(self):
         """Config file writable by group and owned by other raises PermissionError."""
         from core.config import _validate_config_ownership
+
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"mode: active\n")
             f.flush()
             path = Path(f.name)
         try:
-            os.chmod(path, 0o664)
+            os.chmod(path, 0o664)  # nosec B103 – intentional: testing group-writable rejection
             # Simulate foreign ownership by patching os.getuid
             with patch("os.getuid", return_value=99999):
                 with self.assertRaises(PermissionError):
@@ -45,12 +47,13 @@ class TestConfigOwnershipValidation(unittest.TestCase):
     def test_world_writable_foreign_config_rejected(self):
         """Config owned by another with world-write bit raises."""
         from core.config import _validate_config_ownership
+
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"mode: active\n")
             f.flush()
             path = Path(f.name)
         try:
-            os.chmod(path, 0o666)
+            os.chmod(path, 0o666)  # nosec B103 – intentional: testing world-writable rejection
             with patch("os.getuid", return_value=99999):
                 with self.assertRaises(PermissionError):
                     _validate_config_ownership(path)
@@ -60,6 +63,7 @@ class TestConfigOwnershipValidation(unittest.TestCase):
     def test_owner_writable_config_accepted(self):
         """Config writable by owner (same uid) is accepted regardless of group/world bits."""
         from core.config import _validate_config_ownership
+
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"mode: active\n")
             f.flush()

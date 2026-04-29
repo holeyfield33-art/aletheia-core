@@ -8,7 +8,7 @@ model/threshold configuration.
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -57,7 +57,12 @@ class EntryMetadata(BaseModel):
 # Single semantic entry
 # ---------------------------------------------------------------------------
 
-_VALID_CATEGORIES = {"direct_exfiltration", "policy_evasion", "hybrid_composite", "recon_alias"}
+_VALID_CATEGORIES = {
+    "direct_exfiltration",
+    "policy_evasion",
+    "hybrid_composite",
+    "recon_alias",
+}
 _VALID_SEVERITIES = {"critical", "high", "medium", "low"}
 
 
@@ -76,9 +81,7 @@ class SemanticEntry(BaseModel):
     def _valid_category(cls, v: str) -> str:
         v_lower = v.lower()
         if v_lower not in _VALID_CATEGORIES:
-            raise ValueError(
-                f"category must be one of {_VALID_CATEGORIES}, got {v!r}"
-            )
+            raise ValueError(f"category must be one of {_VALID_CATEGORIES}, got {v!r}")
         return v_lower
 
     @field_validator("severity")
@@ -86,9 +89,7 @@ class SemanticEntry(BaseModel):
     def _valid_severity(cls, v: str) -> str:
         v_lower = v.lower()
         if v_lower not in _VALID_SEVERITIES:
-            raise ValueError(
-                f"severity must be one of {_VALID_SEVERITIES}, got {v!r}"
-            )
+            raise ValueError(f"severity must be one of {_VALID_SEVERITIES}, got {v!r}")
         return v_lower
 
 

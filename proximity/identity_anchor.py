@@ -3,6 +3,7 @@
 Layer 2: Append-only hash chain for decision logging and constitutional consistency.
 Integrates with Mneme MCP (best-effort).
 """
+
 from __future__ import annotations
 import hashlib
 import json
@@ -10,7 +11,6 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncIterator, Optional
 
 import httpx
 
@@ -25,6 +25,7 @@ MNEME_API_KEY = os.getenv("MNEME_API_KEY", "")
 @dataclass
 class DecisionReceipt:
     """Record of a decision made by the relay."""
+
     action: str
     reasoning: str
     spectral_state: SpectralHealth
@@ -43,6 +44,7 @@ class DecisionReceipt:
 @dataclass
 class ConstitutionalInvariant:
     """A constitutional principle or boundary."""
+
     id: str
     statement: str
     category: str  # "value" | "boundary" | "red_line"
@@ -52,6 +54,7 @@ class ConstitutionalInvariant:
 @dataclass
 class Constitution:
     """The constitutional framework."""
+
     invariants: list[ConstitutionalInvariant]
     version: str
     helios_hash: str
@@ -59,11 +62,11 @@ class Constitution:
 
 def _helios_hash(content: str, prev_hash: str = "") -> str:
     """Compute chained hash using SHA-256.
-    
+
     Args:
         content: Canonical JSON of the content
         prev_hash: Hash of previous entry in chain
-        
+
     Returns:
         64-character hex digest
     """
@@ -80,7 +83,7 @@ class IdentityAnchor:
 
     def __init__(self, http_client: httpx.AsyncClient | None = None):
         """Initialize identity anchor.
-        
+
         Args:
             http_client: Optional httpx.AsyncClient for testing.
         """
@@ -141,10 +144,10 @@ class IdentityAnchor:
 
     async def store_decision(self, receipt: DecisionReceipt) -> str:
         """Store a decision receipt in the hash chain.
-        
+
         Args:
             receipt: Decision to record
-            
+
         Returns:
             64-character hex hash of this decision
         """
@@ -214,17 +217,18 @@ class IdentityAnchor:
         n: int = 5,
     ) -> list[DecisionReceipt]:
         """Query precedent decisions by action context.
-        
+
         Args:
             context: Action description to search for
             n: Number of most recent results
-            
+
         Returns:
             Most recent matching decisions (most recent first)
         """
         context_lower = context.lower()
         matching = [
-            receipt for receipt in self._decisions
+            receipt
+            for receipt in self._decisions
             if context_lower in receipt.action.lower()
         ]
         return list(reversed(matching))[:n]
@@ -235,7 +239,7 @@ class IdentityAnchor:
 
     async def verify_integrity(self) -> bool:
         """Verify integrity of the hash chain.
-        
+
         NEVER self-repairs. Returns False if chain is broken.
         """
         if not self._chain_hashes:
@@ -268,4 +272,3 @@ class IdentityAnchor:
                 return False
 
         return True
-

@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
@@ -189,7 +190,7 @@ class AletheiaSettings:
         """Merge: defaults ← yaml ← env vars (env wins)."""
         yaml_cfg = _load_yaml()
 
-        def _get(key: str, default):
+        def _get(key: str, default: Any) -> Any:
             env_val = _env(f"ALETHEIA_{key.upper()}")
             if env_val:
                 # Coerce to the expected type

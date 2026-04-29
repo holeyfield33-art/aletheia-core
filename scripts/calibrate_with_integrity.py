@@ -16,6 +16,7 @@ The signing key is persisted as PEM at ``--key-file`` with 0600
 permissions, matching the key-management pattern in
 ``crypto/tpm_interface.py``.
 """
+
 from __future__ import annotations
 
 import json
@@ -103,13 +104,15 @@ def calibrate(
                 scores.append(score)
 
         scores_arr = np.array(scores)
-        run_results.append({
-            "run_id": i,
-            "mu0": float(np.mean(scores_arr)),
-            "mu1": float(np.mean(scores_arr) + 3 * np.std(scores_arr)),
-            "sigma2": float(np.var(scores_arr)),
-            "theta_BK": float(theta_bk(size)),
-        })
+        run_results.append(
+            {
+                "run_id": i,
+                "mu0": float(np.mean(scores_arr)),
+                "mu1": float(np.mean(scores_arr) + 3 * np.std(scores_arr)),
+                "sigma2": float(np.var(scores_arr)),
+                "theta_BK": float(theta_bk(size)),
+            }
+        )
 
     # Create signed manifest
     manifest = integrity.create_manifest(dataset, run_results)

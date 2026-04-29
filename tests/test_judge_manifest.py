@@ -15,6 +15,7 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import tempfile
@@ -24,6 +25,9 @@ from unittest.mock import patch
 
 from manifest.signing import ManifestTamperedError, generate_keypair, sign_manifest
 from agents.judge_v1 import AletheiaJudge
+
+_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
 
 
 def _make_valid_judge(tmp_dir: Path) -> AletheiaJudge:
@@ -60,10 +64,13 @@ def _make_valid_judge(tmp_dir: Path) -> AletheiaJudge:
         public_key_path=str(pub),
     )
 
-    with patch.dict(os.environ, {
-        "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-        "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
-    }):
+    with patch.dict(
+        os.environ,
+        {
+            "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+            "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
+        },
+    ):
         return AletheiaJudge(policy_path=str(manifest_path))
 
 
@@ -99,10 +106,13 @@ class TestManifestTamperDetection(unittest.TestCase):
             tampered["injected"] = "EVIL_ACTION"
             manifest_path.write_text(json.dumps(tampered), encoding="utf-8")
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -121,10 +131,13 @@ class TestManifestTamperDetection(unittest.TestCase):
 
             missing_sig = tmp_dir / "no_such.sig"
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(missing_sig),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(missing_sig),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub),
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -150,10 +163,13 @@ class TestManifestTamperDetection(unittest.TestCase):
 
             missing_pub = tmp_dir / "no_such.pub"
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(missing_pub),
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(missing_pub),
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -181,10 +197,13 @@ class TestManifestTamperDetection(unittest.TestCase):
                 public_key_path=str(pub1),
             )
 
-            with patch.dict(os.environ, {
-                "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
-                "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub2),  # wrong key
-            }):
+            with patch.dict(
+                os.environ,
+                {
+                    "ALETHEIA_MANIFEST_SIGNATURE_PATH": str(sig_path),
+                    "ALETHEIA_MANIFEST_PUBLIC_KEY_PATH": str(pub2),  # wrong key
+                },
+            ):
                 with self.assertRaises(ManifestTamperedError):
                     AletheiaJudge(policy_path=str(manifest_path))
 
@@ -249,6 +268,7 @@ class TestValidJudgeFunctionality(unittest.TestCase):
         self.assertGreater(len(self.judge.policy["restricted_actions"]), 0)
 
 
+@_needs_real_model
 class TestGreyZoneBoundaries(unittest.TestCase):
     """Grey-zone second-pass classifier edge cases."""
 

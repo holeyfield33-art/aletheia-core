@@ -6,6 +6,7 @@ Covers:
 - Finding 4: Obfuscated import sandbox detection
 - Finding 6: ReDoS mitigation (reduced quantifier bounds)
 """
+
 from __future__ import annotations
 
 import base64
@@ -127,6 +128,7 @@ class TestMixedEncodingChain(unittest.TestCase):
     def test_url_encoded_base64(self) -> None:
         inner = _b64("delete production")
         import urllib.parse
+
         encoded = urllib.parse.quote(inner, safe="")
         result = normalize_untrusted_text(encoded)
         self.assertIn("delete production", result.normalized_form)
@@ -140,6 +142,7 @@ class TestReceiptNonce(unittest.TestCase):
 
     def test_receipt_contains_nonce(self) -> None:
         from core.audit import build_tmr_receipt
+
         receipt = build_tmr_receipt(
             decision="PROCEED",
             policy_hash="abc123",
@@ -153,6 +156,7 @@ class TestReceiptNonce(unittest.TestCase):
 
     def test_two_receipts_different_nonces(self) -> None:
         from core.audit import build_tmr_receipt
+
         kwargs = dict(
             decision="PROCEED",
             policy_hash="abc123",
@@ -168,7 +172,10 @@ class TestReceiptNonce(unittest.TestCase):
 
     def test_nonce_bound_in_signed_receipt(self) -> None:
         from core.audit import build_tmr_receipt
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "test_secret_key_for_hmac_32chars"}):
+
+        with patch.dict(
+            os.environ, {"ALETHEIA_RECEIPT_SECRET": "test_secret_key_for_hmac_32chars"}
+        ):
             r1 = build_tmr_receipt(
                 decision="DENIED",
                 policy_hash="abc123",
@@ -182,6 +189,7 @@ class TestReceiptNonce(unittest.TestCase):
 
     def test_receipt_has_issued_at(self) -> None:
         from core.audit import build_tmr_receipt
+
         receipt = build_tmr_receipt(
             decision="PROCEED",
             policy_hash="abc",
@@ -245,21 +253,24 @@ class TestReDoSMitigation(unittest.TestCase):
         # "build" matches but "malware" is absent → engine backtracks through filler
         payload = "build " + "x" * 500 + " some software"
         start = time.monotonic()
-        decision = classify_blocked_intent(payload)
+        _decision = classify_blocked_intent(payload)
         elapsed = time.monotonic() - start
         self.assertLess(elapsed, 1.0)
 
     def test_max_quantifier_is_120(self) -> None:
         """Verify the gap quantifiers were reduced from 500 to 120."""
         from core.runtime_security import IntentClassifier
+
         for patterns in IntentClassifier._category_patterns.values():
             for p in patterns:
                 # No pattern should contain .{0,N} with N > 120
                 import re
+
                 bounds = re.findall(r"\.\{0,(\d+)\}", p.pattern)
                 for b in bounds:
                     self.assertLessEqual(
-                        int(b), 120,
+                        int(b),
+                        120,
                         f"Pattern has .{{0,{b}}} > 120: {p.pattern}",
                     )
 

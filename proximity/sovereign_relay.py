@@ -3,6 +3,7 @@
 Layer 3: Governor only — can PREVENT actions, cannot GENERATE them.
 READ-ONLY observer that enforces policies and red-line safety.
 """
+
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -18,6 +19,7 @@ from .identity_anchor import IdentityAnchor, DecisionReceipt
 @dataclass
 class PolicyConfig:
     """Deployment-configurable policy settings."""
+
     spectral_minimum: float = 0.50
     blocked_action_types: list[str] = field(
         default_factory=lambda: [
@@ -41,6 +43,7 @@ class PolicyConfig:
 @dataclass
 class Action:
     """Proposed action for evaluation."""
+
     type: str
     description: str
     payload: str
@@ -51,6 +54,7 @@ class Action:
 @dataclass
 class RelayDecision:
     """Result of relay evaluation."""
+
     approved: bool
     reason: str | None  # None if approved, violation string if vetoed
     spectral_state: SpectralHealth | None
@@ -61,6 +65,7 @@ class RelayDecision:
 @dataclass
 class RelayStatus:
     """Current status of the relay."""
+
     active: bool
     spectral_health: SpectralHealth | None
     decisions_made: int
@@ -79,7 +84,7 @@ class SovereignRelay:
         safety: SafetyBounds | None = None,
     ):
         """Initialize sovereign relay.
-        
+
         Args:
             monitor: Spectral health monitor
             anchor: Identity anchor for decision logging
@@ -97,7 +102,7 @@ class SovereignRelay:
 
     async def evaluate(self, proposed_action: Action) -> RelayDecision:
         """Evaluate a proposed action.
-        
+
         Decision flow (executed in order):
         1. Check if relay is active
         2. Check for self-preservation signals
@@ -108,10 +113,10 @@ class SovereignRelay:
         7. Check constitutional consistency
         8. Store decision receipt
         9. Update counters and safety
-        
+
         Args:
             proposed_action: Action to evaluate
-            
+
         Returns:
             RelayDecision with approval/veto result
         """
@@ -139,9 +144,7 @@ class SovereignRelay:
 
         # 4. Check spectral thresholds
         if health and health.r_ratio < self._policy.spectral_minimum:
-            violations.append(
-                f"SPECTRAL_BELOW_THRESHOLD:r={health.r_ratio:.4f}"
-            )
+            violations.append(f"SPECTRAL_BELOW_THRESHOLD:r={health.r_ratio:.4f}")
 
         # 5. Check for spectral degradation
         if await self._monitor.is_degraded():
@@ -173,7 +176,8 @@ class SovereignRelay:
         receipt = DecisionReceipt(
             action=proposed_action.description,
             reasoning=proposed_action.type,
-            spectral_state=health or SpectralHealth(
+            spectral_state=health
+            or SpectralHealth(
                 r_ratio=0.0,
                 spectral_gap=0.0,
                 coherence_index=0.0,
@@ -183,9 +187,13 @@ class SovereignRelay:
             timestamp=timestamp,
             session_id=proposed_action.session_id,
             request_id=str(proposed_action.metadata.get("request_id", "")),
-            policy_version=str(proposed_action.metadata.get("policy_version", "UNKNOWN")),
+            policy_version=str(
+                proposed_action.metadata.get("policy_version", "UNKNOWN")
+            ),
             manifest_hash=str(proposed_action.metadata.get("manifest_hash", "")),
-            fallback_state=str(proposed_action.metadata.get("fallback_state", "normal")),
+            fallback_state=str(
+                proposed_action.metadata.get("fallback_state", "normal")
+            ),
             decision_token=str(
                 proposed_action.metadata.get(
                     "decision_token",
@@ -251,7 +259,7 @@ class SovereignRelay:
 
     async def _check_constitutional_consistency(self, action_description: str) -> bool:
         """Check if action violates constitutional precedent.
-        
+
         Returns False if same action was previously vetoed.
         Returns True if no precedent or previously approved.
         If anchor raises, fail open (return True).
@@ -264,8 +272,7 @@ class SovereignRelay:
                 for precedent in precedents:
                     if (
                         not precedent.approved
-                        and action_description.lower()
-                        == precedent.action.lower()
+                        and action_description.lower() == precedent.action.lower()
                     ):
                         return False
 

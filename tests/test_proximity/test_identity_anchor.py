@@ -1,9 +1,8 @@
 """Tests for Identity Anchor module."""
+
 import pytest
-import hashlib
-import json
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 import httpx
 
 from proximity.identity_anchor import (

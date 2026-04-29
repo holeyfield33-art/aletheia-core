@@ -14,13 +14,13 @@ import pytest
 from unittest.mock import patch
 
 from core.secrets import get_secret_manager, reset_secret_manager
-from core.secrets.base import SecretManager
 from core.secrets.env import EnvSecretManager
 
 
 # ---------------------------------------------------------------------------
 # EnvSecretManager
 # ---------------------------------------------------------------------------
+
 
 class TestEnvSecretManager:
     """Full async coverage of the environment-variable backend."""
@@ -106,8 +106,8 @@ class TestEnvSecretManager:
 # Factory
 # ---------------------------------------------------------------------------
 
-class TestSecretManagerFactory:
 
+class TestSecretManagerFactory:
     @pytest.fixture(autouse=True)
     def _reset(self):
         reset_secret_manager()
@@ -148,6 +148,7 @@ class TestSecretManagerFactory:
 # Cloud backend import guards
 # ---------------------------------------------------------------------------
 
+
 class TestCloudBackendImportGuards:
     """Verify cloud backends raise ImportError with a helpful message
     when their SDK is not installed."""
@@ -161,12 +162,14 @@ class TestCloudBackendImportGuards:
     def test_vault_requires_hvac(self) -> None:
         with patch.dict("sys.modules", {"hvac": None}):
             from core.secrets.vault import VaultSecretManager
+
             with pytest.raises(ImportError, match="hvac"):
                 VaultSecretManager()
 
     def test_aws_requires_boto3(self) -> None:
         with patch.dict("sys.modules", {"boto3": None}):
             from core.secrets.aws import AWSSecretManager
+
             with pytest.raises(ImportError, match="boto3"):
                 AWSSecretManager()
 
@@ -176,11 +179,15 @@ class TestCloudBackendImportGuards:
             {"azure.identity": None, "azure.keyvault.secrets": None},
         ):
             from core.secrets.azure import AzureSecretManager
+
             with pytest.raises(ImportError, match="azure"):
                 AzureSecretManager()
 
     def test_gcp_requires_sdk(self) -> None:
-        with patch.dict("sys.modules", {"google.cloud": None, "google.cloud.secretmanager": None}):
+        with patch.dict(
+            "sys.modules", {"google.cloud": None, "google.cloud.secretmanager": None}
+        ):
             from core.secrets.gcp import GCPSecretManager
+
             with pytest.raises(ImportError, match="google"):
                 GCPSecretManager()
