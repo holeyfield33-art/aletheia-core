@@ -32,6 +32,8 @@ import time
 import uuid
 from pathlib import Path
 
+from core.model_loader import load_cached_sentence_transformer
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -88,15 +90,18 @@ def _build_index(
     Returns a dict with ``indexed``, ``dry_run``, and optionally
     ``qdrant_snapshot_id``.
     """
-    from sentence_transformers import SentenceTransformer
-
     entries = [e for e in manifest_data["entries"] if e.get("enabled", True)]
     if not entries:
         _logger.warning("No enabled entries in manifest — nothing to index")
         return {"indexed": 0}
 
     _logger.info("Loading embedding model: %s", model_name)
-    model = SentenceTransformer(model_name)
+    import os
+
+    model = load_cached_sentence_transformer(
+        model_name,
+        token=os.getenv("HUGGING_FACE_HUB_TOKEN") or None,
+    )
 
     texts = [e["text"] for e in entries]
     _logger.info("Encoding %d patterns...", len(texts))
@@ -107,7 +112,7 @@ def _build_index(
         return {"indexed": len(texts), "dry_run": True}
 
     from qdrant_client import QdrantClient
-    from qdrant_client.models import Distance, PointStruct, VectorParams
+    from qdrant_client.models import PointStruct
 
     client = QdrantClient(url=qdrant_url)
 
@@ -122,7 +127,9 @@ def _build_index(
     _vs._client = client
     try:
         ensure_qdrant_collection(
-            vector_size=manifest_data.get("embedding_dim", manifest_data.get("vector_size", 384)),
+            vector_size=manifest_data.get(
+                "embedding_dim", manifest_data.get("vector_size", 384)
+            ),
             collection_name=collection,
         )
     finally:
@@ -210,7 +217,9 @@ def _write_receipt(
         "manifest_hash": f"sha256:{manifest_hash}",
         "collection_name": collection,
         "vector_count": index_result.get("indexed", 0),
-        "embedding_model": manifest_data.get("embedding_model", "BAAI/bge-small-en-v1.5"),
+        "embedding_model": manifest_data.get(
+            "embedding_model", "BAAI/bge-small-en-v1.5"
+        ),
         "embedding_dim": manifest_data.get("embedding_dim", 384),
         "distance_metric": "cosine",
         "qdrant_snapshot_id": index_result.get("qdrant_snapshot_id"),

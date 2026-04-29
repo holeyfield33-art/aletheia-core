@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
 
 from core.config import settings
+from core.model_loader import load_cached_sentence_transformer
 
 _logger = logging.getLogger("aletheia.embeddings")
 _lock = threading.Lock()
@@ -34,12 +34,11 @@ def _get_model():
         try:
             if _model is None:
                 import os
-                from sentence_transformers import SentenceTransformer
 
                 token = os.getenv("HUGGING_FACE_HUB_TOKEN")
-                _model = SentenceTransformer(
+                _model = load_cached_sentence_transformer(
                     settings.embedding_model,
-                    use_auth_token=token if token else False,
+                    token=token if token else None,
                 )
         finally:
             _lock.release()
@@ -66,7 +65,9 @@ def encode(texts: list[str]) -> NDArray[np.float32]:
     if not texts:
         raise ValueError("texts must be non-empty")
     if len(texts) > _MAX_ENCODE_TEXTS:
-        raise ValueError(f"Too many texts to embed: {len(texts)} (max {_MAX_ENCODE_TEXTS})")
+        raise ValueError(
+            f"Too many texts to embed: {len(texts)} (max {_MAX_ENCODE_TEXTS})"
+        )
     total_size = sum(len(t) for t in texts)
     if total_size > _MAX_TOTAL_TEXT_BYTES:
         raise ValueError(
@@ -76,7 +77,9 @@ def encode(texts: list[str]) -> NDArray[np.float32]:
     return model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
 
 
-def cosine_similarity(a: NDArray[np.float32], b: NDArray[np.float32]) -> NDArray[np.float32]:
+def cosine_similarity(
+    a: NDArray[np.float32], b: NDArray[np.float32]
+) -> NDArray[np.float32]:
     """Cosine similarity between two sets of normalized vectors.
 
     Returns a matrix of shape (len(a), len(b)).
