@@ -303,3 +303,189 @@ RateLimiter = InMemoryRateLimiter
 
 # Module-level singleton — backend selected at import time
 rate_limiter = create_rate_limiter()
+
+
+# ---------------------------------------------------------------------------
+# Evaluation-endpoint rate limiter (per-minute with burst)
+# Configurable via:
+#   EVAL_RATE_LIMIT_PER_MINUTE  (default 20)
+#   EVAL_RATE_BURST             (default 5)
+# ---------------------------------------------------------------------------
+
+_EVAL_MINUTE_WINDOW = 60.0  # seconds
+_EVAL_BURST_WINDOW = 3.0  # seconds — burst is assessed over this span
+
+
+class EvalInMemoryRateLimiter:
+    """Per-minute + burst in-memory rate limiter for /v1/evaluate.
+
+    Two sliding windows are maintained per IP:
+    - 60-second window:  at most ``max_per_minute`` requests allowed
+    - 3-second  window:  at most ``burst`` requests allowed (prevents spikes)
+
+    Returns ``(allowed: bool, retry_after_seconds: int)``.
+    Single-node only; does not synchronise across workers.
+    """
+
+    def __init__(self) -> None:
+        self._max_per_minute: int = int(os.getenv("EVAL_RATE_LIMIT_PER_MINUTE", "20"))
+        self._burst: int = int(os.getenv("EVAL_RATE_BURST", "5"))
+        self._lock = asyncio.Lock()
+        self._minute_windows: OrderedDict[str, list[float]] = OrderedDict()
+        self._burst_windows: OrderedDict[str, list[float]] = OrderedDict()
+        _logger.info(
+            "Eval rate limiter (in-memory): %d req/min, burst=%d",
+            self._max_per_minute,
+            self._burst,
+        )
+
+    async def allow(self, key: str) -> tuple[bool, int]:
+        """Return (allowed, retry_after_seconds)."""
+        now = time.monotonic()
+
+        async with self._lock:
+            # --- per-minute window ---
+            minute_cutoff = now - _EVAL_MINUTE_WINDOW
+            minute_ts = [
+                t for t in self._minute_windows.get(key, []) if t > minute_cutoff
+            ]
+
+            if len(minute_ts) >= self._max_per_minute:
+                oldest = min(minute_ts)
+                retry_after = max(1, int(oldest + _EVAL_MINUTE_WINDOW - now) + 1)
+                return False, retry_after
+
+            # --- burst window ---
+            burst_cutoff = now - _EVAL_BURST_WINDOW
+            burst_ts = [t for t in self._burst_windows.get(key, []) if t > burst_cutoff]
+
+            if len(burst_ts) >= self._burst:
+                return False, max(1, int(_EVAL_BURST_WINDOW) + 1)
+
+            # --- allow: record timestamp in both windows ---
+            minute_ts.append(now)
+            burst_ts.append(now)
+
+            if (
+                key not in self._minute_windows
+                and len(self._minute_windows) >= _MAX_TRACKED_IPS
+            ):
+                self._minute_windows.popitem(last=False)
+            self._minute_windows[key] = minute_ts
+            self._minute_windows.move_to_end(key)
+
+            if (
+                key not in self._burst_windows
+                and len(self._burst_windows) >= _MAX_TRACKED_IPS
+            ):
+                self._burst_windows.popitem(last=False)
+            self._burst_windows[key] = burst_ts
+            self._burst_windows.move_to_end(key)
+
+            return True, 0
+
+    async def reset(self, key: str | None = None) -> None:
+        async with self._lock:
+            if key is None:
+                self._minute_windows.clear()
+                self._burst_windows.clear()
+            else:
+                self._minute_windows.pop(key, None)
+                self._burst_windows.pop(key, None)
+
+
+class EvalUpstashRateLimiter:
+    """Upstash-backed per-minute + burst rate limiter for /v1/evaluate.
+
+    Uses two sorted-set keys per IP:
+    - ``aletheia:eval_rl:min:{ip}``   — 60-second sliding window
+    - ``aletheia:eval_rl:burst:{ip}`` — 3-second burst window
+    """
+
+    _MIN_PREFIX = "aletheia:eval_rl:min:"
+    _BURST_PREFIX = "aletheia:eval_rl:burst:"
+
+    def __init__(self) -> None:
+        self._max_per_minute: int = int(os.getenv("EVAL_RATE_LIMIT_PER_MINUTE", "20"))
+        self._burst: int = int(os.getenv("EVAL_RATE_BURST", "5"))
+        self._url = os.getenv("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+        self._token = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
+        self._headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": "application/json",
+        }
+        _logger.info(
+            "Eval rate limiter (Upstash): %d req/min, burst=%d",
+            self._max_per_minute,
+            self._burst,
+        )
+
+    async def _pipeline(self, commands: list) -> list:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{self._url}/pipeline",
+                headers=self._headers,
+                json=commands,
+                timeout=2.0,
+            )
+            return [item.get("result") for item in resp.json()]
+
+    async def allow(self, key: str) -> tuple[bool, int]:
+        import time as _t
+
+        now = _t.time()
+        min_key = f"{self._MIN_PREFIX}{key}"
+        burst_key = f"{self._BURST_PREFIX}{key}"
+        member = str(now)
+
+        try:
+            results = await self._pipeline(
+                [
+                    [
+                        "ZREMRANGEBYSCORE",
+                        min_key,
+                        "-inf",
+                        str(now - _EVAL_MINUTE_WINDOW),
+                    ],
+                    ["ZCARD", min_key],
+                    [
+                        "ZREMRANGEBYSCORE",
+                        burst_key,
+                        "-inf",
+                        str(now - _EVAL_BURST_WINDOW),
+                    ],
+                    ["ZCARD", burst_key],
+                    ["ZADD", min_key, str(now), member],
+                    ["EXPIRE", min_key, "120"],
+                    ["ZADD", burst_key, str(now), member],
+                    ["EXPIRE", burst_key, "10"],
+                ]
+            )
+            min_count = int(results[1])
+            burst_count = int(results[3])
+
+            if min_count >= self._max_per_minute:
+                return False, 60
+            if burst_count >= self._burst:
+                return False, max(1, int(_EVAL_BURST_WINDOW) + 1)
+            return True, 0
+        except Exception as exc:
+            _logger.warning(
+                "Eval Upstash rate limiter error — allowing request: %s", exc
+            )
+            # Fail-open: don't block legitimate traffic on Redis errors
+            return True, 0
+
+    async def reset(self, key: str | None = None) -> None:
+        pass  # Best-effort; keys expire automatically
+
+
+def create_eval_rate_limiter() -> EvalUpstashRateLimiter | EvalInMemoryRateLimiter:
+    """Return the appropriate eval rate limiter based on environment."""
+    if upstash_configured():
+        return EvalUpstashRateLimiter()
+    return EvalInMemoryRateLimiter()
+
+
+# Module-level singleton for /v1/evaluate
+eval_rate_limiter = create_eval_rate_limiter()

@@ -26,7 +26,7 @@ from core.auth import get_auth_provider
 from core.auth.models import AuthContext
 from core.auth.rbac import Permission, require_permission, has_permission
 from core.embeddings import warm_up
-from core.rate_limit import rate_limiter
+from core.rate_limit import eval_rate_limiter, rate_limiter
 from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
 from core.runtime_security import classify_blocked_intent
@@ -851,11 +851,120 @@ async def prometheus_metrics(request: Request) -> Response:
     return StarletteResponse(content=body, media_type=content_type)
 
 
+# ---------------------------------------------------------------------------
+# Evaluation endpoint rate-limit dependency
+# ---------------------------------------------------------------------------
+
+
+async def _check_eval_rate_limit(request: Request) -> None:
+    """FastAPI dependency: enforce per-IP rate limit on /v1/evaluate.
+
+    Limits are read from environment at startup:
+      EVAL_RATE_LIMIT_PER_MINUTE  (default 20)
+      EVAL_RATE_BURST             (default 5)
+    """
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = await eval_rate_limiter.allow(client_ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Retry after {retry_after} seconds",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
+class EvaluateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    payload: str = Field(..., max_length=10_000)
+    origin: str = Field(..., max_length=128)
+    action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
+
+
 def _is_read_only_action(action: str) -> bool:
     """Return True if the action appears to be read-only / safe."""
     safe_tokens = ("read", "list", "get", "view", "query", "status", "health", "fetch")
     lower = action.lower()
     return any(token in lower for token in safe_tokens)
+
+
+@app.post(
+    "/v1/evaluate",
+    dependencies=[Depends(_check_api_key), Depends(_check_eval_rate_limit)],
+)
+async def evaluate_policy(req: EvaluateRequest, request: Request) -> JSONResponse:
+    """Lightweight policy evaluation endpoint.
+
+    Runs the full Scout → Nitpicker → Judge pipeline and returns a verdict
+    without writing a full audit receipt or performing chain signing.
+    Rate-limited to EVAL_RATE_LIMIT_PER_MINUTE (default 20) requests per IP
+    per minute with a burst of EVAL_RATE_BURST (default 5).
+    """
+    import uuid
+
+    client_ip = _get_client_ip(request)
+    request_id = str(uuid.uuid4())[:16]
+    start_time = _time.time()
+
+    # --- Input hardening ---
+    clean_input = normalize_shadow_text(req.payload)
+
+    # --- Semantic intent classification ---
+    intent_decision = classify_blocked_intent(clean_input)
+    if intent_decision.blocked:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "decision": "DENIED",
+                "reason": "Action denied: semantic policy violation.",
+                "request_id": request_id,
+            },
+        )
+
+    # --- Sandbox check ---
+    sandbox_hit = check_action_sandbox(req.action, clean_input)
+    if sandbox_hit:
+        return JSONResponse(
+            status_code=403,
+            content={
+                "decision": "SANDBOX_BLOCKED",
+                "reason": _sanitise_reason(sandbox_hit),
+                "request_id": request_id,
+            },
+        )
+
+    # --- Pipeline ---
+    threat_score, report = scout.evaluate_threat_context(client_ip, clean_input)
+    nitpicker_blocked, nitpicker_reason = nitpicker.check_semantic_block(clean_input)
+    is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)
+
+    is_blocked = (
+        (threat_score >= settings.policy_threshold)
+        or (not is_allowed)
+        or nitpicker_blocked
+    )
+    if nitpicker_blocked:
+        block_reason = nitpicker_reason
+    elif threat_score >= settings.policy_threshold:
+        block_reason = report
+    else:
+        block_reason = veto_msg
+
+    decision = "DENIED" if is_blocked else "PROCEED"
+    latency = (_time.time() - start_time) * 1000
+
+    REQUEST_COUNTER.labels(agent="evaluate", verdict=decision).inc()
+    LATENCY_HISTOGRAM.observe(latency / 1000)
+
+    body: dict = {
+        "decision": decision,
+        "threat_level": _discretise_threat(threat_score),
+        "latency_ms": round(latency, 2),
+        "request_id": request_id,
+    }
+    if is_blocked:
+        body["reason"] = _sanitise_reason(block_reason)
+
+    return JSONResponse(status_code=200, content=body)
 
 
 @app.post("/v1/audit", dependencies=[Depends(_check_api_key)])
