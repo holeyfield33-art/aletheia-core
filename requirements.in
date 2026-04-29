@@ -9,8 +9,8 @@
 fastapi==0.135.1
 uvicorn==0.41.0
 pydantic==2.12.5
-python-dotenv==1.0.0
-cryptography==46.0.5
+python-dotenv==1.2.2
+cryptography==46.0.7
 sentence-transformers==5.3.0
 confusable-homoglyphs==3.3.1
 --extra-index-url https://download.pytorch.org/whl/cpu

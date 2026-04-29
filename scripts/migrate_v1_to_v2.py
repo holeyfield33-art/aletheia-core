@@ -148,24 +148,28 @@ def migrate_decision_store(db_path: str, *, dry_run: bool = False) -> int:
         _skip(f"{db_path} does not exist")
         return 0
 
+    _ALLOWED_TABLES = frozenset({"decision_tokens", "deployment_bundle"})
+
     conn = sqlite3.connect(db_path)
     try:
         migrated = 0
         for table in ("decision_tokens", "deployment_bundle"):
+            if table not in _ALLOWED_TABLES:
+                raise ValueError(f"Unexpected table name: {table!r}")
             columns = {
-                row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+                row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()  # nosec B608
             }
             needs_column = "tenant_id" not in columns
 
             if needs_column:
-                count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608
             else:
                 count = conn.execute(
-                    f"SELECT COUNT(*) FROM {table} "
+                    f"SELECT COUNT(*) FROM {table} "  # nosec B608
                     f"WHERE tenant_id IS NULL OR tenant_id = ''"
                 ).fetchone()[0]
 
-            total = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            total = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608
             print(f"     {table}: {total} rows")
 
             if dry_run:
@@ -181,12 +185,12 @@ def migrate_decision_store(db_path: str, *, dry_run: bool = False) -> int:
 
             if needs_column:
                 conn.execute(
-                    f"ALTER TABLE {table} ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+                    f"ALTER TABLE {table} ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"  # nosec B608
                 )
                 _info(f"Added tenant_id column to {table}")
 
             cursor = conn.execute(
-                f"UPDATE {table} SET tenant_id = 'default' "
+                f"UPDATE {table} SET tenant_id = 'default' "  # nosec B608
                 f"WHERE tenant_id IS NULL OR tenant_id = ''"
             )
             migrated += cursor.rowcount

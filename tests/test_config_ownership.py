@@ -36,7 +36,7 @@ class TestConfigOwnershipValidation(unittest.TestCase):
             f.flush()
             path = Path(f.name)
         try:
-            os.chmod(path, 0o664)
+            os.chmod(path, 0o664)  # nosec B103 – intentional: testing group-writable rejection
             # Simulate foreign ownership by patching os.getuid
             with patch("os.getuid", return_value=99999):
                 with self.assertRaises(PermissionError):
@@ -53,7 +53,7 @@ class TestConfigOwnershipValidation(unittest.TestCase):
             f.flush()
             path = Path(f.name)
         try:
-            os.chmod(path, 0o666)
+            os.chmod(path, 0o666)  # nosec B103 – intentional: testing world-writable rejection
             with patch("os.getuid", return_value=99999):
                 with self.assertRaises(PermissionError):
                     _validate_config_ownership(path)

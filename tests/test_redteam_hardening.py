@@ -250,7 +250,7 @@ class TestDecisionStoreDefaultPath(unittest.TestCase):
     def test_explicit_path_override_preserved(self) -> None:
         from core.decision_store import _SQLiteDecisionStore
 
-        custom = "/tmp/test_custom_decisions.sqlite3"
+        custom = "/tmp/test_custom_decisions.sqlite3"  # nosec B108 – test-only path assertion
         store = _SQLiteDecisionStore(db_path=custom)
         self.assertEqual(store._db_path, custom)
 
@@ -258,10 +258,10 @@ class TestDecisionStoreDefaultPath(unittest.TestCase):
         from core.decision_store import _SQLiteDecisionStore
 
         with patch.dict(
-            os.environ, {"ALETHEIA_DECISION_DB_PATH": "/tmp/env_override.sqlite3"}
+            os.environ, {"ALETHEIA_DECISION_DB_PATH": "/tmp/env_override.sqlite3"}  # nosec B108
         ):
             store = _SQLiteDecisionStore()
-            self.assertEqual(store._db_path, "/tmp/env_override.sqlite3")
+            self.assertEqual(store._db_path, "/tmp/env_override.sqlite3")  # nosec B108
 
 
 # ---------------------------------------------------------------------------

@@ -62,7 +62,7 @@ def load_cached_sentence_transformer(model_name: str, token: str | None = None):
                 shutil.rmtree(tmp_dir)
 
             _logger.info("Downloading model %s into %s", model_name, model_dir)
-            snapshot_download(
+            snapshot_download(  # nosec B615 – model_name is config-controlled, not user input
                 repo_id=model_name,
                 local_dir=str(tmp_dir),
                 token=token or None,
