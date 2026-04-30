@@ -31,12 +31,9 @@ export default function PolicyPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await clientFetch("/api/policy");
-        if (res.ok) {
-          const data = await res.json();
-          setPolicy(data.policy);
-          setRaw(JSON.stringify(data.policy, null, 2));
-        }
+        const data = await clientFetch<{ policy: Record<string, unknown> }>("/api/policy");
+        setPolicy(data.policy);
+        setRaw(JSON.stringify(data.policy, null, 2));
       } catch {
         /* non-critical */
       } finally {

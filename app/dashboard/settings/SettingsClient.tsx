@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import UpgradeButton from "@/app/components/UpgradeButton";
 import { useToast } from "@/app/components/Toast";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetch, clientFetchResponse, isClientFetchError } from "@/lib/client-fetch";
 
 export default function SettingsClient({
   name,
@@ -31,25 +31,29 @@ export default function SettingsClient({
   const toast = useToast();
   const normalizedEmail = email?.toLowerCase() ?? "";
 
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    if (isClientFetchError(error) && typeof error.data === "object" && error.data) {
+      const payload = error.data as { message?: string; error?: string };
+      return payload.message || payload.error || fallback;
+    }
+    return fallback;
+  };
+
   async function handleSaveName(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
     setSaving(true);
     setSaved(false);
     try {
-      const res = await clientFetch("/api/settings", {
+      await clientFetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: displayName.trim() }),
       });
-      if (res.ok) {
-        setSaved(true);
-        toast.success("Settings saved");
-      } else {
-        toast.error("Failed to save settings");
-      }
-    } catch {
-      toast.error("Failed to save settings");
+      setSaved(true);
+      toast.success("Settings saved");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to save settings"));
     } finally {
       setSaving(false);
     }
@@ -59,12 +63,7 @@ export default function SettingsClient({
     if (exporting) return;
     setExporting(true);
     try {
-      const res = await clientFetch("/api/account/export", { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.message || "Export failed.");
-        return;
-      }
+      const res = await clientFetchResponse("/api/account/export", { method: "POST" });
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -75,8 +74,8 @@ export default function SettingsClient({
       a.remove();
       URL.revokeObjectURL(url);
       toast.success("Data exported");
-    } catch {
-      toast.error("Export failed. Please try again.");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Export failed. Please try again."));
     } finally {
       setExporting(false);
     }
@@ -87,20 +86,14 @@ export default function SettingsClient({
     setDeleting(true);
     setDeleteError(null);
     try {
-      const res = await clientFetch("/api/account", {
+      await clientFetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: deletePassword, confirmEmail: deleteEmailConfirm }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setDeleteError(data.message || "Deletion failed.");
-        setDeleting(false);
-        return;
-      }
       signOut({ callbackUrl: "/" });
-    } catch {
-      setDeleteError("An unexpected error occurred.");
+    } catch (error) {
+      setDeleteError(getErrorMessage(error, "An unexpected error occurred."));
       setDeleting(false);
     }
   }

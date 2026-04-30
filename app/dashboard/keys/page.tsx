@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/app/components/Toast";
 import { CTAS, URLS } from "@/lib/site-config";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetch, clientFetchResponse, isClientFetchError } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -21,6 +21,14 @@ interface ApiKey {
   period_end: string;
   created_at: string;
   last_used_at: string | null;
+}
+
+interface ApiKeysResponse {
+  keys?: ApiKey[];
+}
+
+interface CreateApiKeyResponse {
+  key: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -47,11 +55,8 @@ export default function KeysPage() {
 
   const fetchKeys = async () => {
     try {
-      const res = await clientFetch("/api/keys");
-      if (res.ok) {
-        const data = await res.json();
-        setKeys(data.keys || []);
-      }
+      const data = await clientFetch<ApiKeysResponse>("/api/keys");
+      setKeys(data.keys || []);
     } catch {
       /* non-critical — keys will show empty */
     } finally {
@@ -63,24 +68,22 @@ export default function KeysPage() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await clientFetch("/api/keys", {
+      const data = await clientFetch<CreateApiKeyResponse>("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKeyName || "Unnamed Key" }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || data.error || "Failed to generate key");
-        setGenerating(false);
-        return;
-      }
-      const data = await res.json();
       setGeneratedSecret(data.key);
       toast.success("API key generated");
       /* Refresh key list */
       fetchKeys();
-    } catch {
-      setError("Network error. Try again.");
+    } catch (error) {
+      if (isClientFetchError(error) && typeof error.data === "object" && error.data) {
+        const payload = error.data as { message?: string; error?: string };
+        setError(payload.message || payload.error || "Failed to generate key");
+      } else {
+        setError("Network error. Try again.");
+      }
     } finally {
       setGenerating(false);
     }
@@ -88,11 +91,9 @@ export default function KeysPage() {
 
   const handleRevoke = useCallback(async (id: string) => {
     try {
-      const res = await clientFetch(`/api/keys/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
-        toast.info("Key revoked");
-      }
+      await clientFetchResponse(`/api/keys/${id}`, { method: "DELETE" });
+      setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
+      toast.info("Key revoked");
     } catch {
       /* silent */
     }

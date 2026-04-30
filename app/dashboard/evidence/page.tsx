@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useToast } from "@/app/components/Toast";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetchResponse, isClientFetchError } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Evidence Export — downloads real audit logs as JSONL                */
@@ -19,11 +19,7 @@ export default function EvidencePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await clientFetch("/api/evidence");
-      if (!res.ok) {
-        setError("Failed to export evidence. Please try again.");
-        return;
-      }
+      const res = await clientFetchResponse("/api/evidence");
       const text = await res.text();
       if (!text.trim()) {
         setError("No audit logs to export. Make API requests first.");
@@ -39,8 +35,12 @@ export default function EvidencePage() {
       setExported(true);
       setPreview(text.split("\n").slice(0, 5).join("\n"));
       toast.success("Evidence exported");
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (error) {
+      if (isClientFetchError(error) && typeof error.data === "string" && error.data) {
+        setError(error.data);
+      } else {
+        setError("Network error. Please try again.");
+      }
       toast.error("Export failed");
     } finally {
       setLoading(false);

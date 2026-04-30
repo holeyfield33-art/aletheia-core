@@ -34,11 +34,8 @@ export default function UsagePage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await clientFetch("/api/keys");
-        if (res.ok) {
-          const data = await res.json();
-          setKeys(data.keys || []);
-        }
+        const data = await clientFetch<{ keys?: KeyUsage[] }>("/api/keys");
+        setKeys(data.keys || []);
       } catch {
         /* non-critical */
       } finally {

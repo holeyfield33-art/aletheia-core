@@ -14,6 +14,11 @@ interface AuditLog {
   createdAt: string;
 }
 
+interface AuditLogsResponse {
+  logs?: AuditLog[];
+  total?: number;
+}
+
 export default function LogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,14 +37,9 @@ export default function LogsPage() {
         limit: String(pageSize),
       });
       if (filterDecision) params.set("decision", filterDecision);
-      const res = await clientFetch(`/api/logs?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs || []);
-        setTotal(data.total || 0);
-      } else {
-        setFetchError("Failed to load audit logs.");
-      }
+      const data = await clientFetch<AuditLogsResponse>(`/api/logs?${params}`);
+      setLogs(data.logs || []);
+      setTotal(data.total || 0);
     } catch {
       setFetchError("Unable to reach the server.");
     } finally {
