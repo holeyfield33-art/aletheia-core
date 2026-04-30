@@ -76,6 +76,7 @@ git commit -m "chore: re-sign security manifest"
 ```
 
 **Key rotation:**
+
 ```bash
 # Delete old keys and re-generate
 rm manifest/security_policy.ed25519.key manifest/security_policy.ed25519.pub
@@ -168,6 +169,7 @@ Configure your Prometheus scrape config to target `/metrics` on your deployment 
 ## Secret Rotation
 
 ### Hot rotation via API
+
 ```bash
 curl -X POST https://your-app.onrender.com/v1/rotate \
   -H "Authorization: Bearer $ADMIN_TOKEN"
@@ -181,6 +183,7 @@ On rotation:
 - Rotates the Judge alias bank
 
 ### Hot rotation via signal
+
 ```bash
 kill -SIGUSR1 $(pidof python)
 ```
@@ -200,6 +203,7 @@ Log rotation is configured in `deploy/logrotate.conf` for containerized deployme
 > SQLite is only used for the API key store and local development.
 
 `scripts/backup_sqlite.sh` provides hourly SQLite backups with integrity verification:
+
 ```bash
 # Manual run
 ./scripts/backup_sqlite.sh /backups
@@ -207,6 +211,7 @@ Log rotation is configured in `deploy/logrotate.conf` for containerized deployme
 # Cron (hourly)
 0 * * * * /app/scripts/backup_sqlite.sh /backups
 ```
+
 - Uses SQLite online backup API (safe with concurrent writers)
 - Compresses backups with gzip
 - Prunes backups older than `ALETHEIA_BACKUP_RETENTION_DAYS` (default: 7)
@@ -261,6 +266,7 @@ When Upstash Redis is unavailable:
 3. Verify with: `curl https://your-app.onrender.com/health`
 
 ### Full rollback
+
 ```bash
 git log --oneline -5          # Find last good commit
 git revert HEAD               # Or: git reset --hard <commit>
@@ -300,11 +306,9 @@ Compatibility validation for `starlette` was executed against:
 - `0.46.2`
 - `1.0.0`
 
-Smoke/regression suite used for both runs:
-- `tests/test_api.py`
-- `tests/test_enterprise.py`
-- `tests/test_redteam_adversarial.py`
+Validation suite used for both runs:
+- Full Python test suite via `pytest -q`
 
-Result: both versions passed (`156 passed`).
+Result: both versions passed the full suite (`1132 passed, 16 skipped`).
 
 Pinned version: `starlette==1.0.0` in `requirements.in`.
