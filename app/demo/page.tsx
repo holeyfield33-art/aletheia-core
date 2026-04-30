@@ -463,13 +463,12 @@ export default function DemoPage() {
       >
         <div style={{ display: "grid", gap: "1.25rem" }}>
           <div>
-            <label htmlFor="demo-payload">Payload</label>
+            <label htmlFor="demo-payload">Audit payload</label>
             <textarea
               id="demo-payload"
               rows={5}
               value={payload}
               onChange={(e) => setPayload(e.target.value.slice(0, 2000))}
-              placeholder="Enter the agent request or instruction to audit..."
               style={{ resize: "vertical", minHeight: "100px" }}
               maxLength={2000}
             />

@@ -19,6 +19,18 @@ interface AuditLogsResponse {
   total?: number;
 }
 
+const screenReaderOnly: React.CSSProperties = {
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  padding: 0,
+  margin: "-1px",
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
 export default function LogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +64,13 @@ export default function LogsPage() {
   }, [fetchLogs]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const liveMessage = loading
+    ? "Loading audit log table"
+    : fetchError
+      ? fetchError
+      : logs.length === 0
+        ? "No audit logs found."
+        : `Showing ${logs.length} audit logs on page ${page} of ${totalPages}. ${total.toLocaleString()} total records.`;
 
   const decisionColor = (d: string) => {
     if (d === "PROCEED") return "var(--green)";
@@ -61,6 +80,9 @@ export default function LogsPage() {
 
   return (
     <div>
+      <div aria-live="polite" role="status" style={screenReaderOnly}>
+        {liveMessage}
+      </div>
       <div
         style={{
           fontFamily: "var(--font-mono)",
@@ -125,6 +147,7 @@ export default function LogsPage() {
       )}
       <div style={{ border: "1px solid var(--border)", overflow: "auto", marginBottom: "1rem" }}>
         <table
+          aria-describedby="audit-logs-live-region"
           style={{
             width: "100%",
             borderCollapse: "collapse",
@@ -132,6 +155,9 @@ export default function LogsPage() {
             fontSize: "0.75rem",
           }}
         >
+          <caption id="audit-logs-live-region" style={screenReaderOnly}>
+            Audit log table with time, decision, action, origin, threat score, reason, and request ID columns.
+          </caption>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
               {["Time", "Decision", "Action", "Origin", "Score", "Reason", "Request ID"].map((h) => (
