@@ -728,6 +728,33 @@ def _sanitise_reason(reason: str) -> str:
     return first_line.split(":")[0].strip() if ":" in first_line else "Action denied."
 
 
+def _run_scout(client_ip: str, clean_input: str) -> tuple[float, str]:
+    """Execute the Scout phase and return threat score plus report."""
+    return scout.evaluate_threat_context(client_ip, clean_input)
+
+
+def _run_nitpicker(
+    clean_input: str,
+    origin: str,
+    *,
+    request_id: str | None = None,
+    sanitize: bool = False,
+) -> tuple[bool, str, str | None]:
+    """Execute Nitpicker block check and optionally sanitize for logging."""
+    blocked, reason = nitpicker.check_semantic_block(clean_input)
+    clean_content = None
+    if sanitize:
+        clean_content = nitpicker.sanitize_intent(
+            clean_input, origin, request_id=request_id or ""
+        )
+    return blocked, reason, clean_content
+
+
+def _run_judge(action: str, clean_input: str) -> tuple[bool, str]:
+    """Execute Judge policy verification for the normalized payload."""
+    return judge.verify_action(action, payload=clean_input)
+
+
 def _verify_manifest() -> bool:
     """Check manifest signature integrity. Returns True if valid."""
     from manifest.signing import verify_manifest_signature
@@ -972,9 +999,12 @@ async def evaluate_policy(req: EvaluateRequest, request: Request) -> JSONRespons
         )
 
     # --- Pipeline ---
-    threat_score, report = scout.evaluate_threat_context(client_ip, clean_input)
-    nitpicker_blocked, nitpicker_reason = nitpicker.check_semantic_block(clean_input)
-    is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)
+    threat_score, report = _run_scout(client_ip, clean_input)
+    nitpicker_blocked, nitpicker_reason, _ = _run_nitpicker(
+        clean_input,
+        req.origin,
+    )
+    is_allowed, veto_msg = _run_judge(req.action, clean_input)
 
     is_blocked = (
         (threat_score >= settings.policy_threshold)
@@ -1124,16 +1154,18 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         )
 
     # 1. SCOUT PHASE
-    threat_score, report = scout.evaluate_threat_context(client_ip, clean_input)
+    threat_score, report = _run_scout(client_ip, clean_input)
 
     # 2. NITPICKER PHASE — semantic block check feeds the decision
-    nitpicker_blocked, nitpicker_reason = nitpicker.check_semantic_block(clean_input)
-    clean_content = nitpicker.sanitize_intent(  # noqa: F841 — logged by sanitize_intent
-        clean_input, req.origin, request_id=request_id
+    nitpicker_blocked, nitpicker_reason, clean_content = _run_nitpicker(  # noqa: F841
+        clean_input,
+        req.origin,
+        request_id=request_id,
+        sanitize=True,
     )
 
     # 3. JUDGE PHASE — now includes payload for semantic veto
-    is_allowed, veto_msg = judge.verify_action(req.action, payload=clean_input)
+    is_allowed, veto_msg = _run_judge(req.action, clean_input)
 
     # DECISION: block if ANY agent denies (defense-in-depth)
     is_blocked = (
