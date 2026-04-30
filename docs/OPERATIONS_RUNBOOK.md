@@ -272,3 +272,39 @@ git push origin main          # Trigger redeploy
 - [ ] Ready endpoint returns `ready: true`
 - [ ] Smoke tests pass: `make smoke`
 - [ ] No `FATAL:` lines in logs
+
+---
+
+## Self-Hosted Nginx Reference
+
+A minimal reference config is provided at `deploy/nginx.conf` for self-hosted
+operators using TLS termination and reverse proxying to Next.js + FastAPI.
+
+The reference includes:
+- HTTP to HTTPS redirect
+- TLS termination with modern ciphers and session settings
+- Security headers (`HSTS`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
+- Upstream routing to FastAPI for `/v1/*`, `/health`, `/ready`, `/metrics`, and `/ws/audit`
+- Upstream routing to Next.js for all other paths
+
+Before production use:
+- Replace certificate paths with your deployed certs
+- Set `server_name` to your domain(s)
+- Tune upstream host/ports for your process manager or container network
+
+---
+
+## Starlette Compatibility Validation
+
+Compatibility validation for `starlette` was executed against:
+- `0.46.2`
+- `1.0.0`
+
+Smoke/regression suite used for both runs:
+- `tests/test_api.py`
+- `tests/test_enterprise.py`
+- `tests/test_redteam_adversarial.py`
+
+Result: both versions passed (`156 passed`).
+
+Pinned version: `starlette==1.0.0` in `requirements.in`.
