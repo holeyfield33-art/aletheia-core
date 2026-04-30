@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/app/components/Toast";
 import { CTAS, URLS } from "@/lib/site-config";
+import { clientFetch } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -46,7 +47,7 @@ export default function KeysPage() {
 
   const fetchKeys = async () => {
     try {
-      const res = await fetch("/api/keys");
+      const res = await clientFetch("/api/keys");
       if (res.ok) {
         const data = await res.json();
         setKeys(data.keys || []);
@@ -62,7 +63,7 @@ export default function KeysPage() {
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch("/api/keys", {
+      const res = await clientFetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKeyName || "Unnamed Key" }),
@@ -87,7 +88,7 @@ export default function KeysPage() {
 
   const handleRevoke = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/keys/${id}`, { method: "DELETE" });
+      const res = await clientFetch(`/api/keys/${id}`, { method: "DELETE" });
       if (res.ok) {
         setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
         toast.info("Key revoked");

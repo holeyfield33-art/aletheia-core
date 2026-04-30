@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useToast } from "@/app/components/Toast";
+import { clientFetch } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Evidence Export — downloads real audit logs as JSONL                */
@@ -18,7 +19,7 @@ export default function EvidencePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/evidence");
+      const res = await clientFetch("/api/evidence");
       if (!res.ok) {
         setError("Failed to export evidence. Please try again.");
         return;

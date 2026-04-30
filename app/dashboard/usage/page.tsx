@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { CTAS } from "@/lib/site-config";
 import { SkeletonStatCards } from "@/app/components/Skeleton";
+import { clientFetch } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -33,7 +34,7 @@ export default function UsagePage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/keys");
+        const res = await clientFetch("/api/keys");
         if (res.ok) {
           const data = await res.json();
           setKeys(data.keys || []);

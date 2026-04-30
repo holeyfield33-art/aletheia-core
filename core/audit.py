@@ -67,6 +67,64 @@ import threading as _threading  # noqa: E402
 _chain_lock = _threading.Lock()
 
 
+def _load_last_audit_record(log_path: Path) -> Optional[dict[str, Any]]:
+    """Best-effort fetch of the most recent valid JSON audit record.
+
+    Reads only the tail of the file to avoid loading large logs into memory.
+    """
+    if not log_path.exists():
+        return None
+
+    try:
+        with log_path.open("rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            if size <= 0:
+                return None
+
+            read_size = min(size, 1_048_576)  # 1 MiB tail scan
+            fh.seek(-read_size, os.SEEK_END)
+            tail = fh.read(read_size)
+    except OSError:
+        return None
+
+    for raw_line in reversed(tail.splitlines()):
+        if not raw_line.strip():
+            continue
+        try:
+            parsed = json.loads(raw_line.decode("utf-8"))
+        except Exception:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def _bootstrap_chain_state(log_path: Path) -> None:
+    """Initialize in-memory chain cursor from the latest persisted audit record."""
+    global _prev_record_hash, _audit_seq
+
+    last_record = _load_last_audit_record(log_path)
+    if not last_record:
+        with _chain_lock:
+            _prev_record_hash = "GENESIS"
+            _audit_seq = 0
+        return
+
+    last_hash = last_record.get("record_hash")
+    raw_seq = last_record.get("seq", 0)
+    try:
+        seq = int(raw_seq)
+    except (TypeError, ValueError):
+        seq = 0
+
+    with _chain_lock:
+        _prev_record_hash = (
+            last_hash if isinstance(last_hash, str) and last_hash else "GENESIS"
+        )
+        _audit_seq = max(0, seq)
+
+
 def _get_audit_logger() -> logging.Logger:
     """Lazy-init a dedicated file logger that emits raw JSON lines."""
     global _audit_logger
@@ -98,6 +156,9 @@ def _get_audit_logger() -> logging.Logger:
         log_path.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
     except OSError:
         pass  # best-effort on platforms that don't support chmod
+
+    # Recover hash-chain cursor on process start/restart.
+    _bootstrap_chain_state(log_path)
 
     _audit_logger = logger
     return logger

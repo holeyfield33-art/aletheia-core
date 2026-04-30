@@ -73,13 +73,27 @@ export default async function middleware(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next();
+  const nonce = crypto.randomUUID().replace(/-/g, "");
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-csp-nonce", nonce);
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
   response.headers.set(
     "Strict-Transport-Security",
-    "max-age=31536000; includeSubDomains",
+    "max-age=31536000; includeSubDomains; preload",
   );
   // CSP allowlist:
   // - connect-src is enumerated (no wildcard subdomain) so a future internal
@@ -102,7 +116,7 @@ export default async function middleware(request: NextRequest) {
     .join(" ");
   response.headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com; script-src-elem 'self' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src ${connectSrc}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
+    `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com; script-src-elem 'self' 'nonce-${nonce}' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src ${connectSrc}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
   );
 
   return response;

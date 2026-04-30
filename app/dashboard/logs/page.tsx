@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { clientFetch } from "@/lib/client-fetch";
 
 interface AuditLog {
   id: string;
@@ -31,7 +32,7 @@ export default function LogsPage() {
         limit: String(pageSize),
       });
       if (filterDecision) params.set("decision", filterDecision);
-      const res = await fetch(`/api/logs?${params}`);
+      const res = await clientFetch(`/api/logs?${params}`);
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);

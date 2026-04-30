@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { clientFetch } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Policy field descriptions                                          */
@@ -30,7 +31,7 @@ export default function PolicyPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/policy");
+        const res = await clientFetch("/api/policy");
         if (res.ok) {
           const data = await res.json();
           setPolicy(data.policy);

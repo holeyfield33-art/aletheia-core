@@ -43,10 +43,19 @@ Aletheia Core requires writable paths for:
 3. **Anchor state** (proximity module only) — configurable via `ALETHEIA_ANCHOR_STATE_PATH`, requires `CONSCIOUSNESS_PROXIMITY_ENABLED=true`
 
 For Render: use a persistent disk mounted at `/data` and set:
+
 ```
 ALETHEIA_AUDIT_LOG_PATH=/data/audit.log
 ALETHEIA_DECISION_DB_PATH=/data/decisions.sqlite3
 ```
+
+### Multi-instance audit chain continuity
+
+The audit hash-chain cursor resumes from the last persisted record at startup.
+For horizontally scaled deployments, all instances must append to the same
+append-only audit log backend (for example shared NFS volume, object-store append
+pipeline on S3/GCS, or equivalent). Per-instance local files will create
+independent chain segments and break global continuity guarantees.
 
 ---
 

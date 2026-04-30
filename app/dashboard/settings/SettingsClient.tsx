@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import UpgradeButton from "@/app/components/UpgradeButton";
 import { useToast } from "@/app/components/Toast";
+import { clientFetch } from "@/lib/client-fetch";
 
 export default function SettingsClient({
   name,
@@ -36,7 +37,7 @@ export default function SettingsClient({
     setSaving(true);
     setSaved(false);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await clientFetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: displayName.trim() }),
@@ -58,7 +59,7 @@ export default function SettingsClient({
     if (exporting) return;
     setExporting(true);
     try {
-      const res = await fetch("/api/account/export", { method: "POST" });
+      const res = await clientFetch("/api/account/export", { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
         toast.error(data.message || "Export failed.");
@@ -86,7 +87,7 @@ export default function SettingsClient({
     setDeleting(true);
     setDeleteError(null);
     try {
-      const res = await fetch("/api/account", {
+      const res = await clientFetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: deletePassword, confirmEmail: deleteEmailConfirm }),

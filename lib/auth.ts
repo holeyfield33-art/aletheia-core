@@ -6,12 +6,15 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
 // Distributed login attempt tracking via Prisma (PostgreSQL).
 // Replaces the previous in-memory Map so brute-force protection
 // works across all server instances.
 const LOGIN_FAIL_LIMIT = 5;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const LOGIN_IP_LIMIT = 20;
+const LOGIN_IP_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 // JWT claims (role, plan, deletedAt) are re-fetched at most this often.
 // Lower = stronger revocation guarantee for deleted/role-changed users at
 // the cost of one DB round-trip per active user per interval.
@@ -36,6 +39,51 @@ async function checkLoginRateLimit(email: string): Promise<boolean> {
     where: { email, createdAt: { gte: windowStart } },
   });
   return count < LOGIN_FAIL_LIMIT;
+}
+
+function getHeaderValue(
+  headers: unknown,
+  headerName: string,
+): string | null {
+  if (!headers) return null;
+  if (headers instanceof Headers) {
+    return headers.get(headerName);
+  }
+
+  if (typeof headers === "object") {
+    const key = Object.keys(headers as Record<string, unknown>).find(
+      (k) => k.toLowerCase() === headerName.toLowerCase(),
+    );
+    if (!key) return null;
+    const value = (headers as Record<string, unknown>)[key];
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return String(value[0] ?? "");
+  }
+
+  return null;
+}
+
+export function extractClientIp(headers: unknown): string | null {
+  const forwardedFor = getHeaderValue(headers, "x-forwarded-for");
+  if (forwardedFor) {
+    const first = forwardedFor.split(",")[0]?.trim();
+    if (first) return first;
+  }
+
+  const realIp = getHeaderValue(headers, "x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  return null;
+}
+
+export async function consumeLoginIpRateLimit(ip: string): Promise<boolean> {
+  const result = await consumeRateLimit({
+    action: "auth_login_ip",
+    key: ip,
+    limit: LOGIN_IP_LIMIT,
+    windowMs: LOGIN_IP_WINDOW_MS,
+  });
+  return result.allowed;
 }
 
 async function recordLoginFailure(email: string): Promise<void> {
@@ -129,10 +177,15 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
 
         const email = credentials.email.toLowerCase().trim();
+        const clientIp = extractClientIp(req?.headers);
+
+        if (clientIp && !(await consumeLoginIpRateLimit(clientIp))) {
+          return null;
+        }
 
         // Brute-force protection: block after 5 failed attempts in 15 min
         if (!(await checkLoginRateLimit(email))) return null;

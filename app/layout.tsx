@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Syne, JetBrains_Mono, Inter } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
@@ -65,17 +66,20 @@ export const metadata: Metadata = {
   metadataBase: new URL(URLS.appBase),
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headerStore = await headers();
+  const nonce = headerStore.get("x-csp-nonce") ?? undefined;
+
   return (
     <html lang="en" className={`${syne.variable} ${jetbrainsMono.variable} ${inter.variable}`}>
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="canonical" href={URLS.appBase} />
-        <Script src="/theme-bootstrap.js" strategy="beforeInteractive" />
+        <Script src="/theme-bootstrap.js" strategy="beforeInteractive" nonce={nonce} />
       </head>
       <body>
         {STATUS.hostedApi !== "live" && (

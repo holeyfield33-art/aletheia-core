@@ -484,5 +484,50 @@ class TestLogAuditEventReturnRecord(unittest.TestCase):
         self.assertEqual(record["origin"], "trusted_admin")
 
 
+class TestAuditChainBootstrap(unittest.TestCase):
+    """Ensure startup bootstrap resumes hash-chain continuity from disk."""
+
+    def test_bootstrap_chain_state_uses_last_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_path = Path(tmp_dir) / "audit.log"
+            first = {
+                "seq": 1,
+                "record_hash": "hash-1",
+                "decision": "PROCEED",
+            }
+            second = {
+                "seq": 2,
+                "record_hash": "hash-2",
+                "decision": "DENIED",
+            }
+            log_path.write_text(
+                json.dumps(first) + "\n" + json.dumps(second) + "\n",
+                encoding="utf-8",
+            )
+
+            import core.audit as audit_module
+
+            audit_module._prev_record_hash = "GENESIS"
+            audit_module._audit_seq = 0
+            audit_module._bootstrap_chain_state(log_path)
+
+            self.assertEqual(audit_module._prev_record_hash, "hash-2")
+            self.assertEqual(audit_module._audit_seq, 2)
+
+    def test_bootstrap_chain_state_defaults_on_invalid_log(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_path = Path(tmp_dir) / "audit.log"
+            log_path.write_text("not-json\n", encoding="utf-8")
+
+            import core.audit as audit_module
+
+            audit_module._prev_record_hash = "stale"
+            audit_module._audit_seq = 99
+            audit_module._bootstrap_chain_state(log_path)
+
+            self.assertEqual(audit_module._prev_record_hash, "GENESIS")
+            self.assertEqual(audit_module._audit_seq, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
