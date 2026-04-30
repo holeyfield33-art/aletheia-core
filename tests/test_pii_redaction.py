@@ -97,6 +97,27 @@ class TestPIIInAuditLog(unittest.TestCase):
         )
         self.assertNotIn("john@evil.com", record.get("reason", ""))
 
+    @patch("core.audit._get_audit_logger")
+    @patch("core.audit._policy_hash", return_value="abc123")
+    @patch("core.audit._policy_version", return_value="1.0")
+    def test_receipt_prompt_redacts_pii(self, _ph, _pv, mock_logger):
+        from core.audit import log_audit_event
+
+        mock_logger.return_value.info = lambda x: None
+
+        record = log_audit_event(
+            decision="DENIED",
+            threat_score=5.0,
+            payload="Contact john@example.com before action",
+            action="test_action",
+            source_ip="127.0.0.1",
+            origin="test",
+            reason="PII check",
+        )
+        prompt = record.get("receipt", {}).get("prompt", "")
+        self.assertNotIn("john@example.com", prompt)
+        self.assertIn("[REDACTED:email:", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

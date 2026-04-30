@@ -5,12 +5,28 @@ from __future__ import annotations
 import importlib.util
 import os
 
+import pytest
+
 # Auth is disabled for tests by default — existing tests don't supply API keys.
 # Individual test classes can override this via patch.dict.
 os.environ.setdefault("ALETHEIA_AUTH_DISABLED", "true")
 
-# Shadow mode avoids the ALETHEIA_RECEIPT_SECRET requirement in startup checks.
-os.environ.setdefault("ALETHEIA_MODE", "shadow")
+# Run tests in active mode by default so DENIED behavior is actually enforced.
+os.environ.setdefault("ALETHEIA_MODE", "active")
+
+# Active mode requires a receipt secret for startup checks.
+os.environ.setdefault("ALETHEIA_RECEIPT_SECRET", "test-receipt-secret-32-characters")
+
+
+@pytest.fixture()
+def active_mode_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALETHEIA_MODE", "active")
+
+
+@pytest.fixture()
+def shadow_mode_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALETHEIA_MODE", "shadow")
+
 
 # ---------------------------------------------------------------------------
 # ML model mock — activated when huggingface_hub is not installed.

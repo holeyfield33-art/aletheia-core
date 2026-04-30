@@ -154,7 +154,12 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        if (!user.emailVerified) return null;
+        if (!user.emailVerified) {
+          // Keep timing and failure accounting aligned with wrong-password flow.
+          await bcrypt.compare(credentials.password, user.password);
+          await recordLoginFailure(email);
+          return null;
+        }
 
         await clearLoginFailures(email);
 

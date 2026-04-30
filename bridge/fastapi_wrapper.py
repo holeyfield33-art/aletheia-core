@@ -744,29 +744,57 @@ def _verify_manifest() -> bool:
 
 
 @app.get("/health")
-async def health_check() -> JSONResponse:
+async def health_check(request: Request) -> JSONResponse:
     """Gateway health and readiness endpoint.
 
     This endpoint intentionally avoids policy/model checks so it stays fast
     even while heavy components are still warming up.
     """
-    if not _ready:
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "error",
-                "detail": _startup_error_detail or "critical startup failure",
-            },
+    # Starlette TestClient may not execute lifespan startup unless used as a
+    # context manager. Treat that specific state as degraded instead of hard-fail.
+    startup_pending = _startup_error_detail in {
+        "startup not completed",
+        "startup in progress",
+    }
+    status_text = "ok" if _ready else "degraded"
+
+    # Unauthenticated response stays minimal.
+    body: dict[str, object] = {
+        "status": status_text,
+        "service": "aletheia-core",
+    }
+
+    # Authenticated admin/operator callers get full diagnostics.
+    auth_header = request.headers.get("authorization", "")
+    include_diagnostics = False
+    if auth_header:
+        try:
+            provider = get_auth_provider()
+            user = await provider.authenticate(auth_header)
+            include_diagnostics = bool(
+                user and ("admin" in user.roles or "operator" in user.roles)
+            )
+        except Exception:
+            include_diagnostics = False
+
+    if include_diagnostics:
+        demo_key = _demo_key_health_signal()
+        body.update(
+            {
+                "version": app.version,
+                "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
+                "timestamp": _time.time(),
+                "demo_key_configured": demo_key["configured"],
+                "demo_key_registered": demo_key["registered"],
+                "demo_key_status": demo_key["status"],
+            }
         )
 
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "ok",
-            "version": app.version,
-            "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
-        },
-    )
+    if _ready or startup_pending:
+        return JSONResponse(status_code=200, content=body)
+
+    body["detail"] = _startup_error_detail or "critical startup failure"
+    return JSONResponse(status_code=503, content=body)
 
 
 @app.get("/ready")

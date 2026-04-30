@@ -21,7 +21,7 @@ Aletheia Core v1.9.2 environment reference.
 | `ALETHEIA_RECEIPT_SECRET` | Recommended | Yes | HMAC key for signed receipts. |
 | `ALETHEIA_ALIAS_SALT` | Recommended | Recommended | Judge alias rotation salt. |
 | `ALETHEIA_ROTATION_SALT` | Recommended | Recommended | Nitpicker mode rotation HMAC. |
-| `ALETHEIA_KEY_SALT` | Recommended | Recommended | Salt for API key hashing. |
+| `ALETHEIA_KEY_SALT` | Recommended | Yes | Salt for API key hashing. |
 | `ALETHEIA_MANIFEST_HASH` | Optional | Recommended | Pinned SHA-256 of manifest. |
 | `ALETHEIA_MANIFEST_KEY_VERSION` | Optional | Optional | Key version (default `v1`). |
 | `SIGNING_SECRET` | Optional | Yes (strict) | Production guard (CLI/runtime). |

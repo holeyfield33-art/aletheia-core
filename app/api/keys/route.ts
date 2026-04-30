@@ -82,7 +82,18 @@ export async function POST(request: NextRequest) {
   const plan = planConfig.apiKeyPlan;
 
   const rawKey = `sk_${plan}_${crypto.randomBytes(24).toString("hex")}`;
-  const keyHash = hashKey(rawKey);
+  let keyHash: string;
+  try {
+    keyHash = hashKey(rawKey);
+  } catch {
+    return secureJson(
+      {
+        error: "configuration_error",
+        message: "Key generation is temporarily unavailable. Contact support.",
+      },
+      { status: 503 },
+    );
+  }
   const keyPrefix = rawKey.slice(0, 12) + "..." + rawKey.slice(-4);
   const quota = planConfig.monthlyCalls;
 

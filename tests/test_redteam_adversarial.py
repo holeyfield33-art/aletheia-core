@@ -34,7 +34,6 @@ from agents.scout_v2 import AletheiaScoutV2
 from bridge.fastapi_wrapper import (
     app,
     scout,
-    judge,
     _sanitise_reason,
     _discretise_threat,
 )
@@ -957,9 +956,10 @@ class TestAPIRedTeam(unittest.TestCase):
 
     def test_global_exception_handler_hides_stack(self):
         """Unhandled exceptions should not leak stack traces."""
-        # Patch judge.verify_action to raise — it's called after all validation
-        with patch.object(
-            judge, "verify_action", side_effect=RuntimeError("secret internal error")
+        # Patch the exact object used by secure_audit in bridge.fastapi_wrapper.
+        with patch(
+            "bridge.fastapi_wrapper.judge.verify_action",
+            side_effect=RuntimeError("secret internal error"),
         ):
             status, body = _post(
                 self.client,

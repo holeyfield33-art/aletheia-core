@@ -31,9 +31,10 @@ class TestAuditLogging(unittest.TestCase):
 
     def test_tmr_receipt_signature_stable(self) -> None:
         """Same inputs produce the same HMAC signature."""
-        r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
-        r2 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
-        self.assertEqual(r1["signature"], r2["signature"])
+        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
+            r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
+            r2 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
+            self.assertEqual(r1["signature"], r2["signature"])
 
     def test_tmr_receipt_changes_with_different_decision(self) -> None:
         old_env = os.environ.get("ALETHEIA_RECEIPT_SECRET")

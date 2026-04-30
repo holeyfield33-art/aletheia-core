@@ -338,7 +338,7 @@ def log_audit_event(
         policy_hash=record["policy_hash"],
         policy_version=record["policy_version"],
         payload_sha256=record.get("payload_sha256", ""),
-        prompt=payload,
+        prompt=redact_pii(payload),
         action=action,
         origin=origin,
         request_id=request_id,
