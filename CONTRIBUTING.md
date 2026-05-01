@@ -58,6 +58,27 @@ Pre-commit hooks run automatically on `git commit`. They enforce:
 
 If a hook modifies files (e.g. ruff auto-fix), re-stage and commit again.
 
+### Controlled Dependency Upgrades (Breaking Changes)
+
+When `npm audit` or `npm outdated` indicates fixes that require major version
+bumps, use this staged process:
+
+1. Create a dedicated branch, e.g. `chore/deps-major-<area>`.
+2. Capture baseline before changes:
+   - `npm test`
+   - `pytest -q`
+3. Upgrade one risk group at a time:
+   - Runtime frameworks (`next`, `react`, `react-dom`, `next-auth`)
+   - Tooling (`vitest`, `eslint`, `typescript`)
+   - Data layer (`prisma`, `@prisma/client`)
+4. After each group, run focused suites first, then full suites.
+5. Document migration notes in the PR description:
+   - Breaking API changes
+   - Config updates
+   - New warnings or ignored advisories
+6. Use `npm audit fix --force` only inside these dedicated major-upgrade branches,
+   never in routine maintenance branches.
+
 ### PR Labels
 
 Use these labels on PRs for automatic release-drafter categorization:
