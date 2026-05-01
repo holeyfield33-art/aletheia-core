@@ -23,8 +23,7 @@ const tiers = [
     price: "Free",
     priceDetail: "/ month",
     color: "var(--silver)",
-    description:
-      `Generate up to ${formatReceipts(PRICING.free.receipts)} Sovereign Audit Receipts each month with no credit card required.`,
+    description: `Generate up to ${formatReceipts(PRICING.free.receipts)} Sovereign Audit Receipts each month with no credit card required.`,
     features: [
       `${formatReceipts(PRICING.free.receipts)} Sovereign Audit Receipts / month`,
       "Signed receipt verification",
@@ -41,8 +40,7 @@ const tiers = [
     price: formatUsd(PRICING.scale.price),
     priceDetail: "/mo",
     color: "var(--crimson-hi)",
-    description:
-      `Production access for teams that need ${formatReceipts(PRICING.scale.receipts)} verified decisions each month.`,
+    description: `Production access for teams that need ${formatReceipts(PRICING.scale.receipts)} verified decisions each month.`,
     features: [
       `${formatReceipts(PRICING.scale.receipts)} Sovereign Audit Receipts / month`,
       "Cryptographic proof for each secured decision",
@@ -59,8 +57,7 @@ const tiers = [
     price: formatUsd(PRICING.pro.price),
     priceDetail: "/mo",
     color: "var(--white)",
-    description:
-      `Higher-throughput hosted protection for ${formatReceipts(PRICING.pro.receipts)} verified decisions each month.`,
+    description: `Higher-throughput hosted protection for ${formatReceipts(PRICING.pro.receipts)} verified decisions each month.`,
     features: [
       `${formatReceipts(PRICING.pro.receipts)} Sovereign Audit Receipts / month`,
       "Cryptographic proof for each secured decision",
@@ -143,7 +140,9 @@ export default function PricingPage() {
             lineHeight: 1.65,
           }}
         >
-          Start free, self-host the MIT-licensed core, or move into managed Scale and Pro tiers when you need verified decisions at production volume.
+          Start free, self-host the MIT-licensed core, or move into managed
+          Scale and Pro tiers when you need verified decisions at production
+          volume.
         </p>
       </div>
 
@@ -345,8 +344,15 @@ export default function PricingPage() {
         >
           Need flexibility?
         </h4>
-        <p style={{ color: "var(--silver)", fontSize: "0.92rem", marginBottom: "1rem" }}>
-          ${PRICING.payg.pricePerReceipt.toFixed(5)} per receipt — pay only for what you use.
+        <p
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.92rem",
+            marginBottom: "1rem",
+          }}
+        >
+          ${PRICING.payg.pricePerReceipt.toFixed(5)} per receipt — pay only for
+          what you use.
         </p>
         <UpgradeButton label="Enable PAYG →" tier="payg" />
       </div>
@@ -437,7 +443,8 @@ export default function PricingPage() {
             marginBottom: "1rem",
           }}
         >
-          Self-host the MIT-licensed engine, or contact us for custom policy engineering, red-team review, and managed deployment.
+          Self-host the MIT-licensed engine, or contact us for custom policy
+          engineering, red-team review, and managed deployment.
         </p>
         <a
           href={`mailto:${URLS.contactEmail}?subject=Enterprise Inquiry`}

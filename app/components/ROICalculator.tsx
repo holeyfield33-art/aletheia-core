@@ -21,11 +21,7 @@ export default function ROICalculator() {
     const proCost = PRICING.pro.price;
     const scaleFit = monthlyDecisions <= PRICING.scale.receipts;
     const proFit = monthlyDecisions <= PRICING.pro.receipts;
-    const recommendation = scaleFit
-      ? "Scale"
-      : proFit
-        ? "Pro"
-        : "PAYG";
+    const recommendation = scaleFit ? "Scale" : proFit ? "Pro" : "PAYG";
 
     return {
       paygCost,
@@ -70,16 +66,30 @@ export default function ROICalculator() {
         >
           Estimate your cost per secured decision
         </h3>
-        <p style={{ color: "var(--silver)", fontSize: "0.92rem", lineHeight: 1.6 }}>
-          Slide your monthly decision volume to compare fixed-price tiers against PAYG.
+        <p
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.92rem",
+            lineHeight: 1.6,
+          }}
+        >
+          Slide your monthly decision volume to compare fixed-price tiers
+          against PAYG.
         </p>
       </div>
 
       <label
         htmlFor="roi-range"
-        style={{ display: "block", color: "var(--silver)", marginBottom: "0.75rem" }}
+        style={{
+          display: "block",
+          color: "var(--silver)",
+          marginBottom: "0.75rem",
+        }}
       >
-        Monthly verified decisions: <strong style={{ color: "var(--white)" }}>{monthlyDecisions.toLocaleString()}</strong>
+        Monthly verified decisions:{" "}
+        <strong style={{ color: "var(--white)" }}>
+          {monthlyDecisions.toLocaleString()}
+        </strong>
       </label>
       <input
         id="roi-range"
@@ -99,9 +109,21 @@ export default function ROICalculator() {
           gap: "0.9rem",
         }}
       >
-        <MetricCard label="Scale" value={currency(metrics.scaleCost)} detail={`${currency(metrics.effectiveScale)} per secured decision`} />
-        <MetricCard label="Pro" value={currency(metrics.proCost)} detail={`${currency(metrics.effectivePro)} per secured decision`} />
-        <MetricCard label="PAYG" value={currency(metrics.paygCost)} detail={`${currency(PRICING.payg.pricePerReceipt)} per secured decision`} />
+        <MetricCard
+          label="Scale"
+          value={currency(metrics.scaleCost)}
+          detail={`${currency(metrics.effectiveScale)} per secured decision`}
+        />
+        <MetricCard
+          label="Pro"
+          value={currency(metrics.proCost)}
+          detail={`${currency(metrics.effectivePro)} per secured decision`}
+        />
+        <MetricCard
+          label="PAYG"
+          value={currency(metrics.paygCost)}
+          detail={`${currency(PRICING.payg.pricePerReceipt)} per secured decision`}
+        />
       </div>
 
       <div
@@ -114,13 +136,24 @@ export default function ROICalculator() {
           lineHeight: 1.6,
         }}
       >
-        Recommended launch tier: <strong style={{ color: "var(--white)" }}>{metrics.recommendation}</strong>
+        Recommended launch tier:{" "}
+        <strong style={{ color: "var(--white)" }}>
+          {metrics.recommendation}
+        </strong>
       </div>
     </section>
   );
 }
 
-function MetricCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+function MetricCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
   return (
     <div
       style={{
@@ -142,10 +175,22 @@ function MetricCard({ label, value, detail }: { label: string; value: string; de
       >
         {label}
       </div>
-      <div style={{ fontFamily: "var(--font-head)", fontSize: "1.2rem", color: "var(--white)" }}>
+      <div
+        style={{
+          fontFamily: "var(--font-head)",
+          fontSize: "1.2rem",
+          color: "var(--white)",
+        }}
+      >
         {value}
       </div>
-      <div style={{ color: "var(--silver)", fontSize: "0.82rem", marginTop: "0.3rem" }}>
+      <div
+        style={{
+          color: "var(--silver)",
+          fontSize: "0.82rem",
+          marginTop: "0.3rem",
+        }}
+      >
         {detail}
       </div>
     </div>

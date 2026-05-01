@@ -17,15 +17,26 @@ describe("authorizedCronRequest — constant-time cron auth", () => {
   });
 
   it("rejects when length differs (no panic from timingSafeEqual)", () => {
-    expect(authorizedCronRequest(`Bearer ${TEST_TOKEN}x`, TEST_TOKEN)).toBe(false);
-    expect(authorizedCronRequest(`Bearer ${TEST_TOKEN.slice(0, -1)}`, TEST_TOKEN)).toBe(false);
+    expect(authorizedCronRequest(`Bearer ${TEST_TOKEN}x`, TEST_TOKEN)).toBe(
+      false,
+    );
+    expect(
+      authorizedCronRequest(`Bearer ${TEST_TOKEN.slice(0, -1)}`, TEST_TOKEN),
+    ).toBe(false);
   });
 
   it("rejects same-prefix probes (defends against timing-attack reproduction)", () => {
-    expect(authorizedCronRequest("Bearer test-cron-token-aaaaaaaaaaaaaaaa", TEST_TOKEN)).toBe(false);
+    expect(
+      authorizedCronRequest(
+        "Bearer test-cron-token-aaaaaaaaaaaaaaaa",
+        TEST_TOKEN,
+      ),
+    ).toBe(false);
   });
 
   it("accepts the exact value", () => {
-    expect(authorizedCronRequest(`Bearer ${TEST_TOKEN}`, TEST_TOKEN)).toBe(true);
+    expect(authorizedCronRequest(`Bearer ${TEST_TOKEN}`, TEST_TOKEN)).toBe(
+      true,
+    );
   });
 });

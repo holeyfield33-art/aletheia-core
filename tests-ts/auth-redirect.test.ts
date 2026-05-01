@@ -25,11 +25,15 @@ describe("resolveAuthRedirect — open-redirect contract", () => {
   });
 
   it("rejects look-alike subdomain (origin-equality, not prefix)", () => {
-    expect(resolveAuthRedirect("https://app.aletheia-core.com.evil/", BASE)).toBe(BASE);
+    expect(
+      resolveAuthRedirect("https://app.aletheia-core.com.evil/", BASE),
+    ).toBe(BASE);
   });
 
   it("rejects userinfo-host smuggling", () => {
-    expect(resolveAuthRedirect("https://app.aletheia-core.com@evil/", BASE)).toBe(BASE);
+    expect(
+      resolveAuthRedirect("https://app.aletheia-core.com@evil/", BASE),
+    ).toBe(BASE);
   });
 
   it("accepts same-origin absolute URL", () => {

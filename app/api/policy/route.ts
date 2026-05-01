@@ -11,7 +11,11 @@ export async function GET() {
   }
 
   try {
-    const policyPath = path.join(process.cwd(), "manifest", "security_policy.json");
+    const policyPath = path.join(
+      process.cwd(),
+      "manifest",
+      "security_policy.json",
+    );
     const raw = await readFile(policyPath, "utf-8");
     const policy = JSON.parse(raw);
     return NextResponse.json({ policy });

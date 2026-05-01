@@ -3,7 +3,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/app/components/Toast";
 import { CTAS, URLS } from "@/lib/site-config";
-import { clientFetch, clientFetchResponse, isClientFetchError } from "@/lib/client-fetch";
+import {
+  clientFetch,
+  clientFetchResponse,
+  isClientFetchError,
+} from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
@@ -78,7 +82,11 @@ export default function KeysPage() {
       /* Refresh key list */
       fetchKeys();
     } catch (error) {
-      if (isClientFetchError(error) && typeof error.data === "object" && error.data) {
+      if (
+        isClientFetchError(error) &&
+        typeof error.data === "object" &&
+        error.data
+      ) {
         const payload = error.data as { message?: string; error?: string };
         setError(payload.message || payload.error || "Failed to generate key");
       } else {
@@ -89,15 +97,20 @@ export default function KeysPage() {
     }
   }, [newKeyName, toast]);
 
-  const handleRevoke = useCallback(async (id: string) => {
-    try {
-      await clientFetchResponse(`/api/keys/${id}`, { method: "DELETE" });
-      setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
-      toast.info("Key revoked");
-    } catch {
-      /* silent */
-    }
-  }, [toast]);
+  const handleRevoke = useCallback(
+    async (id: string) => {
+      try {
+        await clientFetchResponse(`/api/keys/${id}`, { method: "DELETE" });
+        setKeys((prev) =>
+          prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)),
+        );
+        toast.info("Key revoked");
+      } catch {
+        /* silent */
+      }
+    },
+    [toast],
+  );
 
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
@@ -168,12 +181,14 @@ export default function KeysPage() {
           lineHeight: 1.6,
         }}
       >
-        Trial keys are for evaluation only with limited monthly Sovereign Audit Receipts (1,000/month).
-        They are not for production workloads. For production API access with
-        retained audit logs, higher quotas, and managed infrastructure, upgrade to{" "}
+        Trial keys are for evaluation only with limited monthly Sovereign Audit
+        Receipts (1,000/month). They are not for production workloads. For
+        production API access with retained audit logs, higher quotas, and
+        managed infrastructure, upgrade to{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
           Scale or Pro
-        </a>.
+        </a>
+        .
       </p>
 
       {/* Usage instructions */}
@@ -206,9 +221,10 @@ export default function KeysPage() {
             marginBottom: "0.75rem",
           }}
         >
-          Use this trial key in the <code style={{ color: "var(--white)" }}>X-API-Key</code>{" "}
-          header when calling the hosted API. Trial keys are limited to evaluation
-          usage and are not for production workloads.
+          Use this trial key in the{" "}
+          <code style={{ color: "var(--white)" }}>X-API-Key</code> header when
+          calling the hosted API. Trial keys are limited to evaluation usage and
+          are not for production workloads.
         </p>
 
         {/* Quickstart curl example */}
@@ -282,7 +298,13 @@ export default function KeysPage() {
                 color: "var(--silver)",
               }}
             >
-              <span style={{ color: "var(--crimson-hi)", fontWeight: 600, minWidth: "28px" }}>
+              <span
+                style={{
+                  color: "var(--crimson-hi)",
+                  fontWeight: 600,
+                  minWidth: "28px",
+                }}
+              >
                 {e.code}
               </span>
               {e.desc}
@@ -292,7 +314,14 @@ export default function KeysPage() {
       </div>
 
       {/* Actions bar */}
-      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "0.75rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+        }}
+      >
         <button
           onClick={() => setShowModal(true)}
           style={{
@@ -318,7 +347,11 @@ export default function KeysPage() {
         <a
           href={CTAS.upgrade.href}
           className="btn-ghost"
-          style={{ fontSize: "0.82rem", padding: "0.6rem 1.25rem", color: "var(--silver)" }}
+          style={{
+            fontSize: "0.82rem",
+            padding: "0.6rem 1.25rem",
+            color: "var(--silver)",
+          }}
         >
           Upgrade to a paid hosted plan
         </a>
@@ -341,7 +374,15 @@ export default function KeysPage() {
         >
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Name", "Prefix", "Plan", "Status", "Created", "Last Used", ""].map((h) => (
+              {[
+                "Name",
+                "Prefix",
+                "Plan",
+                "Status",
+                "Created",
+                "Last Used",
+                "",
+              ].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -363,10 +404,16 @@ export default function KeysPage() {
           <tbody>
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <tr key={`skel-${i}`} style={{ borderBottom: "1px solid var(--border)" }}>
+                <tr
+                  key={`skel-${i}`}
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                >
                   {Array.from({ length: 7 }).map((_, j) => (
                     <td key={j} style={{ padding: "0.55rem 0.65rem" }}>
-                      <div className="skeleton-text" style={{ width: j === 0 ? "80%" : "55%" }} />
+                      <div
+                        className="skeleton-text"
+                        style={{ width: j === 0 ? "80%" : "55%" }}
+                      />
                     </td>
                   ))}
                 </tr>
@@ -394,8 +441,20 @@ export default function KeysPage() {
                     opacity: k.status === "revoked" ? 0.5 : 1,
                   }}
                 >
-                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--white)" }}>{k.name}</td>
-                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--silver)" }}>
+                  <td
+                    style={{
+                      padding: "0.55rem 0.75rem",
+                      color: "var(--white)",
+                    }}
+                  >
+                    {k.name}
+                  </td>
+                  <td
+                    style={{
+                      padding: "0.55rem 0.75rem",
+                      color: "var(--silver)",
+                    }}
+                  >
                     {k.key_prefix}
                   </td>
                   <td style={{ padding: "0.55rem 0.75rem" }}>
@@ -426,20 +485,35 @@ export default function KeysPage() {
                           k.status === "active"
                             ? "rgba(46,184,122,0.12)"
                             : "rgba(176,34,54,0.15)",
-                        color: k.status === "active" ? "var(--green)" : "var(--crimson-hi)",
+                        color:
+                          k.status === "active"
+                            ? "var(--green)"
+                            : "var(--crimson-hi)",
                         textTransform: "uppercase",
                       }}
                     >
                       {k.status}
                     </span>
                   </td>
-                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--muted)" }}>
+                  <td
+                    style={{
+                      padding: "0.55rem 0.75rem",
+                      color: "var(--muted)",
+                    }}
+                  >
                     {k.created_at?.slice(0, 10) || "—"}
                   </td>
-                  <td style={{ padding: "0.55rem 0.75rem", color: "var(--muted)" }}>
+                  <td
+                    style={{
+                      padding: "0.55rem 0.75rem",
+                      color: "var(--muted)",
+                    }}
+                  >
                     {k.last_used_at?.slice(0, 10) || "—"}
                   </td>
-                  <td style={{ padding: "0.55rem 0.75rem", textAlign: "right" }}>
+                  <td
+                    style={{ padding: "0.55rem 0.75rem", textAlign: "right" }}
+                  >
                     {k.status === "active" && (
                       <button
                         onClick={() => handleRevoke(k.id)}
@@ -478,12 +552,14 @@ export default function KeysPage() {
           maxWidth: "640px",
         }}
       >
-        Keys are hashed at rest using SHA-256. Only the prefix is stored for identification.
-        Trial keys are limited to 1,000 Sovereign Audit Receipts per month for evaluation use.
-        For production access, managed infrastructure, and higher quotas,{" "}
+        Keys are hashed at rest using SHA-256. Only the prefix is stored for
+        identification. Trial keys are limited to 1,000 Sovereign Audit Receipts
+        per month for evaluation use. For production access, managed
+        infrastructure, and higher quotas,{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
           upgrade to a paid hosted plan
-        </a>.
+        </a>
+        .
       </div>
 
       {/* Modal */}
@@ -642,18 +718,26 @@ export default function KeysPage() {
                     lineHeight: 1.6,
                   }}
                 >
-                  Use this key in the <code style={{ color: "var(--white)" }}>X-API-Key</code>{" "}
-                  header to call the hosted API. Trial: 1,000 Sovereign Audit Receipts/month.
+                  Use this key in the{" "}
+                  <code style={{ color: "var(--white)" }}>X-API-Key</code>{" "}
+                  header to call the hosted API. Trial: 1,000 Sovereign Audit
+                  Receipts/month.
                 </div>
 
-                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <div
+                  style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}
+                >
                   <button
                     onClick={handleCopy}
                     style={{
                       flex: 1,
-                      background: secretCopied ? "rgba(80,200,120,0.15)" : "var(--crimson)",
+                      background: secretCopied
+                        ? "rgba(80,200,120,0.15)"
+                        : "var(--crimson)",
                       color: secretCopied ? "#50c878" : "var(--white)",
-                      border: secretCopied ? "1px solid rgba(80,200,120,0.3)" : "none",
+                      border: secretCopied
+                        ? "1px solid rgba(80,200,120,0.3)"
+                        : "none",
                       padding: "0.6rem",
                       fontFamily: "var(--font-mono)",
                       fontSize: "0.82rem",

@@ -9,22 +9,23 @@ Canonical env matrix: `docs/ENVIRONMENT_VARIABLES.md`
 
 ## Required Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ALETHEIA_MODE` | Yes | `active` (production) / `shadow` (dev, log-only) / `monitor` |
-| `ALETHEIA_RECEIPT_SECRET` | Yes (active) | HMAC signing secret for audit receipts. Min 32 chars. Generate: `openssl rand -hex 32` |
-| `UPSTASH_REDIS_REST_URL` | Yes (production) | Upstash Redis URL for rate limiting, replay defense, and decision store |
-| `UPSTASH_REDIS_REST_TOKEN` | Yes (production) | Upstash Redis auth token |
-| `ALETHEIA_ALIAS_SALT` | Recommended | Salt for daily alias rotation. Generate: `openssl rand -hex 32` |
-| `ALETHEIA_KEY_SALT` | Recommended | HMAC salt for key store hashing. Falls back to plain SHA-256 if unset |
-| `ALETHEIA_ANCHOR_STATE_PATH` | Optional | Path for proximity module identity anchor state persistence (requires `CONSCIOUSNESS_PROXIMITY_ENABLED=true`) |
-| `ALETHEIA_LOG_LEVEL` | Optional | `INFO` (default), `DEBUG`, `WARNING` |
-| `ALETHEIA_AUDIT_LOG_PATH` | Optional | Path to audit log file. Default: `audit.log` |
-| `ALETHEIA_TRUSTED_PROXY_DEPTH` | Recommended | Number of trusted proxy hops (0–5, default: 1). Set >1 behind load balancers. |
-| `ALETHEIA_CORS_ORIGINS` | Optional | Comma-separated allowed CORS origins |
-| `ALETHEIA_MANIFEST_KEY_VERSION` | Optional | Key version tag for manifest signing (default: `v1`) |
+| Variable                        | Required         | Description                                                                                                   |
+| ------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| `ALETHEIA_MODE`                 | Yes              | `active` (production) / `shadow` (dev, log-only) / `monitor`                                                  |
+| `ALETHEIA_RECEIPT_SECRET`       | Yes (active)     | HMAC signing secret for audit receipts. Min 32 chars. Generate: `openssl rand -hex 32`                        |
+| `UPSTASH_REDIS_REST_URL`        | Yes (production) | Upstash Redis URL for rate limiting, replay defense, and decision store                                       |
+| `UPSTASH_REDIS_REST_TOKEN`      | Yes (production) | Upstash Redis auth token                                                                                      |
+| `ALETHEIA_ALIAS_SALT`           | Recommended      | Salt for daily alias rotation. Generate: `openssl rand -hex 32`                                               |
+| `ALETHEIA_KEY_SALT`             | Recommended      | HMAC salt for key store hashing. Falls back to plain SHA-256 if unset                                         |
+| `ALETHEIA_ANCHOR_STATE_PATH`    | Optional         | Path for proximity module identity anchor state persistence (requires `CONSCIOUSNESS_PROXIMITY_ENABLED=true`) |
+| `ALETHEIA_LOG_LEVEL`            | Optional         | `INFO` (default), `DEBUG`, `WARNING`                                                                          |
+| `ALETHEIA_AUDIT_LOG_PATH`       | Optional         | Path to audit log file. Default: `audit.log`                                                                  |
+| `ALETHEIA_TRUSTED_PROXY_DEPTH`  | Recommended      | Number of trusted proxy hops (0–5, default: 1). Set >1 behind load balancers.                                 |
+| `ALETHEIA_CORS_ORIGINS`         | Optional         | Comma-separated allowed CORS origins                                                                          |
+| `ALETHEIA_MANIFEST_KEY_VERSION` | Optional         | Key version tag for manifest signing (default: `v1`)                                                          |
 
 ### Production checklist
+
 - `ALETHEIA_MODE=active` — required in production, refuses shadow mode
 - `ALETHEIA_RECEIPT_SECRET` — minimum 32 characters, required in active mode
 - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
@@ -48,6 +49,48 @@ For Render: use a persistent disk mounted at `/data` and set:
 ALETHEIA_AUDIT_LOG_PATH=/data/audit.log
 ALETHEIA_DECISION_DB_PATH=/data/decisions.sqlite3
 ```
+
+## Resource limits
+
+Use explicit CPU and memory limits to avoid noisy-neighbor instability and
+OOM kills during model warmup.
+
+### Docker recommendations
+
+- API container: reserve `1 vCPU` and `1Gi` memory, limit to `2 vCPU` and `2Gi` memory.
+- Frontend container: reserve `0.5 vCPU` and `512Mi` memory, limit to `1 vCPU` and `1Gi` memory.
+- Redis/Qdrant sidecars (if self-hosted): reserve `0.5 vCPU` and `512Mi` each, limit `1 vCPU` and `1Gi`.
+
+Example compose snippet:
+
+```yaml
+services:
+  aletheia-api:
+    deploy:
+      resources:
+        reservations:
+          cpus: "1.0"
+          memory: 1G
+        limits:
+          cpus: "2.0"
+          memory: 2G
+```
+
+### Kubernetes recommendations
+
+- API Deployment:
+  - `resources.requests.cpu: 1000m`
+  - `resources.requests.memory: 1Gi`
+  - `resources.limits.cpu: 2000m`
+  - `resources.limits.memory: 2Gi`
+- Frontend Deployment:
+  - `resources.requests.cpu: 250m`
+  - `resources.requests.memory: 512Mi`
+  - `resources.limits.cpu: 1000m`
+  - `resources.limits.memory: 1Gi`
+
+Tune upward if `aletheia_embedding_model_load_seconds` rises sharply or startup
+readiness regularly exceeds your platform timeout.
 
 ### Multi-instance audit chain continuity
 
@@ -98,6 +141,7 @@ STARTUP SELF-CHECK: version=1.9.2 manifest=VALID expires_at=2027-03-07T00:00:00+
 ```
 
 Verify startup succeeded by checking:
+
 1. No `FATAL:` log lines
 2. Self-check shows `manifest=VALID`
 3. `receipt_signing=enabled`
@@ -108,6 +152,7 @@ Verify startup succeeded by checking:
 ## Health and Readiness Endpoints
 
 ### GET /health
+
 Returns minimal status without auth. Extended diagnostics available to authenticated admin users.
 Used by load balancers and uptime monitors.
 
@@ -127,10 +172,12 @@ curl https://your-app.onrender.com/health \
 Expected (admin): `{"status":"ok","service":"aletheia-core","version":"1.9.2",...}`
 
 ### GET /ready
+
 Returns subsystem readiness: manifest, Redis, anchor, receipt signing.
 Returns HTTP 200 when ready, HTTP 503 when degraded.
 
 Also includes hosted demo diagnostics:
+
 - `demo_key_configured`: demo key env var is present
 - `demo_key_registered`: configured key exists in backend KeyStore
 - `demo_key_status`: one of `not_configured`, `registered`, `missing`, `lookup_error`
@@ -146,6 +193,7 @@ Expected: `{"ready": true, "manifest_signature": "VALID", ...}`
 ## Metrics Endpoint
 
 ### GET /metrics
+
 Returns Prometheus/OpenMetrics-format metrics for scraping. No auth required.
 
 ```bash
@@ -154,13 +202,13 @@ curl https://your-app.onrender.com/metrics
 
 Exported metrics:
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `aletheia_requests_total` | Counter | Total audit requests, labeled by `agent` and `verdict` |
-| `aletheia_latency_seconds` | Histogram | Request processing latency |
-| `aletheia_embedding_model_load_seconds` | Gauge | Time to load the embedding model at startup |
-| `aletheia_keys_total` | Gauge | Number of active API keys |
-| `aletheia_audit_log_bytes` | Counter | Total bytes written to the audit log |
+| Metric                                  | Type      | Description                                            |
+| --------------------------------------- | --------- | ------------------------------------------------------ |
+| `aletheia_requests_total`               | Counter   | Total audit requests, labeled by `agent` and `verdict` |
+| `aletheia_latency_seconds`              | Histogram | Request processing latency                             |
+| `aletheia_embedding_model_load_seconds` | Gauge     | Time to load the embedding model at startup            |
+| `aletheia_keys_total`                   | Gauge     | Number of active API keys                              |
+| `aletheia_audit_log_bytes`              | Counter   | Total bytes written to the audit log                   |
 
 Configure your Prometheus scrape config to target `/metrics` on your deployment host.
 
@@ -178,6 +226,7 @@ curl -X POST https://your-app.onrender.com/v1/rotate \
 Requires RBAC `SECRETS_ROTATE` permission. Returns HTTP 200 on success, HTTP 429 if called within the 10-second cooldown window.
 
 On rotation:
+
 - Reloads `ALETHEIA_RECEIPT_SECRET`, `ALETHEIA_ALIAS_SALT` from environment
 - Re-verifies the manifest signature
 - Rotates the Judge alias bank
@@ -191,7 +240,9 @@ kill -SIGUSR1 $(pidof python)
 Performs the same rotation without HTTP. The handler is installed at startup.
 
 ### Log rotation
+
 Log rotation is configured in `deploy/logrotate.conf` for containerized deployments:
+
 - Daily rotation, 30 days retention, compressed
 - Max size: 100 MB per file
 - Permissions: `0600` (owner read/write only)
@@ -228,6 +279,7 @@ When `ready=false` or `fallback_state=degraded`:
 - **Common causes:** Upstash Redis unreachable, manifest expired, bundle drift.
 
 ### How to resolve
+
 1. Check `/ready` for which subsystem is degraded
 2. If Redis: verify `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
 3. If manifest: re-sign with `python main.py sign-manifest` and redeploy
@@ -238,6 +290,7 @@ When `ready=false` or `fallback_state=degraded`:
 ## Redis Outage Behavior
 
 When Upstash Redis is unavailable:
+
 - Decision store falls back to **SQLite** (local, single-node only)
 - System enters **degraded mode** — privileged actions denied
 - Read-only actions continue to work
@@ -261,6 +314,7 @@ When Upstash Redis is unavailable:
 ## Rollback Steps
 
 ### Quick rollback (Render)
+
 1. Open Render dashboard → your service → Deploys
 2. Click "Redeploy" on the last known-good deploy
 3. Verify with: `curl https://your-app.onrender.com/health`
@@ -274,6 +328,7 @@ git push origin main          # Trigger redeploy
 ```
 
 ### Rollback checklist
+
 - [ ] Health endpoint returns `status: ok`
 - [ ] Ready endpoint returns `ready: true`
 - [ ] Smoke tests pass: `make smoke`
@@ -287,6 +342,7 @@ A minimal reference config is provided at `deploy/nginx.conf` for self-hosted
 operators using TLS termination and reverse proxying to Next.js + FastAPI.
 
 The reference includes:
+
 - HTTP to HTTPS redirect
 - TLS termination with modern ciphers and session settings
 - Security headers (`HSTS`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
@@ -294,6 +350,7 @@ The reference includes:
 - Upstream routing to Next.js for all other paths
 
 Before production use:
+
 - Replace certificate paths with your deployed certs
 - Set `server_name` to your domain(s)
 - Tune upstream host/ports for your process manager or container network
@@ -303,10 +360,12 @@ Before production use:
 ## Starlette Compatibility Validation
 
 Compatibility validation for `starlette` was executed against:
+
 - `0.46.2`
 - `1.0.0`
 
 Validation suite used for both runs:
+
 - Full Python test suite via `pytest -q`
 
 Result: both versions passed the full suite (`1132 passed, 16 skipped`).

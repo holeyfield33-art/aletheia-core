@@ -33,19 +33,32 @@ function getStripePriceIdForTier(tier: CheckoutTier): string | undefined {
   return PRICING.payg.stripePriceId;
 }
 
-function getStripeExpectedAmountForTier(tier: CheckoutTier): number | undefined {
+function getStripeExpectedAmountForTier(
+  tier: CheckoutTier,
+): number | undefined {
   if (tier === "scale") {
-    return parseInt(process.env.STRIPE_SCALE_PRICE_AMOUNT || String(PRICING.scale.price * 100), 10);
+    return parseInt(
+      process.env.STRIPE_SCALE_PRICE_AMOUNT ||
+        String(PRICING.scale.price * 100),
+      10,
+    );
   }
   if (tier === "pro") {
-    return parseInt(process.env.STRIPE_PRO_PRICE_AMOUNT || String(PRICING.pro.price * 100), 10);
+    return parseInt(
+      process.env.STRIPE_PRO_PRICE_AMOUNT || String(PRICING.pro.price * 100),
+      10,
+    );
   }
   return undefined;
 }
 
 function getStripeCurrencyForTier(tier: CheckoutTier): string {
   if (tier === "scale") {
-    return (process.env.STRIPE_SCALE_CURRENCY || process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
+    return (
+      process.env.STRIPE_SCALE_CURRENCY ||
+      process.env.STRIPE_PRO_CURRENCY ||
+      "usd"
+    ).toLowerCase();
   }
   if (tier === "payg") {
     return (
@@ -58,7 +71,10 @@ function getStripeCurrencyForTier(tier: CheckoutTier): string {
   return (process.env.STRIPE_PRO_CURRENCY || "usd").toLowerCase();
 }
 
-function getQuotaUpdateForPlan(plan: HostedPlanId): { plan: string; monthlyQuota: number } {
+function getQuotaUpdateForPlan(plan: HostedPlanId): {
+  plan: string;
+  monthlyQuota: number;
+} {
   if (plan === "ENTERPRISE") {
     return { plan: "enterprise", monthlyQuota: PAYG_MONTHLY_QUOTA };
   }
@@ -121,36 +137,26 @@ export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   const hasValidSecret = (secret ?? "").startsWith("whsec_");
   if (process.env.NODE_ENV === "production" && !hasValidSecret) {
-    console.error("[stripe-webhook] invalid or missing STRIPE_WEBHOOK_SECRET in production");
-    return NextResponse.json(
-      { error: "configuration_error" },
-      { status: 503 },
+    console.error(
+      "[stripe-webhook] invalid or missing STRIPE_WEBHOOK_SECRET in production",
     );
+    return NextResponse.json({ error: "configuration_error" }, { status: 503 });
   }
 
   if (!secret) {
-    return NextResponse.json(
-      { error: "configuration_error" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "configuration_error" }, { status: 503 });
   }
 
   const body = await request.text();
   const requestHeaders = await headers();
   const sig = requestHeaders.get("stripe-signature");
   if (!sig) {
-    return NextResponse.json(
-      { error: "missing_signature" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "missing_signature" }, { status: 400 });
   }
 
   // Verify signature — reject unsigned or tampered events
   if (!verifyStripeSignature(body, sig, secret)) {
-    return NextResponse.json(
-      { error: "invalid_signature" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
 
   let event: { type: string; data: { object: Record<string, unknown> } };
@@ -177,11 +183,16 @@ export async function POST(request: Request) {
         // price is recoverable (e.g. 0-line synthetic events).
         const lineItems =
           typeof session.line_items === "object" && session.line_items !== null
-            ? (session.line_items as { data?: Array<{ price?: { id?: string } }> })
+            ? (session.line_items as {
+                data?: Array<{ price?: { id?: string } }>;
+              })
             : undefined;
-        const linePriceId = lineItems?.data?.find((line) => line.price?.id)?.price?.id;
+        const linePriceId = lineItems?.data?.find((line) => line.price?.id)
+          ?.price?.id;
         const metadataTier =
-          typeof sessionMetadata?.tier === "string" ? sessionMetadata.tier : undefined;
+          typeof sessionMetadata?.tier === "string"
+            ? sessionMetadata.tier
+            : undefined;
         const selectedTier = linePriceId
           ? getTierForPriceId(linePriceId)
           : normalizeTier(metadataTier);
@@ -190,7 +201,9 @@ export async function POST(request: Request) {
         const expectedCurrency = getStripeCurrencyForTier(selectedTier);
         const expectedPriceId = getStripePriceIdForTier(selectedTier);
         const sessionAmount = session.amount_total as number | undefined;
-        const sessionCurrency = (session.currency as string | undefined)?.toLowerCase();
+        const sessionCurrency = (
+          session.currency as string | undefined
+        )?.toLowerCase();
 
         // Defence-in-depth: if metadata claims a different tier than the price id
         // resolves to, that's a downgrade attempt — refuse the event.
@@ -203,7 +216,10 @@ export async function POST(request: Request) {
             `[stripe-webhook] tier/metadata mismatch: priceId=${linePriceId} metadataTier=${metadataTier}`,
           );
           return NextResponse.json(
-            { error: "tier_mismatch", message: "Checkout metadata does not match line item." },
+            {
+              error: "tier_mismatch",
+              message: "Checkout metadata does not match line item.",
+            },
             { status: 400 },
           );
         }
@@ -212,7 +228,8 @@ export async function POST(request: Request) {
           expectedAmount !== undefined &&
           sessionAmount !== undefined &&
           sessionCurrency !== undefined &&
-          (sessionAmount !== expectedAmount || sessionCurrency !== expectedCurrency)
+          (sessionAmount !== expectedAmount ||
+            sessionCurrency !== expectedCurrency)
         ) {
           console.error(
             `[stripe-webhook] Price mismatch: expected ${expectedAmount} ${expectedCurrency}, got ${sessionAmount} ${sessionCurrency}`,
@@ -275,7 +292,10 @@ export async function POST(request: Request) {
           });
           if (users.length > 0) {
             await prisma.apiKey.updateMany({
-              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+              where: {
+                userId: { in: users.map((user) => user.id) },
+                status: "active",
+              },
               data: {
                 plan: quotaUpdate.plan,
                 monthlyQuota: quotaUpdate.monthlyQuota,
@@ -304,7 +324,10 @@ export async function POST(request: Request) {
           });
           if (users.length > 0) {
             await prisma.apiKey.updateMany({
-              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+              where: {
+                userId: { in: users.map((user) => user.id) },
+                status: "active",
+              },
               data: {
                 plan: trialPlan.apiKeyPlan,
                 monthlyQuota: trialPlan.monthlyCalls,
@@ -319,7 +342,9 @@ export async function POST(request: Request) {
         const subscription = event.data.object;
         const subscriptionItems =
           typeof subscription.items === "object" && subscription.items !== null
-            ? (subscription.items as { data?: Array<{ price?: { id?: string } }> })
+            ? (subscription.items as {
+                data?: Array<{ price?: { id?: string } }>;
+              })
             : undefined;
         const customerId = subscription.customer as string;
         const status = subscription.status as string;
@@ -349,7 +374,10 @@ export async function POST(request: Request) {
           });
           if (users.length > 0) {
             await prisma.apiKey.updateMany({
-              where: { userId: { in: users.map((user) => user.id) }, status: "active" },
+              where: {
+                userId: { in: users.map((user) => user.id) },
+                status: "active",
+              },
               data: {
                 plan: quotaUpdate.plan,
                 monthlyQuota: quotaUpdate.monthlyQuota,
@@ -366,7 +394,10 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     console.error("[stripe-webhook] Failed to process event", error);
-    return NextResponse.json({ error: "webhook_processing_failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "webhook_processing_failed" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ received: true });

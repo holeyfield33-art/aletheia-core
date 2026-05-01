@@ -6,6 +6,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
 ## Findings
 
 ### 1. High: Not every decision path emits a signed receipt
+
 - The evaluate endpoint explicitly returns decisions without writing a receipt:
   - bridge/fastapi_wrapper.py#L901
   - bridge/fastapi_wrapper.py#L909
@@ -14,6 +15,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
 - This violates the requirement if "every PROCEED or DENIED decision" includes both audit and evaluate decisions.
 
 ### 2. High: Receipt policy hash can drift from the actual policy used for decisioning
+
 - Receipt policy hash is recomputed from manifest bytes at log time, without signature verification:
   - core/audit.py#L102
   - core/audit.py#L113
@@ -25,6 +27,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
 - If manifest file changes after startup (and before reload), a receipt may bind to a different hash than the in-memory policy that made the decision.
 
 ### 3. Medium: Unsigned receipt mode still exists outside active mode
+
 - Receipt builder returns UNSIGNED_DEV_MODE when secret is absent:
   - core/audit.py#L398
   - core/audit.py#L404
@@ -34,6 +37,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
 - So "every decision is HMAC-SHA256 signed" is conditionally true, not universal across all runtime modes.
 
 ### 4. Medium: Invalid manifest handling is fail-closed, but not always a returned DENIED response
+
 - Tampered manifest raises and propagates in Judge load:
   - agents/judge_v1.py#L205
   - agents/judge_v1.py#L219
@@ -42,6 +46,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
 - Result is startup failure (service unavailable), which is fail-closed but not an API-level DENIED status.
 
 ## Verified Controls That Are Correct
+
 - Receipt signature algorithm is HMAC-SHA256:
   - core/audit.py#L406
   - core/audit.py#L410
@@ -74,6 +79,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
   - manifest/signing.py#L262
 
 ## Runtime Validation Performed
+
 - Targeted tests passed:
   1. tests/test_signing.py: 25 passed
   2. tests/test_judge_manifest.py + tests/test_audit_extended.py + tests/test_redteam_fixes.py + tests/test_unified_audit.py: 88 passed
@@ -82,6 +88,7 @@ Scope: Aletheia-Core decision pipeline, receipt signing, and manifest/action fai
   2. Changing policy_hash, payload_sha256, action, origin, or decision each made verification false
 
 ## Open Assumption
+
 - This audit assumes the requirement applies to all decision-returning API surfaces, not only /v1/audit.
 - If scope is strictly /v1/audit in active mode with secret configured, compliance is much closer, with the main remaining concern being policy-hash drift after startup.
 
@@ -95,6 +102,7 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
 ### Findings
 
 #### 1. Medium: "All three must pass" is true in normal mode, but has a non-production shadow-mode exception
+
 - The main decision gate denies when ANY single agent denies:
   - bridge/fastapi_wrapper.py#L951
   - bridge/fastapi_wrapper.py#L952
@@ -112,6 +120,7 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
   - tests/test_api.py#L238
 
 #### 2. Low: Nitpicker semantic extension is intentionally fail-open when Qdrant is degraded
+
 - Static cosine blocking remains the safety floor, but Qdrant lookup errors degrade open:
   - agents/nitpicker_v2.py#L215
   - agents/nitpicker_v2.py#L247
@@ -121,6 +130,7 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
 ### Agent-by-Agent Audit
 
 #### Scout (threat context scoring)
+
 - Uses heuristic scoring for smuggling prefixes, exfiltration markers, contextual camouflage (neutral anchors + high-value targets), and probing patterns:
   - agents/scout_v2.py#L127
   - agents/scout_v2.py#L148
@@ -129,6 +139,7 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
   - agents/scout_v2.py#L194
 
 #### Nitpicker (semantic similarity against blocked patterns)
+
 - Performs cosine similarity against blocked pattern bank, with optional symbolic narrowing + Qdrant match and thresholding:
   - agents/nitpicker_v2.py#L155
   - agents/nitpicker_v2.py#L162
@@ -137,6 +148,7 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
   - agents/nitpicker_v2.py#L225
 
 #### Judge (pre-execution block decisions)
+
 - Enforces restricted action IDs and applies cosine similarity against semantic camouflage aliases, plus grey-zone keyword escalation:
   - agents/judge_v1.py#L224
   - agents/judge_v1.py#L251
@@ -145,6 +157,7 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
   - agents/judge_v1.py#L290
 
 ### Raw Threat Score Exposure Audit
+
 - Client responses use discretized threat bands and omit raw `threat_score`:
   - bridge/fastapi_wrapper.py#L685
   - bridge/fastapi_wrapper.py#L688
@@ -156,11 +169,13 @@ Scope: Scout threat context scoring, Nitpicker semantic similarity blocking, Jud
   - bridge/fastapi_wrapper.py#L716
 
 ### Runtime Validation Performed
+
 - Focused red-team leakage and gating tests executed:
   1. tests/test_redteam_adversarial.py (`discretise_threat`, `response_never_contains_raw_score`, `sanitise_reason`, `multi_agent`) -> 6 passed
   2. tests/test_api.py (`shadow_mode_overrides_deny_to_proceed`) -> 1 passed
 
 ### Conclusion
+
 - The stack is implemented as independent veto gates (Scout OR Nitpicker OR Judge can deny), so all three must pass for PROCEED in standard operation.
 - Non-production shadow mode is the explicit operational exception where a blocked result may be surfaced as PROCEED for observability/testing.
 
@@ -174,6 +189,7 @@ Scope: Validation of NFKC normalization, zero-width/control stripping, recursive
 ### Findings
 
 #### 1. Confirmed: NFKC and confusable collapse are active
+
 - NFKC normalization is applied at the start of normalization:
   - core/runtime_security.py#L258
 - Confusable collapse is applied after decode/unescape:
@@ -185,6 +201,7 @@ Scope: Validation of NFKC normalization, zero-width/control stripping, recursive
   - tests/test_redteam_adversarial.py#L175
 
 #### 2. Confirmed: Zero-width and control characters are stripped
+
 - Zero-width and bidi markers are removed:
   - core/runtime_security.py#L88
   - core/runtime_security.py#L90
@@ -196,6 +213,7 @@ Scope: Validation of NFKC normalization, zero-width/control stripping, recursive
   - tests/test_redteam_fixes.py#L29
 
 #### 3. Confirmed: Recursive URL/Base64/Data-URI decoding is bounded and active
+
 - Recursive URL decoding with recursion/decode-budget limits:
   - core/runtime_security.py#L94
 - Strict Base64 detection and bounded recursive decode:
@@ -210,6 +228,7 @@ Scope: Validation of NFKC normalization, zero-width/control stripping, recursive
   - tests/test_enterprise_hardening_phase3.py#L100
 
 #### 4. Confirmed: Hardening runs before Scout and Nitpicker in API paths
+
 - Input is normalized into `clean_input` before any agent calls:
   - bridge/fastapi_wrapper.py#L920
   - bridge/fastapi_wrapper.py#L947
@@ -226,15 +245,17 @@ Scope: Validation of NFKC normalization, zero-width/control stripping, recursive
   - main.py#L51
 
 ### Runtime Validation Performed
+
 - Targeted normalization suites executed and passed:
   1. tests/test_runtime_security_layer.py
   2. tests/test_bridge_utils_extended.py
   3. tests/test_redteam_fixes.py
   4. tests/test_enterprise_hardening_phase3.py
-  Result: 93 passed.
+     Result: 93 passed.
 - API instrumentation checks confirmed Scout, Nitpicker, and Judge received normalized payloads in both `/v1/evaluate` and `/v1/audit` flows.
 
 ### Conclusion
+
 - Input Hardening is functioning as designed for the requested controls.
 - NFKC/zero-width/recursive decode transformations are applied globally before Scout or Nitpicker evaluate payloads, reducing obfuscation-based evasion risk at agent entry.
 
@@ -248,6 +269,7 @@ Scope: Verification of 30-day retention functionality, independent receipt valid
 ### Findings
 
 #### 1. High: 30-day hosted audit retention is declared, but enforcement is not evidenced in the hosted data path
+
 - Plan metadata declares 30-day retention for PRO/MAX/ENTERPRISE:
   - lib/hosted-plans.ts#L31
   - lib/hosted-plans.ts#L40
@@ -268,6 +290,7 @@ Scope: Verification of 30-day retention functionality, independent receipt valid
   - deploy/logrotate.conf#L3
 
 #### 2. High: Receipt Viewer is not independent cryptographic verification
+
 - Viewer page is an inspection/parser UI and explicitly defers full HMAC validation to a CLI command string:
   - app/verify/page.tsx#L124
   - app/verify/page.tsx#L126
@@ -280,6 +303,7 @@ Scope: Verification of 30-day retention functionality, independent receipt valid
   - core/audit.py#L439
 
 #### 3. Medium: "Every AI action" signed receipt is true on `/v1/audit`, not on `/v1/evaluate`
+
 - `/v1/audit` logs and returns `receipt` in response:
   - bridge/fastapi_wrapper.py#L1150
   - bridge/fastapi_wrapper.py#L1175
@@ -289,6 +313,7 @@ Scope: Verification of 30-day retention functionality, independent receipt valid
 - Therefore universal signed-receipt coverage depends on clients using `/v1/audit` rather than `/v1/evaluate`.
 
 #### 4. Medium: ISO/IEC 42001 mapping artifacts are not materially present as an auditable control matrix
+
 - Technical controls relevant to 42001 intent exist (decision logging model, signed receipts, policy controls), but no explicit in-repo 42001 mapping matrix was identified during audit:
   - prisma/schema.prisma#L131
   - core/audit.py#L352
@@ -296,6 +321,7 @@ Scope: Verification of 30-day retention functionality, independent receipt valid
 - Outcome: partial alignment by implementation, weak alignment by governance evidence/documentation.
 
 ### Verified Controls That Are Correct
+
 - Cryptographic receipt generation/verification implementation is present and canonicalized for machine verification:
   - core/audit.py#L352
   - core/audit.py#L367
@@ -307,12 +333,14 @@ Scope: Verification of 30-day retention functionality, independent receipt valid
   - app/api/evidence/route.ts#L49
 
 ### Compliance Verdict (Current State)
+
 - 30-day retention functionality (Hosted Pro/Enterprise): **Not demonstrated as enforced** in hosted DB paths from audited code.
 - Independent validation via Receipt Viewer: **Not met** (viewer is structural inspection, not cryptographic verification).
 - ISO/IEC 42001 mapping: **Partially met technically, not met as auditable governance mapping**.
 - "Every AI action" signed receipt: **Partially met** (`/v1/audit` yes, `/v1/evaluate` no).
 
 ### Recommended Remediations
+
 1. Implement and document a hosted audit-log retention enforcement job (e.g., scheduled `auditLog.deleteMany` by plan-specific window) and expose operational evidence.
 2. Add server-side receipt verification endpoint (or signed client verifier bundle) used directly by the Receipt Viewer UI; do not rely on a non-existent CLI path in this repo.
 3. Harmonize retention claims across pricing/docs/privacy/export metadata (single source of truth).
@@ -334,26 +362,26 @@ Scope: Route reachability (all 19 declared core routes), Nginx / edge proxy conf
 
 A full scan of `app/api/` yielded 18 `route.ts` files:
 
-| # | Path | Methods | Auth |
-|---|---|---|---|
-| 1 | `/api/account` | GET, PATCH, DELETE | Protected |
-| 2 | `/api/account/export` | POST | Protected |
-| 3 | `/api/auth/[...nextauth]` | GET, POST | NextAuth |
-| 4 | `/api/auth/register` | POST | Public |
-| 5 | `/api/auth/verify-email` | POST | Public |
-| 6 | `/api/cron/report-usage` | POST | Bearer token |
-| 7 | `/api/demo` | POST | None |
-| 8 | `/api/demo/origins` | GET, POST | None |
-| 9 | `/api/evidence` | GET | Protected |
-| 10 | `/api/health` | GET | Admin (prod) / Open (dev) |
-| 11 | `/api/keys` | GET, POST | Protected |
-| 12 | `/api/keys/[id]` | DELETE, PATCH | Protected |
-| 13 | `/api/logs` | GET | Protected |
-| 14 | `/api/policy` | GET, PUT | Protected |
-| 15 | `/api/settings` | GET, PATCH | Protected |
-| 16 | `/api/stripe/checkout` | GET, POST | Session |
-| 17 | `/api/stripe/webhook` | POST | Stripe-sig |
-| 18 | `/api/webhooks/stripe` | POST | Stripe-sig |
+| #   | Path                      | Methods            | Auth                      |
+| --- | ------------------------- | ------------------ | ------------------------- |
+| 1   | `/api/account`            | GET, PATCH, DELETE | Protected                 |
+| 2   | `/api/account/export`     | POST               | Protected                 |
+| 3   | `/api/auth/[...nextauth]` | GET, POST          | NextAuth                  |
+| 4   | `/api/auth/register`      | POST               | Public                    |
+| 5   | `/api/auth/verify-email`  | POST               | Public                    |
+| 6   | `/api/cron/report-usage`  | POST               | Bearer token              |
+| 7   | `/api/demo`               | POST               | None                      |
+| 8   | `/api/demo/origins`       | GET, POST          | None                      |
+| 9   | `/api/evidence`           | GET                | Protected                 |
+| 10  | `/api/health`             | GET                | Admin (prod) / Open (dev) |
+| 11  | `/api/keys`               | GET, POST          | Protected                 |
+| 12  | `/api/keys/[id]`          | DELETE, PATCH      | Protected                 |
+| 13  | `/api/logs`               | GET                | Protected                 |
+| 14  | `/api/policy`             | GET, PUT           | Protected                 |
+| 15  | `/api/settings`           | GET, PATCH         | Protected                 |
+| 16  | `/api/stripe/checkout`    | GET, POST          | Session                   |
+| 17  | `/api/stripe/webhook`     | POST               | Stripe-sig                |
+| 18  | `/api/webhooks/stripe`    | POST               | Stripe-sig                |
 
 Total confirmed: **18 routes**. If a 19th was declared, it is not present in the `app/api/` tree. No `route.ts` file was found for it. This represents a discrepancy that should be resolved against the product specification.
 
@@ -362,6 +390,7 @@ Total confirmed: **18 routes**. If a 19th was declared, it is not present in the
 `middleware.ts` gates the following paths: `/dashboard`, `/api/keys`, `/api/logs`, `/api/evidence`, `/api/account`, `/api/settings`, `/api/policy`.
 
 Routes that perform auth checks independently (inside the route handler via `getServerSession` or `getToken`) but are NOT in the middleware guard list:
+
 - `/api/stripe/checkout` — 401 returned from route handler, not middleware
 - `/api/health` — auth check inside handler (admin role only in production)
 - `/api/cron/report-usage` — Bearer token check inside handler
@@ -379,6 +408,7 @@ The application is a Next.js 14 App Router project deployed via Vercel (confirme
 SPA routing, reverse proxying, TLS termination, and HTTP→HTTPS redirection are handled entirely by the Vercel or Render edge runtime, not a self-managed Nginx instance.
 
 Implications:
+
 - For the hosted deployment: the audit assertion about Nginx proxying the React SPA does not apply. The platform (Vercel/Render) handles routing.
 - For a self-hosted deployment: if an operator places Nginx in front of the Next.js process, they must supply their own Nginx configuration. None is shipped in the repository and none is referenced in deployment documentation (`docs/LAUNCH_GUIDE.md`, `docs/OPERATIONS_RUNBOOK.md`). A reference configuration should be added to deployment docs so operators do not misconfigure HTTPS termination, WebSocket upgrades, or proxy headers.
 
@@ -386,18 +416,18 @@ Implications:
 
 ### Section C — Security Headers
 
-**Finding 4 — HSTS is set but only in middleware; `next.config.js` duplicates four headers without HSTS for _next/ paths covered by the `matcher` exclusion**
+**Finding 4 — HSTS is set but only in middleware; `next.config.js` duplicates four headers without HSTS for \_next/ paths covered by the `matcher` exclusion**
 
 Header coverage by layer:
 
-| Header | `next.config.js` `headers()` | `middleware.ts` response |
-|---|---|---|
-| `X-Content-Type-Options: nosniff` | ✓ | ✓ |
-| `X-Frame-Options: DENY` | ✓ | ✓ |
-| `Referrer-Policy: strict-origin-when-cross-origin` | ✓ | ✓ |
-| `Strict-Transport-Security: max-age=31536000; includeSubDomains` | ✓ | ✓ |
-| `Permissions-Policy: camera=(), microphone=(), geolocation=()` | ✓ | ✗ (missing from middleware) |
-| `Content-Security-Policy` | ✗ (absent from next.config.js) | ✓ |
+| Header                                                           | `next.config.js` `headers()`   | `middleware.ts` response    |
+| ---------------------------------------------------------------- | ------------------------------ | --------------------------- |
+| `X-Content-Type-Options: nosniff`                                | ✓                              | ✓                           |
+| `X-Frame-Options: DENY`                                          | ✓                              | ✓                           |
+| `Referrer-Policy: strict-origin-when-cross-origin`               | ✓                              | ✓                           |
+| `Strict-Transport-Security: max-age=31536000; includeSubDomains` | ✓                              | ✓                           |
+| `Permissions-Policy: camera=(), microphone=(), geolocation=()`   | ✓                              | ✗ (missing from middleware) |
+| `Content-Security-Policy`                                        | ✗ (absent from next.config.js) | ✓                           |
 
 `Permissions-Policy` is only set by `next.config.js` static headers, not by middleware. Requests that hit the middleware response path (all non-static paths) receive a complete header set only because `next.config.js` headers are applied before middleware response headers. However, if `next.config.js` `headers()` is ever removed or scoped, `Permissions-Policy` drops out silently.
 
@@ -406,6 +436,7 @@ Header coverage by layer:
 **Finding 5 — CSP uses `'unsafe-inline'` for `script-src` and `script-src-elem`**
 
 Configured at middleware.ts#L113:
+
 ```
 script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com
 script-src-elem 'self' 'unsafe-inline' https://va.vercel-scripts.com
@@ -435,21 +466,22 @@ Neither header is set in `next.config.js` nor in middleware. Without COOP, the a
 
 The audit question references an "api.js" file with a `request()` helper that auto-attaches auth headers and performs a single token-refresh attempt on 401. This file does not exist in the codebase. Client-side data fetching is performed with bare `fetch()` calls directly in each component:
 
-| Component | Call site(s) |
-|---|---|
-| `app/dashboard/keys/page.tsx` | L49, L65, L90 |
-| `app/dashboard/logs/page.tsx` | L34 |
+| Component                                   | Call site(s)  |
+| ------------------------------------------- | ------------- |
+| `app/dashboard/keys/page.tsx`               | L49, L65, L90 |
+| `app/dashboard/logs/page.tsx`               | L34           |
 | `app/dashboard/settings/SettingsClient.tsx` | L39, L61, L89 |
-| `app/dashboard/evidence/page.tsx` | L21 |
-| `app/dashboard/policy/page.tsx` | L33 |
-| `app/dashboard/usage/page.tsx` | L36 |
-| `app/components/UpgradeButton.tsx` | L25 |
+| `app/dashboard/evidence/page.tsx`           | L21           |
+| `app/dashboard/policy/page.tsx`             | L33           |
+| `app/dashboard/usage/page.tsx`              | L36           |
+| `app/components/UpgradeButton.tsx`          | L25           |
 
 **Finding 9 — No client-side 401 detection, token-refresh attempt, or session-expiry redirect exists**
 
 Not one of the `fetch()` call sites inspects `res.status === 401`. When a session expires mid-use, the response is either silently ignored (keys/page.tsx `fetchKeys` swallows the error in its catch block entirely) or treated as a generic failure with a toast message. The user is never automatically redirected to `auth/login`.
 
 This means:
+
 - A user whose session expires while on `/dashboard/keys` sees an empty key list with no error, not a login prompt.
 - A user whose session expires while on `/dashboard/logs` sees "Failed to load audit logs." — no redirect, no re-auth prompt.
 
@@ -463,17 +495,17 @@ However, this also means the audit framing of "auto-attached auth headers" is in
 
 ### Section E — Recommended Remediations (Priority Order)
 
-| Priority | Finding | Action |
-|---|---|---|
-| HIGH | #8 / #9 | Create a centralized `lib/client-fetch.ts` `request()` wrapper that: (a) checks `res.status === 401` and calls `signIn()` (NextAuth re-auth flow) once before retrying; (b) checks `res.status === 403` and redirects to `/dashboard`; (c) is used by all dashboard components in place of bare `fetch()`. |
-| HIGH | #9 | In the interim, add a `res.status === 401 → router.push("/auth/login?callbackUrl=...")` check to at minimum `fetchKeys`, `fetchLogs`, and `handleExport` to prevent silent empty-state failures on session expiry. |
-| MEDIUM | #2 | Add all auth-bearing routes to the `protectedPaths` list in `middleware.ts`. |
-| MEDIUM | #5 | Implement nonce-based CSP to eliminate `'unsafe-inline'` from `script-src`. |
-| MEDIUM | #7 | Add `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` to the middleware header block. |
-| LOW | #4 | Add `Permissions-Policy` to the middleware response headers to ensure it is set on all paths regardless of Next.js static header handling. |
-| LOW | #6 | Add `preload` to HSTS and submit to the HSTS preload list. |
-| LOW | #3 | Add a reference Nginx configuration to deployment documentation covering HTTPS termination, proxy_pass, and required security headers for self-hosted operators. |
-| INFO | #1 | Reconcile route count against the product specification to confirm whether a 19th route was planned and not yet implemented, or the route inventory is complete at 18. |
+| Priority | Finding | Action                                                                                                                                                                                                                                                                                                     |
+| -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HIGH     | #8 / #9 | Create a centralized `lib/client-fetch.ts` `request()` wrapper that: (a) checks `res.status === 401` and calls `signIn()` (NextAuth re-auth flow) once before retrying; (b) checks `res.status === 403` and redirects to `/dashboard`; (c) is used by all dashboard components in place of bare `fetch()`. |
+| HIGH     | #9      | In the interim, add a `res.status === 401 → router.push("/auth/login?callbackUrl=...")` check to at minimum `fetchKeys`, `fetchLogs`, and `handleExport` to prevent silent empty-state failures on session expiry.                                                                                         |
+| MEDIUM   | #2      | Add all auth-bearing routes to the `protectedPaths` list in `middleware.ts`.                                                                                                                                                                                                                               |
+| MEDIUM   | #5      | Implement nonce-based CSP to eliminate `'unsafe-inline'` from `script-src`.                                                                                                                                                                                                                                |
+| MEDIUM   | #7      | Add `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Resource-Policy: same-origin` to the middleware header block.                                                                                                                                                                              |
+| LOW      | #4      | Add `Permissions-Policy` to the middleware response headers to ensure it is set on all paths regardless of Next.js static header handling.                                                                                                                                                                 |
+| LOW      | #6      | Add `preload` to HSTS and submit to the HSTS preload list.                                                                                                                                                                                                                                                 |
+| LOW      | #3      | Add a reference Nginx configuration to deployment documentation covering HTTPS termination, proxy_pass, and required security headers for self-hosted operators.                                                                                                                                           |
+| INFO     | #1      | Reconcile route count against the product specification to confirm whether a 19th route was planned and not yet implemented, or the route inventory is complete at 18.                                                                                                                                     |
 
 ---
 
@@ -487,6 +519,7 @@ Scope: PII detection and redaction before database/log persistence; SHA-256 hash
 ### Framing: "Memory Modules" and "Onboarding PII"
 
 Aletheia-Core has no "Memory modules" in the agent-memory sense (episodic/semantic memory stores for conversation history). The product surfaces where user-supplied text enters the system are:
+
 1. **Registration form** — name, email, password (handled by Next.js API routes + Prisma)
 2. **API payload** — the `payload` field in `/v1/audit` and `/v1/evaluate` requests (handled by the Python pipeline)
 3. **Demo form** — the `payload`, `origin`, and `action` fields submitted via `/api/demo`
@@ -502,16 +535,17 @@ All findings below address PII handling in these surfaces.
 
 The `redact_pii()` function is defined in `core/audit.py#L36`. It applies four compiled patterns:
 
-| Pattern type | Regex | Replacement |
-|---|---|---|
-| Email | `[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}` | `[REDACTED:email:<4-byte nonce>]` |
-| US phone | `(\+?1[-.\\s]?)?\(?\d{3}\)?[-.\\s]?\d{3}[-.\\s]?\d{4}` | `[REDACTED:phone:<4-byte nonce>]` |
-| SSN | `\d{3}-\d{2}-\d{4}` | `[REDACTED:ssn:<4-byte nonce>]` |
-| Credit card | `(\d{4}[-\s]?){3}\d{4}` | `[REDACTED:credit_card:<4-byte nonce>]` |
+| Pattern type | Regex                                                  | Replacement                             |
+| ------------ | ------------------------------------------------------ | --------------------------------------- | --------------------------------- |
+| Email        | `[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z                | a-z]{2,}`                               | `[REDACTED:email:<4-byte nonce>]` |
+| US phone     | `(\+?1[-.\\s]?)?\(?\d{3}\)?[-.\\s]?\d{3}[-.\\s]?\d{4}` | `[REDACTED:phone:<4-byte nonce>]`       |
+| SSN          | `\d{3}-\d{2}-\d{4}`                                    | `[REDACTED:ssn:<4-byte nonce>]`         |
+| Credit card  | `(\d{4}[-\s]?){3}\d{4}`                                | `[REDACTED:credit_card:<4-byte nonce>]` |
 
 Nonces are `os.urandom(4).hex()` — random per replacement, preventing rainbow-table reconstruction of redacted values from the placeholder.
 
 `redact_pii()` is applied at `log_audit_event()` before the JSON record is written (`core/audit.py#L299`):
+
 ```python
 for key in ("reason", "origin", "action"):
     if isinstance(record.get(key), str):
@@ -525,6 +559,7 @@ There is **no configuration flag** that disables PII redaction — the `ALETHEIA
 #### Finding 2 — PASS: Raw payload content is never persisted to audit logs in active mode
 
 `_hash_payload()` (`core/audit.py#L132`) stores only:
+
 - `payload_sha256`: SHA-256 hex of the raw payload
 - `payload_length`: character count
 
@@ -567,6 +602,7 @@ Registration and login are Next.js API routes that write to Prisma (PostgreSQL).
 `log_audit_event()` maintains module-level state (`_prev_record_hash`, `_audit_seq`) under a `threading.Lock` (`_chain_lock`). Each record is built, its JSON is canonicalized with `sort_keys=True`, hashed as `SHA-256`, and the hash is stored in `record["record_hash"]`. Before writing, `record["prev_hash"]` is set to the previous record's hash (initialized to `"GENESIS"` at process start).
 
 Chain properties:
+
 - Sequential numbering via `_audit_seq` detects record gaps
 - `prev_hash` links form a singly-linked chain; deletion or reordering of any record breaks the chain by making `record["prev_hash"]` not match the prior record's `record_hash`
 - `sort_keys=True` canonicalization ensures field ordering does not affect hash
@@ -595,6 +631,7 @@ In active mode, a missing manifest raises `RuntimeError` and prevents audit reco
 #### Finding 9 — PASS: Receipts are HMAC-SHA256 signed with a canonical string covering all decision-relevant fields
 
 The canonical string for signing (`Receipt._canonical_string()`) covers:
+
 ```
 decision | policy_hash | policy_version | payload_sha256
 [| prompt:<value>]  ← optional, included when present
@@ -602,6 +639,7 @@ decision | policy_hash | policy_version | payload_sha256
 ```
 
 This canonical form prevents:
+
 - **Decision substitution:** changing `DENIED` to `PROCEED` invalidates the signature
 - **Policy substitution:** swapping in a different manifest hash invalidates the signature
 - **Payload replay:** the `payload_sha256` binds the receipt to a specific payload; a valid receipt from a benign request cannot be reused for a malicious one (different SHA-256)
@@ -610,6 +648,7 @@ This canonical form prevents:
 #### Finding 10 — PASS: `verify_receipt()` correctly uses `hmac.compare_digest` — timing-safe comparison
 
 `core/audit.py#L417` `verify_receipt()`:
+
 - Returns `False` if `ALETHEIA_RECEIPT_SECRET` is not set
 - Returns `False` for `UNSIGNED_DEV_MODE` signatures
 - Re-parses the receipt through `Receipt.model_validate()` to canonicalize field types before computing the expected HMAC
@@ -622,6 +661,7 @@ When `ALETHEIA_RECEIPT_SECRET` is not set, `build_tmr_receipt()` returns `signat
 #### Finding 12 — PARTIAL: Web receipt viewer performs structural inspection only — HMAC verification requires CLI
 
 The `/verify` page (`app/verify/page.tsx`) performs client-side JSON parsing and field display only. It explicitly states:
+
 > "Full cryptographic HMAC signature verification is available in the CLI — run `aletheia-audit verify` for on-chain HMAC validation."
 
 **Risk:** Users who verify receipts via the web UI may believe they have performed cryptographic verification when they have only confirmed field presence. The UI has no "VALID SIGNATURE" / "INVALID SIGNATURE" indicator because the secret is server-side only.
@@ -636,48 +676,48 @@ The `/verify` page (`app/verify/page.tsx`) performs client-side JSON parsing and
 
 **`tests/test_pii_redaction.py` — 10 tests, all pass:**
 
-| Test | Result |
-|---|---|
-| `test_email_redacted` | ✓ |
-| `test_phone_redacted` | ✓ |
-| `test_ssn_redacted` | ✓ |
-| `test_credit_card_redacted` | ✓ |
-| `test_no_pii_unchanged` | ✓ |
-| `test_multiple_pii_types` | ✓ |
-| `test_hash_fingerprint_preserved` (random nonces) | ✓ |
-| `test_different_pii_different_hash` | ✓ |
-| `test_log_pii_override_removed` (no disable flag) | ✓ |
-| `test_audit_event_redacts_pii_in_reason` (integration) | ✓ |
+| Test                                                   | Result |
+| ------------------------------------------------------ | ------ |
+| `test_email_redacted`                                  | ✓      |
+| `test_phone_redacted`                                  | ✓      |
+| `test_ssn_redacted`                                    | ✓      |
+| `test_credit_card_redacted`                            | ✓      |
+| `test_no_pii_unchanged`                                | ✓      |
+| `test_multiple_pii_types`                              | ✓      |
+| `test_hash_fingerprint_preserved` (random nonces)      | ✓      |
+| `test_different_pii_different_hash`                    | ✓      |
+| `test_log_pii_override_removed` (no disable flag)      | ✓      |
+| `test_audit_event_redacts_pii_in_reason` (integration) | ✓      |
 
 **`tests/test_enterprise.py` — 10 tests, all pass:**
 
-| Test | Result |
-|---|---|
-| `test_log_audit_produces_receipt` | ✓ |
-| `test_payload_hashing_instead_of_redaction` | ✓ |
-| `test_tmr_receipt_signature_stable` | ✓ |
-| `test_tmr_receipt_changes_with_different_decision` | ✓ |
-| `test_prompt_bound_and_backward_compatible` | ✓ |
-| `test_allows_up_to_limit`, `test_reset_clears_state`, `test_separate_keys_independent` | ✓ |
-| `test_double_encoded_safe`, `test_url_encoded_smuggling` | ✓ |
+| Test                                                                                   | Result |
+| -------------------------------------------------------------------------------------- | ------ |
+| `test_log_audit_produces_receipt`                                                      | ✓      |
+| `test_payload_hashing_instead_of_redaction`                                            | ✓      |
+| `test_tmr_receipt_signature_stable`                                                    | ✓      |
+| `test_tmr_receipt_changes_with_different_decision`                                     | ✓      |
+| `test_prompt_bound_and_backward_compatible`                                            | ✓      |
+| `test_allows_up_to_limit`, `test_reset_clears_state`, `test_separate_keys_independent` | ✓      |
+| `test_double_encoded_safe`, `test_url_encoded_smuggling`                               | ✓      |
 
 ---
 
 ### Compliance Verdict (Data Safety)
 
-| Assertion | Verdict | Notes |
-|---|---|---|
-| PII redacted before audit log write | **PASS** | `reason`, `origin`, `action` fields scrubbed; no override flag |
-| Raw payload content not persisted in active mode | **PASS** | SHA-256 + length only |
-| `receipt.prompt` is PII-free | **FAIL — MEDIUM** | Raw unredacted payload passed to `build_tmr_receipt(prompt=payload)` |
-| Registration PII not logged | **PASS** | No `log_audit_event()` call in registration path; bcrypt-hashed password |
-| WebSocket stream PII-safe | **PASS** | Fields stripped + redact_pii applied |
-| SHA-256 hash chain within process | **PASS** | Linked `prev_hash` chain with GENESIS anchor |
-| Hash chain survives restart / multi-instance | **FAIL — MEDIUM** | Chain resets to GENESIS on restart; no cross-process continuity |
-| Receipt HMAC covers all decision fields | **PASS** | Canonical string includes decision, payload SHA, action, origin, timestamps |
-| `verify_receipt()` uses timing-safe comparison | **PASS** | `hmac.compare_digest` |
-| Dev receipts rejected by verifier | **PASS** | `UNSIGNED_DEV_MODE` sentinel explicitly refused |
-| Web receipt viewer performs cryptographic verification | **PARTIAL** | Structural inspection only; HMAC requires CLI |
+| Assertion                                              | Verdict           | Notes                                                                       |
+| ------------------------------------------------------ | ----------------- | --------------------------------------------------------------------------- |
+| PII redacted before audit log write                    | **PASS**          | `reason`, `origin`, `action` fields scrubbed; no override flag              |
+| Raw payload content not persisted in active mode       | **PASS**          | SHA-256 + length only                                                       |
+| `receipt.prompt` is PII-free                           | **FAIL — MEDIUM** | Raw unredacted payload passed to `build_tmr_receipt(prompt=payload)`        |
+| Registration PII not logged                            | **PASS**          | No `log_audit_event()` call in registration path; bcrypt-hashed password    |
+| WebSocket stream PII-safe                              | **PASS**          | Fields stripped + redact_pii applied                                        |
+| SHA-256 hash chain within process                      | **PASS**          | Linked `prev_hash` chain with GENESIS anchor                                |
+| Hash chain survives restart / multi-instance           | **FAIL — MEDIUM** | Chain resets to GENESIS on restart; no cross-process continuity             |
+| Receipt HMAC covers all decision fields                | **PASS**          | Canonical string includes decision, payload SHA, action, origin, timestamps |
+| `verify_receipt()` uses timing-safe comparison         | **PASS**          | `hmac.compare_digest`                                                       |
+| Dev receipts rejected by verifier                      | **PASS**          | `UNSIGNED_DEV_MODE` sentinel explicitly refused                             |
+| Web receipt viewer performs cryptographic verification | **PARTIAL**       | Structural inspection only; HMAC requires CLI                               |
 
 ---
 
@@ -699,6 +739,7 @@ As with the previous audit's "resolve_provider_for_role" terminology, "Project I
 #### Finding 1 — PASS: Credentials registration route to `verify-email`, never to a blank state
 
 Flow on successful registration (`/api/auth/register` POST → 201):
+
 1. `app/auth/register/page.tsx#L57`: `router.push("/auth/verify-email")`
 2. `/auth/verify-email` renders a static confirmation page: envelope icon, "Check your inbox", link expiry notice, CTA to `/auth/login`.
 3. On email link click → `GET /api/auth/verify-email?token=&email=`:
@@ -729,6 +770,7 @@ No blank state; no email verification gate for OAuth users.
 `DashboardOverview` (L170): `const [showWelcome, setShowWelcome] = useState(isNewUser)`.
 
 When `isNewUser` is true, a `WelcomeBanner` renders with:
+
 - "Welcome to Aletheia Core" heading
 - Three-step checklist: Generate API Key → Try Live Demo → View Audit Logs
 - Per-step completion indicators backed by live counts (keyCount, totalRequests, logCount)
@@ -745,6 +787,7 @@ A brand-new user with zero keys, zero requests, and zero logs will see this bann
 #### Finding 5 — PASS: API key creation is scoped to `session.user.id` — no cross-user data access is possible
 
 `POST /api/keys` (app/api/keys/route.ts):
+
 - Reads session via `getServerSession(authOptions)` → validates `session.user.id`
 - Creates `prisma.apiKey` with `userId: session.user.id` (server-assigned, not client-supplied)
 - `GET /api/keys` fetches only `where: { userId: session.user.id }`
@@ -759,6 +802,7 @@ There is no route parameter or request body field that allows a user to supply `
 #### Finding 7 — PASS: No permission conflict prevents a new user from generating their first key
 
 A new TRIAL user (plan="TRIAL", role="USER") hits no RBAC block at the key generation route. The route enforces:
+
 1. Session present (auth check)
 2. Plan quota check via `getHostedPlanConfig`
 3. Rate limit (via `consumeRateLimit` with action scoped to IP)
@@ -772,6 +816,7 @@ None of these blocks fire for a first-time key creation on a valid account. Ther
 #### Finding 8 — PASS: Registration endpoint has IP-based rate limiting (5 attempts / 1 hour)
 
 Constants in `app/api/auth/register/route.ts`:
+
 ```
 REGISTER_LIMIT  = 5
 REGISTER_WINDOW_MS = 3_600_000 (1 hour)
@@ -791,9 +836,10 @@ Failures are recorded on: wrong password, user not found, unverified email is **
 
 `checkLoginRateLimit` is keyed by **email address**, not IP. A distributed attacker targeting many different email addresses from a single IP suffers no progressive throttle. Conversely, a single IP cannot be blocked by attacking valid accounts from different sources.
 
-For the stated concern about **legitimate traffic not being prematurely throttled during peak demo periods**: this is a **non-issue** for normal users — the per-email counter only increments on *failures*, so a legitimate user signing in successfully will never approach the limit and their failures are cleared on success.
+For the stated concern about **legitimate traffic not being prematurely throttled during peak demo periods**: this is a **non-issue** for normal users — the per-email counter only increments on _failures_, so a legitimate user signing in successfully will never approach the limit and their failures are cleared on success.
 
 However, a targeted attacker could:
+
 1. Enumerate all registered emails from another surface
 2. Make one failed attempt per email per window, staying under the 5-attempt threshold
 3. Never trigger the email-level rate limit while making unlimited total requests to the login endpoint
@@ -809,11 +855,13 @@ Serializable isolation does incur higher lock contention than `READ_COMMITTED`. 
 #### Finding 12 — MEDIUM: Unverified-email login does not record a failure attempt — timing-based account existence oracle
 
 In `lib/auth.ts` `authorize()`:
+
 ```
 if (!user.emailVerified) return null;   // ← no recordLoginFailure() call here
 ```
 
 An attacker who registers an account but does not verify the email can probe the login endpoint with the correct password and observe that:
+
 - Wrong password → failure recorded, consistent timing
 - Correct password on unverified account → immediate `null` return, **no failure recorded**, slightly different timing/behavior
 
@@ -827,33 +875,33 @@ This is a minor account-existence oracle if timing differences are observable. I
 
 All 9 `resolveAuthRedirect` unit tests pass (vitest run, 2026-04-30):
 
-| Test | Result |
-|---|---|
-| returns baseUrl for empty input | ✓ |
-| rejects protocol-relative redirects (`//evil.com`) | ✓ |
-| rejects backslash traversal in encoded relative paths | ✓ |
-| rejects encoded protocol-relative redirects (`/%2Fevil.com`) | ✓ |
-| appends safe relative paths (`/dashboard`) | ✓ |
-| rejects look-alike subdomain (origin equality, not prefix) | ✓ |
-| rejects userinfo-host smuggling (`user@evil/`) | ✓ |
-| accepts same-origin absolute URL | ✓ |
-| rejects unparseable URL | ✓ |
+| Test                                                         | Result |
+| ------------------------------------------------------------ | ------ |
+| returns baseUrl for empty input                              | ✓      |
+| rejects protocol-relative redirects (`//evil.com`)           | ✓      |
+| rejects backslash traversal in encoded relative paths        | ✓      |
+| rejects encoded protocol-relative redirects (`/%2Fevil.com`) | ✓      |
+| appends safe relative paths (`/dashboard`)                   | ✓      |
+| rejects look-alike subdomain (origin equality, not prefix)   | ✓      |
+| rejects userinfo-host smuggling (`user@evil/`)               | ✓      |
+| accepts same-origin absolute URL                             | ✓      |
+| rejects unparseable URL                                      | ✓      |
 
 ---
 
 ### Compliance Verdict (Conversion Funnel)
 
-| Assertion | Verdict | Notes |
-|---|---|---|
-| Post-registration: no blank state | **PASS** | Credentials → verify-email → login → dashboard; OAuth → dashboard directly |
-| Post-registration: welcome/onboarding banner for new users | **PASS** | WelcomeBanner with 3-step checklist and progress indicator |
-| DB failure during dashboard load renders blank state | **PARTIAL** | Gracefully degrades with zero-counts; WelcomeBanner shows but no crash |
-| User isolation: API key scoped to session user | **PASS** | userId sourced from server-side session only |
-| First key generation: no permission conflict | **PASS** | TRIAL plan quota is permitted; no RBAC gate |
-| Registration rate limit (no premature throttle for legitimate users) | **PASS** | 5 attempts/IP/hour — adequate for normal traffic |
-| Login rate limit covers distributed IP attacks | **FAIL** | Per-email only; no IP-level aggregate limit |
-| Unverified-email login records failure attempt | **FAIL** | Timing oracle: missing `recordLoginFailure()` in unverified branch |
-| Open-redirect contract (9 tests) | **PASS** | All 9 pass |
+| Assertion                                                            | Verdict     | Notes                                                                      |
+| -------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| Post-registration: no blank state                                    | **PASS**    | Credentials → verify-email → login → dashboard; OAuth → dashboard directly |
+| Post-registration: welcome/onboarding banner for new users           | **PASS**    | WelcomeBanner with 3-step checklist and progress indicator                 |
+| DB failure during dashboard load renders blank state                 | **PARTIAL** | Gracefully degrades with zero-counts; WelcomeBanner shows but no crash     |
+| User isolation: API key scoped to session user                       | **PASS**    | userId sourced from server-side session only                               |
+| First key generation: no permission conflict                         | **PASS**    | TRIAL plan quota is permitted; no RBAC gate                                |
+| Registration rate limit (no premature throttle for legitimate users) | **PASS**    | 5 attempts/IP/hour — adequate for normal traffic                           |
+| Login rate limit covers distributed IP attacks                       | **FAIL**    | Per-email only; no IP-level aggregate limit                                |
+| Unverified-email login records failure attempt                       | **FAIL**    | Timing oracle: missing `recordLoginFailure()` in unverified branch         |
+| Open-redirect contract (9 tests)                                     | **PASS**    | All 9 pass                                                                 |
 
 ---
 
@@ -869,6 +917,7 @@ Scope: New-user "Key-Supply Mode" guidance; demo lifecycle error handling vs. si
 The audit request uses terminology ("Key-Supply Mode", "Project Run", "Chat lifecycle", `resolve_provider_for_role`) that originates in multi-agent orchestration frameworks (e.g. AutoGen, CrewAI). **None of this terminology exists in the Aletheia-Core codebase.** Aletheia-Core is not a chat or project-runner framework — it is a safety audit and agentic governance engine. It evaluates payload/action pairs for policy compliance and issues cryptographic receipts; it does not orchestrate LLM provider selection, run projects, or conduct chat sessions on behalf of users.
 
 This finding is structural: the product surface being audited is a Sovereign Audit API + developer dashboard, not a chat/agent-builder product. All findings below therefore address the closest analogous concerns within the actual codebase:
+
 - "Key-Supply Mode" → does a new user with zero API keys receive clear guidance rather than silent failures?
 - "Project Run lifecycle" → does the demo (the product's interactive trial experience) handle every error state gracefully?
 - "resolve_provider_for_role fallback" → does the demo proxy fall back to a system default rather than crashing when user-scoped keys are absent?
@@ -881,15 +930,19 @@ This finding is structural: the product surface being audited is a Sovereign Aud
 #### Finding 1 — PASS: Zero-key state renders a clear guidance panel, not an error
 
 When a new user has no API keys, `/dashboard/keys` renders (app/dashboard/keys/page.tsx#L383):
+
 ```
 No keys yet. Generate a trial key to get started.
 ```
+
 The `fetchKeys` call on mount silently handles auth/network failure in the catch block and resolves to an empty array rather than throwing. There is no 500 error and no crash.
 
 Usage page analogously renders (app/dashboard/usage/page.tsx#L112):
+
 ```
 No API keys yet. Generate a trial key to start using the hosted API.
 ```
+
 followed by a "Generate Trial Key" CTA link to `/dashboard/keys`.
 
 Both empty-state messages are human-readable, actionable, and do not expose internal errors.
@@ -901,6 +954,7 @@ The demo at `/demo` and `/api/demo` proxy route operate on the shared `ALETHEIA_
 #### Finding 3 — PASS: `/api/keys` POST for key generation returns structured error messages, not raw exceptions
 
 app/api/keys/route.ts enforces:
+
 - `session.user.id` check → 401 with `{ error: "unauthorized" }`
 - `ALETHEIA_KEY_SALT` absent in production → `throw new Error(...)` caught by FastAPI's global exception handler → HTTP 500 (see Finding 7 below)
 - Plan quota limit check → structured `{ error, message }` JSON, not an unhandled crash
@@ -913,13 +967,13 @@ No route in the key management surface returns an unstructured 500 or `Cannot ru
 
 The demo page implements a complete error-to-message mapping for every error state the proxy can return. Confirmed at app/demo/page.tsx:
 
-| Error code / HTTP status | UI message shown to user |
-|---|---|
-| `free_tier_exhausted` (402) | `result.message` (server-supplied: "You've used your N free Sovereign Audit Receipts. Upgrade to continue...") — with redirect to upgrade URL |
-| `rate_limited` (429) | "Rate limit reached. Try again in Xs." (uses `Retry-After` header) |
-| `request_timeout` (AbortError client-side) | "Request timed out. The backend may be starting up — try again in a few seconds." |
-| `service_unavailable` / `demo_unavailable` (503) | "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds." |
-| All other / unknown errors | "Something went wrong. Please try again." |
+| Error code / HTTP status                         | UI message shown to user                                                                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `free_tier_exhausted` (402)                      | `result.message` (server-supplied: "You've used your N free Sovereign Audit Receipts. Upgrade to continue...") — with redirect to upgrade URL |
+| `rate_limited` (429)                             | "Rate limit reached. Try again in Xs." (uses `Retry-After` header)                                                                            |
+| `request_timeout` (AbortError client-side)       | "Request timed out. The backend may be starting up — try again in a few seconds."                                                             |
+| `service_unavailable` / `demo_unavailable` (503) | "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."                                          |
+| All other / unknown errors                       | "Something went wrong. Please try again."                                                                                                     |
 
 Every error state sets a visible badge labeled `ERROR` with a human-readable message. No error state results in a blank panel or unhandled exception visible to the user.
 
@@ -930,6 +984,7 @@ Every proxy error surface returns a structured JSON object. `isError` at app/dem
 #### Finding 5 — PASS: Upstream 401 (demo key not in KeyStore) is mapped to `demo_unavailable` 503, not exposed as raw auth failure
 
 When the Render backend ephemeral SQLite loses the demo key registration:
+
 - app/api/demo/route.ts#L291 logs at error level
 - Returns `{ error: "demo_unavailable", message: "Demo backend is temporarily unavailable. Please try again later." }` with status 503
 - UI renders "Audit service temporarily unavailable."
@@ -957,9 +1012,14 @@ A new user attempting to generate their first API key on a misconfigured product
 #### Finding 8 — LOW: Demo `rate_limit` DB error returns `service_unavailable` (503) without guidance for rate-limit DB being temporarily unavailable
 
 When the Prisma rate-limit DB itself fails (app/api/demo/route.ts#L146), the proxy returns:
+
 ```json
-{ "error": "service_unavailable", "message": "Demo is temporarily unavailable. Please try again shortly." }
+{
+  "error": "service_unavailable",
+  "message": "Demo is temporarily unavailable. Please try again shortly."
+}
 ```
+
 The UI renders this as "Audit service temporarily unavailable." This is correct. However, the `message` field from the server body is not surfaced in the UI error handler — the UI uses its own static fallback string rather than `result.message` for the `service_unavailable` case (app/demo/page.tsx#L623 shows fixed string, not `result.message`).
 
 **Consequence:** Server-supplied contextual messages for 503 errors are silently discarded; the user always sees the generic warm-up message. Low impact for current messages but would suppress useful future per-error context.
@@ -976,15 +1036,15 @@ The UI renders this as "Audit service temporarily unavailable." This is correct.
 
 ### Compliance Verdict (Demo Experience)
 
-| Assertion | Verdict | Notes |
-|---|---|---|
-| Zero-key new user sees guidance, not errors | **PASS** | Empty-state copy + CTA in keys and usage pages |
-| Demo runs without user-configured keys | **PASS** | Server-managed shared demo key |
-| Demo lifecycle: all error states have human-readable messages | **PASS** | Full mapping at page.tsx#L617 |
-| No `Cannot run agent` or unhandled crash in new-user flow | **PASS** (conditional) | Except for Finding 7 (ALETHEIA_KEY_SALT misconfiguration) |
-| System default fallback when no user key present | **PASS** | Demo proxy: hardcoded default backend URL |
-| `resolve_provider_for_role` logic | **NOT APPLICABLE** | Architecture does not include provider selection or chat orchestration |
-| Server-supplied 503 messages surfaced to UI | **FAIL** | `result.message` not used for `service_unavailable` branch (Finding 8) |
+| Assertion                                                     | Verdict                | Notes                                                                  |
+| ------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------- |
+| Zero-key new user sees guidance, not errors                   | **PASS**               | Empty-state copy + CTA in keys and usage pages                         |
+| Demo runs without user-configured keys                        | **PASS**               | Server-managed shared demo key                                         |
+| Demo lifecycle: all error states have human-readable messages | **PASS**               | Full mapping at page.tsx#L617                                          |
+| No `Cannot run agent` or unhandled crash in new-user flow     | **PASS** (conditional) | Except for Finding 7 (ALETHEIA_KEY_SALT misconfiguration)              |
+| System default fallback when no user key present              | **PASS**               | Demo proxy: hardcoded default backend URL                              |
+| `resolve_provider_for_role` logic                             | **NOT APPLICABLE**     | Architecture does not include provider selection or chat orchestration |
+| Server-supplied 503 messages surfaced to UI                   | **FAIL**               | `result.message` not used for `service_unavailable` branch (Finding 8) |
 
 ---
 
@@ -996,6 +1056,7 @@ Scope: Self-hosted engine feature parity vs hosted API; fail-closed behavior whe
 ### Section A — Hosted / Self-Hosted Feature Parity
 
 #### Confirmed Parity Controls (self-hosted = hosted API)
+
 The following controls are implemented identically in the open-source engine and the hosted API path:
 
 1. **Three-agent pipeline (Scout → Nitpicker → Judge):** All three agents are instantiated as module-level singletons and run for every request in both `/v1/evaluate` and `/v1/audit`:
@@ -1036,6 +1097,7 @@ The following controls are implemented identically in the open-source engine and
    - core/config.py#L367
 
 #### Divergence: Self-Hosted Default Mode Is Shadow, Not Active
+
 - Self-hosted operators configure `ALETHEIA_MODE` through environment/yaml. Default value is `"active"` per config:
   - core/config.py#L104
 - However, shadow mode (`ALETHEIA_MODE=shadow`) is a documented operating option and the entire test suite defaults to it:
@@ -1049,6 +1111,7 @@ The following controls are implemented identically in the open-source engine and
 ### Section B — Fail-Closed: Manifest Lost or Unavailable
 
 #### Finding 1 — Confirmed: Manifest loss at startup causes hard service refusal (fail-closed)
+
 - Judge is instantiated as a module-level singleton at import time:
   - bridge/fastapi_wrapper.py#L310
 - `load_policy()` calls `verify_manifest_signature()` before parsing policy:
@@ -1068,6 +1131,7 @@ The following controls are implemented identically in the open-source engine and
   - Ed25519 signature invalid: manifest/signing.py#L262
 
 #### Finding 2 — Confirmed: Manifest loss mid-runtime causes Judge to return DENIED for all actions
+
 - Non-`ManifestTamperedError` exceptions during `load_policy()` (e.g., FileNotFoundError, permissions) set `self.policy = None`:
   - agents/judge_v1.py#L220
   - agents/judge_v1.py#L222
@@ -1079,6 +1143,7 @@ The following controls are implemented identically in the open-source engine and
 - **Confirmed fail-closed.**
 
 #### Finding 3 — Confirmed: Missing manifest in active mode raises RuntimeError in audit logging
+
 - `_policy_hash()` raises `RuntimeError` when manifest file is missing in active mode:
   - core/audit.py#L112
   - core/audit.py#L113
@@ -1089,6 +1154,7 @@ The following controls are implemented identically in the open-source engine and
 - **Risk:** An action sequence that reaches `log_audit_event()` after manifest deletion returns `ERROR`, not `DENIED`. This is fail-opaque rather than strictly fail-closed for the API response, though no PROCEED is emitted.
 
 #### Finding 4 — Medium: Alias bank rotation silently degrades to predictable seed when manifest is missing
+
 - `_rotate_alias_bank()` catches `FileNotFoundError` and substitutes `"no_manifest"` as the hash:
   - agents/judge_v1.py#L188
   - agents/judge_v1.py#L189
@@ -1100,11 +1166,13 @@ The following controls are implemented identically in the open-source engine and
 ### Section C — Fail-Closed: Detection Rules Unavailable
 
 #### Finding 5 — Confirmed: Nitpicker static pattern bank is always in-process (no external dependency)
+
 - The 24 blocked semantic patterns are hardcoded in `AletheiaNitpickerV2.BLOCKED_PATTERNS` (class attribute):
   - agents/nitpicker_v2.py#L36
 - Embeddings are computed from the local model on first call (lazy init). If the model file is unavailable, encoding raises an exception that propagates as a pipeline failure (HTTP 500 from global exception handler), not a PROCEED.
 
 #### Finding 6 — Confirmed: Qdrant extended pattern lookup is fail-open by design
+
 - `_safe_semantic_lookup()` catches all Qdrant errors and returns `degraded=True, matches=[]`:
   - agents/nitpicker_v2.py#L208
   - agents/nitpicker_v2.py#L212
@@ -1113,6 +1181,7 @@ The following controls are implemented identically in the open-source engine and
 - A payload that would only be caught by Qdrant (not by the static 24 patterns) will reach PROCEED if Qdrant is unavailable. This is an accepted trade-off documented in the architecture.
 
 #### Finding 7 — Confirmed: Scout detection rules are fully in-process (no external dependency)
+
 - All Scout patterns (`smuggling_prefixes`, `exfil_patterns`, `neutral_tokens`, `high_value_targets`) are hardcoded in `__init__`:
   - agents/scout_v2.py#L14
   - agents/scout_v2.py#L56
@@ -1124,11 +1193,11 @@ The following controls are implemented identically in the open-source engine and
 
 Three tests fail in the standard test run because the test suite runs in shadow mode (`ALETHEIA_MODE=shadow`, set in tests/conftest.py#L13) while the tests assert `DENIED` outcomes for restricted actions:
 
-| Test | Expected | Actual (shadow) | Root Cause |
-|---|---|---|---|
-| `test_restricted_action_id_denied` | DENIED | PROCEED | shadow mode overrides Judge veto |
-| `test_semantic_bypass_attempt_denied` | DENIED | PROCEED | shadow mode overrides semantic veto |
-| `test_exfil_pattern_denied_at_api` | DENIED | PROCEED | shadow mode overrides Scout match |
+| Test                                  | Expected | Actual (shadow) | Root Cause                          |
+| ------------------------------------- | -------- | --------------- | ----------------------------------- |
+| `test_restricted_action_id_denied`    | DENIED   | PROCEED         | shadow mode overrides Judge veto    |
+| `test_semantic_bypass_attempt_denied` | DENIED   | PROCEED         | shadow mode overrides semantic veto |
+| `test_exfil_pattern_denied_at_api`    | DENIED   | PROCEED         | shadow mode overrides Scout match   |
 
 - Shadow mode override logic: bridge/fastapi_wrapper.py#L1137 → bridge/fastapi_wrapper.py#L1147
 - Shadow mode is correctly blocked in production (`ENVIRONMENT=production`): bridge/fastapi_wrapper.py#L1138
@@ -1139,17 +1208,18 @@ These test failures are not engine bugs — they are test assertions that incorr
 
 ### Compliance Verdict (Self-Hosted)
 
-| Assertion | Verdict | Notes |
-|---|---|---|
-| Fail-closed on manifest tamper at startup | **PASS** — fails service entirely | ManifestTamperedError propagates |
-| Fail-closed on manifest loss mid-runtime (Judge) | **PASS** — all actions DENIED | policy=None branch |
-| Fail-closed on manifest loss mid-runtime (audit log, active mode) | **PARTIAL** — returns ERROR not DENIED | HTTP 500 from audit path |
-| Fail-closed on Qdrant loss | **PARTIAL** — static 24-pattern floor only | documented fail-open for Qdrant |
-| Fail-closed in shadow mode | **FAIL** — all blocks overridden to PROCEED | by design; no enforcement in shadow mode |
-| Detection rules require no external service | **PASS** — Scout + Nitpicker static patterns in-process | |
-| Alias rotation degrades gracefully | **PARTIAL** — predictable seed when manifest missing | agents/judge_v1.py#L189 |
+| Assertion                                                         | Verdict                                                 | Notes                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------- |
+| Fail-closed on manifest tamper at startup                         | **PASS** — fails service entirely                       | ManifestTamperedError propagates         |
+| Fail-closed on manifest loss mid-runtime (Judge)                  | **PASS** — all actions DENIED                           | policy=None branch                       |
+| Fail-closed on manifest loss mid-runtime (audit log, active mode) | **PARTIAL** — returns ERROR not DENIED                  | HTTP 500 from audit path                 |
+| Fail-closed on Qdrant loss                                        | **PARTIAL** — static 24-pattern floor only              | documented fail-open for Qdrant          |
+| Fail-closed in shadow mode                                        | **FAIL** — all blocks overridden to PROCEED             | by design; no enforcement in shadow mode |
+| Detection rules require no external service                       | **PASS** — Scout + Nitpicker static patterns in-process |                                          |
+| Alias rotation degrades gracefully                                | **PARTIAL** — predictable seed when manifest missing    | agents/judge_v1.py#L189                  |
 
 ### Recommended Remediations
+
 1. Replace `ERROR` HTTP 500 on audit-path manifest loss in active mode with a hard `DENIED` response to remove the fail-opaque gap.
 2. Add explicit startup check that aborts (`sys.exit(1)`) when `manifest/security_policy.json` is absent in active mode, not just when `ALETHEIA_MANIFEST_HASH` is set.
 3. In `_rotate_alias_bank()`, treat `FileNotFoundError` as a fatal condition in active mode rather than silently substituting `"no_manifest"`, preserving rotation entropy.

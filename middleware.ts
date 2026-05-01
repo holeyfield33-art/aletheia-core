@@ -40,7 +40,10 @@ export default async function middleware(request: NextRequest) {
 
   // CSRF protection for state-changing API routes.
   if (
-    (request.method === "POST" || request.method === "DELETE" || request.method === "PUT" || request.method === "PATCH") &&
+    (request.method === "POST" ||
+      request.method === "DELETE" ||
+      request.method === "PUT" ||
+      request.method === "PATCH") &&
     pathname.startsWith("/api/") &&
     !isBypassed &&
     !pathname.startsWith("/api/auth/") &&

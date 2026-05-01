@@ -45,7 +45,9 @@ export default function GlobalError({
         >
           An unexpected error occurred. This is usually temporary.
         </p>
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+        <div
+          style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}
+        >
           <button
             onClick={reset}
             className="btn-primary"

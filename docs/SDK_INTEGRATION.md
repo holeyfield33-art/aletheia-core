@@ -144,7 +144,7 @@ interface AuditResult {
 async function auditAction(
   payload: string,
   origin: string,
-  action: string
+  action: string,
 ): Promise<AuditResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
@@ -163,7 +163,7 @@ async function auditAction(
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
       throw new Error(
-        `Audit failed: ${response.status} ${JSON.stringify(body)}`
+        `Audit failed: ${response.status} ${JSON.stringify(body)}`,
       );
     }
 
@@ -177,7 +177,7 @@ async function auditAction(
 const result = await auditAction(
   "Summarize Q4 financial report",
   "agent-finance",
-  "Read_Report"
+  "Read_Report",
 );
 
 if (result.decision === "PROCEED") {

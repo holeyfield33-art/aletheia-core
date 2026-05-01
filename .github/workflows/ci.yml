@@ -139,6 +139,6 @@ jobs:
         env:
           # next build wants these defined; values are placeholders for CI.
           NEXTAUTH_URL: http://localhost:3000
-          NEXTAUTH_SECRET: ci-only-placeholder-secret-must-be-32-bytes  # pragma: allowlist secret
+          NEXTAUTH_SECRET: ci-only-placeholder-secret-must-be-32-bytes # pragma: allowlist secret
           DATABASE_URL: postgresql://localhost:5432/ci?schema=public
         run: npx next build

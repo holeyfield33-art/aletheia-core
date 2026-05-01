@@ -161,7 +161,8 @@ export default function CLIDocsPage() {
               <strong>[STAGE 2] Sanitized Payload</strong> — intent cleaning
             </li>
             <li>
-              <strong>STATUS</strong> — final decision (✅ PROCEED or 🛑 BLOCKED)
+              <strong>STATUS</strong> — final decision (✅ PROCEED or 🛑
+              BLOCKED)
             </li>
           </ul>
         </div>
@@ -196,9 +197,10 @@ export default function CLIDocsPage() {
               marginTop: "0.5rem",
             }}
           >
-            Set to <code style={{ fontFamily: "var(--font-mono)" }}>production</code> to
-            enforce strict validation. Requires ACTIVE_MODE=true and 32+ character
-            SIGNING_SECRET. Recommended for production deployments.
+            Set to{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>production</code>{" "}
+            to enforce strict validation. Requires ACTIVE_MODE=true and 32+
+            character SIGNING_SECRET. Recommended for production deployments.
           </p>
         </div>
         <div style={{ marginBottom: "1.5rem" }}>
@@ -220,7 +222,10 @@ export default function CLIDocsPage() {
             }}
           >
             (Production only) Random string ≥32 characters for HMAC operations.
-            Generate with: <code style={{ fontFamily: "var(--font-mono)" }}>openssl rand -hex 16</code>
+            Generate with:{" "}
+            <code style={{ fontFamily: "var(--font-mono)" }}>
+              openssl rand -hex 16
+            </code>
           </p>
         </div>
         <div style={{ marginBottom: "1.5rem" }}>
@@ -241,8 +246,9 @@ export default function CLIDocsPage() {
               marginTop: "0.5rem",
             }}
           >
-            Set to <code style={{ fontFamily: "var(--font-mono)" }}>true</code> when ENVIRONMENT=production.
-            Confirmation flag to prevent accidental enforcement bypass.
+            Set to <code style={{ fontFamily: "var(--font-mono)" }}>true</code>{" "}
+            when ENVIRONMENT=production. Confirmation flag to prevent accidental
+            enforcement bypass.
           </p>
         </div>
       </section>
@@ -280,7 +286,8 @@ export default function CLIDocsPage() {
                 marginTop: "0.5rem",
               }}
             >
-              ssh-keygen -t ed25519 -N &quot;&quot; -f manifest/security_policy.ed25519.key -m pem
+              ssh-keygen -t ed25519 -N &quot;&quot; -f
+              manifest/security_policy.ed25519.key -m pem
             </div>
           </li>
           <li style={{ marginBottom: "0.75rem" }}>
@@ -303,7 +310,8 @@ export default function CLIDocsPage() {
             </div>
           </li>
           <li style={{ marginBottom: "0.75rem" }}>
-            Edit <code>manifest/security_policy.json</code> with your policy thresholds.
+            Edit <code>manifest/security_policy.json</code> with your policy
+            thresholds.
           </li>
           <li style={{ marginBottom: "0.75rem" }}>
             Sign the manifest:
@@ -324,8 +332,8 @@ export default function CLIDocsPage() {
             </div>
           </li>
           <li>
-            Commit {`manifest/security_policy.json.sig`} to version control. Keep
-            private key secure and injected via env vars at deploy time.
+            Commit {`manifest/security_policy.json.sig`} to version control.
+            Keep private key secure and injected via env vars at deploy time.
           </li>
         </ol>
       </section>
@@ -355,7 +363,11 @@ export default function CLIDocsPage() {
           <p style={{ color: "var(--muted)" }}>
             Signature verification failed. Ensure the private key matches the
             public key in the manifest, and re-run
-            <code style={{ fontFamily: "var(--font-mono)" }}> sign-manifest</code>.
+            <code style={{ fontFamily: "var(--font-mono)" }}>
+              {" "}
+              sign-manifest
+            </code>
+            .
           </p>
         </div>
         <div style={{ marginBottom: "1.5rem" }}>

@@ -22,8 +22,14 @@ export async function POST() {
   });
   if (!rateLimit.allowed) {
     return NextResponse.json(
-      { error: "rate_limited", message: "You can export your data once every 24 hours." },
-      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+      {
+        error: "rate_limited",
+        message: "You can export your data once every 24 hours.",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+      },
     );
   }
 
@@ -93,8 +99,12 @@ export async function POST() {
       tosAcceptedAt: user.tosAcceptedAt,
     },
     billing: {
-      stripeCustomerId: user.stripeCustomerId ? "****" + user.stripeCustomerId.slice(-4) : null,
-      stripeSubscriptionId: user.stripeSubscriptionId ? "****" + user.stripeSubscriptionId.slice(-4) : null,
+      stripeCustomerId: user.stripeCustomerId
+        ? "****" + user.stripeCustomerId.slice(-4)
+        : null,
+      stripeSubscriptionId: user.stripeSubscriptionId
+        ? "****" + user.stripeSubscriptionId.slice(-4)
+        : null,
       stripePriceId: user.stripePriceId,
       stripeCurrentPeriodEnd: user.stripeCurrentPeriodEnd,
     },

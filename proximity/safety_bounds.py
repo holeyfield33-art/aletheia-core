@@ -154,9 +154,11 @@ class SafetyBounds:
         if not self._halted:
             self._halt(
                 HaltReason.OPERATOR_SHUTDOWN,
-                f"Operator initiated shutdown: {reason}"
-                if reason
-                else "Operator initiated shutdown",
+                (
+                    f"Operator initiated shutdown: {reason}"
+                    if reason
+                    else "Operator initiated shutdown"
+                ),
                 requires_manual_restart=False,
             )
         return self._halt_event or HaltEvent(

@@ -41,10 +41,7 @@ async function checkLoginRateLimit(email: string): Promise<boolean> {
   return count < LOGIN_FAIL_LIMIT;
 }
 
-function getHeaderValue(
-  headers: unknown,
-  headerName: string,
-): string | null {
+function getHeaderValue(headers: unknown, headerName: string): string | null {
   if (!headers) return null;
   if (headers instanceof Headers) {
     return headers.get(headerName);
@@ -304,9 +301,7 @@ export const authOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   // Only trust Host on Vercel-managed deployments where the proxy chain is known.
-  ...(process.env.VERCEL
-    ? { trustHost: true }
-    : {}),
+  ...(process.env.VERCEL ? { trustHost: true } : {}),
 };
 
 // Runtime guard: refuse to start with a weak NEXTAUTH_SECRET in production
@@ -318,6 +313,6 @@ if (
 ) {
   throw new Error(
     "NEXTAUTH_SECRET must be at least 32 characters in production. " +
-    "Generate with: openssl rand -base64 32"
+      "Generate with: openssl rand -base64 32",
   );
 }

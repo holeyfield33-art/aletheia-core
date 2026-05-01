@@ -9,10 +9,14 @@ import { clientFetch } from "@/lib/client-fetch";
 
 const FIELD_DOCS: Record<string, string> = {
   policy_version: "Semantic version of the active policy bundle.",
-  restricted_actions: "Action identifiers that require Judge evaluation. Exact string match.",
-  intent_threshold: "Primary cosine-similarity threshold for the semantic pre-execution block engine (0.0–1.0).",
-  grey_zone_lower: "Lower bound of the grey-zone similarity band. Payloads in this range trigger keyword heuristics.",
-  grey_zone_keyword_min: "Minimum keyword hits in the grey-zone band to trigger a block.",
+  restricted_actions:
+    "Action identifiers that require Judge evaluation. Exact string match.",
+  intent_threshold:
+    "Primary cosine-similarity threshold for the semantic pre-execution block engine (0.0–1.0).",
+  grey_zone_lower:
+    "Lower bound of the grey-zone similarity band. Payloads in this range trigger keyword heuristics.",
+  grey_zone_keyword_min:
+    "Minimum keyword hits in the grey-zone band to trigger a block.",
   rate_limit_per_second: "Maximum requests per IP per second (sliding window).",
   receipt_signing: "Algorithm used for audit receipt signatures.",
   manifest_signing: "Algorithm used for policy manifest verification.",
@@ -31,7 +35,9 @@ export default function PolicyPage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await clientFetch<{ policy: Record<string, unknown> }>("/api/policy");
+        const data = await clientFetch<{ policy: Record<string, unknown> }>(
+          "/api/policy",
+        );
         setPolicy(data.policy);
         setRaw(JSON.stringify(data.policy, null, 2));
       } catch {
@@ -92,14 +98,21 @@ export default function PolicyPage() {
         >
           <div style={{ background: "#09090b", padding: "1rem" }}>
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="skeleton-text" style={{ width: `${55 + (i % 3) * 15}%` }} />
+              <div
+                key={i}
+                className="skeleton-text"
+                style={{ width: `${55 + (i % 3) * 15}%` }}
+              />
             ))}
           </div>
           <div style={{ background: "var(--surface)", padding: "1rem" }}>
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} style={{ marginBottom: "0.75rem" }}>
                 <div className="skeleton-text" style={{ width: "35%" }} />
-                <div className="skeleton" style={{ height: "2rem", width: "80%", marginTop: "0.25rem" }} />
+                <div
+                  className="skeleton"
+                  style={{ height: "2rem", width: "80%", marginTop: "0.25rem" }}
+                />
               </div>
             ))}
           </div>
@@ -118,7 +131,13 @@ export default function PolicyPage() {
             }}
           >
             {/* JSON view pane */}
-            <div style={{ background: "#09090b", display: "flex", flexDirection: "column" }}>
+            <div
+              style={{
+                background: "#09090b",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
@@ -152,7 +171,13 @@ export default function PolicyPage() {
             </div>
 
             {/* Reference pane */}
-            <div style={{ background: "var(--surface)", display: "flex", flexDirection: "column" }}>
+            <div
+              style={{
+                background: "var(--surface)",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               <div
                 style={{
                   fontFamily: "var(--font-mono)",
@@ -169,7 +194,13 @@ export default function PolicyPage() {
               </div>
               <div style={{ flex: 1, padding: "1rem", overflowY: "auto" }}>
                 {policy ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                    }}
+                  >
                     {Object.entries(policy).map(([key, value]) => (
                       <div
                         key={key}
@@ -246,7 +277,9 @@ export default function PolicyPage() {
         }}
       >
         Changes to the policy manifest require re-signing. Run:{" "}
-        <code style={{ color: "var(--silver)" }}>python main.py sign-manifest</code>{" "}
+        <code style={{ color: "var(--silver)" }}>
+          python main.py sign-manifest
+        </code>{" "}
         to update the Ed25519 detached signature before deployment.
       </div>
     </div>

@@ -36,7 +36,11 @@ export default function EvidencePage() {
       setPreview(text.split("\n").slice(0, 5).join("\n"));
       toast.success("Evidence exported");
     } catch (error) {
-      if (isClientFetchError(error) && typeof error.data === "string" && error.data) {
+      if (
+        isClientFetchError(error) &&
+        typeof error.data === "string" &&
+        error.data
+      ) {
         setError(error.data);
       } else {
         setError("Network error. Please try again.");
@@ -82,9 +86,9 @@ export default function EvidencePage() {
           lineHeight: 1.6,
         }}
       >
-        Export all decision receipts as a JSONL file. Each line is an independently verifiable,
-        HMAC-signed audit record. Use this for compliance reviews, incident investigations,
-        and third-party audits.
+        Export all decision receipts as a JSONL file. Each line is an
+        independently verifiable, HMAC-signed audit record. Use this for
+        compliance reviews, incident investigations, and third-party audits.
       </p>
 
       {/* Primary action */}
@@ -175,11 +179,17 @@ export default function EvidencePage() {
           { field: "action", desc: "Action identifier evaluated" },
           { field: "origin", desc: "Source agent or client" },
           { field: "threat_level", desc: "Discretised band: LOW-CRITICAL" },
-          { field: "policy_hash", desc: "SHA-256 of active policy at decision time" },
+          {
+            field: "policy_hash",
+            desc: "SHA-256 of active policy at decision time",
+          },
           { field: "payload_sha256", desc: "SHA-256 of input payload" },
           { field: "signature", desc: "HMAC-SHA256 receipt signature" },
         ].map(({ field, desc }) => (
-          <div key={field} style={{ background: "var(--surface)", padding: "0.65rem 0.85rem" }}>
+          <div
+            key={field}
+            style={{ background: "var(--surface)", padding: "0.65rem 0.85rem" }}
+          >
             <div
               style={{
                 fontFamily: "var(--font-mono)",
@@ -190,7 +200,9 @@ export default function EvidencePage() {
             >
               {field}
             </div>
-            <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{desc}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+              {desc}
+            </div>
           </div>
         ))}
       </div>
@@ -244,11 +256,16 @@ export default function EvidencePage() {
           lineHeight: 1.6,
         }}
       >
-        Each JSONL line is independently verifiable. Verify receipt integrity with:{" "}
+        Each JSONL line is independently verifiable. Verify receipt integrity
+        with:{" "}
         <code style={{ color: "var(--silver)" }}>
           python -c &quot;import hmac, hashlib, json; ...&quot;
         </code>{" "}
-        or use the <a href="/verify" style={{ color: "var(--crimson-hi)" }}>Receipt Viewer</a>.
+        or use the{" "}
+        <a href="/verify" style={{ color: "var(--crimson-hi)" }}>
+          Receipt Viewer
+        </a>
+        .
       </div>
     </div>
   );

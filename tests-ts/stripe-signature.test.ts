@@ -17,7 +17,9 @@ describe("verifyStripeSignature", () => {
 
   it("accepts a valid current signature", () => {
     const t = Math.floor(Date.now() / 1000);
-    expect(verifyStripeSignature(body, signedHeader(t, body), TEST_KEY)).toBe(true);
+    expect(verifyStripeSignature(body, signedHeader(t, body), TEST_KEY)).toBe(
+      true,
+    );
   });
 
   it("rejects a tampered body", () => {
@@ -28,7 +30,9 @@ describe("verifyStripeSignature", () => {
 
   it("rejects a stale timestamp (replay)", () => {
     const t = Math.floor(Date.now() / 1000) - 600;
-    expect(verifyStripeSignature(body, signedHeader(t, body), TEST_KEY)).toBe(false);
+    expect(verifyStripeSignature(body, signedHeader(t, body), TEST_KEY)).toBe(
+      false,
+    );
   });
 
   it("rejects a header missing v1 component", () => {
@@ -41,7 +45,9 @@ describe("verifyStripeSignature", () => {
   });
 
   it("rejects a header with non-numeric timestamp", () => {
-    expect(verifyStripeSignature(body, "t=NaN,v1=deadbeef", TEST_KEY)).toBe(false);
+    expect(verifyStripeSignature(body, "t=NaN,v1=deadbeef", TEST_KEY)).toBe(
+      false,
+    );
   });
 
   it("rejects when signed with the wrong key", () => {

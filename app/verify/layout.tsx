@@ -6,6 +6,10 @@ export const metadata: Metadata = {
     "Inspect an Aletheia audit receipt. Paste receipt JSON to view decision, policy hash, payload fingerprint, and signature fields.",
 };
 
-export default function VerifyLayout({ children }: { children: React.ReactNode }) {
+export default function VerifyLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return <>{children}</>;
 }

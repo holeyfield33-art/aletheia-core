@@ -92,7 +92,9 @@ export default function Nav() {
               key={label}
               href={href}
               style={linkStyle}
-              {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              {...(external
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
             >
               {label}
             </a>
@@ -183,12 +185,21 @@ export default function Nav() {
               href={href}
               style={mobileLinkStyle}
               onClick={() => setMobileOpen(false)}
-              {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              {...(external
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
             >
               {label}
             </a>
           ))}
-          <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div
+            style={{
+              marginTop: "1.5rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.75rem",
+            }}
+          >
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <ThemeToggle />
             </div>

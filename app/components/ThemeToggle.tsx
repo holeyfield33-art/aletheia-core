@@ -6,7 +6,9 @@ type Theme = "dark" | "light";
 
 function getSystemTheme(): Theme {
   if (typeof window === "undefined") return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
 }
 
 function getStoredTheme(): Theme | null {

@@ -42,19 +42,22 @@ class PgDecisionStore:
     async def init_db(self, pool: Any) -> None:
         self._pool = pool
         async with pool.acquire() as conn:
-            await conn.execute("""
+            await conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS _decision_schema_version (
                     id      INTEGER PRIMARY KEY CHECK (id = 1),
                     version INTEGER NOT NULL
                 )
-            """)
+            """
+            )
             row = await conn.fetchrow(
                 "SELECT version FROM _decision_schema_version WHERE id = 1"
             )
             current = row["version"] if row else 0
 
             if current < 1:
-                await conn.execute("""
+                await conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS decision_tokens (
                         token          TEXT NOT NULL,
                         tenant_id      TEXT NOT NULL DEFAULT 'default',
@@ -65,14 +68,16 @@ class PgDecisionStore:
                         manifest_hash  TEXT NOT NULL,
                         PRIMARY KEY (token, tenant_id)
                     )
-                """)
+                """
+                )
                 await conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_dt_expires ON decision_tokens(expires_at)"
                 )
                 await conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_dt_tenant ON decision_tokens(tenant_id)"
                 )
-                await conn.execute("""
+                await conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS deployment_bundle (
                         id             INTEGER NOT NULL CHECK (id = 1),
                         tenant_id      TEXT NOT NULL DEFAULT 'default',
@@ -81,7 +86,8 @@ class PgDecisionStore:
                         updated_at     BIGINT NOT NULL,
                         PRIMARY KEY (id, tenant_id)
                     )
-                """)
+                """
+                )
 
             await conn.execute(
                 """

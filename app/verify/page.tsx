@@ -85,12 +85,18 @@ export default function VerifyPage() {
   ];
   const extraFields = parsed
     ? Object.keys(parsed).filter(
-        (k) => !knownFields.includes(k as keyof ReceiptFields)
+        (k) => !knownFields.includes(k as keyof ReceiptFields),
       )
     : [];
 
   return (
-    <div style={{ maxWidth: "720px", margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
+    <div
+      style={{
+        maxWidth: "720px",
+        margin: "0 auto",
+        padding: "3rem 1.5rem 5rem",
+      }}
+    >
       {/* Header */}
       <div style={{ marginBottom: "2.5rem" }}>
         <div
@@ -120,11 +126,17 @@ export default function VerifyPage() {
         >
           Receipt Viewer
         </h1>
-        <p style={{ color: "var(--silver)", maxWidth: "520px", lineHeight: 1.65 }}>
-          Client-side integrity check for tamper-evident JSON receipts.
-          Paste a receipt to inspect its fields and verify structural
-          consistency. Full cryptographic HMAC signature verification is
-          available in the CLI — run{" "}
+        <p
+          style={{
+            color: "var(--silver)",
+            maxWidth: "520px",
+            lineHeight: 1.65,
+          }}
+        >
+          Client-side integrity check for tamper-evident JSON receipts. Paste a
+          receipt to inspect its fields and verify structural consistency. Full
+          cryptographic HMAC signature verification is available in the CLI —
+          run{" "}
           <code
             style={{
               fontFamily: "var(--font-mono)",
@@ -157,7 +169,11 @@ export default function VerifyPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={EXAMPLE_RECEIPT}
-          style={{ resize: "vertical", minHeight: "160px", marginBottom: "1rem" }}
+          style={{
+            resize: "vertical",
+            minHeight: "160px",
+            marginBottom: "1rem",
+          }}
           spellCheck={false}
         />
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
@@ -242,7 +258,9 @@ export default function VerifyPage() {
           </div>
 
           {/* Fields */}
-          <div style={{ padding: "1.5rem 1.75rem", display: "grid", gap: "1rem" }}>
+          <div
+            style={{ padding: "1.5rem 1.75rem", display: "grid", gap: "1rem" }}
+          >
             {[
               { key: "policy_hash", label: "Policy Hash" },
               { key: "policy_version", label: "Policy Version" },
@@ -265,12 +283,17 @@ export default function VerifyPage() {
                 />
               ) : (
                 <FieldRow key={key} label={label} missing />
-              )
+              ),
             )}
 
             {extraFields.length > 0 && (
               <>
-                <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
+                <hr
+                  style={{
+                    border: "none",
+                    borderTop: "1px solid var(--border)",
+                  }}
+                />
                 <div
                   style={{
                     fontFamily: "var(--font-mono)",

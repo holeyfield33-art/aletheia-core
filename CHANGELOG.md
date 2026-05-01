@@ -10,22 +10,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Security Fixes (Critical & High Priority)
 
 **C-1 — Open Redirect via `baseUrl` prefix-match (CRITICAL)**
+
 - `lib/auth.ts` redirect callback used `url.startsWith(baseUrl)`, returning true for `https://app.aletheia-core.com.evil.com/...` and `https://app.aletheia-core.com@evil.com/...`.
 - **Fix**: Strict `URL.origin` equality check. Same-origin absolute URLs pass; suffix-match, userinfo, and scheme-mismatch attacks rejected.
 
 **C-2 — Silent email auto-verification in production (CRITICAL)**
+
 - `lib/email.ts` auto-verified accounts when `RESEND_API_KEY` unset, regardless of `NODE_ENV`. Guard wrapped only `console.log`, leaving production vulnerable.
 - **Fix**: Throws `email_service_unconfigured`. Register route catches, deletes user row, returns 503. Unconfigured email service cannot enable impersonation.
 
 **H-1 — JWT staleness after deletion (HIGH)**
+
 - `CLAIM_REFRESH_MS` was 15 minutes, creating wide access window for deleted users.
 - **Fix**: Reduced to 60s (tunable via `AUTH_CLAIM_REFRESH_MS`). Closes post-deletion access on stateless JWT sessions.
 
 **H-2 — Spoofed `cf-connecting-ip` header (HIGH)**
+
 - `/api/auth/register` and `/api/demo` honored `cf-connecting-ip` unconditionally, bypassing rate limits on non-Cloudflare deployments.
 - **Fix**: Only honor when `TRUST_CF_HEADERS=true`. Default fallback to `x-forwarded-for`.
 
 **H-3 — Demo proxy DoS on shared quota (HIGH)**
+
 - `/api/demo` had no per-IP rate limit. Attackers could burn shared API key quota in seconds, breaking conversion funnel.
 - **Fix**: Per-IP rate limiter (default 20/hr, tunable via `DEMO_RATE_LIMIT`, `DEMO_RATE_WINDOW_MS`).
 
@@ -37,20 +42,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **M-4** — `getHostedPlanConfig()` guarded against prototype-walk with `Object.hasOwn()`
 
 ### Updated Docs
+
 - **ENVIRONMENT_VARIABLES.md**: Added security env vars (`TRUST_CF_HEADERS`, `DEMO_RATE_LIMIT`, `DEMO_RATE_WINDOW_MS`, `AUTH_CLAIM_REFRESH_MS`)
 - Updated version references from 1.9.1 → 1.9.2
 
 ### Verified
+
 - Frontend build: ✅ passed (48 routes, clean)
 - Backend test suite: ✅ 1114 passed, 16 skipped
 - No regressions from prior release
 
 ---
 
-
 ## [1.9.1] — 2026-04-22
 
 ### Launch Notes
+
 - **Production status flip**: Hosted API status is now `live`; the under-construction banner is hidden when `STATUS.hostedApi === "live"`.
 - **Public pricing model update**: Introduced launch-tier terminology and constants for `free`, `scale`, `pro`, and `payg` in `lib/site-config.ts`.
 - **Stripe tier expansion**: Checkout and webhook flows now support Scale/Pro/PAYG tier mapping with dedicated env-based Stripe price IDs.
@@ -59,10 +66,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Terminology migration**: Public UI/legal copy updated from generic request language to Sovereign Audit Receipts / verified decisions.
 
 ### Migration Notes
+
 - **New Stripe env vars**: add `STRIPE_SCALE_PRICE_ID`, `STRIPE_PAYG_PRICE_ID`, and optional `STRIPE_SCALE_PRICE_AMOUNT`, `STRIPE_SCALE_CURRENCY`, `STRIPE_PAYG_CURRENCY`.
 - **Deprecated naming**: `STRIPE_MAX_*` is no longer used by hosted checkout flows.
 
 ### Fixed
+
 - **`asyncpg` dependency**: Added to `pyproject.toml` core dependencies and `requirements.txt`
   with hash pin. Resolves `ModuleNotFoundError` on Python 3.14 / Render production deploys
   using a Postgres decision store backend.
@@ -82,6 +91,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.9.0] — 2026-04-19
 
 ### Security Hardening (Enterprise)
+
 - **Remove `ALETHEIA_API_KEYS` env-var fallback**: API key authentication is now
   exclusively via KeyStore (SQLite/Postgres). Setting `ALETHEIA_API_KEYS` in
   production causes a hard startup failure (`RuntimeError`); in development it
@@ -104,6 +114,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and `ALETHEIA_TRUSTED_PROXY_DEPTH` is at the default value of 1.
 
 ### Resilience
+
 - **Rate limiter circuit breaker probe-through**: When the Redis circuit is open,
   ~10% of requests are allowed through as probes to detect recovery. Successful
   probes automatically close the circuit and clear degraded state.
@@ -113,6 +124,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   expired attempts every 60 seconds.
 
 ### Added
+
 - **Prisma `LoginAttempt` model**: Tracks per-email login failures with
   `@@index([email, createdAt])` for efficient sliding-window queries.
 - **19 new Phase 3 tests**: String concatenation bypass patterns (9 tests),
@@ -120,6 +132,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   detection (2 tests), circuit breaker probe-through (3 tests).
 
 ### Changed
+
 - RBAC permissions: `KEYS_CREATE`, `KEYS_LIST`, `KEYS_REVOKE`, `KEYS_USAGE`,
   `SECRETS_ROTATE` now gate admin endpoints (previously `X-Admin-Key` header).
 - CORS `allow_headers` changed from `X-Admin-Key` to `Authorization`.
@@ -127,18 +140,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and `test_swarm_1000bot.py`.
 
 ### Removed
+
 - `ALETHEIA_API_KEYS` env-var authentication path
 - `ALETHEIA_ADMIN_KEY` / `X-Admin-Key` header authentication
 - `ALETHEIA_LOG_PII` env-var override
 - `ALETHEIA_ALLOW_SQLITE_PRODUCTION` production opt-in for SQLite decision store
 
 ### Verified
+
 - Full test suite: **1114 passed**, 16 skipped.
 - Full test suite: **1028 passed**, 16 skipped.
 
 ## [1.8.0] — 2026-04-18
 
 ### Added
+
 - **Qdrant Semantic Layer**: Nitpicker now queries Qdrant vector store for extended
   pattern matches after static pattern check. Fail-open on Qdrant errors — static
   patterns remain the safety floor. Block threshold: 0.60.
@@ -178,16 +194,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **`qdrant-client>=1.9.0`** as optional dependency (`[semantic]`).
 
 ### Changed
+
 - Nitpicker blocked pattern count: 19 → 24 (from v1.7.1 fix, now documented correctly).
 - Nitpicker now loads category-specific thresholds from `SemanticManifest`
   instead of using hardcoded 0.60 block threshold.
 
 ### Verified
+
 - Full test suite: **1018 passed** (967 existing + 51 new).
 
 ## [1.7.1] — 2026-04-18
 
 ### Fixed
+
 - **Nitpicker semantic block now feeds pipeline decision**: `check_semantic_block()` result
   was computed but never consulted in PROCEED/DENIED gate. Payloads in the 0.45–0.55
   cosine-similarity band slipped through on early attempts and were only caught later by
@@ -197,11 +216,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **README.md**: Updated test badge (957 → 967).
 
 ### Verified
+
 - Full test suite: **967 passed**.
 
 ## [1.7.0] — 2026-04-13
 
 ### Added
+
 - **Engineering blog**: New `/blog` index and statically generated `/blog/[slug]` post pages.
 - **CLI docs page**: New `/cli` page covering manifest signing, operational commands, and troubleshooting.
 - **Changelog page**: New `/changelog` page surfaced in app navigation.
@@ -209,6 +230,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Environment variable guide**: Added `docs/ENVIRONMENT_VARIABLES.md` with local vs hosted requirements.
 
 ### Changed
+
 - **Security debt fixes (7 findings)**:
   - SSRF host validation tightened in demo proxy.
   - Startup manifest hash pinning (`ALETHEIA_MANIFEST_HASH`).
@@ -222,12 +244,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Dependency cleanup**: Removed unused Supabase helper files and related package references.
 
 ### Verified
+
 - `next build` passes with 49 routes.
 - Full test suite passes: **698 passed**.
 
 ## [1.6.3] — 2026-04-12
 
 ### Added — UX/UI Overhaul
+
 - **Stripe checkout integration**: `/api/stripe/checkout` endpoint creates Stripe
   checkout sessions for Pro plan upgrades. `UpgradeButton` client component handles
   redirect flow. `site-config.ts` upgrade CTA now points to checkout (was `mailto:`).
@@ -244,6 +268,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   quota, with usage stats and one-click upgrade button.
 
 ### Changed
+
 - **Pricing clarity**: Trial tier now shows "1,000 requests/month", Pro shows
   "100,000 requests/month, up to 10 API keys" (were vague "limited" / "higher").
 - **Demo page CTAs**: Stronger conversion section with "Start Free Trial" primary
@@ -257,6 +282,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.6.2] — 2026-04-10
 
 ### Security — Enterprise Hardening
+
 - **Config validation**: All security thresholds validated at startup (range checks,
   logical consistency). Invalid thresholds now fail-fast with actionable errors.
 - **HMAC-keyed API key hashing**: key_store now uses HMAC-SHA256 with
@@ -292,6 +318,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.6.0] — 2026-04-08
 
 ### Added
+
 - **Trial API Key system**: SQLite-backed key store with SHA-256 hashing,
   monthly quota enforcement, and billing period auto-reset (`core/key_store.py`)
 - Key management endpoints: `POST /v1/keys`, `GET /v1/keys`,
@@ -302,6 +329,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 40 new tests: 26 key store unit tests + 14 quota enforcement integration tests
 
 ### Changed
+
 - `_check_api_key` now supports two-tier auth: env keys (no quota) + key store
   keys (trial/pro with monthly quota)
 - CORS updated to allow DELETE method and X-Admin-Key header
@@ -311,6 +339,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Version bumped to 1.6.0
 
 ### Security
+
 - Trial keys are SHA-256 hashed at rest; raw key returned only once at creation
 - Admin endpoints require dedicated `ALETHEIA_ADMIN_KEY` (constant-time compare)
 - Quota exceeded returns 429 with Retry-After header
@@ -320,11 +349,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.5.3] — 2026-04-08
 
 ### Fixed
+
 - CI: `InMemoryRateLimiter` and `DecisionStore` no longer mark themselves
   degraded when Upstash Redis is unavailable — local fallbacks are functional
 - Three `test_redteam_adversarial` tests now pass without Upstash env vars
 
 ### Changed
+
 - Site/dashboard/docs: pricing restructured to 4 tiers (Community, Hosted
   Trial, Hosted Pro, Services) with explicit prices
 - Nav simplified to Demo, Docs, GitHub, Pricing, Services
@@ -339,6 +370,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.5.2] — 2026-04-07
 
 ### Security
+
 - Production startup guard: refuses to start in shadow mode when
   ENVIRONMENT=production (prevents accidental DENIED→PROCEED pass-through)
 - Client-side AbortController timeout (8 s) on all demo fetch calls
@@ -350,6 +382,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   countdown shown in the UI
 
 ### Added
+
 - `DemoErrorBoundary` component — catches render crashes and shows
   user-friendly fallback with refresh button
 - `Retry-After: 5` header on backend 429 responses; demo proxy forwards it
@@ -357,6 +390,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   instead of mapping to generic 503
 
 ### Changed
+
 - Error display upgraded: distinct messages for rate-limit, timeout, and
   generic failures (was single "request_failed" for all)
 - Version bumped to 1.5.2
@@ -366,12 +400,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.5.1] — 2026-04-07
 
 ### Security
+
 - Tightened `action` field regex — removed `:` and `.` from allowed characters
   to prevent namespace-injection patterns
 - Added Content-Length guard (50 KB limit) to demo proxy route — returns 413
   before parsing oversized payloads
 
 ### Changed
+
 - Hosted API status updated from "launching" to "live"
 - Version bumped to 1.5.1
 
@@ -380,10 +416,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.5.0] — 2026-04-07
 
 ### Security (red team remediation)
+
 - CRITICAL: UpstashRateLimiter now fails closed on Redis error — returns
   False instead of True; circuit breaker opens after 5 consecutive failures
   and resets after 30 seconds
-- CRITICAL: _get_client_ip() now validates X-Forwarded-For against
+- CRITICAL: \_get_client_ip() now validates X-Forwarded-For against
   ALETHEIA_TRUSTED_PROXY_DEPTH (default 1) — prevents IP spoofing via
   injected XFF headers
 - CRITICAL: Active mode now refuses to start when ALETHEIA_API_KEYS is
@@ -393,7 +430,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - HIGH: CORS middleware added with ALETHEIA_CORS_ORIGINS allowlist
 - HIGH: Demo proxy validates ALETHEIA_BACKEND_URL against allowed host
   suffixes — SSRF guard
-- HIGH: Scout _query_history protected by threading.Lock — race condition
+- HIGH: Scout \_query_history protected by threading.Lock — race condition
   under concurrent workers resolved
 - MEDIUM: Sandbox normalises Unicode whitespace before pattern matching —
   thin-space and zero-width character bypass closed
@@ -401,16 +438,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   structured logging (aletheia.scout, aletheia.nitpicker, aletheia.judge)
 
 ### Added
+
 - ALETHEIA_TRUSTED_PROXY_DEPTH env var (default: 1)
 - ALETHEIA_CORS_ORIGINS env var
 - tests/test_security_hardening_v2.py — 24 new security tests
 
 ### Changed
+
 - Version bumped to 1.5.0
 
 ## [1.4.7] — 2026-04-06
 
 ### Added
+
 - Upstash Redis distributed rate limiter — sliding window via sorted set,
   survives restarts, synchronizes across workers
 - Automatic backend selection: Redis when configured, in-memory fallback
@@ -419,12 +459,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and render.yaml
 
 ### Changed
+
 - rate_limiter.allow() is now async in both backends
 - In-memory fallback uses asyncio.Lock (was threading.Lock)
 
 ## [1.4.4] — 2026-04-06
 
 ### Security
+
 - Fix `NameError` in `secure_audit()`: `time.time()` was called but `time` was imported as `_time` — caused every `/v1/audit` request to return 500
 - Fix `ImportError` in `/health`: imported `verify_manifest` which does not exist; corrected to `verify_manifest_signature`
 - API key comparison now uses `secrets.compare_digest` (constant-time) — previously `not in` set was vulnerable to timing oracle attacks
@@ -432,6 +474,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Rate limiter now caps tracked-IP dictionary at 50,000 entries (LRU eviction) — previously unbounded, allowing memory exhaustion via unique-IP flood
 
 ### Fixed
+
 - `main.py` CLI printed stale version string `v1.2.2` — corrected to `v1.4.4`
 - `SECURITY.md` referred to project as "Aletheia Cyber-Defense" — corrected to "Aletheia Core"
 - `SECURITY.md` contact email updated to `info@aletheia-core.com`
@@ -444,10 +487,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - README: Production support email corrected to `info@aletheia-core.com`
 
 ### Added
+
 - `.dockerignore` — prevents private key, test files, and development artifacts from being copied into Docker images
 - README: `## Deployment Checklist`, `## Architecture Decision Records`, `## Performance Characteristics` sections
 
 ### Changed
+
 - Version bumped to `1.4.4`
 
 ---
@@ -455,6 +500,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.4.3] — 2026-04-05
 
 ### Security (red team round 2)
+
 - Removed `shadow_verdict` from all client responses — previously logged internally only, but the client response dict could include it under certain code paths
 - `_discretise_threat()` discretises raw threat score to band string before any response — raw floats never returned to clients
 - Scout `_query_history` capped at 10,000 entries with LRU eviction — prevents memory exhaustion via unique-IP rotation probing
@@ -466,6 +512,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.4.2] — 2026-04-04
 
 ### Security (red team round 1)
+
 - Receipt HMAC now signs `payload_sha256 + action + origin + issued_at` — prevents replay attacks where a receipt from a benign request is reused for a malicious one
 - `ALETHEIA_RECEIPT_SECRET` validated at startup in active mode — service refuses to start without it (`sys.exit(1)`)
 - `_get_client_ip()` reads `X-Forwarded-For` then `request.client.host` — IP never taken from request body
@@ -477,6 +524,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.4.1] — 2026-04-04
 
 ### Fixed
+
 - PyPI package metadata corrections: description, keywords, classifiers, homepage URL
 - README version badge and install command aligned with PyPI package name (`aletheia-cyber-core`)
 - Stale references to removed fields cleaned from documentation
@@ -486,6 +534,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.4.0] — 2026-04-04
 
 ### Security (enterprise hardening)
+
 - Remove client-supplied IP from request body — rate limiting now derived from network layer (`X-Forwarded-For` or `request.client.host`)
 - Add API key authentication via `X-API-Key` header, gated by `ALETHEIA_API_KEYS` env var
 - Replace public-key-as-HMAC with real `ALETHEIA_RECEIPT_SECRET` — receipts are now tamper-evident
@@ -495,11 +544,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `audit.log` added to `.gitignore` and removed from git tracking
 
 ### Added
+
 - `GET /health` endpoint — returns version, uptime, manifest signature status. No auth required.
 - `AuditRequest.client_ip_claim` optional field for audit/debug purposes (never used for enforcement)
 - `action` field now validated with pattern `^[A-Za-z0-9_\-:.]+$`
 
 ### Changed
+
 - Version bumped to `1.4.0`
 
 ---
@@ -507,6 +558,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.3.0] — 2026-04-04
 
 ### Added
+
 - Consciousness Proximity Module (Phases 1–4): spectral monitor, identity anchor, sovereign relay, proximity score
 - 84 proximity tests (262 total passing)
 - `Dockerfile` and `render.yaml` for one-click deployment
@@ -516,6 +568,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `CHANGELOG.md`, issue templates, PR template
 
 ### Fixed
+
 - Release workflow now fires on tags only (not every push to main)
 - CI uses lightweight `requirements-ci.txt` to avoid torch install timeouts
 
@@ -524,6 +577,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.2.1] — 2026-03-24
 
 ### Added
+
 - Batched signed rate-limiting
 - NIST AI RMF 1.0 control mapping
 - Startup audit health warnings
@@ -535,6 +589,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.0.0] — 2026-03-16
 
 ### Added
+
 - Ed25519 policy manifests with detached signature verification
 - HMAC-signed audit receipts (TMR-style)
 - Semantic veto engine: Scout (threat scoring), Nitpicker (semantic blocking), Judge (cosine-sim veto)

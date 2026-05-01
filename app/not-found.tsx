@@ -52,7 +52,14 @@ export default function NotFound() {
       >
         The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
-      <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
         <Link href="/" className="btn-primary">
           Go home
         </Link>

@@ -81,7 +81,8 @@ export default function UsagePage() {
           lineHeight: 1.6,
         }}
       >
-        Monitor your trial key usage. Quotas are enforced server-side. Upgrade to{" "}
+        Monitor your trial key usage. Quotas are enforced server-side. Upgrade
+        to{" "}
         <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
           a paid hosted plan
         </a>{" "}
@@ -128,7 +129,10 @@ export default function UsagePage() {
           {keys.map((k) => {
             const pct =
               k.monthly_quota > 0
-                ? Math.min(100, Math.round((k.requests_used / k.monthly_quota) * 100))
+                ? Math.min(
+                    100,
+                    Math.round((k.requests_used / k.monthly_quota) * 100),
+                  )
                 : 0;
             const isOver = k.requests_used >= k.monthly_quota;
             const barColor = isOver
@@ -205,7 +209,9 @@ export default function UsagePage() {
                             ? "rgba(46,184,122,0.12)"
                             : "rgba(176,34,54,0.15)",
                         color:
-                          k.status === "active" ? "var(--green)" : "var(--crimson-hi)",
+                          k.status === "active"
+                            ? "var(--green)"
+                            : "var(--crimson-hi)",
                         textTransform: "uppercase",
                       }}
                     >
@@ -226,8 +232,8 @@ export default function UsagePage() {
                   }}
                 >
                   <span>
-                    {k.requests_used.toLocaleString()} / {k.monthly_quota.toLocaleString()}{" "}
-                    Sovereign Audit Receipts
+                    {k.requests_used.toLocaleString()} /{" "}
+                    {k.monthly_quota.toLocaleString()} Sovereign Audit Receipts
                   </span>
                   <span style={{ color: barColor }}>{pct}%</span>
                 </div>
@@ -280,7 +286,12 @@ export default function UsagePage() {
                     },
                   ].map((item) => (
                     <div key={item.label}>
-                      <div style={{ color: "var(--muted)", marginBottom: "0.15rem" }}>
+                      <div
+                        style={{
+                          color: "var(--muted)",
+                          marginBottom: "0.15rem",
+                        }}
+                      >
                         {item.label}
                       </div>
                       <div style={{ color: "var(--silver)" }}>{item.value}</div>
@@ -330,7 +341,11 @@ export default function UsagePage() {
             <a
               href={`mailto:${CTAS.upgrade.href.includes("mailto:") ? "" : "info@aletheia-core.com?subject=Enterprise"}`}
               className="btn-ghost"
-              style={{ fontSize: "0.78rem", padding: "0.45rem 1rem", color: "var(--silver)" }}
+              style={{
+                fontSize: "0.78rem",
+                padding: "0.45rem 1rem",
+                color: "var(--silver)",
+              }}
             >
               Contact for Enterprise
             </a>

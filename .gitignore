@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
+*.pyc
 *$py.class
 *.egg-info/
 *.egg
@@ -10,6 +11,7 @@ build/
 .env
 .env.local
 .env*.local
+.DS_Store
 .venv/
 venv/
 *.log

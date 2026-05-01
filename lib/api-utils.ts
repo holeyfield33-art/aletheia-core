@@ -9,7 +9,7 @@ export const SECURITY_HEADERS = {
 
 export function secureJson<T>(
   data: T,
-  init?: ResponseInit & { headers?: Record<string, string> }
+  init?: ResponseInit & { headers?: Record<string, string> },
 ): NextResponse<T> {
   return NextResponse.json(data, {
     ...init,
@@ -23,10 +23,7 @@ export function secureJson<T>(
 export function apiError(
   status: number,
   error: string,
-  message?: string
+  message?: string,
 ): NextResponse {
-  return secureJson(
-    { error, ...(message ? { message } : {}) },
-    { status }
-  );
+  return secureJson({ error, ...(message ? { message } : {}) }, { status });
 }

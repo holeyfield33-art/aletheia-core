@@ -1,15 +1,20 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "aletheia-core.fullname" . }}
+  name: '{{ include "aletheia-core.fullname" . }}'
   labels:
-    {{- include "aletheia-core.labels" . | nindent 4 }}
+    helm.sh/chart: '{{ include "aletheia-core.chart" . }}'
+    app.kubernetes.io/name: '{{ include "aletheia-core.name" . }}'
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    app.kubernetes.io/version: '{{ .Chart.AppVersion }}'
+    app.kubernetes.io/managed-by: '{{ .Release.Service }}'
 spec:
-  type: {{ .Values.service.type }}
+  type: '{{ .Values.service.type }}'
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort | default "http" }}
+    - port: '{{ .Values.service.port }}'
+      targetPort: '{{ .Values.service.targetPort | default "http" }}'
       protocol: TCP
       name: http
   selector:
-    {{- include "aletheia-core.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/name: '{{ include "aletheia-core.name" . }}'
+    app.kubernetes.io/instance: '{{ .Release.Name }}'

@@ -10,7 +10,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = request.nextUrl;
-  const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get("limit") ?? "1000", 10)));
+  const limit = Math.min(
+    1000,
+    Math.max(1, parseInt(searchParams.get("limit") ?? "1000", 10)),
+  );
   const cursor = searchParams.get("cursor"); // last id for cursor-based pagination
 
   const where: Record<string, unknown> = { userId: session.user.id };
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
         payload_sha256: log.payloadHash,
         receipt: log.receipt,
         policy_hash: log.policyHash,
-      })
+      }),
     )
     .join("\n");
 

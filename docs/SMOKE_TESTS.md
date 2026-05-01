@@ -31,20 +31,20 @@ make smoke
 
 ## What Gets Tested
 
-| # | Test | Path | Expected |
-|---|------|------|----------|
-| 1 | Health endpoint | GET /health | 200, status=ok |
-| 2 | Readiness endpoint | GET /ready | 200 or 503 with ready field |
-| 3 | Benign summarize | POST /v1/audit | decision=PROCEED |
-| 4 | Prompt injection | POST /v1/audit | decision=DENIED |
-| 5 | Destructive execution | POST /v1/audit | decision=DENIED or SANDBOX_BLOCKED |
-| 6 | Replay defense | POST /v1/audit ×2 | Both handled without crash |
-| 7 | Unknown extra field | POST /v1/audit | 422 (Pydantic extra=forbid) |
-| 8 | Oversized input | POST /v1/audit | 422 (max_length exceeded) |
-| 9 | Receipt fields | POST /v1/audit | receipt contains decision, policy_hash, signature |
-| 10 | Security headers | GET /health | Cache-Control, X-Content-Type-Options, X-Frame-Options |
-| 11 | Method not allowed | GET /v1/audit | 405 |
-| 12 | Unauthorized tool call | POST /v1/audit | decision=DENIED or SANDBOX_BLOCKED |
+| #   | Test                   | Path              | Expected                                               |
+| --- | ---------------------- | ----------------- | ------------------------------------------------------ |
+| 1   | Health endpoint        | GET /health       | 200, status=ok                                         |
+| 2   | Readiness endpoint     | GET /ready        | 200 or 503 with ready field                            |
+| 3   | Benign summarize       | POST /v1/audit    | decision=PROCEED                                       |
+| 4   | Prompt injection       | POST /v1/audit    | decision=DENIED                                        |
+| 5   | Destructive execution  | POST /v1/audit    | decision=DENIED or SANDBOX_BLOCKED                     |
+| 6   | Replay defense         | POST /v1/audit ×2 | Both handled without crash                             |
+| 7   | Unknown extra field    | POST /v1/audit    | 422 (Pydantic extra=forbid)                            |
+| 8   | Oversized input        | POST /v1/audit    | 422 (max_length exceeded)                              |
+| 9   | Receipt fields         | POST /v1/audit    | receipt contains decision, policy_hash, signature      |
+| 10  | Security headers       | GET /health       | Cache-Control, X-Content-Type-Options, X-Frame-Options |
+| 11  | Method not allowed     | GET /v1/audit     | 405                                                    |
+| 12  | Unauthorized tool call | POST /v1/audit    | decision=DENIED or SANDBOX_BLOCKED                     |
 
 ---
 
@@ -95,6 +95,7 @@ resolved before scaling.
 ## Manual Verification (Not Automated)
 
 ### Degraded mode for privileged actions
+
 1. Temporarily remove `UPSTASH_REDIS_REST_URL` from env
 2. Restart the service
 3. Send a privileged action: `action=Transfer_Funds`

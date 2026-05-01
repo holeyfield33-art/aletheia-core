@@ -28,7 +28,8 @@ function isRetryablePrismaError(error: unknown): boolean {
 export async function consumeRateLimit(
   input: ConsumeRateLimitInput,
 ): Promise<ConsumeRateLimitResult> {
-  const pruneAfterMs = input.pruneAfterMs ?? input.windowMs * DEFAULT_PRUNE_MULTIPLIER;
+  const pruneAfterMs =
+    input.pruneAfterMs ?? input.windowMs * DEFAULT_PRUNE_MULTIPLIER;
 
   for (let attempt = 0; attempt <= SERIALIZATION_RETRY_LIMIT; attempt++) {
     try {
@@ -60,7 +61,10 @@ export async function consumeRateLimit(
           if (recent.length >= input.limit) {
             const oldest = recent[0]?.createdAt;
             const retryAfterSeconds = oldest
-              ? Math.max(1, Math.ceil((input.windowMs - (now - oldest.getTime())) / 1000))
+              ? Math.max(
+                  1,
+                  Math.ceil((input.windowMs - (now - oldest.getTime())) / 1000),
+                )
               : Math.max(1, Math.ceil(input.windowMs / 1000));
 
             return {
@@ -86,7 +90,10 @@ export async function consumeRateLimit(
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
     } catch (error) {
-      if (!isRetryablePrismaError(error) || attempt === SERIALIZATION_RETRY_LIMIT) {
+      if (
+        !isRetryablePrismaError(error) ||
+        attempt === SERIALIZATION_RETRY_LIMIT
+      ) {
         throw error;
       }
     }

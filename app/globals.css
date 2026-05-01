@@ -1,37 +1,39 @@
 :root {
-  --crimson:     #8B1A2A;
-  --crimson-hi:  #B02236;
+  --crimson: #8b1a2a;
+  --crimson-hi: #b02236;
   --crimson-glow: rgba(139, 26, 42, 0.15);
-  --silver:      #A8B0B8;
-  --silver-dim:  #6b7585;
-  --black:       #080a0c;
-  --surface:     #0e1115;
-  --surface-2:   #141820;
-  --border:      #1e2530;
-  --border-hi:   #2a3545;
-  --white:       #f0eee8;
-  --muted:       #8b95a5;
-  --green:       #2eb87a;
-  --red:         #c0392b;
-  --font-head:   'Syne', sans-serif;
-  --font-mono:   'JetBrains Mono', monospace;
-  --font-body:   'Inter', sans-serif;
+  --silver: #a8b0b8;
+  --silver-dim: #6b7585;
+  --black: #080a0c;
+  --surface: #0e1115;
+  --surface-2: #141820;
+  --border: #1e2530;
+  --border-hi: #2a3545;
+  --white: #f0eee8;
+  --muted: #8b95a5;
+  --green: #2eb87a;
+  --red: #c0392b;
+  --font-head: "Syne", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-body: "Inter", sans-serif;
 }
 
 [data-theme="light"] {
-  --black:       #f5f5f0;
-  --surface:     #eceae4;
-  --surface-2:   #e2e0da;
-  --border:      #d0cdc6;
-  --border-hi:   #bbb8b0;
-  --white:       #1a1a1a;
-  --muted:       #5a5a5a;
-  --silver:      #3a3a3a;
-  --silver-dim:  #7a7a7a;
+  --black: #f5f5f0;
+  --surface: #eceae4;
+  --surface-2: #e2e0da;
+  --border: #d0cdc6;
+  --border-hi: #bbb8b0;
+  --white: #1a1a1a;
+  --muted: #5a5a5a;
+  --silver: #3a3a3a;
+  --silver-dim: #7a7a7a;
   --crimson-glow: rgba(139, 26, 42, 0.08);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -97,7 +99,8 @@ a:hover {
 }
 
 @keyframes constructionPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -144,7 +147,8 @@ a:hover {
   font-family: var(--font-mono);
 }
 
-pre, code {
+pre,
+code {
   font-family: var(--font-mono);
 }
 
@@ -175,7 +179,9 @@ pre, code {
   font-size: 0.95rem;
   border: none;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition:
+    background 0.2s,
+    transform 0.1s;
   text-decoration: none;
   font-family: var(--font-body);
 }
@@ -203,7 +209,9 @@ pre, code {
   font-size: 0.95rem;
   border: 1px solid var(--border-hi);
   cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
   text-decoration: none;
   font-family: var(--font-body);
 }
@@ -242,7 +250,9 @@ pre, code {
 }
 
 /* Form elements */
-textarea, input, select {
+textarea,
+input,
+select {
   background: var(--surface-2);
   border: 1px solid var(--border-hi);
   border-radius: 5px;
@@ -254,7 +264,9 @@ textarea, input, select {
   transition: border-color 0.2s;
 }
 
-textarea:focus, input:focus, select:focus {
+textarea:focus,
+input:focus,
+select:focus {
   outline: 2px solid var(--crimson-hi) !important;
   outline-offset: 1px;
   border-color: var(--crimson-hi) !important;
@@ -370,9 +382,15 @@ label {
 
 /* Skeleton loading animation */
 @keyframes skeleton-pulse {
-  0%   { opacity: 0.06; }
-  50%  { opacity: 0.12; }
-  100% { opacity: 0.06; }
+  0% {
+    opacity: 0.06;
+  }
+  50% {
+    opacity: 0.12;
+  }
+  100% {
+    opacity: 0.06;
+  }
 }
 
 .skeleton {
@@ -391,13 +409,25 @@ label {
 
 /* Toast notifications */
 @keyframes toast-in {
-  from { transform: translateX(120%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes toast-out {
-  from { transform: translateX(0); opacity: 1; }
-  to   { transform: translateX(120%); opacity: 0; }
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
 }
 
 .toast-container {
@@ -425,15 +455,21 @@ label {
   color: var(--silver);
   animation: toast-in 0.25s ease-out;
   max-width: 360px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .toast[data-removing="true"] {
   animation: toast-out 0.2s ease-in forwards;
 }
 
-.toast-success { border-color: var(--green); color: var(--green); }
-.toast-error   { border-color: var(--crimson-hi); color: var(--crimson-hi); }
+.toast-success {
+  border-color: var(--green);
+  color: var(--green);
+}
+.toast-error {
+  border-color: var(--crimson-hi);
+  color: var(--crimson-hi);
+}
 
 .toast-dismiss {
   background: none;
@@ -459,7 +495,9 @@ label {
 
 /* Spinner */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner {
@@ -474,7 +512,9 @@ label {
 
 /* Accessibility: reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

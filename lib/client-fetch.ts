@@ -42,7 +42,11 @@ export async function clientFetchResponse(
       signal: controller.signal,
     });
 
-    if (response.status === 401 && typeof window !== "undefined" && !redirectInFlight) {
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      !redirectInFlight
+    ) {
       redirectInFlight = true;
       const callbackUrl = `${window.location.pathname}${window.location.search}`;
       void signOut({
@@ -53,7 +57,11 @@ export async function clientFetchResponse(
 
     if (!response.ok) {
       const data = await parseErrorResponse(response.clone());
-      throw new ClientFetchError(`HTTP ${response.status}`, response.status, data);
+      throw new ClientFetchError(
+        `HTTP ${response.status}`,
+        response.status,
+        data,
+      );
     }
 
     return response;

@@ -10,7 +10,8 @@
 
 export const PRODUCT = {
   name: "Aletheia Core",
-  tagline: "Professional-grade runtime audit and pre-execution block layer for AI agents.",
+  tagline:
+    "Professional-grade runtime audit and pre-execution block layer for AI agents.",
   description:
     "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   version: "1.9.1",

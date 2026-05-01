@@ -75,11 +75,18 @@ export default async function RootLayout({
   const nonce = headerStore.get("x-csp-nonce") ?? undefined;
 
   return (
-    <html lang="en" className={`${syne.variable} ${jetbrainsMono.variable} ${inter.variable}`}>
+    <html
+      lang="en"
+      className={`${syne.variable} ${jetbrainsMono.variable} ${inter.variable}`}
+    >
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="canonical" href={URLS.appBase} />
-        <Script src="/theme-bootstrap.js" strategy="beforeInteractive" nonce={nonce} />
+        <Script
+          src="/theme-bootstrap.js"
+          strategy="beforeInteractive"
+          nonce={nonce}
+        />
       </head>
       <body>
         {STATUS.hostedApi !== "live" && (
@@ -89,10 +96,7 @@ export default async function RootLayout({
             <span className="construction-banner-pulse" />
           </div>
         )}
-        <a
-          href="#main-content"
-          className="skip-link"
-        >
+        <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
         <AuthProvider>
@@ -139,7 +143,10 @@ function Footer() {
           { label: "Services", href: "/#services" },
           { label: "Status", href: "/status" },
           { label: "GitHub", href: URLS.github },
-          { label: `${URLS.contactEmail}`, href: `mailto:${URLS.contactEmail}` },
+          {
+            label: `${URLS.contactEmail}`,
+            href: `mailto:${URLS.contactEmail}`,
+          },
         ].map(({ label, href }) => (
           <a
             key={label}

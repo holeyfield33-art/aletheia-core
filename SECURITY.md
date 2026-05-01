@@ -3,7 +3,7 @@
 ## Supported Versions
 
 | Version | Supported |
-|---------|-----------|
+| ------- | --------- |
 | 1.8.x   | ✅ Yes    |
 | 1.7.x   | ✅ Yes    |
 | 1.6.x   | ✅ Yes    |

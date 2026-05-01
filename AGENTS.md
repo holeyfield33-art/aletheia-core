@@ -10,6 +10,7 @@ All agents are implemented and active. Claims here reflect the actual code.
 **Role:** Threat intelligence and swarm-detection pre-filter.
 
 **What it actually does:**
+
 - Matches payloads against known instruction-smuggling prefixes (e.g. `SYSTEM_UPDATE:`, `EMBEDDED_SHELL:`)
 - Checks for sensitive exfiltration patterns (`merger clause`, `private_key`)
 - Detects contextual camouflage: neutral anchors (`refactor`, `routine`) combined with high-value targets (`transfer`, `auth`, `key`)
@@ -19,6 +20,7 @@ All agents are implemented and active. Claims here reflect the actual code.
 **Output:** `(threat_score: float, report: str)`. Score ≥ `ALETHEIA_POLICY_THRESHOLD` (default 7.5) causes a DENIED decision.
 
 **What it does NOT do:**
+
 - Does not make network calls or query external threat feeds
 - Does not block on its own — Scout score feeds the decision logic in `fastapi_wrapper.py`
 
@@ -29,6 +31,7 @@ All agents are implemented and active. Claims here reflect the actual code.
 **Role:** Polymorphic intent sanitizer with semantic embedding analysis.
 
 **What it actually does:**
+
 - Detects imperative-alias prefixes (`routine:`, `cleanup:`, `refactor:`) that camouflage command sequences
 - Runs cosine-similarity check against 24 blocked semantic patterns (e.g. "bypass authentication", "exfiltrate data externally") using `all-MiniLM-L6-v2` embeddings. Threshold: 0.45.
 - `check_semantic_block()` feeds the pipeline decision logic — a semantic block alone causes a DENIED decision
@@ -42,6 +45,7 @@ All agents are implemented and active. Claims here reflect the actual code.
 **Output:** `check_semantic_block()` returns `(is_blocked: bool, reason: str)`. Block = DENIED decision. `_last_result` stores the full `NitpickerResult` for pipeline metadata.
 
 **What it does NOT do:**
+
 - Does not verify manifest signatures — that is the Judge's responsibility
 - Sanitized output from `sanitize_intent()` is used for logging; the original payload is passed to the Judge for veto checks
 - Does NOT call external embedding APIs in the hot path — all embeddings are local
@@ -53,6 +57,7 @@ All agents are implemented and active. Claims here reflect the actual code.
 **Role:** Cryptographic policy enforcer and semantic veto engine.
 
 **What it actually does:**
+
 - Verifies the Ed25519 detached signature on `manifest/security_policy.json` before loading policy. Raises `ManifestTamperedError` on failure — hard veto, no fallback.
 - Checks `action_id` against `restricted_actions` in the policy manifest (exact string match)
 - Runs cosine-similarity veto against 50+ semantic alias phrases across 6 restricted action categories (Transfer_Funds, Approve_Loan_Disbursement, Modify_Auth_Registry, Initiate_ACH, Open_External_Socket, Bulk_Delete_Resource)

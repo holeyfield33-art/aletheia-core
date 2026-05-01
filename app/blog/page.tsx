@@ -22,8 +22,15 @@ export default function BlogPage() {
       >
         Engineering Blog
       </h1>
-      <p style={{ color: "var(--muted)", marginBottom: "2rem", maxWidth: "700px" }}>
-        Practical security and reliability write-ups from Aletheia Core release work.
+      <p
+        style={{
+          color: "var(--muted)",
+          marginBottom: "2rem",
+          maxWidth: "700px",
+        }}
+      >
+        Practical security and reliability write-ups from Aletheia Core release
+        work.
       </p>
 
       <div style={{ display: "grid", gap: "1rem" }}>
@@ -47,10 +54,18 @@ export default function BlogPage() {
             >
               {post.publishedAt}
             </p>
-            <h2 style={{ marginBottom: "0.45rem", fontFamily: "var(--font-head)", fontSize: "1.3rem" }}>
+            <h2
+              style={{
+                marginBottom: "0.45rem",
+                fontFamily: "var(--font-head)",
+                fontSize: "1.3rem",
+              }}
+            >
               <a href={`/blog/${post.slug}`}>{post.title}</a>
             </h2>
-            <p style={{ color: "var(--silver)", marginBottom: "0.75rem" }}>{post.description}</p>
+            <p style={{ color: "var(--silver)", marginBottom: "0.75rem" }}>
+              {post.description}
+            </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
               {post.tags.map((tag) => (
                 <span

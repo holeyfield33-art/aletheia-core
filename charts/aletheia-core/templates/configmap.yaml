@@ -1,12 +1,16 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "aletheia-core.fullname" . }}
+  name: '{{ include "aletheia-core.fullname" . }}'
   labels:
-    {{- include "aletheia-core.labels" . | nindent 4 }}
+    helm.sh/chart: '{{ include "aletheia-core.chart" . }}'
+    app.kubernetes.io/name: '{{ include "aletheia-core.name" . }}'
+    app.kubernetes.io/instance: '{{ .Release.Name }}'
+    app.kubernetes.io/version: '{{ .Chart.AppVersion }}'
+    app.kubernetes.io/managed-by: '{{ .Release.Service }}'
 data:
-  ALETHEIA_MODE: {{ .Values.config.mode | quote }}
-  ALETHEIA_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
-  ALETHEIA_DATABASE_BACKEND: {{ .Values.config.databaseBackend | quote }}
-  ALETHEIA_MAX_PAYLOAD_SIZE: {{ .Values.config.maxPayloadSize | quote }}
-  ALETHEIA_TRUSTED_PROXY_DEPTH: {{ .Values.config.trustedProxyDepth | quote }}
+  ALETHEIA_MODE: '{{ .Values.config.mode }}'
+  ALETHEIA_LOG_LEVEL: '{{ .Values.config.logLevel }}'
+  ALETHEIA_DATABASE_BACKEND: '{{ .Values.config.databaseBackend }}'
+  ALETHEIA_MAX_PAYLOAD_SIZE: '{{ .Values.config.maxPayloadSize }}'
+  ALETHEIA_TRUSTED_PROXY_DEPTH: '{{ .Values.config.trustedProxyDepth }}'

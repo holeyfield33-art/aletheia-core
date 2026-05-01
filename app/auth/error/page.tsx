@@ -10,7 +10,8 @@ function AuthErrorContent() {
   const messages: Record<string, string> = {
     Configuration: "Server configuration error. Please contact support.",
     AccessDenied: "Access denied. You may not have permission to sign in.",
-    Verification: "Email verification link has expired. Please request a new one.",
+    Verification:
+      "Email verification link has expired. Please request a new one.",
     Default: "An authentication error occurred. Please try again.",
   };
 
@@ -47,7 +48,13 @@ function AuthErrorContent() {
         >
           Authentication Error
         </h1>
-        <p style={{ color: "var(--silver)", fontSize: "0.88rem", marginBottom: "1.5rem" }}>
+        <p
+          style={{
+            color: "var(--silver)",
+            fontSize: "0.88rem",
+            marginBottom: "1.5rem",
+          }}
+        >
           {message}
         </p>
         <a

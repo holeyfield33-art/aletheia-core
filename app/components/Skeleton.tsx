@@ -15,7 +15,10 @@ export function SkeletonCard() {
       }}
     >
       <SkeletonText width="40%" />
-      <div className="skeleton" style={{ height: "2rem", width: "60%", marginTop: "0.5rem" }} />
+      <div
+        className="skeleton"
+        style={{ height: "2rem", width: "60%", marginTop: "0.5rem" }}
+      />
     </div>
   );
 }

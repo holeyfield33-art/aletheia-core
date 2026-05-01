@@ -97,7 +97,7 @@ const PRESETS = [
   {
     label: "Destructive Code Execution",
     payload:
-      'exec("import subprocess; subprocess.run([\'rm\', \'-rf\', \'/var/data\', \'--no-preserve-root\'])")',
+      "exec(\"import subprocess; subprocess.run(['rm', '-rf', '/var/data', '--no-preserve-root'])\")",
     origin: "agent-003",
     action: "Bulk_Delete_Resource",
     description:
@@ -195,7 +195,9 @@ export default function DemoPage() {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
-  const [rateLimitRemaining, setRateLimitRemaining] = useState<number | null>(null);
+  const [rateLimitRemaining, setRateLimitRemaining] = useState<number | null>(
+    null,
+  );
   const inflight = useRef(false);
 
   function applyPreset(idx: number) {
@@ -357,8 +359,8 @@ export default function DemoPage() {
             lineHeight: 1.65,
           }}
         >
-          Send a payload through a live audit engine. See the decision,
-          threat level, and explanation in real time.
+          Send a payload through a live audit engine. See the decision, threat
+          level, and explanation in real time.
         </p>
       </div>
 
@@ -424,8 +426,7 @@ export default function DemoPage() {
                     ? "1px solid var(--crimson-hi)"
                     : "1px solid var(--border-hi)",
                 borderRadius: "4px",
-                color:
-                  activePreset === i ? "var(--white)" : "var(--silver)",
+                color: activePreset === i ? "var(--white)" : "var(--silver)",
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.8rem",
                 padding: "0.45rem 0.9rem",
@@ -537,8 +538,7 @@ export default function DemoPage() {
             style={{
               justifyContent: "center",
               opacity: loading || !payload.trim() ? 0.6 : 1,
-              cursor:
-                loading || !payload.trim() ? "not-allowed" : "pointer",
+              cursor: loading || !payload.trim() ? "not-allowed" : "pointer",
               fontSize: "1rem",
             }}
           >
@@ -550,7 +550,10 @@ export default function DemoPage() {
                 textAlign: "right",
                 fontSize: "0.72rem",
                 fontFamily: "var(--font-mono)",
-                color: rateLimitRemaining <= 2 ? "var(--crimson-hi)" : "var(--muted)",
+                color:
+                  rateLimitRemaining <= 2
+                    ? "var(--crimson-hi)"
+                    : "var(--muted)",
                 marginTop: "0.25rem",
               }}
             >
@@ -575,7 +578,9 @@ export default function DemoPage() {
             fontSize: "0.88rem",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <div className="spinner" />
             Analyzing payload&hellip;
           </div>
@@ -610,18 +615,26 @@ export default function DemoPage() {
             }}
           >
             {isError ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.75rem",
+                  flexWrap: "wrap",
+                }}
+              >
                 <span className="badge-error">ERROR</span>
                 <span style={{ color: "var(--silver)", fontSize: "0.9rem" }}>
                   {result.error === "free_tier_exhausted"
-                    ? result.message || "Your free Sovereign Audit Receipts are exhausted."
+                    ? result.message ||
+                      "Your free Sovereign Audit Receipts are exhausted."
                     : result.error === "rate_limited"
-                    ? `Rate limit reached. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
-                    : result.error === "request_timeout"
-                      ? "Request timed out. The backend may be starting up — try again in a few seconds."
-                      : result.error === "service_unavailable"
-                        ? "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."
-                        : "Something went wrong. Please try again."}
+                      ? `Rate limit reached. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
+                      : result.error === "request_timeout"
+                        ? "Request timed out. The backend may be starting up — try again in a few seconds."
+                        : result.error === "service_unavailable"
+                          ? "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."
+                          : "Something went wrong. Please try again."}
                 </span>
               </div>
             ) : (
@@ -713,94 +726,93 @@ export default function DemoPage() {
           </div>
 
           {/* Receipt details — collapsed by default */}
-          {result.receipt && (() => {
-            const safeReceipt = getPublicReceipt(result.receipt);
-            return safeReceipt ? (
-            <div style={{ padding: "0 1.75rem 1.25rem" }}>
-              <button
-                onClick={() => setShowReceipt((v) => !v)}
-                className="btn-ghost"
-                style={{
-                  padding: "0.5rem 0",
-                  fontSize: "0.82rem",
-                  marginTop: "0.5rem",
-                }}
-              >
-                {showReceipt ? "\u25B2 Hide" : "\u25BC Show"} signed receipt
-              </button>
-              {showReceipt && (
-                <div
-                  style={{
-                    marginTop: "0.75rem",
-                    display: "grid",
-                    gap: "0.75rem",
-                  }}
-                >
-                  {safeReceipt.policy_hash && (
-                    <ReceiptField
-                      label="Policy Hash"
-                      value={safeReceipt.policy_hash}
-                    />
-                  )}
-                  {safeReceipt.payload_sha256 && (
-                    <ReceiptField
-                      label="Payload SHA-256"
-                      value={safeReceipt.payload_sha256}
-                    />
-                  )}
-                  {safeReceipt.prompt && (
-                    <ReceiptField
-                      label="Prompt"
-                      value={safeReceipt.prompt}
-                    />
-                  )}
-                  {safeReceipt.policy_version && (
-                    <ReceiptField
-                      label="Policy Version"
-                      value={safeReceipt.policy_version}
-                    />
-                  )}
-                  {safeReceipt.nonce && (
-                    <ReceiptField
-                      label="Nonce"
-                      value={safeReceipt.nonce}
-                    />
-                  )}
-                  {safeReceipt.decision_token && (
-                    <ReceiptField
-                      label="Decision Token"
-                      value={safeReceipt.decision_token}
-                    />
-                  )}
-                  {safeReceipt.signature && (
-                    <ReceiptField
-                      label="Signature"
-                      value={safeReceipt.signature}
-                    />
-                  )}
-                  {safeReceipt.issued_at && (
-                    <ReceiptField
-                      label="Issued At"
-                      value={safeReceipt.issued_at}
-                    />
-                  )}
-                  {result.metadata?.request_id && (
-                    <ReceiptField
-                      label="Request ID"
-                      value={result.metadata.request_id}
-                    />
-                  )}
-                  {safeReceipt.request_id && !result.metadata?.request_id && (
-                    <ReceiptField
-                      label="Request ID"
-                      value={safeReceipt.request_id}
-                    />
+          {result.receipt &&
+            (() => {
+              const safeReceipt = getPublicReceipt(result.receipt);
+              return safeReceipt ? (
+                <div style={{ padding: "0 1.75rem 1.25rem" }}>
+                  <button
+                    onClick={() => setShowReceipt((v) => !v)}
+                    className="btn-ghost"
+                    style={{
+                      padding: "0.5rem 0",
+                      fontSize: "0.82rem",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    {showReceipt ? "\u25B2 Hide" : "\u25BC Show"} signed receipt
+                  </button>
+                  {showReceipt && (
+                    <div
+                      style={{
+                        marginTop: "0.75rem",
+                        display: "grid",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      {safeReceipt.policy_hash && (
+                        <ReceiptField
+                          label="Policy Hash"
+                          value={safeReceipt.policy_hash}
+                        />
+                      )}
+                      {safeReceipt.payload_sha256 && (
+                        <ReceiptField
+                          label="Payload SHA-256"
+                          value={safeReceipt.payload_sha256}
+                        />
+                      )}
+                      {safeReceipt.prompt && (
+                        <ReceiptField
+                          label="Prompt"
+                          value={safeReceipt.prompt}
+                        />
+                      )}
+                      {safeReceipt.policy_version && (
+                        <ReceiptField
+                          label="Policy Version"
+                          value={safeReceipt.policy_version}
+                        />
+                      )}
+                      {safeReceipt.nonce && (
+                        <ReceiptField label="Nonce" value={safeReceipt.nonce} />
+                      )}
+                      {safeReceipt.decision_token && (
+                        <ReceiptField
+                          label="Decision Token"
+                          value={safeReceipt.decision_token}
+                        />
+                      )}
+                      {safeReceipt.signature && (
+                        <ReceiptField
+                          label="Signature"
+                          value={safeReceipt.signature}
+                        />
+                      )}
+                      {safeReceipt.issued_at && (
+                        <ReceiptField
+                          label="Issued At"
+                          value={safeReceipt.issued_at}
+                        />
+                      )}
+                      {result.metadata?.request_id && (
+                        <ReceiptField
+                          label="Request ID"
+                          value={result.metadata.request_id}
+                        />
+                      )}
+                      {safeReceipt.request_id &&
+                        !result.metadata?.request_id && (
+                          <ReceiptField
+                            label="Request ID"
+                            value={safeReceipt.request_id}
+                          />
+                        )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-            ) : null;
-          })()}
+              ) : null;
+            })()}
         </div>
       )}
 
@@ -836,10 +848,17 @@ export default function DemoPage() {
             margin: "0 auto 1.25rem",
           }}
         >
-          Get your own API key with 1,000 free Sovereign Audit Receipts each month.
-          No credit card required.
+          Get your own API key with 1,000 free Sovereign Audit Receipts each
+          month. No credit card required.
         </p>
-        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <a
             href="/auth/register"
             className="btn-primary"
@@ -862,7 +881,8 @@ export default function DemoPage() {
             color: "var(--muted)",
           }}
         >
-          Free tier &middot; 1,000 Sovereign Audit Receipts/month &middot; Upgrade to Scale for 25K/month or Pro for 100K/month
+          Free tier &middot; 1,000 Sovereign Audit Receipts/month &middot;
+          Upgrade to Scale for 25K/month or Pro for 100K/month
         </p>
       </div>
 

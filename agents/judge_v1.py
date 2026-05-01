@@ -29,7 +29,10 @@ def _daily_rotation_seed(date_str: str, manifest_hash: str) -> int:
 from core.config import settings  # noqa: E402
 from core.embeddings import cosine_similarity, encode  # noqa: E402
 from core.sandbox import check_action_sandbox  # noqa: E402
-from manifest.signing import ManifestTamperedError, verify_manifest_signature  # noqa: E402
+from manifest.signing import (  # noqa: E402
+    ManifestTamperedError,
+    verify_manifest_signature,
+)
 
 
 class AletheiaJudge:

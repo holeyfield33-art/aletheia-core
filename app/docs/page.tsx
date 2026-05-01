@@ -12,19 +12,22 @@ const sections = [
     items: [
       {
         title: "Launch Guide",
-        description: "Deploy Aletheia Core locally or to production in minutes.",
+        description:
+          "Deploy Aletheia Core locally or to production in minutes.",
         href: `${URLS.landingPage}`,
         tag: "Guide",
       },
       {
         title: "SDK Integration",
-        description: "Integrate the audit engine into your Python, Node.js, or cURL workflow.",
+        description:
+          "Integrate the audit engine into your Python, Node.js, or cURL workflow.",
         href: `${URLS.landingPage}`,
         tag: "Guide",
       },
       {
         title: "Live Demo",
-        description: "Try the tri-agent pipeline interactively with preset adversarial scenarios.",
+        description:
+          "Try the tri-agent pipeline interactively with preset adversarial scenarios.",
         href: "/demo",
         tag: "Interactive",
       },
@@ -35,19 +38,22 @@ const sections = [
     items: [
       {
         title: "POST /v1/audit",
-        description: "Primary endpoint. Evaluates a payload through the tri-agent pipeline and returns a signed decision.",
+        description:
+          "Primary endpoint. Evaluates a payload through the tri-agent pipeline and returns a signed decision.",
         href: `${URLS.landingPage}`,
         tag: "Endpoint",
       },
       {
         title: "Key Management",
-        description: "Create, list, and revoke API keys. Quota-enforced via X-API-Key header.",
+        description:
+          "Create, list, and revoke API keys. Quota-enforced via X-API-Key header.",
         href: `${URLS.landingPage}`,
         tag: "Endpoint",
       },
       {
         title: "Receipt Verification",
-        description: "Verify tamper-evident audit receipts using Ed25519 signatures.",
+        description:
+          "Verify tamper-evident audit receipts using Ed25519 signatures.",
         href: "/verify",
         tag: "Endpoint",
       },
@@ -58,19 +64,22 @@ const sections = [
     items: [
       {
         title: "Tri-Agent Pipeline",
-        description: "Scout, Nitpicker, and Judge — three independent agents providing defense in depth.",
+        description:
+          "Scout, Nitpicker, and Judge — three independent agents providing defense in depth.",
         href: `${URLS.landingPage}`,
         tag: "Architecture",
       },
       {
         title: "Threat Model",
-        description: "Attack vectors, mitigations, and security assumptions for production deployment.",
+        description:
+          "Attack vectors, mitigations, and security assumptions for production deployment.",
         href: `${URLS.landingPage}`,
         tag: "Security",
       },
       {
         title: "Incident Response",
-        description: "Runbook for manifest tampering, key compromise, and service degradation.",
+        description:
+          "Runbook for manifest tampering, key compromise, and service degradation.",
         href: `${URLS.landingPage}`,
         tag: "Operations",
       },
@@ -87,13 +96,15 @@ const sections = [
       },
       {
         title: "Key Rotation",
-        description: "Rotate Ed25519 signing keys and API admin keys with zero downtime.",
+        description:
+          "Rotate Ed25519 signing keys and API admin keys with zero downtime.",
         href: `${URLS.landingPage}`,
         tag: "Security",
       },
       {
         title: "Operations Runbook",
-        description: "Day-to-day operations, backup, restore, and troubleshooting.",
+        description:
+          "Day-to-day operations, backup, restore, and troubleshooting.",
         href: `${URLS.landingPage}`,
         tag: "Ops",
       },

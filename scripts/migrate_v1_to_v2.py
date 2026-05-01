@@ -123,12 +123,14 @@ def migrate_key_store(db_path: str, *, dry_run: bool = False) -> int:
         )
 
         # Schema version table
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS _key_schema_version (
                 id      INTEGER PRIMARY KEY CHECK (id = 1),
                 version INTEGER NOT NULL
             )
-        """)
+        """
+        )
         conn.execute(
             "INSERT OR REPLACE INTO _key_schema_version (id, version) VALUES (1, 3)"
         )

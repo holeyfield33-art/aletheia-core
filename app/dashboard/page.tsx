@@ -22,8 +22,13 @@ export default async function DashboardIndex() {
 
   try {
     // Sequential queries — avoids PgBouncer/Supavisor "prepared statement already exists" errors
-    keyCount = await prisma.apiKey.count({ where: { userId, status: "active" } });
-    const agg = await prisma.apiKey.aggregate({ where: { userId }, _sum: { requestsUsed: true, monthlyQuota: true } });
+    keyCount = await prisma.apiKey.count({
+      where: { userId, status: "active" },
+    });
+    const agg = await prisma.apiKey.aggregate({
+      where: { userId },
+      _sum: { requestsUsed: true, monthlyQuota: true },
+    });
     totalRequests = agg._sum.requestsUsed ?? 0;
     totalQuota = agg._sum.monthlyQuota ?? 0;
     recentLogs = await prisma.auditLog.count({ where: { userId } });

@@ -11,7 +11,10 @@ export const maxDuration = 60;
 
 // Constant-time comparison of the cron Authorization header. A naive `!==`
 // leaks the secret one byte at a time across Vercel edge nodes.
-export function authorizedCronRequest(authHeader: string | null, secret: string): boolean {
+export function authorizedCronRequest(
+  authHeader: string | null,
+  secret: string,
+): boolean {
   if (!secret || !authHeader) return false;
   const expected = `Bearer ${secret}`;
   const a = Buffer.from(authHeader);
@@ -53,10 +56,7 @@ export async function GET(request: NextRequest) {
   const paygMeteredPriceId = process.env.STRIPE_PAYG_METERED_PRICE_ID;
 
   if (!stripe || !paygMeteredPriceId) {
-    return NextResponse.json(
-      { error: "configuration_error" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "configuration_error" }, { status: 503 });
   }
 
   const users = await getUsersWithPendingUsage();
@@ -82,10 +82,10 @@ export async function GET(request: NextRequest) {
 
       if (!subscriptionItem) {
         failedUsers += 1;
-        console.error(
-          "[usage-report] Missing PAYG metered subscription item",
-          { userId: user.userId, subscriptionId: user.stripeSubscriptionId },
-        );
+        console.error("[usage-report] Missing PAYG metered subscription item", {
+          userId: user.userId,
+          subscriptionId: user.stripeSubscriptionId,
+        });
         continue;
       }
 
@@ -95,13 +95,19 @@ export async function GET(request: NextRequest) {
       const reportingHourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
       const idempotencyKey = `usage-report:${user.userId}:${reportingHourBucket}:${pending}`;
       // Stripe's runtime API supports this call; some SDK typings lag behind.
-      await (stripe.subscriptionItems as unknown as {
-        createUsageRecord: (
-          subscriptionItemId: string,
-          params: { quantity: number; timestamp: number; action: "increment" },
-          options: { idempotencyKey: string },
-        ) => Promise<unknown>;
-      }).createUsageRecord(
+      await (
+        stripe.subscriptionItems as unknown as {
+          createUsageRecord: (
+            subscriptionItemId: string,
+            params: {
+              quantity: number;
+              timestamp: number;
+              action: "increment";
+            },
+            options: { idempotencyKey: string },
+          ) => Promise<unknown>;
+        }
+      ).createUsageRecord(
         subscriptionItem.id,
         {
           quantity: pending,

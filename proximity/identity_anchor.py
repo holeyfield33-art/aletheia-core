@@ -201,9 +201,11 @@ class IdentityAnchor:
                         "manifest_hash": receipt.manifest_hash,
                         "fallback_state": receipt.fallback_state,
                     },
-                    headers={"Authorization": f"Bearer {MNEME_API_KEY}"}
-                    if MNEME_API_KEY
-                    else {},
+                    headers=(
+                        {"Authorization": f"Bearer {MNEME_API_KEY}"}
+                        if MNEME_API_KEY
+                        else {}
+                    ),
                 )
             except Exception:
                 # Mneme persistence failure does NOT affect local chain

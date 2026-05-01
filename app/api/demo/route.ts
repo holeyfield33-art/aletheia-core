@@ -23,7 +23,10 @@ const DEMO_API_KEY = (
   process.env.ALETHEIA_API_KEY ??
   ""
 ).trim();
-const TIMEOUT_MS = parseInt(process.env.DEMO_UPSTREAM_TIMEOUT_MS ?? "45000", 10);
+const TIMEOUT_MS = parseInt(
+  process.env.DEMO_UPSTREAM_TIMEOUT_MS ?? "45000",
+  10,
+);
 const ACTIVE_MODE = (process.env.ACTIVE_MODE ?? "").trim().toLowerCase();
 
 /** Allow Vercel to keep the function alive long enough for cold starts. */
@@ -35,15 +38,22 @@ const FREE_TIER_EXHAUSTED_MESSAGE = `You've used your ${PRICING.free.receipts.to
 /** CORS headers specific to the demo proxy. */
 const corsHeaders: Record<string, string> = {
   "X-XSS-Protection": "0",
-  "Access-Control-Allow-Origin": process.env.ALETHEIA_CORS_ORIGIN ?? "https://app.aletheia-core.com",
+  "Access-Control-Allow-Origin":
+    process.env.ALETHEIA_CORS_ORIGIN ?? "https://app.aletheia-core.com",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "600",
 };
 
 /** Wrap base secureJson with demo CORS headers. */
-function secureJson(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
-  return _baseSecureJson(body, { ...init, headers: { ...corsHeaders, ...(init?.headers ?? {}) } });
+function secureJson(
+  body: unknown,
+  init?: { status?: number; headers?: Record<string, string> },
+) {
+  return _baseSecureJson(body, {
+    ...init,
+    headers: { ...corsHeaders, ...(init?.headers ?? {}) },
+  });
 }
 
 function validateBackendUrl(url: string): boolean {
@@ -55,9 +65,11 @@ function validateBackendUrl(url: string): boolean {
     const allowedHosts = (
       process.env.ALETHEIA_ALLOWED_BACKEND_HOSTS ??
       "onrender.com,aletheia-core.com"
-    ).split(",").map((h) => h.trim());
-    return allowedHosts.some((h) =>
-      parsed.hostname === h || parsed.hostname.endsWith(`.${h}`)
+    )
+      .split(",")
+      .map((h) => h.trim());
+    return allowedHosts.some(
+      (h) => parsed.hostname === h || parsed.hostname.endsWith(`.${h}`),
     );
   } catch {
     return false;
@@ -110,7 +122,11 @@ function extractClientIp(request: NextRequest): string {
 
 export async function POST(request: NextRequest) {
   // Do not block demo in production if ACTIVE_MODE is simply unset in frontend envs.
-  if (process.env.ENVIRONMENT === "production" && ACTIVE_MODE && ACTIVE_MODE !== "true") {
+  if (
+    process.env.ENVIRONMENT === "production" &&
+    ACTIVE_MODE &&
+    ACTIVE_MODE !== "true"
+  ) {
     console.error("[demo-proxy] ACTIVE_MODE is not 'true' in production");
     return secureJson({ error: "service_unavailable" }, { status: 503 });
   }
@@ -125,7 +141,11 @@ export async function POST(request: NextRequest) {
   // shared upstream key's quota.
   const clientIp = extractClientIp(request);
   if (clientIp !== "unknown") {
-    let rl: { allowed: boolean; retryAfterSeconds: number; remaining: number } | null = null;
+    let rl: {
+      allowed: boolean;
+      retryAfterSeconds: number;
+      remaining: number;
+    } | null = null;
     try {
       rl = await consumeRateLimit({
         action: "demo_proxy",
@@ -150,7 +170,8 @@ export async function POST(request: NextRequest) {
       return secureJson(
         {
           error: "rate_limited",
-          message: "Demo rate limit reached. Sign up for a free API key for higher limits.",
+          message:
+            "Demo rate limit reached. Sign up for a free API key for higher limits.",
         },
         {
           status: 429,
@@ -163,7 +184,8 @@ export async function POST(request: NextRequest) {
       );
     }
     // Stash remaining for response headers later (success path).
-    (request as unknown as { _rlRemaining?: number })._rlRemaining = rl?.remaining;
+    (request as unknown as { _rlRemaining?: number })._rlRemaining =
+      rl?.remaining;
   }
 
   const backendCandidates = [BACKEND_BASE, BACKEND_FALLBACK_BASE].filter(
@@ -176,12 +198,17 @@ export async function POST(request: NextRequest) {
   }
 
   if (!backendCandidates.every(validateBackendUrl)) {
-    console.error("[demo-proxy] Backend URL failed validation:", backendCandidates);
+    console.error(
+      "[demo-proxy] Backend URL failed validation:",
+      backendCandidates,
+    );
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }
 
   if (!DEMO_API_KEY) {
-    console.error("[demo-proxy] No demo API key configured (ALETHEIA_DEMO_API_KEY/ALETHEIA_API_KEY)");
+    console.error(
+      "[demo-proxy] No demo API key configured (ALETHEIA_DEMO_API_KEY/ALETHEIA_API_KEY)",
+    );
     return secureJson({ error: "service_unavailable" }, { status: 503 });
   }
 
@@ -249,7 +276,9 @@ export async function POST(request: NextRequest) {
         if (res.status < 500 || i === backendCandidates.length - 1) {
           break;
         }
-        console.error(`[demo-proxy] upstream ${base} returned ${res.status}; trying fallback`);
+        console.error(
+          `[demo-proxy] upstream ${base} returned ${res.status}; trying fallback`,
+        );
       } catch (err) {
         if (i === backendCandidates.length - 1) {
           throw err;
@@ -270,7 +299,10 @@ export async function POST(request: NextRequest) {
     if (!upstream.ok) {
       console.error(`[demo-proxy] upstream returned ${upstream.status}`);
       if (upstream.status === 429) {
-        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+        const token = await getToken({
+          req: request,
+          secret: process.env.NEXTAUTH_SECRET,
+        });
         const upgradeUrl = token?.sub
           ? "/api/stripe/checkout?tier=scale"
           : `/auth/register?callbackUrl=${encodeURIComponent("/pricing?tier=scale")}`;
@@ -319,7 +351,10 @@ export async function POST(request: NextRequest) {
     const data = await upstream.json();
 
     // Metered PAYG usage is tracked asynchronously so request latency is unaffected.
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
     if (token?.sub && token.plan === "ENTERPRISE") {
       void incrementUsage(token.sub, 1).catch((error) => {
         console.error("[demo-proxy] Usage tracking failed", {
@@ -329,7 +364,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const remaining = (request as unknown as { _rlRemaining?: number })._rlRemaining;
+    const remaining = (request as unknown as { _rlRemaining?: number })
+      ._rlRemaining;
     const rateHeaders: Record<string, string> | undefined =
       typeof remaining === "number"
         ? {
@@ -344,7 +380,10 @@ export async function POST(request: NextRequest) {
       (err.name === "AbortError" || err.message.includes("abort"));
     if (!isTimeout) {
       // Log non-timeout errors without exposing details
-      console.error("[demo-proxy] upstream fetch failed:", err instanceof Error ? err.message : "unknown");
+      console.error(
+        "[demo-proxy] upstream fetch failed:",
+        err instanceof Error ? err.message : "unknown",
+      );
     }
     return secureJson(SANITIZED_ERROR, { status: 503 });
   }

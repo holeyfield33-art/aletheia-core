@@ -25,9 +25,9 @@ instruction by downstream agents.
 
 Aletheia Core's tri-agent pipeline blocked this payload at multiple layers:
 
-* **Scout:** Flagged the `SYSTEM_UPDATE` regex match (threat score ≥ 7.5).
-* **Nitpicker (SKEPTIC mode):** Full redaction triggered by `SYSTEM_UPDATE` presence.
-* **Judge:** Semantic veto triggered against the `Approve_Loan_Disbursement` restricted action category.
+- **Scout:** Flagged the `SYSTEM_UPDATE` regex match (threat score ≥ 7.5).
+- **Nitpicker (SKEPTIC mode):** Full redaction triggered by `SYSTEM_UPDATE` presence.
+- **Judge:** Semantic veto triggered against the `Approve_Loan_Disbursement` restricted action category.
 
 Result: **DENIED** — all three agents independently flagged the payload.
 

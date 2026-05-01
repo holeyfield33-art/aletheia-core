@@ -156,14 +156,17 @@ class KeyStore:
             conn = self._get_conn()
             try:
                 # Schema version tracking
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS _key_schema_version (
                         id      INTEGER PRIMARY KEY CHECK (id = 1),
                         version INTEGER NOT NULL
                     )
-                """)
+                """
+                )
 
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS api_keys (
                         id            TEXT PRIMARY KEY,
                         tenant_id     TEXT NOT NULL DEFAULT 'default',
@@ -181,7 +184,8 @@ class KeyStore:
                         user_id       TEXT,
                         role          TEXT NOT NULL DEFAULT 'operator'
                     )
-                """)
+                """
+                )
                 # Migrate existing tables: add user_id column if missing
                 try:
                     conn.execute("ALTER TABLE api_keys ADD COLUMN user_id TEXT")

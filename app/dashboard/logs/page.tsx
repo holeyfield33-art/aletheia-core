@@ -119,7 +119,10 @@ export default function LogsPage() {
       >
         <select
           value={filterDecision}
-          onChange={(e) => { setFilterDecision(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setFilterDecision(e.target.value);
+            setPage(1);
+          }}
           style={{
             background: "var(--surface)",
             border: "1px solid var(--border)",
@@ -134,18 +137,36 @@ export default function LogsPage() {
           <option value="DENIED">DENIED</option>
           <option value="SANDBOX_BLOCKED">SANDBOX_BLOCKED</option>
         </select>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--muted)" }}>
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.72rem",
+            color: "var(--muted)",
+          }}
+        >
           {total.toLocaleString()} total records
         </span>
       </div>
 
       {/* Table */}
       {fetchError && (
-        <div style={{ color: "var(--crimson-hi)", marginBottom: "1rem", fontSize: "0.85rem" }}>
+        <div
+          style={{
+            color: "var(--crimson-hi)",
+            marginBottom: "1rem",
+            fontSize: "0.85rem",
+          }}
+        >
           {fetchError}
         </div>
       )}
-      <div style={{ border: "1px solid var(--border)", overflow: "auto", marginBottom: "1rem" }}>
+      <div
+        style={{
+          border: "1px solid var(--border)",
+          overflow: "auto",
+          marginBottom: "1rem",
+        }}
+      >
         <table
           aria-describedby="audit-logs-live-region"
           style={{
@@ -156,11 +177,20 @@ export default function LogsPage() {
           }}
         >
           <caption id="audit-logs-live-region" style={screenReaderOnly}>
-            Audit log table with time, decision, action, origin, threat score, reason, and request ID columns.
+            Audit log table with time, decision, action, origin, threat score,
+            reason, and request ID columns.
           </caption>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Time", "Decision", "Action", "Origin", "Score", "Reason", "Request ID"].map((h) => (
+              {[
+                "Time",
+                "Decision",
+                "Action",
+                "Origin",
+                "Score",
+                "Reason",
+                "Request ID",
+              ].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -182,24 +212,47 @@ export default function LogsPage() {
           <tbody>
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
-                <tr key={`skel-${i}`} style={{ borderBottom: "1px solid var(--border)" }}>
+                <tr
+                  key={`skel-${i}`}
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                >
                   {[80, 50, 65, 55, 30, 70, 40].map((w, j) => (
                     <td key={j} style={{ padding: "0.55rem 0.65rem" }}>
-                      <div className="skeleton-text" style={{ width: `${w}%` }} />
+                      <div
+                        className="skeleton-text"
+                        style={{ width: `${w}%` }}
+                      />
                     </td>
                   ))}
                 </tr>
               ))
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "var(--muted)" }}>
-                  No audit logs found. Make API requests to generate decision receipts.
+                <td
+                  colSpan={7}
+                  style={{
+                    padding: "2rem",
+                    textAlign: "center",
+                    color: "var(--muted)",
+                  }}
+                >
+                  No audit logs found. Make API requests to generate decision
+                  receipts.
                 </td>
               </tr>
             ) : (
               logs.map((log) => (
-                <tr key={log.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--muted)", whiteSpace: "nowrap" }}>
+                <tr
+                  key={log.id}
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                >
+                  <td
+                    style={{
+                      padding: "0.45rem 0.65rem",
+                      color: "var(--muted)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {new Date(log.createdAt).toLocaleString()}
                   </td>
                   <td style={{ padding: "0.45rem 0.65rem" }}>
@@ -209,7 +262,10 @@ export default function LogsPage() {
                         fontSize: "0.65rem",
                         fontWeight: 600,
                         letterSpacing: "0.04em",
-                        background: log.decision === "PROCEED" ? "rgba(46,184,122,0.12)" : "rgba(176,34,54,0.15)",
+                        background:
+                          log.decision === "PROCEED"
+                            ? "rgba(46,184,122,0.12)"
+                            : "rgba(176,34,54,0.15)",
                         color: decisionColor(log.decision),
                         textTransform: "uppercase",
                       }}
@@ -217,16 +273,37 @@ export default function LogsPage() {
                       {log.decision}
                     </span>
                   </td>
-                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--white)" }}>
+                  <td
+                    style={{
+                      padding: "0.45rem 0.65rem",
+                      color: "var(--white)",
+                    }}
+                  >
                     {log.action}
                   </td>
-                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--silver)" }}>
+                  <td
+                    style={{
+                      padding: "0.45rem 0.65rem",
+                      color: "var(--silver)",
+                    }}
+                  >
                     {log.origin || "—"}
                   </td>
-                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--silver)" }}>
+                  <td
+                    style={{
+                      padding: "0.45rem 0.65rem",
+                      color: "var(--silver)",
+                    }}
+                  >
                     {log.threatScore != null ? log.threatScore.toFixed(2) : "—"}
                   </td>
-                  <td style={{ padding: "0.45rem 0.65rem", color: "var(--muted)", fontSize: "0.68rem" }}>
+                  <td
+                    style={{
+                      padding: "0.45rem 0.65rem",
+                      color: "var(--muted)",
+                      fontSize: "0.68rem",
+                    }}
+                  >
                     {log.reason || "—"}
                   </td>
                   <td
@@ -268,7 +345,13 @@ export default function LogsPage() {
           >
             Prev
           </button>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--muted)" }}>
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.72rem",
+              color: "var(--muted)",
+            }}
+          >
             {page} / {totalPages}
           </span>
           <button

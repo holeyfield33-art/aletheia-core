@@ -21,9 +21,24 @@ function WelcomeBanner({
   logCount: number;
 }) {
   const steps = [
-    { step: "1", label: "Generate API Key", href: "/dashboard/keys", done: keyCount > 0 },
-    { step: "2", label: "Try Live Demo", href: "/demo", done: totalRequests > 0 },
-    { step: "3", label: "View Audit Logs", href: "/dashboard/logs", done: logCount > 0 },
+    {
+      step: "1",
+      label: "Generate API Key",
+      href: "/dashboard/keys",
+      done: keyCount > 0,
+    },
+    {
+      step: "2",
+      label: "Try Live Demo",
+      href: "/demo",
+      done: totalRequests > 0,
+    },
+    {
+      step: "3",
+      label: "View Audit Logs",
+      href: "/dashboard/logs",
+      done: logCount > 0,
+    },
   ];
   const completed = steps.filter((s) => s.done).length;
 
@@ -75,7 +90,8 @@ function WelcomeBanner({
           maxWidth: "560px",
         }}
       >
-        Get started in 3 steps: generate an API key, send your first audit request, and review the signed receipt.
+        Get started in 3 steps: generate an API key, send your first audit
+        request, and review the signed receipt.
       </p>
       {/* Progress bar */}
       <div
@@ -121,7 +137,9 @@ function WelcomeBanner({
                 fontSize: "0.75rem",
                 fontWeight: 700,
                 color: done ? "var(--green)" : "var(--crimson-hi)",
-                background: done ? "rgba(46,184,122,0.12)" : "var(--crimson-glow)",
+                background: done
+                  ? "rgba(46,184,122,0.12)"
+                  : "var(--crimson-glow)",
                 width: "22px",
                 height: "22px",
                 borderRadius: "50%",
@@ -169,13 +187,22 @@ export default function DashboardOverview({
 }) {
   const [showWelcome, setShowWelcome] = useState(isNewUser);
 
-  const usagePct = totalQuota > 0 ? Math.round((totalRequests / totalQuota) * 100) : 0;
+  const usagePct =
+    totalQuota > 0 ? Math.round((totalRequests / totalQuota) * 100) : 0;
   const showUpgradeBanner = plan === "TRIAL" && usagePct >= 80 && !isNewUser;
 
   const cards = [
     { label: "Active API Keys", value: keyCount, href: "/dashboard/keys" },
-    { label: "Total Requests", value: totalRequests.toLocaleString(), href: "/dashboard/usage" },
-    { label: "Audit Decisions", value: logCount.toLocaleString(), href: "/dashboard/logs" },
+    {
+      label: "Total Requests",
+      value: totalRequests.toLocaleString(),
+      href: "/dashboard/usage",
+    },
+    {
+      label: "Audit Decisions",
+      value: logCount.toLocaleString(),
+      href: "/dashboard/logs",
+    },
     { label: "Plan", value: plan, href: "/dashboard/usage" },
   ];
 
@@ -229,7 +256,9 @@ export default function DashboardOverview({
                 marginBottom: "0.25rem",
               }}
             >
-              {usagePct >= 100 ? "Quota exceeded" : `${usagePct}% of your monthly quota used`}
+              {usagePct >= 100
+                ? "Quota exceeded"
+                : `${usagePct}% of your monthly quota used`}
             </div>
             <div
               style={{
@@ -238,20 +267,30 @@ export default function DashboardOverview({
                 color: "var(--silver)",
               }}
             >
-              {totalRequests.toLocaleString()} / {totalQuota.toLocaleString()} Sovereign Audit Receipts &middot; Upgrade to Scale for 25K/month or Pro for 100K/month
+              {totalRequests.toLocaleString()} / {totalQuota.toLocaleString()}{" "}
+              Sovereign Audit Receipts &middot; Upgrade to Scale for 25K/month
+              or Pro for 100K/month
             </div>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             <UpgradeButton
               label="Start Scale"
               tier="scale"
-              style={{ fontSize: "0.82rem", padding: "0.5rem 1.25rem", flexShrink: 0 }}
+              style={{
+                fontSize: "0.82rem",
+                padding: "0.5rem 1.25rem",
+                flexShrink: 0,
+              }}
             />
             <UpgradeButton
               label="Start Pro"
               tier="pro"
               className="btn-secondary"
-              style={{ fontSize: "0.82rem", padding: "0.5rem 1.25rem", flexShrink: 0 }}
+              style={{
+                fontSize: "0.82rem",
+                padding: "0.5rem 1.25rem",
+                flexShrink: 0,
+              }}
             />
           </div>
         </div>
@@ -283,7 +322,8 @@ export default function DashboardOverview({
             lineHeight: 1.6,
           }}
         >
-          You&apos;ll be billed at the end of the month for exact usage. No surprises.
+          You&apos;ll be billed at the end of the month for exact usage. No
+          surprises.
         </div>
       )}
 
@@ -308,7 +348,11 @@ export default function DashboardOverview({
         }}
       >
         {cards.map(({ label, value, href }) => (
-          <a key={label} href={href} style={{ ...cardStyle, textDecoration: "none" }}>
+          <a
+            key={label}
+            href={href}
+            style={{ ...cardStyle, textDecoration: "none" }}
+          >
             <div
               style={{
                 fontFamily: "var(--font-mono)",
@@ -343,11 +387,31 @@ export default function DashboardOverview({
         }}
       >
         {[
-          { label: "API Keys", href: "/dashboard/keys", desc: "Generate, view, and revoke your API keys" },
-          { label: "Usage & Quota", href: "/dashboard/usage", desc: "Monitor request usage per key" },
-          { label: "Audit Logs", href: "/dashboard/logs", desc: "View decision history and threat analysis" },
-          { label: "Policy", href: "/dashboard/policy", desc: "View security policy configuration" },
-          { label: "Evidence Export", href: "/dashboard/evidence", desc: "Export signed audit evidence (JSONL)" },
+          {
+            label: "API Keys",
+            href: "/dashboard/keys",
+            desc: "Generate, view, and revoke your API keys",
+          },
+          {
+            label: "Usage & Quota",
+            href: "/dashboard/usage",
+            desc: "Monitor request usage per key",
+          },
+          {
+            label: "Audit Logs",
+            href: "/dashboard/logs",
+            desc: "View decision history and threat analysis",
+          },
+          {
+            label: "Policy",
+            href: "/dashboard/policy",
+            desc: "View security policy configuration",
+          },
+          {
+            label: "Evidence Export",
+            href: "/dashboard/evidence",
+            desc: "Export signed audit evidence (JSONL)",
+          },
         ].map(({ label, href, desc }) => (
           <a
             key={href}

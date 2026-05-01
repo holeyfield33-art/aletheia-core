@@ -7,7 +7,11 @@ export function generateStaticParams() {
   return BLOG_POSTS.map((post) => ({ slug: post.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
+export function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Metadata {
   const post = getPostBySlug(params.slug);
   if (!post) {
     return { title: "Post Not Found" };
@@ -34,7 +38,9 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <article style={{ maxWidth: "780px", margin: "0 auto", padding: "3rem 2rem" }}>
+    <article
+      style={{ maxWidth: "780px", margin: "0 auto", padding: "3rem 2rem" }}
+    >
       <p
         style={{
           color: "var(--muted)",
@@ -55,8 +61,17 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
       >
         {post.title}
       </h1>
-      <p style={{ color: "var(--silver)", marginBottom: "1.7rem" }}>{post.description}</p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "2rem" }}>
+      <p style={{ color: "var(--silver)", marginBottom: "1.7rem" }}>
+        {post.description}
+      </p>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          marginBottom: "2rem",
+        }}
+      >
         {post.tags.map((tag) => (
           <span
             key={tag}
@@ -86,14 +101,23 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             {section.heading}
           </h2>
           {section.body.map((paragraph, index) => (
-            <p key={`${section.heading}-${index}`} style={{ color: "var(--silver)", marginBottom: "0.75rem" }}>
+            <p
+              key={`${section.heading}-${index}`}
+              style={{ color: "var(--silver)", marginBottom: "0.75rem" }}
+            >
               {paragraph}
             </p>
           ))}
         </section>
       ))}
 
-      <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2rem 0" }} />
+      <hr
+        style={{
+          border: "none",
+          borderTop: "1px solid var(--border)",
+          margin: "2rem 0",
+        }}
+      />
       <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
         More articles: <a href="/blog">blog index</a>
       </p>

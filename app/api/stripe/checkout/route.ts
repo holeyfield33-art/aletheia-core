@@ -21,7 +21,9 @@ function getPriceIdForTier(tier: CheckoutTier): string | undefined {
   return PRICING.payg.stripePriceId;
 }
 
-function getInternalPlanForTier(tier: CheckoutTier): "PRO" | "MAX" | "ENTERPRISE" {
+function getInternalPlanForTier(
+  tier: CheckoutTier,
+): "PRO" | "MAX" | "ENTERPRISE" {
   if (tier === "scale") return "PRO";
   if (tier === "pro") return "MAX";
   return "ENTERPRISE";
@@ -30,7 +32,11 @@ function getInternalPlanForTier(tier: CheckoutTier): "PRO" | "MAX" | "ENTERPRISE
 function isSameOriginBrowserRequest(request: Request, url: URL): boolean {
   const secFetchSite = request.headers.get("sec-fetch-site");
   if (secFetchSite === "cross-site") return false;
-  if (secFetchSite === "same-origin" || secFetchSite === "same-site" || secFetchSite === "none") {
+  if (
+    secFetchSite === "same-origin" ||
+    secFetchSite === "same-site" ||
+    secFetchSite === "none"
+  ) {
     return true;
   }
 
@@ -56,7 +62,10 @@ function isSameOriginBrowserRequest(request: Request, url: URL): boolean {
   return false;
 }
 
-async function createCheckoutResponse(request: Request, redirectToStripe: boolean) {
+async function createCheckoutResponse(
+  request: Request,
+  redirectToStripe: boolean,
+) {
   const url = new URL(request.url);
   if (!isSameOriginBrowserRequest(request, url)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -94,10 +103,7 @@ async function createCheckoutResponse(request: Request, redirectToStripe: boolea
   const priceId = getPriceIdForTier(selectedTier);
 
   if (!stripeKey || !priceId) {
-    return NextResponse.json(
-      { error: "configuration_error" },
-      { status: 503 },
-    );
+    return NextResponse.json({ error: "configuration_error" }, { status: 503 });
   }
 
   const stripe = new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" });
@@ -133,7 +139,10 @@ async function createCheckoutResponse(request: Request, redirectToStripe: boolea
     });
   } catch (error) {
     console.error("[stripe-checkout] Failed to create checkout session", error);
-    return NextResponse.json({ error: "checkout_session_failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "checkout_session_failed" },
+      { status: 500 },
+    );
   }
 
   if (redirectToStripe && checkoutSession.url) {

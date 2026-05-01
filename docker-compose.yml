@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: aletheia
-      POSTGRES_PASSWORD: aletheia_dev  # pragma: allowlist secret – dev-only Docker Compose password
+      POSTGRES_PASSWORD: aletheia_dev # pragma: allowlist secret – dev-only Docker Compose password
       POSTGRES_DB: aletheia
     ports:
       - "5432:5432"

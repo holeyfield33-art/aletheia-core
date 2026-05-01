@@ -14,7 +14,10 @@ const sections = changelogContent
     const lines = section.split("\n");
     const headerLine = lines[0];
     const [version, ...rest] = headerLine.split("]");
-    const date = rest.join("]").replace(/\s*—\s*/, "").trim();
+    const date = rest
+      .join("]")
+      .replace(/\s*—\s*/, "")
+      .trim();
 
     return {
       version: version.trim(),
@@ -89,7 +92,7 @@ function renderMarkdown(md: string): ReactNode[] {
             {renderInlineLinks(item)}
           </li>
         ))}
-      </ul>
+      </ul>,
     );
     listItems = [];
   }
@@ -114,7 +117,7 @@ function renderMarkdown(md: string): ReactNode[] {
           }}
         >
           {line.slice(4)}
-        </h3>
+        </h3>,
       );
       continue;
     }
@@ -123,8 +126,12 @@ function renderMarkdown(md: string): ReactNode[] {
       nodes.push(
         <hr
           key={`hr-${nodes.length}`}
-          style={{ border: "none", borderTop: "1px solid var(--border)", margin: "2rem 0" }}
-        />
+          style={{
+            border: "none",
+            borderTop: "1px solid var(--border)",
+            margin: "2rem 0",
+          }}
+        />,
       );
       continue;
     }
@@ -133,7 +140,7 @@ function renderMarkdown(md: string): ReactNode[] {
       nodes.push(
         <p key={`p-${nodes.length}`} style={{ marginBottom: "0.75rem" }}>
           {renderInlineLinks(line)}
-        </p>
+        </p>,
       );
     }
   }
@@ -158,7 +165,7 @@ function renderInlineLinks(text: string): ReactNode[] {
     parts.push(
       <a key={`${href}-${start}`} href={href} target="_blank" rel="noreferrer">
         {label}
-      </a>
+      </a>,
     );
 
     lastIndex = start + fullMatch.length;

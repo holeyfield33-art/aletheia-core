@@ -7,10 +7,10 @@ runtime secrets in production.
 
 ## Prerequisites
 
-| Item | Details |
-|------|---------|
-| Python 3.10+ with `cryptography` installed | Required for key generation and signing |
-| Access to the private signing key | Stored offline — never on production hosts |
+| Item                                                        | Details                                     |
+| ----------------------------------------------------------- | ------------------------------------------- |
+| Python 3.10+ with `cryptography` installed                  | Required for key generation and signing     |
+| Access to the private signing key                           | Stored offline — never on production hosts  |
 | Deployment pipeline that can publish files to all instances | Public key + signature must land atomically |
 
 ---
@@ -37,6 +37,7 @@ print('Keypair generated.')
 ```
 
 Output files:
+
 - `manifest/security_policy.ed25519.key` — **NEVER deploy this file**
 - `manifest/security_policy.ed25519.pub` — deploy to all instances
 
@@ -56,6 +57,7 @@ print('Manifest signed.')
 ```
 
 Output files:
+
 - `manifest/security_policy.json.sig` — deploy to all instances
 
 ### 1.3 Bump the Key Version
@@ -141,12 +143,12 @@ restarting the process.
 
 ### 3.1 Secrets That Can Be Rotated
 
-| Secret | Env Var | Purpose |
-|--------|---------|---------|
-| Receipt signing | `ALETHEIA_RECEIPT_SECRET` | HMAC-SHA256 audit receipt signatures |
-| API keys | `ALETHEIA_API_KEYS` | Comma-separated list of valid client keys |
-| Alias salt | `ALETHEIA_ALIAS_SALT` | Daily alias bank rotation seed |
-| Admin key | `ALETHEIA_ADMIN_KEY` | Admin endpoint authentication |
+| Secret          | Env Var                   | Purpose                                   |
+| --------------- | ------------------------- | ----------------------------------------- |
+| Receipt signing | `ALETHEIA_RECEIPT_SECRET` | HMAC-SHA256 audit receipt signatures      |
+| API keys        | `ALETHEIA_API_KEYS`       | Comma-separated list of valid client keys |
+| Alias salt      | `ALETHEIA_ALIAS_SALT`     | Daily alias bank rotation seed            |
+| Admin key       | `ALETHEIA_ADMIN_KEY`      | Admin endpoint authentication             |
 
 ### 3.2 Update Environment Variables
 
@@ -163,6 +165,7 @@ curl -X POST https://YOUR_HOST/v1/rotate \
 ```
 
 Expected response:
+
 ```json
 {
   "status": "rotated",
@@ -189,12 +192,12 @@ kill -SIGUSR1 $(pgrep -f "uvicorn bridge.fastapi_wrapper")
 
 ### 3.5 Impact of Secret Rotation
 
-| Secret | Impact When Rotated |
-|--------|---------------------|
+| Secret                    | Impact When Rotated                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `ALETHEIA_RECEIPT_SECRET` | New receipts use new key. Old receipts verify against old key (unless old key is no longer available for verification). |
-| `ALETHEIA_API_KEYS` | Old keys stop working immediately. Distribute new keys to clients first. |
-| `ALETHEIA_ALIAS_SALT` | Daily alias bank shuffle changes. May alter veto behavior for grey-zone payloads. |
-| `ALETHEIA_ADMIN_KEY` | Previous admin key stops working. Update your ops tooling. |
+| `ALETHEIA_API_KEYS`       | Old keys stop working immediately. Distribute new keys to clients first.                                                |
+| `ALETHEIA_ALIAS_SALT`     | Daily alias bank shuffle changes. May alter veto behavior for grey-zone payloads.                                       |
+| `ALETHEIA_ADMIN_KEY`      | Previous admin key stops working. Update your ops tooling.                                                              |
 
 ---
 

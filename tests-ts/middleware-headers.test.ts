@@ -11,12 +11,18 @@ describe("middleware security headers", () => {
     const request = new NextRequest("https://app.aletheia-core.com/");
     const response = await middleware(request);
 
-    expect(response.headers.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
-    expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+    expect(response.headers.get("Cross-Origin-Opener-Policy")).toBe(
+      "same-origin",
+    );
+    expect(response.headers.get("Cross-Origin-Resource-Policy")).toBe(
+      "same-origin",
+    );
     expect(response.headers.get("Permissions-Policy")).toBe(
       "camera=(), microphone=(), geolocation=()",
     );
-    expect(response.headers.get("Strict-Transport-Security")).toContain("preload");
+    expect(response.headers.get("Strict-Transport-Security")).toContain(
+      "preload",
+    );
   });
 
   it("emits nonce-based CSP without unsafe-inline script policy", async () => {

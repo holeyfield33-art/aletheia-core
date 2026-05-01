@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <!-- PUBLIC FACTS SYNC
   Keep this block in sync with lib/site-config.ts whenever any value changes.
   Version:            1.9.1
@@ -11,424 +11,728 @@
   Last updated:       2026-04-15
 -->
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aletheia Core — AI Runtime Security for Agents</title>
-  <meta name="description" content="AI runtime security engine for agents and automations. Block unsafe actions before execution. Signed audit receipts. Self-hosted or hosted API." />
-  <meta property="og:title" content="Aletheia Core — AI Runtime Security for Agents" />
-  <meta property="og:description" content="Block unsafe agent actions before execution. Signed audit receipts for verification. Demo available. Services available now." />
-  <meta property="og:url" content="https://aletheia-core.com" />
-  <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Aletheia Core — AI Runtime Security" />
-  <meta name="twitter:description" content="AI runtime security engine for agents. Block unsafe actions. Signed audit receipts. Self-hosted or hosted. Try the live demo." />
-  <link rel="canonical" href="https://aletheia-core.com" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --crimson:    #8B1A2A;
-      --crimson-hi: #B02236;
-      --crimson-glow: rgba(139,26,42,0.15);
-      --silver:     #A8B0B8;
-      --silver-dim: #6b7585;
-      --black:      #080a0c;
-      --surface:    #0e1115;
-      --surface-2:  #141820;
-      --border:     #1e2530;
-      --border-hi:  #2a3545;
-      --white:      #f0eee8;
-      --muted:      #6b7585;
-      --green:      #2eb87a;
-      --font-head:  'Syne', sans-serif;
-      --font-mono:  'JetBrains Mono', monospace;
-      --font-body:  'Inter', sans-serif;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      background: var(--black);
-      color: var(--white);
-      font-family: var(--font-body);
-      font-size: 17px;
-      line-height: 1.65;
-      overflow-x: hidden;
-    }
-    a { color: var(--crimson-hi); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    ::selection { background: var(--crimson); color: var(--white); }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aletheia Core — AI Runtime Security for Agents</title>
+    <meta
+      name="description"
+      content="AI runtime security engine for agents and automations. Block unsafe actions before execution. Signed audit receipts. Self-hosted or hosted API."
+    />
+    <meta
+      property="og:title"
+      content="Aletheia Core — AI Runtime Security for Agents"
+    />
+    <meta
+      property="og:description"
+      content="Block unsafe agent actions before execution. Signed audit receipts for verification. Demo available. Services available now."
+    />
+    <meta property="og:url" content="https://aletheia-core.com" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Aletheia Core — AI Runtime Security" />
+    <meta
+      name="twitter:description"
+      content="AI runtime security engine for agents. Block unsafe actions. Signed audit receipts. Self-hosted or hosted. Try the live demo."
+    />
+    <link rel="canonical" href="https://aletheia-core.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --crimson: #8b1a2a;
+        --crimson-hi: #b02236;
+        --crimson-glow: rgba(139, 26, 42, 0.15);
+        --silver: #a8b0b8;
+        --silver-dim: #6b7585;
+        --black: #080a0c;
+        --surface: #0e1115;
+        --surface-2: #141820;
+        --border: #1e2530;
+        --border-hi: #2a3545;
+        --white: #f0eee8;
+        --muted: #6b7585;
+        --green: #2eb87a;
+        --font-head: "Syne", sans-serif;
+        --font-mono: "JetBrains Mono", monospace;
+        --font-body: "Inter", sans-serif;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--black);
+        color: var(--white);
+        font-family: var(--font-body);
+        font-size: 17px;
+        line-height: 1.65;
+        overflow-x: hidden;
+      }
+      a {
+        color: var(--crimson-hi);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      ::selection {
+        background: var(--crimson);
+        color: var(--white);
+      }
 
-    /* Nav */
-    nav {
-      position: sticky; top: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 2rem; height: 60px;
-      background: rgba(8,10,12,0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-brand {
-      font-family: var(--font-head);
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: var(--white);
-      letter-spacing: 0.02em;
-    }
-    .nav-brand span { color: var(--crimson-hi); }
-    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
-    .nav-links a { color: var(--silver); font-size: 0.9rem; }
-    .nav-links a:hover { color: var(--white); text-decoration: none; }
-    .btn-nav {
-      background: var(--crimson);
-      color: var(--white) !important;
-      padding: 0.4rem 1rem;
-      border-radius: 4px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      transition: background 0.2s;
-    }
-    .btn-nav:hover { background: var(--crimson-hi); text-decoration: none !important; }
+      /* Nav */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 2rem;
+        height: 60px;
+        background: rgba(8, 10, 12, 0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-brand {
+        font-family: var(--font-head);
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--white);
+        letter-spacing: 0.02em;
+      }
+      .nav-brand span {
+        color: var(--crimson-hi);
+      }
+      .nav-links {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+      }
+      .nav-links a {
+        color: var(--silver);
+        font-size: 0.9rem;
+      }
+      .nav-links a:hover {
+        color: var(--white);
+        text-decoration: none;
+      }
+      .btn-nav {
+        background: var(--crimson);
+        color: var(--white) !important;
+        padding: 0.4rem 1rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+      .btn-nav:hover {
+        background: var(--crimson-hi);
+        text-decoration: none !important;
+      }
 
-    /* Hero */
-    .hero {
-      max-width: 860px; margin: 0 auto;
-      padding: 6rem 2rem 4rem;
-      text-align: center;
-    }
-    .hero-badge {
-      display: inline-block;
-      background: var(--crimson-glow);
-      border: 1px solid var(--crimson);
-      color: var(--silver);
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
-      padding: 0.3rem 0.8rem;
-      border-radius: 100px;
-      margin-bottom: 1.5rem;
-      letter-spacing: 0.05em;
-    }
-    h1 {
-      font-family: var(--font-head);
-      font-size: clamp(2.2rem, 5vw, 3.4rem);
-      font-weight: 800;
-      line-height: 1.15;
-      color: var(--white);
-      margin-bottom: 1.25rem;
-    }
-    h1 em { color: var(--crimson-hi); font-style: normal; }
-    .hero-sub {
-      font-size: 1.1rem;
-      color: var(--silver);
-      max-width: 620px;
-      margin: 0 auto 2.5rem;
-      line-height: 1.7;
-    }
-    .stat-row {
-      display: flex; flex-wrap: wrap; justify-content: center;
-      gap: 1rem; margin-bottom: 2.5rem;
-    }
-    .stat-chip {
-      background: var(--surface-2);
-      border: 1px solid var(--border-hi);
-      padding: 0.4rem 0.9rem;
-      border-radius: 6px;
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      color: var(--silver);
-    }
-    .stat-chip b { color: var(--white); }
-    .cta-primary {
-      display: inline-block;
-      background: var(--crimson);
-      color: var(--white);
-      padding: 0.85rem 2rem;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 1rem;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .cta-primary:hover {
-      background: var(--crimson-hi);
-      text-decoration: none;
-      transform: translateY(-1px);
-    }
-    .cta-sub {
-      display: block;
-      margin-top: 0.75rem;
-      font-size: 0.82rem;
-      color: var(--muted);
-    }
+      /* Hero */
+      .hero {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 6rem 2rem 4rem;
+        text-align: center;
+      }
+      .hero-badge {
+        display: inline-block;
+        background: var(--crimson-glow);
+        border: 1px solid var(--crimson);
+        color: var(--silver);
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        padding: 0.3rem 0.8rem;
+        border-radius: 100px;
+        margin-bottom: 1.5rem;
+        letter-spacing: 0.05em;
+      }
+      h1 {
+        font-family: var(--font-head);
+        font-size: clamp(2.2rem, 5vw, 3.4rem);
+        font-weight: 800;
+        line-height: 1.15;
+        color: var(--white);
+        margin-bottom: 1.25rem;
+      }
+      h1 em {
+        color: var(--crimson-hi);
+        font-style: normal;
+      }
+      .hero-sub {
+        font-size: 1.1rem;
+        color: var(--silver);
+        max-width: 620px;
+        margin: 0 auto 2.5rem;
+        line-height: 1.7;
+      }
+      .stat-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+      }
+      .stat-chip {
+        background: var(--surface-2);
+        border: 1px solid var(--border-hi);
+        padding: 0.4rem 0.9rem;
+        border-radius: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        color: var(--silver);
+      }
+      .stat-chip b {
+        color: var(--white);
+      }
+      .cta-primary {
+        display: inline-block;
+        background: var(--crimson);
+        color: var(--white);
+        padding: 0.85rem 2rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition:
+          background 0.2s,
+          transform 0.1s;
+      }
+      .cta-primary:hover {
+        background: var(--crimson-hi);
+        text-decoration: none;
+        transform: translateY(-1px);
+      }
+      .cta-sub {
+        display: block;
+        margin-top: 0.75rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
 
-    /* Section layout */
-    section { padding: 4rem 2rem; }
-    .container { max-width: 960px; margin: 0 auto; }
-    h2 {
-      font-family: var(--font-head);
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: var(--white);
-      margin-bottom: 0.5rem;
-    }
-    .section-sub {
-      color: var(--silver);
-      margin-bottom: 2.5rem;
-      font-size: 1rem;
-    }
-    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+      /* Section layout */
+      section {
+        padding: 4rem 2rem;
+      }
+      .container {
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      h2 {
+        font-family: var(--font-head);
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 0.5rem;
+      }
+      .section-sub {
+        color: var(--silver);
+        margin-bottom: 2.5rem;
+        font-size: 1rem;
+      }
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 0;
+      }
 
-    /* How it works */
-    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
-    .step {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-    }
-    .step-num {
-      font-family: var(--font-mono);
-      font-size: 0.75rem;
-      color: var(--crimson-hi);
-      letter-spacing: 0.1em;
-      margin-bottom: 0.5rem;
-    }
-    .step h3 { font-family: var(--font-head); font-size: 1.05rem; margin-bottom: 0.5rem; color: var(--white); }
-    .step p { font-size: 0.9rem; color: var(--silver); line-height: 1.6; }
+      /* How it works */
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+      }
+      .step {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+      .step-num {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--crimson-hi);
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+      }
+      .step h3 {
+        font-family: var(--font-head);
+        font-size: 1.05rem;
+        margin-bottom: 0.5rem;
+        color: var(--white);
+      }
+      .step p {
+        font-size: 0.9rem;
+        color: var(--silver);
+        line-height: 1.6;
+      }
 
-    /* Guarantees */
-    .guarantee-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; }
-    .guarantee-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--crimson);
-      border-radius: 8px;
-      padding: 1.25rem;
-    }
-    .guarantee-card h3 { font-size: 0.95rem; color: var(--white); margin-bottom: 0.4rem; font-weight: 600; }
-    .guarantee-card p { font-size: 0.85rem; color: var(--silver); line-height: 1.55; }
+      /* Guarantees */
+      .guarantee-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+      }
+      .guarantee-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--crimson);
+        border-radius: 8px;
+        padding: 1.25rem;
+      }
+      .guarantee-card h3 {
+        font-size: 0.95rem;
+        color: var(--white);
+        margin-bottom: 0.4rem;
+        font-weight: 600;
+      }
+      .guarantee-card p {
+        font-size: 0.85rem;
+        color: var(--silver);
+        line-height: 1.55;
+      }
 
-    /* Proof pack */
-    .proof-list { list-style: none; }
-    .proof-list li {
-      display: flex; align-items: flex-start; gap: 0.75rem;
-      padding: 0.9rem 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.95rem;
-    }
-    .proof-list li:last-child { border-bottom: none; }
-    .proof-check { color: var(--green); font-size: 1rem; flex-shrink: 0; margin-top: 2px; }
-    .proof-list strong { color: var(--white); display: block; margin-bottom: 0.2rem; }
-    .proof-list span { color: var(--silver); }
+      /* Proof pack */
+      .proof-list {
+        list-style: none;
+      }
+      .proof-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.9rem 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.95rem;
+      }
+      .proof-list li:last-child {
+        border-bottom: none;
+      }
+      .proof-check {
+        color: var(--green);
+        font-size: 1rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .proof-list strong {
+        color: var(--white);
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+      .proof-list span {
+        color: var(--silver);
+      }
 
-    /* Code block */
-    pre {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 1.25rem;
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      color: var(--silver);
-      overflow-x: auto;
-      line-height: 1.7;
-    }
-    pre .k { color: var(--crimson-hi); }
-    pre .s { color: var(--green); }
-    pre .c { color: var(--muted); }
+      /* Code block */
+      pre {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 1.25rem;
+        font-family: var(--font-mono);
+        font-size: 0.82rem;
+        color: var(--silver);
+        overflow-x: auto;
+        line-height: 1.7;
+      }
+      pre .k {
+        color: var(--crimson-hi);
+      }
+      pre .s {
+        color: var(--green);
+      }
+      pre .c {
+        color: var(--muted);
+      }
 
-    /* Pilot */
-    .pilot-box {
-      background: var(--surface);
-      border: 1px solid var(--crimson);
-      border-radius: 10px;
-      padding: 2.5rem;
-      max-width: 680px;
-      margin: 0 auto;
-      text-align: center;
-    }
-    .pilot-box h2 { margin-bottom: 0.75rem; }
-    .pilot-box p { color: var(--silver); margin-bottom: 1rem; }
-    .pilot-benefits {
-      display: flex; flex-wrap: wrap; justify-content: center;
-      gap: 0.5rem; margin-bottom: 2rem;
-    }
-    .pilot-benefit {
-      background: var(--surface-2);
-      border: 1px solid var(--border-hi);
-      border-radius: 4px;
-      padding: 0.35rem 0.8rem;
-      font-size: 0.82rem;
-      color: var(--silver);
-    }
+      /* Pilot */
+      .pilot-box {
+        background: var(--surface);
+        border: 1px solid var(--crimson);
+        border-radius: 10px;
+        padding: 2.5rem;
+        max-width: 680px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      .pilot-box h2 {
+        margin-bottom: 0.75rem;
+      }
+      .pilot-box p {
+        color: var(--silver);
+        margin-bottom: 1rem;
+      }
+      .pilot-benefits {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+      }
+      .pilot-benefit {
+        background: var(--surface-2);
+        border: 1px solid var(--border-hi);
+        border-radius: 4px;
+        padding: 0.35rem 0.8rem;
+        font-size: 0.82rem;
+        color: var(--silver);
+      }
 
-    /* Footer */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 2rem;
-      text-align: center;
-    }
-    .footer-legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem; margin-bottom: 1rem; }
-    .footer-legal a { color: var(--muted); font-size: 0.85rem; }
-    .footer-legal a:hover { color: var(--silver); }
-    .footer-copy { color: var(--muted); font-size: 0.82rem; }
-    .footer-copy a { color: var(--silver); }
+      /* Footer */
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 2rem;
+        text-align: center;
+      }
+      .footer-legal {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      .footer-legal a {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .footer-legal a:hover {
+        color: var(--silver);
+      }
+      .footer-copy {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .footer-copy a {
+        color: var(--silver);
+      }
 
-    /* Pricing cards */
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
-    .pricing-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.75rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .pricing-card.highlight { border-color: var(--crimson); background: var(--surface-2); }
-    .pricing-card h3 { font-family: var(--font-head); font-size: 1.1rem; color: var(--white); }
-    .pricing-card .price { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; color: var(--white); }
-    .pricing-card .price-detail { color: var(--muted); font-size: 0.82rem; margin-left: 0.3rem; }
-    .pricing-card .plan-tag { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; }
-    .pricing-card .plan-desc { color: var(--silver); font-size: 0.88rem; line-height: 1.55; }
-    .pricing-features { list-style: none; flex: 1; }
-    .pricing-features li {
-      display: flex;
-      gap: 0.6rem;
-      padding: 0.4rem 0;
-      font-size: 0.86rem;
-      color: var(--silver);
-      border-bottom: 1px solid var(--border);
-    }
-    .pricing-features li .chk { color: var(--green); flex-shrink: 0; }
+      /* Pricing cards */
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.25rem;
+      }
+      .pricing-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .pricing-card.highlight {
+        border-color: var(--crimson);
+        background: var(--surface-2);
+      }
+      .pricing-card h3 {
+        font-family: var(--font-head);
+        font-size: 1.1rem;
+        color: var(--white);
+      }
+      .pricing-card .price {
+        font-family: var(--font-head);
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--white);
+      }
+      .pricing-card .price-detail {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-left: 0.3rem;
+      }
+      .pricing-card .plan-tag {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+      }
+      .pricing-card .plan-desc {
+        color: var(--silver);
+        font-size: 0.88rem;
+        line-height: 1.55;
+      }
+      .pricing-features {
+        list-style: none;
+        flex: 1;
+      }
+      .pricing-features li {
+        display: flex;
+        gap: 0.6rem;
+        padding: 0.4rem 0;
+        font-size: 0.86rem;
+        color: var(--silver);
+        border-bottom: 1px solid var(--border);
+      }
+      .pricing-features li .chk {
+        color: var(--green);
+        flex-shrink: 0;
+      }
 
-    /* Services grid */
-    .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; }
-    .service-card {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--crimson);
-      border-radius: 8px;
-      padding: 1.25rem;
-    }
-    .service-card h3 { font-size: 0.95rem; color: var(--white); margin-bottom: 0.4rem; font-weight: 600; }
-    .service-card p { font-size: 0.85rem; color: var(--silver); line-height: 1.55; }
+      /* Services grid */
+      .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.25rem;
+      }
+      .service-card {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--crimson);
+        border-radius: 8px;
+        padding: 1.25rem;
+      }
+      .service-card h3 {
+        font-size: 0.95rem;
+        color: var(--white);
+        margin-bottom: 0.4rem;
+        font-weight: 600;
+      }
+      .service-card p {
+        font-size: 0.85rem;
+        color: var(--silver);
+        line-height: 1.55;
+      }
 
-    /* What it is/is not */
-    .clarity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
-    .clarity-list { list-style: none; }
-    .clarity-list li {
-      display: flex; gap: 0.75rem;
-      padding: 0.65rem 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.9rem;
-      color: var(--silver);
-      line-height: 1.55;
-    }
-    .clarity-list li .mark { flex-shrink: 0; margin-top: 2px; }
+      /* What it is/is not */
+      .clarity-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+      }
+      .clarity-list {
+        list-style: none;
+      }
+      .clarity-list li {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.9rem;
+        color: var(--silver);
+        line-height: 1.55;
+      }
+      .clarity-list li .mark {
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
 
-    /* Mobile nav toggle */
-    .nav-toggle {
-      display: none;
-      background: none; border: none; cursor: pointer;
-      color: var(--silver); font-size: 1.3rem; padding: 0.25rem;
-    }
+      /* Mobile nav toggle */
+      .nav-toggle {
+        display: none;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--silver);
+        font-size: 1.3rem;
+        padding: 0.25rem;
+      }
 
-    @media (max-width: 640px) {
-      nav { padding: 0 1rem; }
-      .hero { padding: 4rem 1rem 3rem; }
-      section { padding: 3rem 1rem; }
-      .pilot-box { padding: 1.5rem; }
-      .nav-links a:not(.btn-nav) { display: none; }
-      .nav-toggle { display: block; }
-      .hero-cta-row { flex-direction: column; align-items: center; }
-    }
+      @media (max-width: 640px) {
+        nav {
+          padding: 0 1rem;
+        }
+        .hero {
+          padding: 4rem 1rem 3rem;
+        }
+        section {
+          padding: 3rem 1rem;
+        }
+        .pilot-box {
+          padding: 1.5rem;
+        }
+        .nav-links a:not(.btn-nav) {
+          display: none;
+        }
+        .nav-toggle {
+          display: block;
+        }
+        .hero-cta-row {
+          flex-direction: column;
+          align-items: center;
+        }
+      }
 
-    @media (max-width: 480px) {
-      .stat-row { gap: 0.5rem; }
-      .stat-chip { font-size: 0.75rem; }
-      .pricing-grid, .services-grid, .clarity-grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-
-<!-- Nav -->
-<nav>
-  <a class="nav-brand" href="https://aletheia-core.com" style="text-decoration:none;">
-    <img src="../assets/logo.png" alt="Aletheia Core" style="height:28px;width:auto;vertical-align:middle;margin-right:0.5rem;" onerror="this.style.display='none'" />
-    Aletheia<span>Core</span>
-  </a>
-  <div class="nav-links">
-    <a href="https://app.aletheia-core.com/demo">Demo</a>
-    <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--muted);">GitHub</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#services">Services</a>
-    <a href="https://app.aletheia-core.com/demo" class="btn-nav">Try Live Demo</a>
-  </div>
-  <button class="nav-toggle" aria-label="Menu">☰</button>
-</nav>
-
-<!-- Hero -->
-<div class="hero">
-  <div class="hero-badge">v1.9.1 &middot; MIT License &middot; 1028 Tests Passing</div>
-  <h1>Runtime <em>audit</em> and pre-execution <em>block layer</em><br/>for AI agents.</h1>
-  <p class="hero-sub">
-    Cryptographically signed enforcement, semantic policy hardening, and
-    <strong style="color:var(--white)">tamper-evident audit receipts</strong>
-    for agentic workflows.
-    Deploy self-hosted or consume as a hosted API.
-  </p>
-  <div class="stat-row">
-    <div class="stat-chip"><b>v1.9.1</b> &middot; current</div>
-    <div class="stat-chip"><b>1028</b> tests passing</div>
-    <div class="stat-chip"><b>Ed25519</b> + HMAC-SHA256</div>
-    <div class="stat-chip">MIT open source</div>
-  </div>
-  <div class="hero-cta-row" style="display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;align-items:center;">
-    <a href="https://app.aletheia-core.com/demo" class="cta-primary">▶ Try Live Demo</a>
-    <a href="mailto:info@aletheia-core.com?subject=Service Inquiry"
-       style="display:inline-block;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.82rem 1.75rem;border-radius:6px;font-weight:500;font-size:0.95rem;text-decoration:none;">
-      Book a Service
-    </a>
-  </div>
-  <span class="cta-sub">or browse the source at <a href="https://github.com/holeyfield33-art/aletheia-core" style="color:var(--silver-dim)">github.com/holeyfield33-art/aletheia-core</a></span>
-</div>
-
-<hr class="divider" />
-
-<!-- How it works -->
-<section>
-  <div class="container">
-    <h2>How It Works</h2>
-    <p class="section-sub">Every request passes through three sequential stages before a decision is made.</p>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">STAGE 1</div>
-        <h3>Input Hardening</h3>
-        <p>NFKC homoglyph collapse, zero-width and bidi/RTL character strip, recursive Base64 decode (up to 10 layers with budget cap), data-URI inline decode, and URL percent-encoding decode — all applied before any agent sees the payload.</p>
+      @media (max-width: 480px) {
+        .stat-row {
+          gap: 0.5rem;
+        }
+        .stat-chip {
+          font-size: 0.75rem;
+        }
+        .pricing-grid,
+        .services-grid,
+        .clarity-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Nav -->
+    <nav>
+      <a
+        class="nav-brand"
+        href="https://aletheia-core.com"
+        style="text-decoration: none"
+      >
+        <img
+          src="../assets/logo.png"
+          alt="Aletheia Core"
+          style="
+            height: 28px;
+            width: auto;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+          "
+          onerror="this.style.display = 'none'"
+        />
+        Aletheia<span>Core</span>
+      </a>
+      <div class="nav-links">
+        <a href="https://app.aletheia-core.com/demo">Demo</a>
+        <a
+          href="https://github.com/holeyfield33-art/aletheia-core"
+          style="color: var(--muted)"
+          >GitHub</a
+        >
+        <a href="#pricing">Pricing</a>
+        <a href="#services">Services</a>
+        <a href="https://app.aletheia-core.com/demo" class="btn-nav"
+          >Try Live Demo</a
+        >
       </div>
-      <div class="step">
-        <div class="step-num">STAGE 2</div>
-        <h3>Tri-Agent Analysis</h3>
-        <p><b style="color:var(--white)">Scout</b> scores threat context and detects swarm probing. <b style="color:var(--white)">Nitpicker</b> runs semantic similarity against 18 blocked patterns. <b style="color:var(--white)">Judge</b> verifies the Ed25519 manifest and runs cosine-similarity pre-execution block against 50+ camouflage aliases.</p>
+      <button class="nav-toggle" aria-label="Menu">☰</button>
+    </nav>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-badge">
+        v1.9.1 &middot; MIT License &middot; 1028 Tests Passing
       </div>
-      <div class="step">
-        <div class="step-num">STAGE 3</div>
-        <h3>Cryptographic Receipt</h3>
-        <p>Every decision — PROCEED or DENIED — produces an HMAC-SHA256 signed receipt with a unique 16-byte nonce, binding the decision to the policy hash, payload fingerprint, action, and origin. Receipts are tamper-evident, non-replayable, and auditable.</p>
+      <h1>
+        Runtime <em>audit</em> and pre-execution <em>block layer</em><br />for
+        AI agents.
+      </h1>
+      <p class="hero-sub">
+        Cryptographically signed enforcement, semantic policy hardening, and
+        <strong style="color: var(--white)"
+          >tamper-evident audit receipts</strong
+        >
+        for agentic workflows. Deploy self-hosted or consume as a hosted API.
+      </p>
+      <div class="stat-row">
+        <div class="stat-chip"><b>v1.9.1</b> &middot; current</div>
+        <div class="stat-chip"><b>1028</b> tests passing</div>
+        <div class="stat-chip"><b>Ed25519</b> + HMAC-SHA256</div>
+        <div class="stat-chip">MIT open source</div>
       </div>
+      <div
+        class="hero-cta-row"
+        style="
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 0.75rem;
+          align-items: center;
+        "
+      >
+        <a href="https://app.aletheia-core.com/demo" class="cta-primary"
+          >▶ Try Live Demo</a
+        >
+        <a
+          href="mailto:info@aletheia-core.com?subject=Service Inquiry"
+          style="
+            display: inline-block;
+            background: transparent;
+            color: var(--silver);
+            border: 1px solid var(--border-hi);
+            padding: 0.82rem 1.75rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            text-decoration: none;
+          "
+        >
+          Book a Service
+        </a>
+      </div>
+      <span class="cta-sub"
+        >or browse the source at
+        <a
+          href="https://github.com/holeyfield33-art/aletheia-core"
+          style="color: var(--silver-dim)"
+          >github.com/holeyfield33-art/aletheia-core</a
+        ></span
+      >
     </div>
-  </div>
-</section>
 
-<hr class="divider" />
+    <hr class="divider" />
 
-<!-- API example -->
-<section style="background: var(--surface);">
-  <div class="container">
-    <h2>API in 30 Seconds</h2>
-    <p class="section-sub">POST JSON. Get a signed decision back.</p>
-    <pre><span class="c"># Request</span>
+    <!-- How it works -->
+    <section>
+      <div class="container">
+        <h2>How It Works</h2>
+        <p class="section-sub">
+          Every request passes through three sequential stages before a decision
+          is made.
+        </p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">STAGE 1</div>
+            <h3>Input Hardening</h3>
+            <p>
+              NFKC homoglyph collapse, zero-width and bidi/RTL character strip,
+              recursive Base64 decode (up to 10 layers with budget cap),
+              data-URI inline decode, and URL percent-encoding decode — all
+              applied before any agent sees the payload.
+            </p>
+          </div>
+          <div class="step">
+            <div class="step-num">STAGE 2</div>
+            <h3>Tri-Agent Analysis</h3>
+            <p>
+              <b style="color: var(--white)">Scout</b> scores threat context and
+              detects swarm probing.
+              <b style="color: var(--white)">Nitpicker</b> runs semantic
+              similarity against 18 blocked patterns.
+              <b style="color: var(--white)">Judge</b> verifies the Ed25519
+              manifest and runs cosine-similarity pre-execution block against
+              50+ camouflage aliases.
+            </p>
+          </div>
+          <div class="step">
+            <div class="step-num">STAGE 3</div>
+            <h3>Cryptographic Receipt</h3>
+            <p>
+              Every decision — PROCEED or DENIED — produces an HMAC-SHA256
+              signed receipt with a unique 16-byte nonce, binding the decision
+              to the policy hash, payload fingerprint, action, and origin.
+              Receipts are tamper-evident, non-replayable, and auditable.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- API example -->
+    <section style="background: var(--surface)">
+      <div class="container">
+        <h2>API in 30 Seconds</h2>
+        <p class="section-sub">POST JSON. Get a signed decision back.</p>
+        <pre><span class="c"># Request</span>
 curl -X POST https://your-host/v1/audit \
   -H <span class="s">"Content-Type: application/json"</span> \
   -H <span class="s">"X-API-Key: $ALETHEIA_API_KEY"</span> \
@@ -446,394 +750,905 @@ curl -X POST https://your-host/v1/audit \
     <span class="k">"issued_at"</span>: <span class="s">"2026-04-06T07:00:00Z"</span>
   }
 }</pre>
-  </div>
-</section>
-
-<hr class="divider" />
-
-<section id="demo" style="background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-  <div class="container" style="text-align:center; padding: 4rem 2rem;">
-    <div class="hero-badge" style="margin-bottom:1rem;">Live Demo</div>
-    <h2 style="font-family:var(--font-head); font-size:clamp(1.6rem,3vw,2.4rem); margin-bottom:1rem;">See It Block an Attack</h2>
-    <p style="color:var(--silver); max-width:480px; margin: 0 auto 2rem;">
-      No install. No API key required.
-      Send a test payload through a live audit engine and inspect the signed receipt.
-    </p>
-    <a href="https://app.aletheia-core.com/demo" target="_blank" style="display:inline-block; background:var(--crimson); color:#f0eee8; font-family:var(--font-mono); font-size:0.85rem; padding:14px 32px; border-radius:3px; text-decoration:none;">▶ Open Live Demo →</a>
-    <p style="margin-top:1rem; font-family:var(--font-mono); font-size:0.72rem; color:var(--muted);">app.aletheia-core.com/demo</p>
-  </div>
-</section>
-
-<hr class="divider" />
-
-<!-- Security Guarantees -->
-<section>
-  <div class="container">
-    <h2>Security Controls</h2>
-    <p class="section-sub">Cryptographically or architecturally enforced. Read the code to verify.</p>
-    <div class="guarantee-grid">
-      <div class="guarantee-card">
-        <h3>Ed25519 Manifest Signing</h3>
-        <p>Policy manifest verified with a detached Ed25519 signature before every load. Tamper or missing signature is designed to halt startup — read <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">manifest/signing.py</code> to verify.</p>
       </div>
-      <div class="guarantee-card">
-        <h3>Semantic Pre-Execution Block Engine</h3>
-        <p>Cosine similarity (all-MiniLM-L6-v2) against 50+ camouflage phrases. Grey-zone second-pass classifier catches paraphrases below the primary 0.55 threshold.</p>
-      </div>
-      <div class="guarantee-card">
-        <h3>HMAC-Signed Receipts</h3>
-        <p>Every decision produces a receipt signed with <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ALETHEIA_RECEIPT_SECRET</code>. Includes a unique 16-byte nonce, payload SHA-256, action, and origin to prevent replay attacks.</p>
-      </div>
-      <div class="guarantee-card">
-        <h3>Distributed Rate Limiting</h3>
-        <p>Upstash Redis backend (sorted-set sliding window) survives restarts
-        and synchronizes across workers. Falls back to in-memory for
-        single-node deployments. 10 req/s per IP, 50,000 IP cap with LRU
-        eviction.</p>
-      </div>
-      <div class="guarantee-card">
-        <h3>Payload Privacy</h3>
-        <p>In active mode, audit logs are designed to store only the SHA-256 hash and length of the payload — not plaintext content. See <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">core/audit.py</code>.</p>
-      </div>
-      <div class="guarantee-card">
-        <h3>Action Sandbox</h3>
-        <p>Regex-based pre-dispatch scanner blocks subprocess, socket, eval, obfuscated imports (getattr/ctypes), filesystem destruction, and privilege escalation patterns before the agent pipeline runs.</p>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<hr class="divider" />
+    <hr class="divider" />
 
-<!-- Proof Pack -->
-<section style="background: var(--surface);">
-  <div class="container">
-    <h2>Proof Pack</h2>
-    <p class="section-sub">Open source. Auditable. Every claim backed by tests or code.</p>
-    <ul class="proof-list">
-      <li>
-        <span class="proof-check">✓</span>
-        <div>
-          <strong>1028 tests passing</strong>
-          <span>Across core, judge, enterprise, signing, proximity, and API modules. Run: <code style="font-family:var(--font-mono);font-size:0.82rem">pytest tests/ -q</code></span>
+    <section
+      id="demo"
+      style="
+        background: var(--surface-2);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      "
+    >
+      <div class="container" style="text-align: center; padding: 4rem 2rem">
+        <div class="hero-badge" style="margin-bottom: 1rem">Live Demo</div>
+        <h2
+          style="
+            font-family: var(--font-head);
+            font-size: clamp(1.6rem, 3vw, 2.4rem);
+            margin-bottom: 1rem;
+          "
+        >
+          See It Block an Attack
+        </h2>
+        <p style="color: var(--silver); max-width: 480px; margin: 0 auto 2rem">
+          No install. No API key required. Send a test payload through a live
+          audit engine and inspect the signed receipt.
+        </p>
+        <a
+          href="https://app.aletheia-core.com/demo"
+          target="_blank"
+          style="
+            display: inline-block;
+            background: var(--crimson);
+            color: #f0eee8;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 14px 32px;
+            border-radius: 3px;
+            text-decoration: none;
+          "
+          >▶ Open Live Demo →</a
+        >
+        <p
+          style="
+            margin-top: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--muted);
+          "
+        >
+          app.aletheia-core.com/demo
+        </p>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- Security Guarantees -->
+    <section>
+      <div class="container">
+        <h2>Security Controls</h2>
+        <p class="section-sub">
+          Cryptographically or architecturally enforced. Read the code to
+          verify.
+        </p>
+        <div class="guarantee-grid">
+          <div class="guarantee-card">
+            <h3>Ed25519 Manifest Signing</h3>
+            <p>
+              Policy manifest verified with a detached Ed25519 signature before
+              every load. Tamper or missing signature is designed to halt
+              startup — read
+              <code
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.8rem;
+                  color: var(--silver);
+                "
+                >manifest/signing.py</code
+              >
+              to verify.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>Semantic Pre-Execution Block Engine</h3>
+            <p>
+              Cosine similarity (all-MiniLM-L6-v2) against 50+ camouflage
+              phrases. Grey-zone second-pass classifier catches paraphrases
+              below the primary 0.55 threshold.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>HMAC-Signed Receipts</h3>
+            <p>
+              Every decision produces a receipt signed with
+              <code
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.8rem;
+                  color: var(--silver);
+                "
+                >ALETHEIA_RECEIPT_SECRET</code
+              >. Includes a unique 16-byte nonce, payload SHA-256, action, and
+              origin to prevent replay attacks.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>Distributed Rate Limiting</h3>
+            <p>
+              Upstash Redis backend (sorted-set sliding window) survives
+              restarts and synchronizes across workers. Falls back to in-memory
+              for single-node deployments. 10 req/s per IP, 50,000 IP cap with
+              LRU eviction.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>Payload Privacy</h3>
+            <p>
+              In active mode, audit logs are designed to store only the SHA-256
+              hash and length of the payload — not plaintext content. See
+              <code
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.8rem;
+                  color: var(--silver);
+                "
+                >core/audit.py</code
+              >.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>Action Sandbox</h3>
+            <p>
+              Regex-based pre-dispatch scanner blocks subprocess, socket, eval,
+              obfuscated imports (getattr/ctypes), filesystem destruction, and
+              privilege escalation patterns before the agent pipeline runs.
+            </p>
+          </div>
         </div>
-      </li>
-      <li>
-        <span class="proof-check">✓</span>
-        <div>
-          <strong>Fully open source — MIT License</strong>
-          <span>Read every line at <a href="https://github.com/holeyfield33-art/aletheia-core">github.com/holeyfield33-art/aletheia-core</a>. No proprietary black boxes.</span>
-        </div>
-      </li>
-      <li>
-        <span class="proof-check">✓</span>
-        <div>
-          <strong>Distributed rate limiting via Upstash Redis</strong>
-          <span>Sliding-window sorted set per IP. Survives restarts. Synchronizes across workers. Falls back to in-memory when unconfigured.</span>
-        </div>
-      </li>
-      <li>
-        <span class="proof-check">✓</span>
-        <div>
-          <strong>Ed25519 manifest — no private key in the Docker image</strong>
-          <span>Private key is gitignored and dockerignored. The public key ships with the package. Signing happens offline.</span>
-        </div>
-      </li>
-      <li>
-        <span class="proof-check">✓</span>
-        <div>
-          <strong>Timing-safe API key comparison</strong>
-          <span>Uses <code style="font-family:var(--font-mono);font-size:0.82rem">secrets.compare_digest</code> — not set membership — to prevent timing oracle attacks on the auth layer.</span>
-        </div>
-      </li>
-    </ul>
-  </div>
-</section>
+      </div>
+    </section>
 
-<hr class="divider" />
+    <hr class="divider" />
 
-<!-- What Aletheia Is and Is Not -->
-<section style="background:var(--surface);">
-  <div class="container">
-    <h2>What Aletheia Is and Is Not</h2>
-    <p class="section-sub">Clarity on scope prevents integration mistakes and overclaims.</p>
-    <div class="clarity-grid">
-      <div>
-        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--green);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem;">It is</div>
-        <ul class="clarity-list">
-          <li><span class="mark" style="color:var(--green);">✓</span> Runtime enforcement layer — gates risky agent actions before execution</li>
-          <li><span class="mark" style="color:var(--green);">✓</span> Signed audit evidence — tamper-evident receipts for every decision</li>
-          <li><span class="mark" style="color:var(--green);">✓</span> Deployable self-hosted or consumed as a hosted API</li>
-          <li><span class="mark" style="color:var(--green);">✓</span> One layer in a broader security stack</li>
+    <!-- Proof Pack -->
+    <section style="background: var(--surface)">
+      <div class="container">
+        <h2>Proof Pack</h2>
+        <p class="section-sub">
+          Open source. Auditable. Every claim backed by tests or code.
+        </p>
+        <ul class="proof-list">
+          <li>
+            <span class="proof-check">✓</span>
+            <div>
+              <strong>1028 tests passing</strong>
+              <span
+                >Across core, judge, enterprise, signing, proximity, and API
+                modules. Run:
+                <code style="font-family: var(--font-mono); font-size: 0.82rem"
+                  >pytest tests/ -q</code
+                ></span
+              >
+            </div>
+          </li>
+          <li>
+            <span class="proof-check">✓</span>
+            <div>
+              <strong>Fully open source — MIT License</strong>
+              <span
+                >Read every line at
+                <a href="https://github.com/holeyfield33-art/aletheia-core"
+                  >github.com/holeyfield33-art/aletheia-core</a
+                >. No proprietary black boxes.</span
+              >
+            </div>
+          </li>
+          <li>
+            <span class="proof-check">✓</span>
+            <div>
+              <strong>Distributed rate limiting via Upstash Redis</strong>
+              <span
+                >Sliding-window sorted set per IP. Survives restarts.
+                Synchronizes across workers. Falls back to in-memory when
+                unconfigured.</span
+              >
+            </div>
+          </li>
+          <li>
+            <span class="proof-check">✓</span>
+            <div>
+              <strong
+                >Ed25519 manifest — no private key in the Docker image</strong
+              >
+              <span
+                >Private key is gitignored and dockerignored. The public key
+                ships with the package. Signing happens offline.</span
+              >
+            </div>
+          </li>
+          <li>
+            <span class="proof-check">✓</span>
+            <div>
+              <strong>Timing-safe API key comparison</strong>
+              <span
+                >Uses
+                <code style="font-family: var(--font-mono); font-size: 0.82rem"
+                  >secrets.compare_digest</code
+                >
+                — not set membership — to prevent timing oracle attacks on the
+                auth layer.</span
+              >
+            </div>
+          </li>
         </ul>
       </div>
-      <div>
-        <div style="font-family:var(--font-mono);font-size:0.78rem;color:var(--crimson-hi);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem;">It is not</div>
-        <ul class="clarity-list">
-          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Not a replacement for model alignment</li>
-          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Does not secure infrastructure outside its deployment boundary</li>
-          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Does not prevent all possible misuse — raises the cost of attacks</li>
-          <li><span class="mark" style="color:var(--crimson-hi);">✕</span> Not a compliance certification — consult qualified counsel</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<hr class="divider" />
+    <hr class="divider" />
 
-<!-- Pricing -->
-<section id="pricing">
-  <div class="container">
-    <h2>Pricing</h2>
-    <p class="section-sub">Open-source core. Hosted API for evaluation and production. Expert services available.</p>
-    <p style="color:var(--silver);font-size:0.9rem;margin-bottom:2rem;line-height:1.7;">
-      Use the live demo with no key, request a free trial key for evaluation,
-      or upgrade to Scale, Pro, or PAYG for production API access and retained audit logs.
-    </p>
-    <div class="pricing-grid">
-
-      <div class="pricing-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Community</h3>
-          <span class="plan-tag" style="color:var(--green);">Open Source</span>
+    <!-- What Aletheia Is and Is Not -->
+    <section style="background: var(--surface)">
+      <div class="container">
+        <h2>What Aletheia Is and Is Not</h2>
+        <p class="section-sub">
+          Clarity on scope prevents integration mistakes and overclaims.
+        </p>
+        <div class="clarity-grid">
+          <div>
+            <div
+              style="
+                font-family: var(--font-mono);
+                font-size: 0.78rem;
+                color: var(--green);
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                margin-bottom: 0.75rem;
+              "
+            >
+              It is
+            </div>
+            <ul class="clarity-list">
+              <li>
+                <span class="mark" style="color: var(--green)">✓</span> Runtime
+                enforcement layer — gates risky agent actions before execution
+              </li>
+              <li>
+                <span class="mark" style="color: var(--green)">✓</span> Signed
+                audit evidence — tamper-evident receipts for every decision
+              </li>
+              <li>
+                <span class="mark" style="color: var(--green)">✓</span>
+                Deployable self-hosted or consumed as a hosted API
+              </li>
+              <li>
+                <span class="mark" style="color: var(--green)">✓</span> One
+                layer in a broader security stack
+              </li>
+            </ul>
+          </div>
+          <div>
+            <div
+              style="
+                font-family: var(--font-mono);
+                font-size: 0.78rem;
+                color: var(--crimson-hi);
+                letter-spacing: 0.1em;
+                text-transform: uppercase;
+                margin-bottom: 0.75rem;
+              "
+            >
+              It is not
+            </div>
+            <ul class="clarity-list">
+              <li>
+                <span class="mark" style="color: var(--crimson-hi)">✕</span> Not
+                a replacement for model alignment
+              </li>
+              <li>
+                <span class="mark" style="color: var(--crimson-hi)">✕</span>
+                Does not secure infrastructure outside its deployment boundary
+              </li>
+              <li>
+                <span class="mark" style="color: var(--crimson-hi)">✕</span>
+                Does not prevent all possible misuse — raises the cost of
+                attacks
+              </li>
+              <li>
+                <span class="mark" style="color: var(--crimson-hi)">✕</span> Not
+                a compliance certification — consult qualified counsel
+              </li>
+            </ul>
+          </div>
         </div>
-        <div><span class="price">Free</span><span class="price-detail">/ self-hosted</span></div>
-        <p class="plan-desc">MIT-licensed open-source engine. Full control, self-hosted.</p>
-        <ul class="pricing-features">
-          <li><span class="chk">✓</span> MIT licensed</li>
-          <li><span class="chk">✓</span> Self-hosted</li>
-          <li><span class="chk">✓</span> Core runtime protection</li>
-          <li><span class="chk">✓</span> Signed receipts</li>
-          <li><span class="chk">✓</span> Community support</li>
-        </ul>
-        <a href="https://github.com/holeyfield33-art/aletheia-core"
-           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          View on GitHub
-        </a>
       </div>
+    </section>
 
-      <div class="pricing-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Free</h3>
-          <span class="plan-tag" style="color:var(--silver);">Free</span>
+    <hr class="divider" />
+
+    <!-- Pricing -->
+    <section id="pricing">
+      <div class="container">
+        <h2>Pricing</h2>
+        <p class="section-sub">
+          Open-source core. Hosted API for evaluation and production. Expert
+          services available.
+        </p>
+        <p
+          style="
+            color: var(--silver);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            line-height: 1.7;
+          "
+        >
+          Use the live demo with no key, request a free trial key for
+          evaluation, or upgrade to Scale, Pro, or PAYG for production API
+          access and retained audit logs.
+        </p>
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <h3>Community</h3>
+              <span class="plan-tag" style="color: var(--green)"
+                >Open Source</span
+              >
+            </div>
+            <div>
+              <span class="price">Free</span
+              ><span class="price-detail">/ self-hosted</span>
+            </div>
+            <p class="plan-desc">
+              MIT-licensed open-source engine. Full control, self-hosted.
+            </p>
+            <ul class="pricing-features">
+              <li><span class="chk">✓</span> MIT licensed</li>
+              <li><span class="chk">✓</span> Self-hosted</li>
+              <li><span class="chk">✓</span> Core runtime protection</li>
+              <li><span class="chk">✓</span> Signed receipts</li>
+              <li><span class="chk">✓</span> Community support</li>
+            </ul>
+            <a
+              href="https://github.com/holeyfield33-art/aletheia-core"
+              style="
+                display: block;
+                text-align: center;
+                background: transparent;
+                color: var(--silver);
+                border: 1px solid var(--border-hi);
+                padding: 0.7rem 1rem;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                text-decoration: none;
+                margin-top: 0.5rem;
+              "
+            >
+              View on GitHub
+            </a>
+          </div>
+
+          <div class="pricing-card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <h3>Free</h3>
+              <span class="plan-tag" style="color: var(--silver)">Free</span>
+            </div>
+            <div>
+              <span class="price">Free</span
+              ><span class="price-detail">/ evaluation</span>
+            </div>
+            <p class="plan-desc">
+              Free evaluation key with 1,000 Sovereign Audit Receipts per month.
+              No credit card required.
+            </p>
+            <ul class="pricing-features">
+              <li><span class="chk">✓</span> Free evaluation key</li>
+              <li>
+                <span class="chk">✓</span> 1,000 Sovereign Audit Receipts /
+                month
+              </li>
+              <li><span class="chk">✓</span> One API key</li>
+              <li><span class="chk">✓</span> Evaluation use only</li>
+            </ul>
+            <a
+              href="https://app.aletheia-core.com/dashboard/keys"
+              style="
+                display: block;
+                text-align: center;
+                background: transparent;
+                color: var(--silver);
+                border: 1px solid var(--border-hi);
+                padding: 0.7rem 1rem;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                text-decoration: none;
+                margin-top: 0.5rem;
+              "
+            >
+              Start Free Trial
+            </a>
+          </div>
+
+          <div class="pricing-card highlight">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <h3>Scale</h3>
+              <span class="plan-tag" style="color: var(--green)"
+                >Production</span
+              >
+            </div>
+            <div>
+              <span class="price">$19</span
+              ><span class="price-detail">/mo</span>
+            </div>
+            <p class="plan-desc">
+              Production API access with 25,000 Sovereign Audit Receipts per
+              month, managed operations, and retained audit logs.
+            </p>
+            <ul class="pricing-features">
+              <li><span class="chk">✓</span> Production API access</li>
+              <li>
+                <span class="chk">✓</span> 25,000 Sovereign Audit Receipts /
+                month
+              </li>
+              <li><span class="chk">✓</span> 30-day audit logs</li>
+              <li><span class="chk">✓</span> Managed operations</li>
+              <li><span class="chk">✓</span> Priority support</li>
+            </ul>
+            <a
+              href="https://app.aletheia-core.com/dashboard"
+              class="cta-primary"
+              style="display: block; text-align: center; margin-top: 0.5rem"
+            >
+              Upgrade to Scale
+            </a>
+          </div>
+
+          <div class="pricing-card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <h3>Pro</h3>
+              <span class="plan-tag" style="color: var(--silver)"
+                >High Throughput</span
+              >
+            </div>
+            <div>
+              <span class="price">$49</span
+              ><span class="price-detail">/mo</span>
+            </div>
+            <p class="plan-desc">
+              Higher-throughput production API access with 100,000 Sovereign
+              Audit Receipts per month, retained audit logs, and managed
+              operations.
+            </p>
+            <ul class="pricing-features">
+              <li><span class="chk">✓</span> Production API access</li>
+              <li>
+                <span class="chk">✓</span> 100,000 Sovereign Audit Receipts /
+                month
+              </li>
+              <li><span class="chk">✓</span> 30-day audit logs</li>
+              <li><span class="chk">✓</span> Managed operations</li>
+              <li><span class="chk">✓</span> Priority support</li>
+            </ul>
+            <a
+              href="https://app.aletheia-core.com/dashboard"
+              style="
+                display: block;
+                text-align: center;
+                background: transparent;
+                color: var(--silver);
+                border: 1px solid var(--border-hi);
+                padding: 0.7rem 1rem;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                text-decoration: none;
+                margin-top: 0.5rem;
+              "
+            >
+              Upgrade to Pro
+            </a>
+          </div>
+
+          <div class="pricing-card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <h3>PAYG</h3>
+              <span class="plan-tag" style="color: var(--silver)"
+                >Usage Based</span
+              >
+            </div>
+            <div>
+              <span class="price">$0.0008</span
+              ><span class="price-detail">/ receipt</span>
+            </div>
+            <p class="plan-desc">
+              Pay only for usage with metered billing through Stripe.
+            </p>
+            <ul class="pricing-features">
+              <li><span class="chk">✓</span> Metered billing</li>
+              <li><span class="chk">✓</span> No fixed monthly commitment</li>
+              <li><span class="chk">✓</span> Production API access</li>
+              <li><span class="chk">✓</span> Managed operations</li>
+            </ul>
+            <a
+              href="https://app.aletheia-core.com/dashboard"
+              style="
+                display: block;
+                text-align: center;
+                background: transparent;
+                color: var(--silver);
+                border: 1px solid var(--border-hi);
+                padding: 0.7rem 1rem;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                text-decoration: none;
+                margin-top: 0.5rem;
+              "
+            >
+              Choose PAYG
+            </a>
+          </div>
+
+          <div class="pricing-card">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <h3>Services</h3>
+              <span class="plan-tag" style="color: var(--silver)">Expert</span>
+            </div>
+            <div><span class="price">From $2,500</span></div>
+            <p class="plan-desc">
+              Agent red-team review, custom policy engineering, runtime security
+              integration.
+            </p>
+            <ul class="pricing-features">
+              <li><span class="chk">✓</span> Agent red-team review</li>
+              <li><span class="chk">✓</span> Custom policy engineering</li>
+              <li><span class="chk">✓</span> Runtime security integration</li>
+              <li><span class="chk">✓</span> Deployment guidance</li>
+            </ul>
+            <a
+              href="mailto:info@aletheia-core.com?subject=Service Inquiry"
+              style="
+                display: block;
+                text-align: center;
+                background: transparent;
+                color: var(--silver);
+                border: 1px solid var(--border-hi);
+                padding: 0.7rem 1rem;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                text-decoration: none;
+                margin-top: 0.5rem;
+              "
+            >
+              Book Services
+            </a>
+          </div>
         </div>
-        <div><span class="price">Free</span><span class="price-detail">/ evaluation</span></div>
-        <p class="plan-desc">Free evaluation key with 1,000 Sovereign Audit Receipts per month. No credit card required.</p>
-        <ul class="pricing-features">
-          <li><span class="chk">✓</span> Free evaluation key</li>
-          <li><span class="chk">✓</span> 1,000 Sovereign Audit Receipts / month</li>
-          <li><span class="chk">✓</span> One API key</li>
-          <li><span class="chk">✓</span> Evaluation use only</li>
-        </ul>
-        <a href="https://app.aletheia-core.com/dashboard/keys"
-           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          Start Free Trial
-        </a>
-      </div>
 
-      <div class="pricing-card highlight">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Scale</h3>
-          <span class="plan-tag" style="color:var(--green);">Production</span>
+        <!-- Choosing a Path -->
+        <div
+          style="
+            margin-top: 3rem;
+            max-width: 680px;
+            margin-left: auto;
+            margin-right: auto;
+          "
+        >
+          <h3 style="text-align: center; margin-bottom: 1.25rem">
+            Choosing a Path
+          </h3>
+          <table
+            style="
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 0.88rem;
+              line-height: 1.6;
+            "
+          >
+            <tbody>
+              <tr style="border-bottom: 1px solid var(--border)">
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  Demo
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You want to see the pipeline in action before committing to
+                  anything.
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border)">
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  Self-Hosted
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You need full control, your own infrastructure, or you want to
+                  contribute.
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border)">
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  Free
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You want a free evaluation key to test the API in your own
+                  code.
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border)">
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  Scale
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You need production API access with 25,000 Sovereign Audit
+                  Receipts per month and retained audit logs.
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border)">
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  Pro
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You need 100,000 Sovereign Audit Receipts per month with
+                  retained audit logs and managed operations.
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--border)">
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  PAYG
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You prefer metered billing and only pay for the Sovereign
+                  Audit Receipts you use.
+                </td>
+              </tr>
+              <tr>
+                <td
+                  style="
+                    padding: 0.6rem 0.75rem;
+                    color: var(--green);
+                    font-weight: 600;
+                    white-space: nowrap;
+                    vertical-align: top;
+                  "
+                >
+                  Services
+                </td>
+                <td style="padding: 0.6rem 0.75rem; color: var(--silver)">
+                  You need expert help with red-team testing, policy design, or
+                  integration.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div><span class="price">$19</span><span class="price-detail">/mo</span></div>
-        <p class="plan-desc">Production API access with 25,000 Sovereign Audit Receipts per month, managed operations, and retained audit logs.</p>
-        <ul class="pricing-features">
-          <li><span class="chk">✓</span> Production API access</li>
-          <li><span class="chk">✓</span> 25,000 Sovereign Audit Receipts / month</li>
-          <li><span class="chk">✓</span> 30-day audit logs</li>
-          <li><span class="chk">✓</span> Managed operations</li>
-          <li><span class="chk">✓</span> Priority support</li>
-        </ul>
-        <a href="https://app.aletheia-core.com/dashboard"
-           class="cta-primary" style="display:block;text-align:center;margin-top:0.5rem;">
-          Upgrade to Scale
-        </a>
       </div>
+    </section>
 
-      <div class="pricing-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Pro</h3>
-          <span class="plan-tag" style="color:var(--silver);">High Throughput</span>
+    <hr class="divider" />
+
+    <!-- Recent Security Updates -->
+    <section
+      style="
+        background: var(--surface-2);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      "
+    >
+      <div class="container">
+        <div class="hero-badge" style="margin-bottom: 1rem">April 2026</div>
+        <h2>Recent Security Updates</h2>
+        <p class="section-sub">
+          Hardening round completed after independent adversarial review.
+        </p>
+        <div class="guarantee-grid">
+          <div class="guarantee-card">
+            <h3>Deeper Input Decoding</h3>
+            <p>
+              Base64 recursion depth increased from 5 to 10 layers with budget
+              cap. Bidi/RTL override characters stripped. Data-URI payloads
+              decoded inline before Base64 pass.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>Receipt Nonce Binding</h3>
+            <p>
+              Every audit receipt now includes a 16-byte cryptographic nonce
+              bound into both the HMAC signature and decision token. Identical
+              requests produce unique receipts.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>Sandbox Obfuscation Detection</h3>
+            <p>
+              Sandbox scanner now detects obfuscated imports via
+              <code
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.8rem;
+                  color: var(--silver);
+                "
+                >getattr()</code
+              >
+              indirection and
+              <code
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.8rem;
+                  color: var(--silver);
+                "
+                >ctypes.CDLL</code
+              >
+              /
+              <code
+                style="
+                  font-family: var(--font-mono);
+                  font-size: 0.8rem;
+                  color: var(--silver);
+                "
+                >ctypes.cdll</code
+              >
+              patterns.
+            </p>
+          </div>
+          <div class="guarantee-card">
+            <h3>ReDoS Mitigation</h3>
+            <p>
+              All intent-classifier regex quantifiers reduced to bounded ranges
+              ({0,120} and {0,80}) to prevent catastrophic backtracking on
+              adversarial inputs.
+            </p>
+          </div>
         </div>
-        <div><span class="price">$49</span><span class="price-detail">/mo</span></div>
-        <p class="plan-desc">Higher-throughput production API access with 100,000 Sovereign Audit Receipts per month, retained audit logs, and managed operations.</p>
-        <ul class="pricing-features">
-          <li><span class="chk">✓</span> Production API access</li>
-          <li><span class="chk">✓</span> 100,000 Sovereign Audit Receipts / month</li>
-          <li><span class="chk">✓</span> 30-day audit logs</li>
-          <li><span class="chk">✓</span> Managed operations</li>
-          <li><span class="chk">✓</span> Priority support</li>
-        </ul>
-        <a href="https://app.aletheia-core.com/dashboard"
-           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          Upgrade to Pro
-        </a>
       </div>
+    </section>
 
-      <div class="pricing-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>PAYG</h3>
-          <span class="plan-tag" style="color:var(--silver);">Usage Based</span>
+    <hr class="divider" />
+
+    <!-- Services -->
+    <section id="services" style="background: var(--surface)">
+      <div class="container">
+        <h2>Services</h2>
+        <p class="section-sub">
+          Available now. Designed for teams deploying AI agents in production.
+        </p>
+        <div class="services-grid" style="margin-bottom: 2.5rem">
+          <div class="service-card">
+            <h3>AI Security Audit</h3>
+            <p>
+              Structured review of your agent architecture, action surface, and
+              risk posture. Delivered as a written report with prioritized
+              findings.
+            </p>
+          </div>
+          <div class="service-card">
+            <h3>Rapid Integration</h3>
+            <p>
+              Hands-on support deploying Aletheia Core into your stack. Covers
+              policy manifest design, endpoint configuration, and API key setup.
+            </p>
+          </div>
+          <div class="service-card">
+            <h3>Managed Protection</h3>
+            <p>
+              Ongoing monitoring and policy tuning as your agent capabilities
+              evolve. Available as a retainer engagement.
+            </p>
+          </div>
+          <div class="service-card">
+            <h3>Compliance Mapping</h3>
+            <p>
+              Map your audit receipt outputs to relevant frameworks. Supports
+              documentation for internal controls and third-party reviews.
+            </p>
+          </div>
+          <div class="service-card">
+            <h3>Enterprise Self-Hosted</h3>
+            <p>
+              Full deployment support for private cloud or on-premises
+              environments. Includes architecture review and production
+              readiness checklist.
+            </p>
+          </div>
+          <div class="service-card">
+            <h3>Team Training</h3>
+            <p>
+              Half-day or full-day sessions covering AI agent attack vectors,
+              policy design, and incident response playbooks.
+            </p>
+          </div>
         </div>
-        <div><span class="price">$0.0008</span><span class="price-detail">/ receipt</span></div>
-        <p class="plan-desc">Pay only for usage with metered billing through Stripe.</p>
-        <ul class="pricing-features">
-          <li><span class="chk">✓</span> Metered billing</li>
-          <li><span class="chk">✓</span> No fixed monthly commitment</li>
-          <li><span class="chk">✓</span> Production API access</li>
-          <li><span class="chk">✓</span> Managed operations</li>
-        </ul>
-        <a href="https://app.aletheia-core.com/dashboard"
-           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          Choose PAYG
-        </a>
-      </div>
-
-      <div class="pricing-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <h3>Services</h3>
-          <span class="plan-tag" style="color:var(--silver);">Expert</span>
+        <div style="text-align: center">
+          <a
+            href="mailto:info@aletheia-core.com?subject=Service Inquiry"
+            class="cta-primary"
+            >Book Services</a
+          >
+          <p
+            style="margin-top: 0.75rem; font-size: 0.82rem; color: var(--muted)"
+          >
+            info@aletheia-core.com
+          </p>
         </div>
-        <div><span class="price">From $2,500</span></div>
-        <p class="plan-desc">Agent red-team review, custom policy engineering, runtime security integration.</p>
-        <ul class="pricing-features">
-          <li><span class="chk">✓</span> Agent red-team review</li>
-          <li><span class="chk">✓</span> Custom policy engineering</li>
-          <li><span class="chk">✓</span> Runtime security integration</li>
-          <li><span class="chk">✓</span> Deployment guidance</li>
-        </ul>
-        <a href="mailto:info@aletheia-core.com?subject=Service Inquiry"
-           style="display:block;text-align:center;background:transparent;color:var(--silver);border:1px solid var(--border-hi);padding:0.7rem 1rem;border-radius:5px;font-size:0.9rem;text-decoration:none;margin-top:0.5rem;">
-          Book Services
-        </a>
       </div>
+    </section>
 
-    </div>
-
-    <!-- Choosing a Path -->
-    <div style="margin-top:3rem;max-width:680px;margin-left:auto;margin-right:auto;">
-      <h3 style="text-align:center;margin-bottom:1.25rem;">Choosing a Path</h3>
-      <table style="width:100%;border-collapse:collapse;font-size:0.88rem;line-height:1.6;">
-        <tbody>
-          <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Demo</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You want to see the pipeline in action before committing to anything.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Self-Hosted</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need full control, your own infrastructure, or you want to contribute.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Free</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You want a free evaluation key to test the API in your own code.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Scale</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need production API access with 25,000 Sovereign Audit Receipts per month and retained audit logs.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Pro</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need 100,000 Sovereign Audit Receipts per month with retained audit logs and managed operations.</td>
-          </tr>
-          <tr style="border-bottom:1px solid var(--border);">
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">PAYG</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You prefer metered billing and only pay for the Sovereign Audit Receipts you use.</td>
-          </tr>
-          <tr>
-            <td style="padding:0.6rem 0.75rem;color:var(--green);font-weight:600;white-space:nowrap;vertical-align:top;">Services</td>
-            <td style="padding:0.6rem 0.75rem;color:var(--silver);">You need expert help with red-team testing, policy design, or integration.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-  </div>
-</section>
-
-<hr class="divider" />
-
-<!-- Recent Security Updates -->
-<section style="background:var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-  <div class="container">
-    <div class="hero-badge" style="margin-bottom:1rem;">April 2026</div>
-    <h2>Recent Security Updates</h2>
-    <p class="section-sub">Hardening round completed after independent adversarial review.</p>
-    <div class="guarantee-grid">
-      <div class="guarantee-card">
-        <h3>Deeper Input Decoding</h3>
-        <p>Base64 recursion depth increased from 5 to 10 layers with budget cap. Bidi/RTL override characters stripped. Data-URI payloads decoded inline before Base64 pass.</p>
+    <!-- Footer -->
+    <footer>
+      <div class="footer-legal">
+        <a href="https://app.aletheia-core.com/demo">Demo</a>
+        <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#services">Services</a>
+        <a href="mailto:info@aletheia-core.com">info@aletheia-core.com</a>
       </div>
-      <div class="guarantee-card">
-        <h3>Receipt Nonce Binding</h3>
-        <p>Every audit receipt now includes a 16-byte cryptographic nonce bound into both the HMAC signature and decision token. Identical requests produce unique receipts.</p>
+      <div class="footer-copy">
+        &copy; 2026 Aletheia Sovereign Systems &mdash; MIT License &nbsp;|&nbsp;
+        v1.9.1
       </div>
-      <div class="guarantee-card">
-        <h3>Sandbox Obfuscation Detection</h3>
-        <p>Sandbox scanner now detects obfuscated imports via <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">getattr()</code> indirection and <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ctypes.CDLL</code> / <code style="font-family:var(--font-mono);font-size:0.8rem;color:var(--silver)">ctypes.cdll</code> patterns.</p>
-      </div>
-      <div class="guarantee-card">
-        <h3>ReDoS Mitigation</h3>
-        <p>All intent-classifier regex quantifiers reduced to bounded ranges ({0,120} and {0,80}) to prevent catastrophic backtracking on adversarial inputs.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider" />
-
-<!-- Services -->
-<section id="services" style="background:var(--surface);">
-  <div class="container">
-    <h2>Services</h2>
-    <p class="section-sub">Available now. Designed for teams deploying AI agents in production.</p>
-    <div class="services-grid" style="margin-bottom:2.5rem;">
-      <div class="service-card">
-        <h3>AI Security Audit</h3>
-        <p>Structured review of your agent architecture, action surface, and risk posture. Delivered as a written report with prioritized findings.</p>
-      </div>
-      <div class="service-card">
-        <h3>Rapid Integration</h3>
-        <p>Hands-on support deploying Aletheia Core into your stack. Covers policy manifest design, endpoint configuration, and API key setup.</p>
-      </div>
-      <div class="service-card">
-        <h3>Managed Protection</h3>
-        <p>Ongoing monitoring and policy tuning as your agent capabilities evolve. Available as a retainer engagement.</p>
-      </div>
-      <div class="service-card">
-        <h3>Compliance Mapping</h3>
-        <p>Map your audit receipt outputs to relevant frameworks. Supports documentation for internal controls and third-party reviews.</p>
-      </div>
-      <div class="service-card">
-        <h3>Enterprise Self-Hosted</h3>
-        <p>Full deployment support for private cloud or on-premises environments. Includes architecture review and production readiness checklist.</p>
-      </div>
-      <div class="service-card">
-        <h3>Team Training</h3>
-        <p>Half-day or full-day sessions covering AI agent attack vectors, policy design, and incident response playbooks.</p>
-      </div>
-    </div>
-    <div style="text-align:center;">
-      <a href="mailto:info@aletheia-core.com?subject=Service Inquiry" class="cta-primary">Book Services</a>
-      <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--muted);">info@aletheia-core.com</p>
-    </div>
-  </div>
-</section>
-
-<!-- Footer -->
-<footer>
-  <div class="footer-legal">
-    <a href="https://app.aletheia-core.com/demo">Demo</a>
-    <a href="https://github.com/holeyfield33-art/aletheia-core">GitHub</a>
-    <a href="#pricing">Pricing</a>
-    <a href="#services">Services</a>
-    <a href="mailto:info@aletheia-core.com">info@aletheia-core.com</a>
-  </div>
-  <div class="footer-copy">
-    &copy; 2026 Aletheia Sovereign Systems &mdash; MIT License &nbsp;|&nbsp; v1.9.1
-  </div>
-</footer>
-
-</body>
+    </footer>
+  </body>
 </html>

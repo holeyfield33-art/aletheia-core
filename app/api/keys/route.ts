@@ -17,10 +17,14 @@ function hashKey(raw: string): string {
   const salt = process.env.ALETHEIA_KEY_SALT;
   if (!salt) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("ALETHEIA_KEY_SALT must be set in production to securely hash API keys.");
+      throw new Error(
+        "ALETHEIA_KEY_SALT must be set in production to securely hash API keys.",
+      );
     }
     // Dev/test only: warn loudly but allow unsalted hash
-    console.warn("[keys] ALETHEIA_KEY_SALT is not set — API key hashes are unsalted (dev mode only)");
+    console.warn(
+      "[keys] ALETHEIA_KEY_SALT is not set — API key hashes are unsalted (dev mode only)",
+    );
     return crypto.createHash("sha256").update(raw).digest("hex");
   }
   return crypto.createHmac("sha256", salt).update(raw).digest("hex");
@@ -66,7 +70,10 @@ export async function POST(request: NextRequest) {
   });
   if (existingCount >= planConfig.maxActiveKeys) {
     return secureJson(
-      { error: "limit_reached", message: `Maximum ${planConfig.maxActiveKeys} active keys per account.` },
+      {
+        error: "limit_reached",
+        message: `Maximum ${planConfig.maxActiveKeys} active keys per account.`,
+      },
       { status: 429 },
     );
   }
@@ -78,7 +85,10 @@ export async function POST(request: NextRequest) {
     return secureJson({ error: "invalid_json" }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name.slice(0, 64).trim() : "Unnamed Key";
+  const name =
+    typeof body.name === "string"
+      ? body.name.slice(0, 64).trim()
+      : "Unnamed Key";
   const plan = planConfig.apiKeyPlan;
 
   const rawKey = `sk_${plan}_${crypto.randomBytes(24).toString("hex")}`;

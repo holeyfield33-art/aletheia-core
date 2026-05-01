@@ -110,6 +110,7 @@ One-click:
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/holeyfield33-art/aletheia-core)
 
 Manual steps:
+
 1. Connect your GitHub repo in the Render dashboard.
 2. Render reads `render.yaml` — it defines the build command, start command, and env vars.
 3. Set env vars in the Render dashboard:
@@ -117,7 +118,9 @@ Manual steps:
    - `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
    - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
    - `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
-  - API keys are created via `POST /v1/keys` after deployment (KeyStore)
+
+- API keys are created via `POST /v1/keys` after deployment (KeyStore)
+
 4. Sign the manifest locally (`python main.py sign-manifest`) and commit the `.sig` file before deploying.
 5. Verify: `curl https://<your-app>.onrender.com/health`
 
@@ -126,10 +129,12 @@ Manual steps:
 1. Connect the repo in the Vercel dashboard.
 2. Vercel reads `vercel.json` — framework is `nextjs`.
 3. Set env vars:
-  - `ALETHEIA_BACKEND_URL=https://aletheia-core.onrender.com`
-  - `ALETHEIA_ALLOWED_BACKEND_HOSTS=aletheia-core.onrender.com,app.aletheia-core.com,aletheia-core.com`
-  - `ALETHEIA_DEMO_API_KEY=<value returned by POST /v1/keys>`
-  - Optional fallback: `ALETHEIA_API_KEY=<same value>`
+
+- `ALETHEIA_BACKEND_URL=https://aletheia-core.onrender.com`
+- `ALETHEIA_ALLOWED_BACKEND_HOSTS=aletheia-core.onrender.com,app.aletheia-core.com,aletheia-core.com`
+- `ALETHEIA_DEMO_API_KEY=<value returned by POST /v1/keys>`
+- Optional fallback: `ALETHEIA_API_KEY=<same value>`
+
 4. Deploy. The frontend calls the backend via `/api/demo`.
 
 Note: The demo key should be set on Vercel (server-side route env), not on Render.
@@ -145,15 +150,16 @@ filesystem is ephemeral, so the demo key vanishes on every restart and the
 Two recommended options:
 
 1. **Use Postgres for the KeyStore** (recommended for any persistent deploy):
-  - Set `ALETHEIA_DATABASE_BACKEND=postgres`
-  - Set `DATABASE_URL=postgres://…`
-  - Provision the demo key once with `POST /v1/keys` and store it as
-    `ALETHEIA_DEMO_API_KEY` on Vercel.
+
+- Set `ALETHEIA_DATABASE_BACKEND=postgres`
+- Set `DATABASE_URL=postgres://…`
+- Provision the demo key once with `POST /v1/keys` and store it as
+  `ALETHEIA_DEMO_API_KEY` on Vercel.
 
 2. **Auto-seed at startup** (works on SQLite too): set
-  `ALETHEIA_DEMO_API_KEY` on **both** Vercel _and_ Render. The backend's
-  lifespan hook (`bridge.fastapi_wrapper._seed_demo_key`) will register the
-  key in the local KeyStore on every boot. This is idempotent.
+   `ALETHEIA_DEMO_API_KEY` on **both** Vercel _and_ Render. The backend's
+   lifespan hook (`bridge.fastapi_wrapper._seed_demo_key`) will register the
+   key in the local KeyStore on every boot. This is idempotent.
 
 To re-seed manually after a database loss:
 
@@ -186,15 +192,15 @@ The Dockerfile uses `python:3.11-slim`, verifies the manifest signature at build
 
 ## Which path should you choose?
 
-| Goal | Path |
-|------|------|
-| Learning, prototyping | Python-only (`python main.py`) |
-| Integration with apps, frontends, SaaS | FastAPI server (`uvicorn`) |
-| Demo to partners/customers | `bash demo.sh` or simulations |
-| Production single-instance | Docker or Render |
-| Production multi-worker | Render + Upstash Redis |
-| Frontend dashboard | Vercel + Render API backend |
-| Library integration | `pip install aletheia-cyber-core` |
+| Goal                                   | Path                              |
+| -------------------------------------- | --------------------------------- |
+| Learning, prototyping                  | Python-only (`python main.py`)    |
+| Integration with apps, frontends, SaaS | FastAPI server (`uvicorn`)        |
+| Demo to partners/customers             | `bash demo.sh` or simulations     |
+| Production single-instance             | Docker or Render                  |
+| Production multi-worker                | Render + Upstash Redis            |
+| Frontend dashboard                     | Vercel + Render API backend       |
+| Library integration                    | `pip install aletheia-cyber-core` |
 
 ---
 
@@ -214,6 +220,7 @@ The Dockerfile uses `python:3.11-slim`, verifies the manifest signature at build
 - **Consulting bundle** (sell setup + policy tuning services).
 
 Package this as an **"AI Agent Safety Gate"** for teams that run automation in finance/ops:
+
 - One-time setup fee
 - Monthly support retainer
 - Optional compliance/audit reporting add-on

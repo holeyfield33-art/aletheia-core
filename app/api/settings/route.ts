@@ -16,7 +16,8 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name.trim().slice(0, 100) : undefined;
+  const name =
+    typeof body.name === "string" ? body.name.trim().slice(0, 100) : undefined;
   if (name === undefined) {
     return NextResponse.json({ error: "invalid_fields" }, { status: 400 });
   }

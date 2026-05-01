@@ -4,7 +4,11 @@ import { useState } from "react";
 import { signOut } from "next-auth/react";
 import UpgradeButton from "@/app/components/UpgradeButton";
 import { useToast } from "@/app/components/Toast";
-import { clientFetch, clientFetchResponse, isClientFetchError } from "@/lib/client-fetch";
+import {
+  clientFetch,
+  clientFetchResponse,
+  isClientFetchError,
+} from "@/lib/client-fetch";
 
 export default function SettingsClient({
   name,
@@ -32,7 +36,11 @@ export default function SettingsClient({
   const normalizedEmail = email?.toLowerCase() ?? "";
 
   const getErrorMessage = (error: unknown, fallback: string) => {
-    if (isClientFetchError(error) && typeof error.data === "object" && error.data) {
+    if (
+      isClientFetchError(error) &&
+      typeof error.data === "object" &&
+      error.data
+    ) {
       const payload = error.data as { message?: string; error?: string };
       return payload.message || payload.error || fallback;
     }
@@ -63,7 +71,9 @@ export default function SettingsClient({
     if (exporting) return;
     setExporting(true);
     try {
-      const res = await clientFetchResponse("/api/account/export", { method: "POST" });
+      const res = await clientFetchResponse("/api/account/export", {
+        method: "POST",
+      });
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -89,7 +99,10 @@ export default function SettingsClient({
       await clientFetch("/api/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: deletePassword, confirmEmail: deleteEmailConfirm }),
+        body: JSON.stringify({
+          password: deletePassword,
+          confirmEmail: deleteEmailConfirm,
+        }),
       });
       signOut({ callbackUrl: "/" });
     } catch (error) {
@@ -183,7 +196,9 @@ export default function SettingsClient({
               {createdAt}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div
+            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+          >
             <button
               type="submit"
               disabled={saving}
@@ -247,7 +262,8 @@ export default function SettingsClient({
               fontFamily: "var(--font-mono)",
               fontSize: "0.85rem",
               color: "var(--white)",
-              background: plan === "TRIAL" ? "var(--surface-2)" : "var(--crimson-glow)",
+              background:
+                plan === "TRIAL" ? "var(--surface-2)" : "var(--crimson-glow)",
               border: `1px solid ${plan === "TRIAL" ? "var(--border-hi)" : "var(--crimson)"}`,
               padding: "0.35rem 0.85rem",
               borderRadius: "4px",
@@ -262,9 +278,12 @@ export default function SettingsClient({
               color: "var(--muted)",
             }}
           >
-            {plan === "TRIAL" && "1,000 Sovereign Audit Receipts/month · 1 API key"}
-            {plan === "PRO" && "Scale · 25,000 verified decisions/month · 10 API keys"}
-            {plan === "MAX" && "Pro · 100,000 verified decisions/month · 10 API keys"}
+            {plan === "TRIAL" &&
+              "1,000 Sovereign Audit Receipts/month · 1 API key"}
+            {plan === "PRO" &&
+              "Scale · 25,000 verified decisions/month · 10 API keys"}
+            {plan === "MAX" &&
+              "Pro · 100,000 verified decisions/month · 10 API keys"}
             {plan === "ENTERPRISE" && "PAYG or custom limits"}
           </span>
         </div>
@@ -349,8 +368,9 @@ export default function SettingsClient({
             lineHeight: 1.6,
           }}
         >
-          Export a copy of your profile, API keys metadata, and audit logs (90 days). You can also
-          permanently delete your account and all associated data.
+          Export a copy of your profile, API keys metadata, and audit logs (90
+          days). You can also permanently delete your account and all associated
+          data.
         </p>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <button
@@ -397,8 +417,9 @@ export default function SettingsClient({
                 lineHeight: 1.6,
               }}
             >
-              This will permanently delete your account after a 30-day grace period. All API keys will
-              be revoked immediately. This action cannot be undone.
+              This will permanently delete your account after a 30-day grace
+              period. All API keys will be revoked immediately. This action
+              cannot be undone.
             </p>
             {hasPassword && (
               <input
@@ -441,7 +462,13 @@ export default function SettingsClient({
               />
             )}
             {deleteError && (
-              <p style={{ color: "#f87171", fontSize: "0.8rem", marginBottom: "0.5rem" }}>
+              <p
+                style={{
+                  color: "#f87171",
+                  fontSize: "0.8rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
                 {deleteError}
               </p>
             )}
@@ -450,7 +477,8 @@ export default function SettingsClient({
               disabled={
                 deleting ||
                 (hasPassword && !deletePassword) ||
-                (!hasPassword && deleteEmailConfirm.trim().toLowerCase() !== normalizedEmail)
+                (!hasPassword &&
+                  deleteEmailConfirm.trim().toLowerCase() !== normalizedEmail)
               }
               style={{
                 fontSize: "0.82rem",
@@ -462,7 +490,8 @@ export default function SettingsClient({
                 opacity:
                   deleting ||
                   (hasPassword && !deletePassword) ||
-                  (!hasPassword && deleteEmailConfirm.trim().toLowerCase() !== normalizedEmail)
+                  (!hasPassword &&
+                    deleteEmailConfirm.trim().toLowerCase() !== normalizedEmail)
                     ? 0.5
                     : 1,
               }}
@@ -493,7 +522,9 @@ export default function SettingsClient({
         >
           Legal
         </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}
+        >
           {[
             { label: "Privacy Policy", href: "/legal/privacy" },
             { label: "Terms of Service", href: "/legal/terms" },

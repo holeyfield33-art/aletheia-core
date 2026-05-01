@@ -12,7 +12,7 @@ postgresql:
   enabled: true
   # Set via --set or ExternalSecret:
   # url: "postgresql://user:pass@host:5432/aletheia?sslmode=require"
-  existingSecret: ""  # set to ExternalSecret name if using ESO
+  existingSecret: "" # set to ExternalSecret name if using ESO
 
 redis:
   enabled: true

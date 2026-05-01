@@ -2,7 +2,8 @@ import { PRODUCT, URLS, STATUS, PRICING } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Aletheia Core — Runtime audit and pre-execution block layer for AI agents",
+  title:
+    "Aletheia Core — Runtime audit and pre-execution block layer for AI agents",
   description:
     "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
   alternates: { canonical: URLS.appBase },
@@ -196,7 +197,8 @@ function HowItWorks() {
             fontSize: "1rem",
           }}
         >
-          Every request passes through a deterministic pipeline. Each stage must clear independently.
+          Every request passes through a deterministic pipeline. Each stage must
+          clear independently.
         </p>
 
         {/* Pipeline flow diagram */}
@@ -219,7 +221,10 @@ function HowItWorks() {
             { label: "Receipt Signing", color: "var(--green)" },
             { label: "Audit Persistence", color: "var(--green)" },
           ].map((node, i, arr) => (
-            <div key={node.label} style={{ display: "flex", alignItems: "center" }}>
+            <div
+              key={node.label}
+              style={{ display: "flex", alignItems: "center" }}
+            >
               <div
                 style={{
                   background: "var(--surface)",
@@ -301,7 +306,13 @@ function HowItWorks() {
               >
                 {title}
               </h3>
-              <p style={{ fontSize: "0.88rem", color: "var(--silver)", lineHeight: 1.6 }}>
+              <p
+                style={{
+                  fontSize: "0.88rem",
+                  color: "var(--silver)",
+                  lineHeight: 1.6,
+                }}
+              >
                 {body}
               </p>
             </div>
@@ -399,9 +410,10 @@ function BuiltInTheOpen() {
             lineHeight: 1.7,
           }}
         >
-          <strong style={{ color: "var(--white)" }}>API Access:</strong>{" "}
-          Use the live demo with no key, request a free trial key for evaluation,
-          or upgrade to Scale or Pro for production verified decisions and retained audit logs.
+          <strong style={{ color: "var(--white)" }}>API Access:</strong> Use the
+          live demo with no key, request a free trial key for evaluation, or
+          upgrade to Scale or Pro for production verified decisions and retained
+          audit logs.
         </div>
         <a
           href={URLS.github}
@@ -442,8 +454,7 @@ function HowToUse() {
       price: "Free",
       priceDetail: "/ evaluation",
       color: "var(--silver)",
-      description:
-        `Free evaluation key with ${PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts/month. No credit card required.`,
+      description: `Free evaluation key with ${PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts/month. No credit card required.`,
       features: [
         "Free evaluation key",
         `${PRICING.free.receipts.toLocaleString()} Sovereign Audit Receipts / month`,
@@ -459,8 +470,7 @@ function HowToUse() {
       price: `$${PRICING.scale.price}`,
       priceDetail: "/mo",
       color: "var(--crimson-hi)",
-      description:
-        `Production API access with ${PRICING.scale.receipts.toLocaleString()} verified decisions/month, retained audit logs, and priority support.`,
+      description: `Production API access with ${PRICING.scale.receipts.toLocaleString()} verified decisions/month, retained audit logs, and priority support.`,
       features: [
         "Production API access",
         `${PRICING.scale.receipts.toLocaleString()} Sovereign Audit Receipts / month`,
@@ -481,8 +491,7 @@ function HowToUse() {
       price: `$${PRICING.pro.price}`,
       priceDetail: "/mo",
       color: "var(--white)",
-      description:
-        `Higher-throughput hosted API access with ${PRICING.pro.receipts.toLocaleString()} verified decisions/month for heavier production workloads.`,
+      description: `Higher-throughput hosted API access with ${PRICING.pro.receipts.toLocaleString()} verified decisions/month for heavier production workloads.`,
       features: [
         "Production API access",
         `${PRICING.pro.receipts.toLocaleString()} Sovereign Audit Receipts / month`,
@@ -539,7 +548,8 @@ function HowToUse() {
             fontSize: "1rem",
           }}
         >
-          Open-source core. Hosted API for evaluation and production. Expert services available.
+          Open-source core. Hosted API for evaluation and production. Expert
+          services available.
         </p>
         <div
           style={{
@@ -761,7 +771,8 @@ function RecentSecurityUpdates() {
             fontSize: "1rem",
           }}
         >
-          Enterprise auth, multi-tenancy, Kubernetes, and full observability stack — now production-ready.
+          Enterprise auth, multi-tenancy, Kubernetes, and full observability
+          stack — now production-ready.
         </p>
         <div
           style={{
@@ -775,8 +786,12 @@ function RecentSecurityUpdates() {
               key={title}
               style={{
                 background: "var(--surface)",
-                border: isNew ? "1px solid var(--crimson)" : "1px solid var(--border)",
-                borderLeft: isNew ? "3px solid var(--green)" : "3px solid var(--crimson)",
+                border: isNew
+                  ? "1px solid var(--crimson)"
+                  : "1px solid var(--border)",
+                borderLeft: isNew
+                  ? "3px solid var(--green)"
+                  : "3px solid var(--crimson)",
                 borderRadius: "8px",
                 padding: "1.25rem",
                 position: "relative",
@@ -913,7 +928,13 @@ function Services() {
               >
                 {title}
               </h3>
-              <p style={{ fontSize: "0.85rem", color: "var(--silver)", lineHeight: 1.55 }}>
+              <p
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--silver)",
+                  lineHeight: 1.55,
+                }}
+              >
                 {desc}
               </p>
             </div>
@@ -987,14 +1008,14 @@ function VerifyItYourself() {
           <div>cd aletheia-core &amp;&amp; pip install -r requirements.txt</div>
           <br />
           <div style={{ color: "var(--muted)" }}># Run a scan</div>
-          <div>
-            curl -X POST http://localhost:8000/v1/audit \
-          </div>
+          <div>curl -X POST http://localhost:8000/v1/audit \</div>
           <div style={{ paddingLeft: "1rem" }}>
             -H &quot;Content-Type: application/json&quot; \
           </div>
           <div style={{ paddingLeft: "1rem" }}>
-            -d &apos;{`{"payload":"test input","origin":"local","action":"fetch_data"}`}&apos;
+            -d &apos;
+            {`{"payload":"test input","origin":"local","action":"fetch_data"}`}
+            &apos;
           </div>
           <br />
           <div style={{ color: "var(--muted)" }}>

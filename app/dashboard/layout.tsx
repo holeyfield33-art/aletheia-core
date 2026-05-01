@@ -5,15 +5,23 @@ import Breadcrumbs from "./Breadcrumbs";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Aletheia Core operational dashboard. Audit logs, policy management, evidence export, and API key administration.",
+  description:
+    "Aletheia Core operational dashboard. Audit logs, policy management, evidence export, and API key administration.",
 };
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await requireAuth();
   const user = session.user;
 
   return (
-    <div className="dashboard-layout" style={{ display: "flex", minHeight: "calc(100vh - 60px)" }}>
+    <div
+      className="dashboard-layout"
+      style={{ display: "flex", minHeight: "calc(100vh - 60px)" }}
+    >
       {/* Sidebar */}
       <DashboardSidebar userName={user.name} userPlan={user.plan} />
       {/* Main content */}

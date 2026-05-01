@@ -18,9 +18,10 @@ export async function DELETE(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const confirmationPassword = body?.password;
-  const confirmationEmail = typeof body?.confirmEmail === "string"
-    ? body.confirmEmail.trim().toLowerCase()
-    : "";
+  const confirmationEmail =
+    typeof body?.confirmEmail === "string"
+      ? body.confirmEmail.trim().toLowerCase()
+      : "";
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
@@ -35,7 +36,10 @@ export async function DELETE(request: NextRequest) {
   if (user.password) {
     if (!confirmationPassword || typeof confirmationPassword !== "string") {
       return NextResponse.json(
-        { error: "password_required", message: "Please confirm your password to delete your account." },
+        {
+          error: "password_required",
+          message: "Please confirm your password to delete your account.",
+        },
         { status: 400 },
       );
     }
@@ -51,7 +55,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         {
           error: "email_confirmation_required",
-          message: "Type your email address exactly to confirm account deletion.",
+          message:
+            "Type your email address exactly to confirm account deletion.",
         },
         { status: 400 },
       );
@@ -62,13 +67,15 @@ export async function DELETE(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
     const issuedAt = typeof token?.iat === "number" ? token.iat : 0;
-    const ageSeconds = issuedAt > 0 ? Math.floor(Date.now() / 1000) - issuedAt : Infinity;
+    const ageSeconds =
+      issuedAt > 0 ? Math.floor(Date.now() / 1000) - issuedAt : Infinity;
 
     if (ageSeconds > OAUTH_DELETE_REAUTH_WINDOW_SECONDS) {
       return NextResponse.json(
         {
           error: "reauth_required",
-          message: "Please sign out and sign back in before deleting an OAuth account.",
+          message:
+            "Please sign out and sign back in before deleting an OAuth account.",
         },
         { status: 403 },
       );
@@ -91,7 +98,10 @@ export async function DELETE(request: NextRequest) {
   ]);
 
   return NextResponse.json(
-    { success: true, message: "Account scheduled for deletion. You have been signed out." },
+    {
+      success: true,
+      message: "Account scheduled for deletion. You have been signed out.",
+    },
     { status: 200 },
   );
 }

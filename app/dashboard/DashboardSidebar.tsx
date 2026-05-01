@@ -82,7 +82,12 @@ export default function DashboardSidebar({
       </div>
 
       {/* User info + sign out */}
-      <div style={{ padding: "1rem 1.25rem", borderTop: "1px solid var(--border)" }}>
+      <div
+        style={{
+          padding: "1rem 1.25rem",
+          borderTop: "1px solid var(--border)",
+        }}
+      >
         {userName && (
           <div
             style={{

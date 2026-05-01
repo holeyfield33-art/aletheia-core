@@ -51,12 +51,14 @@ class PgKeyStore:
         self._pool = pool
         async with pool.acquire() as conn:
             # Schema version tracking
-            await conn.execute("""
+            await conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS _schema_version (
                     id   INTEGER PRIMARY KEY CHECK (id = 1),
                     version INTEGER NOT NULL
                 )
-            """)
+            """
+            )
             row = await conn.fetchrow(
                 "SELECT version FROM _schema_version WHERE id = 1"
             )
@@ -64,7 +66,8 @@ class PgKeyStore:
 
             # v1: base table
             if current < 1:
-                await conn.execute("""
+                await conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS api_keys (
                         id            TEXT PRIMARY KEY,
                         tenant_id     TEXT NOT NULL DEFAULT 'default',
@@ -82,7 +85,8 @@ class PgKeyStore:
                         user_id       TEXT,
                         role          TEXT NOT NULL DEFAULT 'operator'
                     )
-                """)
+                """
+                )
                 await conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)"
                 )

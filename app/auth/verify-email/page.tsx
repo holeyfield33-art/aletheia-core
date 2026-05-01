@@ -51,8 +51,8 @@ export default function VerifyEmailPage() {
           marginBottom: "2rem",
         }}
       >
-        We sent a verification link to your email address.
-        Click the link to activate your account and sign in.
+        We sent a verification link to your email address. Click the link to
+        activate your account and sign in.
       </p>
       <div
         style={{
@@ -71,9 +71,8 @@ export default function VerifyEmailPage() {
             margin: 0,
           }}
         >
-          The link expires in 24 hours. Check your spam folder if you
-          don&apos;t see it. If you still can&apos;t find it, try
-          registering again.
+          The link expires in 24 hours. Check your spam folder if you don&apos;t
+          see it. If you still can&apos;t find it, try registering again.
         </p>
       </div>
       <a

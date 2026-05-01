@@ -28,12 +28,15 @@ function LoginContent() {
 
   const oauthMessages: Record<string, string> = {
     OAuthSignin: "Could not start OAuth sign-in. Check provider configuration.",
-    OAuthCallback: "OAuth callback error. The redirect URI may not match the provider's allowed list.",
+    OAuthCallback:
+      "OAuth callback error. The redirect URI may not match the provider's allowed list.",
     OAuthCreateAccount: "Could not create account from OAuth provider.",
-    OAuthAccountNotLinked: "This email is already linked to another sign-in method. Sign in with the original method first.",
+    OAuthAccountNotLinked:
+      "This email is already linked to another sign-in method. Sign in with the original method first.",
     Callback: "OAuth callback error. Check server logs for details.",
     AccessDenied: "Access denied. You may not have permission to sign in.",
-    Configuration: "Server configuration error. Check NEXTAUTH_URL and provider settings.",
+    Configuration:
+      "Server configuration error. Check NEXTAUTH_URL and provider settings.",
     Default: "An authentication error occurred. Please try again.",
   };
 
@@ -163,12 +166,24 @@ function LoginContent() {
               wordBreak: "break-all",
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: "0.25rem", color: "#60a5fa" }}>
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: "0.25rem",
+                color: "#60a5fa",
+              }}
+            >
               Debug (non-production only)
             </div>
             <div>callbackUrl: {callbackUrl}</div>
-            <div>NEXT_PUBLIC_VERCEL_ENV: {process.env.NEXT_PUBLIC_VERCEL_ENV ?? "(unset)"}</div>
-            <div>NEXT_PUBLIC_VERCEL_URL: {process.env.NEXT_PUBLIC_VERCEL_URL ?? "(unset)"}</div>
+            <div>
+              NEXT_PUBLIC_VERCEL_ENV:{" "}
+              {process.env.NEXT_PUBLIC_VERCEL_ENV ?? "(unset)"}
+            </div>
+            <div>
+              NEXT_PUBLIC_VERCEL_URL:{" "}
+              {process.env.NEXT_PUBLIC_VERCEL_URL ?? "(unset)"}
+            </div>
             {oauthError && <div>OAuth error code: {oauthError}</div>}
           </div>
         )}
@@ -270,9 +285,15 @@ function LoginContent() {
             margin: "1.25rem 0",
           }}
         >
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-          <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>or continue with</span>
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+          <div
+            style={{ flex: 1, height: "1px", background: "var(--border)" }}
+          />
+          <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>
+            or continue with
+          </span>
+          <div
+            style={{ flex: 1, height: "1px", background: "var(--border)" }}
+          />
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem" }}>

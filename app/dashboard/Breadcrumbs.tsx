@@ -39,7 +39,10 @@ export default function Breadcrumbs() {
       }}
     >
       {crumbs.map(({ label, href, isLast }) => (
-        <span key={href} style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+        <span
+          key={href}
+          style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+        >
           {isLast ? (
             <span style={{ color: "var(--silver)" }}>{label}</span>
           ) : (

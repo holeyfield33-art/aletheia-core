@@ -97,7 +97,9 @@ export default function StatusPage() {
           alignItems: "center",
           gap: "0.75rem",
           padding: "1rem 1.25rem",
-          background: allOperational ? "rgba(46,184,122,0.08)" : "rgba(230,126,34,0.08)",
+          background: allOperational
+            ? "rgba(46,184,122,0.08)"
+            : "rgba(230,126,34,0.08)",
           border: `1px solid ${allOperational ? "rgba(46,184,122,0.25)" : "rgba(230,126,34,0.25)"}`,
           borderRadius: "8px",
           marginBottom: "2rem",
@@ -120,7 +122,9 @@ export default function StatusPage() {
             color: allOperational ? "var(--green)" : "#e67e22",
           }}
         >
-          {allOperational ? "All Systems Operational" : "Some Systems Experiencing Issues"}
+          {allOperational
+            ? "All Systems Operational"
+            : "Some Systems Experiencing Issues"}
         </span>
       </div>
 
@@ -207,20 +211,28 @@ export default function StatusPage() {
             marginBottom: "0.75rem",
           }}
         >
-          This page reflects the current configuration status of {PRODUCT.name} services.
-          For real-time incident updates and historical uptime data, check back here or
-          follow our GitHub repository.
+          This page reflects the current configuration status of {PRODUCT.name}{" "}
+          services. For real-time incident updates and historical uptime data,
+          check back here or follow our GitHub repository.
         </p>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <a
             href={URLS.github}
-            style={{ color: "var(--crimson-hi)", fontSize: "0.82rem", textDecoration: "none" }}
+            style={{
+              color: "var(--crimson-hi)",
+              fontSize: "0.82rem",
+              textDecoration: "none",
+            }}
           >
             GitHub &rarr;
           </a>
           <a
             href={`mailto:${URLS.contactEmail}?subject=Status Inquiry`}
-            style={{ color: "var(--crimson-hi)", fontSize: "0.82rem", textDecoration: "none" }}
+            style={{
+              color: "var(--crimson-hi)",
+              fontSize: "0.82rem",
+              textDecoration: "none",
+            }}
           >
             Report an Issue &rarr;
           </a>
@@ -236,7 +248,8 @@ export default function StatusPage() {
           textAlign: "center",
         }}
       >
-        v{PRODUCT.version} · Last checked: {new Date().toISOString().slice(0, 16).replace("T", " ")} UTC
+        v{PRODUCT.version} · Last checked:{" "}
+        {new Date().toISOString().slice(0, 16).replace("T", " ")} UTC
       </p>
     </div>
   );

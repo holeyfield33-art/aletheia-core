@@ -7,6 +7,10 @@ export const metadata: Metadata = {
     "Send a test payload through a live Aletheia audit engine. See the decision and signed receipt in real time. No install required.",
 };
 
-export default function DemoLayout({ children }: { children: React.ReactNode }) {
+export default function DemoLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return <DemoErrorBoundary>{children}</DemoErrorBoundary>;
 }

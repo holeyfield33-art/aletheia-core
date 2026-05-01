@@ -157,7 +157,9 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <label htmlFor="reg-name" style={labelStyle}>Name</label>
+          <label htmlFor="reg-name" style={labelStyle}>
+            Name
+          </label>
           <input
             id="reg-name"
             type="text"
@@ -168,7 +170,9 @@ export default function RegisterPage() {
             style={inputStyle}
           />
 
-          <label htmlFor="reg-email" style={labelStyle}>Email</label>
+          <label htmlFor="reg-email" style={labelStyle}>
+            Email
+          </label>
           <input
             id="reg-email"
             type="email"
@@ -179,7 +183,9 @@ export default function RegisterPage() {
             style={inputStyle}
           />
 
-          <label htmlFor="reg-password" style={labelStyle}>Password</label>
+          <label htmlFor="reg-password" style={labelStyle}>
+            Password
+          </label>
           <input
             id="reg-password"
             type="password"
@@ -192,7 +198,9 @@ export default function RegisterPage() {
             style={inputStyle}
           />
 
-          <label htmlFor="reg-confirm" style={labelStyle}>Confirm Password</label>
+          <label htmlFor="reg-confirm" style={labelStyle}>
+            Confirm Password
+          </label>
           <input
             id="reg-confirm"
             type="password"
@@ -223,11 +231,25 @@ export default function RegisterPage() {
             />
             <span>
               I agree to the{" "}
-              <a href="/legal/terms" target="_blank" style={{ color: "var(--crimson-hi)", textDecoration: "underline" }}>
+              <a
+                href="/legal/terms"
+                target="_blank"
+                style={{
+                  color: "var(--crimson-hi)",
+                  textDecoration: "underline",
+                }}
+              >
                 Terms of Service
               </a>{" "}
               and{" "}
-              <a href="/legal/privacy" target="_blank" style={{ color: "var(--crimson-hi)", textDecoration: "underline" }}>
+              <a
+                href="/legal/privacy"
+                target="_blank"
+                style={{
+                  color: "var(--crimson-hi)",
+                  textDecoration: "underline",
+                }}
+              >
                 Privacy Policy
               </a>
             </span>
@@ -261,9 +283,15 @@ export default function RegisterPage() {
             margin: "1.25rem 0",
           }}
         >
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
-          <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>or continue with</span>
-          <div style={{ flex: 1, height: "1px", background: "var(--border)" }} />
+          <div
+            style={{ flex: 1, height: "1px", background: "var(--border)" }}
+          />
+          <span style={{ color: "var(--muted)", fontSize: "0.75rem" }}>
+            or continue with
+          </span>
+          <div
+            style={{ flex: 1, height: "1px", background: "var(--border)" }}
+          />
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem" }}>

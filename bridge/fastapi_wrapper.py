@@ -39,6 +39,10 @@ from core.metrics import (
     AUDIT_EVALUATION_DURATION_SECONDS,
     metrics_response,
 )
+from core.logging import configure_logging
+
+
+configure_logging()
 
 _logger = logging.getLogger("aletheia.api")
 
@@ -783,7 +787,24 @@ async def health_check(request: Request) -> JSONResponse:
         "startup not completed",
         "startup in progress",
     }
-    status_text = "ok" if _ready else "degraded"
+
+    redis_ready = True
+    try:
+        from core.redis_pool import get_redis_pool
+
+        pool = await get_redis_pool()
+        if pool is not None:
+            await pool.ping()  # type: ignore[union-attr]
+    except Exception:
+        redis_ready = False
+
+    from core.db import check_database_health, check_qdrant_health
+
+    database_ready, database_detail = await check_database_health()
+    qdrant_ready, qdrant_detail = await check_qdrant_health()
+
+    dependencies_ready = redis_ready and database_ready and qdrant_ready
+    status_text = "ok" if (_ready and dependencies_ready) else "degraded"
 
     # Unauthenticated response stays minimal.
     body: dict[str, object] = {
@@ -811,13 +832,18 @@ async def health_check(request: Request) -> JSONResponse:
                 "version": app.version,
                 "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
                 "timestamp": _time.time(),
+                "redis_ready": redis_ready,
+                "database_ready": database_ready,
+                "database_status": database_detail,
+                "qdrant_ready": qdrant_ready,
+                "qdrant_status": qdrant_detail,
                 "demo_key_configured": demo_key["configured"],
                 "demo_key_registered": demo_key["registered"],
                 "demo_key_status": demo_key["status"],
             }
         )
 
-    if _ready or startup_pending:
+    if dependencies_ready and (_ready or startup_pending):
         return JSONResponse(status_code=200, content=body)
 
     body["detail"] = _startup_error_detail or "critical startup failure"
@@ -852,9 +878,14 @@ async def readiness_check() -> JSONResponse:
     except Exception:
         redis_ready = False
 
+    from core.db import check_database_health, check_qdrant_health
+
+    database_ready, database_detail = await check_database_health()
+    qdrant_ready, qdrant_detail = await check_qdrant_health()
+
     demo_key = _demo_key_health_signal()
 
-    ready = manifest_ok and redis_ready
+    ready = manifest_ok and redis_ready and database_ready and qdrant_ready
 
     body = {
         "ready": ready,
@@ -863,6 +894,10 @@ async def readiness_check() -> JSONResponse:
         "receipt_signing_configured": receipt_configured,
         "database_backend": settings.database_backend,
         "redis_ready": redis_ready,
+        "database_ready": database_ready,
+        "database_status": database_detail,
+        "qdrant_ready": qdrant_ready,
+        "qdrant_status": qdrant_detail,
         "demo_key_configured": demo_key["configured"],
         "demo_key_registered": demo_key["registered"],
         "demo_key_status": demo_key["status"],

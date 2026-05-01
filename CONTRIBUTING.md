@@ -19,7 +19,7 @@ contribute effectively.
    ```bash
    python main.py sign-manifest
    ```
-4. Run the test suite to confirm your environment works:
+5. Run the test suite to confirm your environment works:
    ```bash
    pytest tests/ -v --ignore=tests/test_api.py
    ```
@@ -47,9 +47,21 @@ pytest tests/test_proximity/ -v
    - `chore:` for maintenance tasks
 6. Open a pull request against `main`.
 
+### Developer Certificate of Origin (DCO)
+
+This repository currently does not enforce DCO with a bot workflow. Contributors
+must sign off each commit manually:
+
+```bash
+git commit -s -m "<type>: <summary>"
+```
+
+Every commit in a pull request should include a `Signed-off-by:` trailer.
+
 ### Pre-commit Hooks
 
 Pre-commit hooks run automatically on `git commit`. They enforce:
+
 - **ruff** lint and format checks
 - Trailing whitespace and end-of-file fixes
 - YAML/JSON syntax validation
@@ -82,6 +94,7 @@ bumps, use this staged process:
 ### PR Labels
 
 Use these labels on PRs for automatic release-drafter categorization:
+
 - `feature` / `enhancement` — Features
 - `fix` / `bug` — Bug Fixes
 - `security` — Security

@@ -59,7 +59,10 @@ async function ensureUsageTables(): Promise<void> {
   return usageTablesInitPromise;
 }
 
-export async function incrementUsage(userId: string, quantity: number = 1): Promise<void> {
+export async function incrementUsage(
+  userId: string,
+  quantity: number = 1,
+): Promise<void> {
   if (!userId || quantity <= 0) return;
   await ensureUsageTables();
 
@@ -91,15 +94,17 @@ export async function getUnreportedUsage(userId: string): Promise<number> {
   if (!userId) return 0;
   await ensureUsageTables();
 
-  const rows = await prisma.$queryRawUnsafe<Array<{ unreported_usage: bigint | number }>>(
-    "SELECT unreported_usage FROM user_usage WHERE user_id = $1",
-    userId,
-  );
+  const rows = await prisma.$queryRawUnsafe<
+    Array<{ unreported_usage: bigint | number }>
+  >("SELECT unreported_usage FROM user_usage WHERE user_id = $1", userId);
 
   return rows.length > 0 ? toNumber(rows[0].unreported_usage) : 0;
 }
 
-export async function clearUnreportedUsage(userId: string, amount: number): Promise<void> {
+export async function clearUnreportedUsage(
+  userId: string,
+  amount: number,
+): Promise<void> {
   if (!userId || amount <= 0) return;
   await ensureUsageTables();
 
@@ -190,7 +195,9 @@ export async function getCurrentMonthUsage(userId: string): Promise<number> {
   return toNumber(row?.usage ?? 0);
 }
 
-export async function getStaleUnreportedEventCount(hours: number = 2): Promise<number> {
+export async function getStaleUnreportedEventCount(
+  hours: number = 2,
+): Promise<number> {
   await ensureUsageTables();
 
   const [row] = await prisma.$queryRawUnsafe<CountRow[]>(

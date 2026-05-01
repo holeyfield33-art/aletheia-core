@@ -10,10 +10,10 @@ Base URL: `http://localhost:8000` (local) or your deployment host.
 
 Two authentication mechanisms are supported:
 
-| Header | Used by | Source |
-|--------|---------|--------|
-| `X-API-Key` | `/v1/audit`, `/v1/evaluate` | KeyStore (SQLite/Postgres, quota-enforced) |
-| `Authorization: Bearer <token>` | All endpoints | OIDC/SAML provider (RBAC permissions) |
+| Header                          | Used by                     | Source                                     |
+| ------------------------------- | --------------------------- | ------------------------------------------ |
+| `X-API-Key`                     | `/v1/audit`, `/v1/evaluate` | KeyStore (SQLite/Postgres, quota-enforced) |
+| `Authorization: Bearer <token>` | All endpoints               | OIDC/SAML provider (RBAC permissions)      |
 
 API keys are created via `POST /v1/keys` and authenticated exclusively through the KeyStore.
 Admin endpoints (`/v1/keys/*`, `/v1/rotate`) require RBAC permissions (e.g. `KEYS_CREATE`, `SECRETS_ROTATE`).
@@ -37,11 +37,11 @@ without generating the full signed audit receipt.
 
 **Request body** (JSON, `Content-Type: application/json`):
 
-| Field | Type | Required | Constraints | Description |
-|-------|------|----------|-------------|-------------|
-| `payload` | string | Yes | max 2,048 chars | The instruction/payload to evaluate |
-| `origin` | string | Yes | max 128 chars | Source identifier (e.g. `trusted_admin`, `agent-01`) |
-| `action` | string | Yes | max 128 chars, pattern `^[A-Za-z0-9_\-]+$` | Action identifier |
+| Field     | Type   | Required | Constraints                                | Description                                          |
+| --------- | ------ | -------- | ------------------------------------------ | ---------------------------------------------------- |
+| `payload` | string | Yes      | max 2,048 chars                            | The instruction/payload to evaluate                  |
+| `origin`  | string | Yes      | max 128 chars                              | Source identifier (e.g. `trusted_admin`, `agent-01`) |
+| `action`  | string | Yes      | max 128 chars, pattern `^[A-Za-z0-9_\-]+$` | Action identifier                                    |
 
 **Response** (200 OK):
 
@@ -56,12 +56,12 @@ without generating the full signed audit receipt.
 
 **Error responses:**
 
-| Status | Cause |
-|--------|-------|
-| 401 | Missing or invalid `X-API-Key` |
-| 403 | Blocked by semantic policy/sandbox/Judge decision |
-| 422 | Validation error (missing fields, pattern mismatch, length exceeded) |
-| 429 | Per-IP evaluate rate limit exceeded. Includes `Retry-After` header. |
+| Status | Cause                                                                |
+| ------ | -------------------------------------------------------------------- |
+| 401    | Missing or invalid `X-API-Key`                                       |
+| 403    | Blocked by semantic policy/sandbox/Judge decision                    |
+| 422    | Validation error (missing fields, pattern mismatch, length exceeded) |
+| 429    | Per-IP evaluate rate limit exceeded. Includes `Retry-After` header.  |
 
 ---
 
@@ -75,12 +75,12 @@ Primary endpoint. Evaluates a payload through the tri-agent pipeline and returns
 
 **Request body** (JSON, `Content-Type: application/json`):
 
-| Field | Type | Required | Constraints | Description |
-|-------|------|----------|-------------|-------------|
-| `payload` | string | Yes | max 2,048 chars | The agent action or instruction to evaluate |
-| `origin` | string | Yes | max 128 chars | Source identifier (e.g. `trusted_admin`, `agent-01`) |
-| `action` | string | Yes | max 128 chars, pattern `^[A-Za-z0-9_\-]+$` | Action identifier (e.g. `Read_Report`, `Transfer_Funds`) |
-| `client_ip_claim` | string | No | max 64 chars | Optional client IP for audit logging only — never used for enforcement |
+| Field             | Type   | Required | Constraints                                | Description                                                            |
+| ----------------- | ------ | -------- | ------------------------------------------ | ---------------------------------------------------------------------- |
+| `payload`         | string | Yes      | max 2,048 chars                            | The agent action or instruction to evaluate                            |
+| `origin`          | string | Yes      | max 128 chars                              | Source identifier (e.g. `trusted_admin`, `agent-01`)                   |
+| `action`          | string | Yes      | max 128 chars, pattern `^[A-Za-z0-9_\-]+$` | Action identifier (e.g. `Read_Report`, `Transfer_Funds`)               |
+| `client_ip_claim` | string | No       | max 64 chars                               | Optional client IP for audit logging only — never used for enforcement |
 
 Extra fields are rejected (`extra="forbid"`).
 
@@ -111,28 +111,30 @@ Extra fields are rejected (`extra="forbid"`).
 **Possible `decision` values:**
 
 Receipt notes:
+
 - `receipt.prompt` is optional and, when present, is part of the signed canonical string.
 - Legacy receipts without `prompt` remain valid and verifiable.
 
-| Decision | HTTP Status | Meaning |
-|----------|-------------|---------|
-| `PROCEED` | 200 | Action allowed |
-| `DENIED` | 403 | Blocked by Scout threat score, Judge veto, or semantic intent classifier |
-| `SANDBOX_BLOCKED` | 403 | Blocked by action sandbox (dangerous pattern detected) |
-| `RATE_LIMITED` | 429 | Per-IP rate limit exceeded. `Retry-After: 5` header included. |
+| Decision          | HTTP Status | Meaning                                                                  |
+| ----------------- | ----------- | ------------------------------------------------------------------------ |
+| `PROCEED`         | 200         | Action allowed                                                           |
+| `DENIED`          | 403         | Blocked by Scout threat score, Judge veto, or semantic intent classifier |
+| `SANDBOX_BLOCKED` | 403         | Blocked by action sandbox (dangerous pattern detected)                   |
+| `RATE_LIMITED`    | 429         | Per-IP rate limit exceeded. `Retry-After: 5` header included.            |
 
 **Error responses:**
 
-| Status | Cause |
-|--------|-------|
-| 401 | Missing or invalid `X-API-Key` |
-| 403 | Key revoked or forbidden |
-| 422 | Validation error (extra fields, missing fields, pattern mismatch, length exceeded) |
-| 429 | Quota exceeded (key store keys). `Retry-After: 86400` header included. |
-| 500 | Internal error. No stack trace or internal state is exposed. |
-| 503 | Degraded mode — privileged action denied while subsystems are unhealthy |
+| Status | Cause                                                                              |
+| ------ | ---------------------------------------------------------------------------------- |
+| 401    | Missing or invalid `X-API-Key`                                                     |
+| 403    | Key revoked or forbidden                                                           |
+| 422    | Validation error (extra fields, missing fields, pattern mismatch, length exceeded) |
+| 429    | Quota exceeded (key store keys). `Retry-After: 86400` header included.             |
+| 500    | Internal error. No stack trace or internal state is exposed.                       |
+| 503    | Degraded mode — privileged action denied while subsystems are unhealthy            |
 
 **Notes:**
+
 - `shadow_verdict` and `redacted_payload` are never returned to clients.
 - `reasoning` is never included in PROCEED responses.
 - Sandbox match details are never included in SANDBOX_BLOCKED responses.
@@ -168,10 +170,10 @@ Public health endpoint.
 }
 ```
 
-| Field | Values | Meaning |
-|-------|--------|---------|
+| Field    | Values        | Meaning                                        |
+| -------- | ------------- | ---------------------------------------------- |
 | `status` | `ok`, `error` | `error` indicates startup prerequisites failed |
-| `detail` | string | Failure reason when `status=error` |
+| `detail` | string        | Failure reason when `status=error`             |
 
 ### GET `/ready`
 
@@ -201,13 +203,13 @@ When `ready` is `false` (HTTP 503), privileged actions are denied (fail-closed).
 
 Prometheus/OpenMetrics-format metrics endpoint. No auth required.
 
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `aletheia_requests_total` | Counter | `agent`, `verdict` | Total audit requests processed |
-| `aletheia_latency_seconds` | Histogram | — | Request processing latency (buckets: 10ms to 10s) |
-| `aletheia_embedding_model_load_seconds` | Gauge | — | Time to load the embedding model at startup |
-| `aletheia_keys_total` | Gauge | — | Number of active API keys |
-| `aletheia_audit_log_bytes` | Counter | — | Total bytes written to the audit log |
+| Metric                                  | Type      | Labels             | Description                                       |
+| --------------------------------------- | --------- | ------------------ | ------------------------------------------------- |
+| `aletheia_requests_total`               | Counter   | `agent`, `verdict` | Total audit requests processed                    |
+| `aletheia_latency_seconds`              | Histogram | —                  | Request processing latency (buckets: 10ms to 10s) |
+| `aletheia_embedding_model_load_seconds` | Gauge     | —                  | Time to load the embedding model at startup       |
+| `aletheia_keys_total`                   | Gauge     | —                  | Number of active API keys                         |
+| `aletheia_audit_log_bytes`              | Counter   | —                  | Total bytes written to the audit log              |
 
 ---
 
@@ -222,6 +224,7 @@ Hot-rotate secrets without restart. Requires RBAC `SECRETS_ROTATE` permission.
 **Cooldown:** 10 seconds between rotations. Returns HTTP 429 with `retry_after_seconds` if called within cooldown.
 
 **On rotation, reloads from environment:**
+
 - `ALETHEIA_RECEIPT_SECRET`
 - `ALETHEIA_ALIAS_SALT`
 - Re-verifies the manifest signature
@@ -261,12 +264,12 @@ Hot-rotate secrets without restart. Requires RBAC `SECRETS_ROTATE` permission.
 
 All key management endpoints require RBAC permissions via `Authorization: Bearer <token>` header.
 
-| Endpoint | Required Permission |
-|----------|--------------------|
-| `POST /v1/keys` | `KEYS_CREATE` |
-| `GET /v1/keys` | `KEYS_LIST` |
-| `DELETE /v1/keys/{id}` | `KEYS_REVOKE` |
-| `GET /v1/keys/{id}/usage` | `KEYS_USAGE` |
+| Endpoint                  | Required Permission |
+| ------------------------- | ------------------- |
+| `POST /v1/keys`           | `KEYS_CREATE`       |
+| `GET /v1/keys`            | `KEYS_LIST`         |
+| `DELETE /v1/keys/{id}`    | `KEYS_REVOKE`       |
+| `GET /v1/keys/{id}/usage` | `KEYS_USAGE`        |
 
 ### POST `/v1/keys`
 
@@ -274,11 +277,11 @@ Create a new API key.
 
 **Request body:**
 
-| Field | Type | Required | Constraints | Description |
-|-------|------|----------|-------------|-------------|
-| `name` | string | Yes | 1–64 chars | Human-readable key name |
-| `plan` | string | No | `trial`, `pro`, or `max` | Plan tier. Default: `trial` |
-| `role` | string | No | `viewer`, `auditor`, `operator`, or `admin` | RBAC role. Default: `operator` |
+| Field  | Type   | Required | Constraints                                 | Description                    |
+| ------ | ------ | -------- | ------------------------------------------- | ------------------------------ |
+| `name` | string | Yes      | 1–64 chars                                  | Human-readable key name        |
+| `plan` | string | No       | `trial`, `pro`, or `max`                    | Plan tier. Default: `trial`    |
+| `role` | string | No       | `viewer`, `auditor`, `operator`, or `admin` | RBAC role. Default: `operator` |
 
 **Response** (201 Created):
 
@@ -298,6 +301,7 @@ Create a new API key.
 The raw `key` value is returned **exactly once** at creation. It is hashed at rest (HMAC-SHA256 with `ALETHEIA_KEY_SALT`, or SHA-256 fallback).
 
 **Default quotas:**
+
 - `trial` (public Free): 1,000 Sovereign Audit Receipts/month
 - `pro` (public Scale): 25,000 verified decisions/month
 - `max` (public Pro): 100,000 verified decisions/month
@@ -371,11 +375,11 @@ Live, tenant-scoped, PII-redacted stream of audit events over WebSocket.
 
 **Authentication** (via `?token=<value>` query parameter):
 
-| Mode | Token | Scope |
-|------|-------|-------|
-| Admin API key (role: `admin`) | API key string | All tenants |
-| Short-lived JWT | Signed with `ALETHEIA_WS_JWT_SECRET` | Tenant scope + expiry encoded in claims |
-| Standard API key | API key string | Tenant-scoped via KeyStore |
+| Mode                          | Token                                | Scope                                   |
+| ----------------------------- | ------------------------------------ | --------------------------------------- |
+| Admin API key (role: `admin`) | API key string                       | All tenants                             |
+| Short-lived JWT               | Signed with `ALETHEIA_WS_JWT_SECRET` | Tenant scope + expiry encoded in claims |
+| Standard API key              | API key string                       | Tenant-scoped via KeyStore              |
 
 **Connection limits:** Max `ALETHEIA_WS_MAX_PER_TENANT` (default: 10) concurrent connections per tenant.
 
@@ -397,10 +401,10 @@ Live, tenant-scoped, PII-redacted stream of audit events over WebSocket.
 
 **Error codes:**
 
-| Code | Reason |
-|------|--------|
+| Code | Reason                                  |
+| ---- | --------------------------------------- |
 | 1008 | Missing or invalid authentication token |
-| 1011 | Internal server error |
+| 1011 | Internal server error                   |
 
 ---
 
@@ -408,20 +412,20 @@ Live, tenant-scoped, PII-redacted stream of audit events over WebSocket.
 
 All responses include the following security headers:
 
-| Header | Value |
-|--------|-------|
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` |
-| `Cache-Control` | `no-store` |
-| `Content-Security-Policy` | `default-src 'none'; frame-ancestors 'none'` |
-| `Permissions-Policy` | `geolocation=(), microphone=(), camera=(), payment=()` |
+| Header                    | Value                                                  |
+| ------------------------- | ------------------------------------------------------ |
+| `X-Content-Type-Options`  | `nosniff`                                              |
+| `X-Frame-Options`         | `DENY`                                                 |
+| `Cache-Control`           | `no-store`                                             |
+| `Content-Security-Policy` | `default-src 'none'; frame-ancestors 'none'`           |
+| `Permissions-Policy`      | `geolocation=(), microphone=(), camera=(), payment=()` |
 
 Rate-limited responses also include:
 
-| Header | Value |
-|--------|-------|
+| Header                  | Value                                    |
+| ----------------------- | ---------------------------------------- |
 | `X-RateLimit-Remaining` | Remaining requests in the current window |
-| `Retry-After` | Seconds until the client can retry |
+| `Retry-After`           | Seconds until the client can retry       |
 
 ---
 
@@ -470,10 +474,12 @@ Equivalent query form:
 The client should redirect the user to the returned URL. On success, the user is redirected to `/dashboard?upgraded=true`. On cancellation, to `/dashboard?upgrade=cancelled`.
 
 **Error responses:**
+
 - `401` — Not authenticated
 - `503` — Stripe not configured (missing `STRIPE_SECRET_KEY` or the selected plan price ID)
 
 **Environment variables required:**
+
 - `STRIPE_SECRET_KEY` — Stripe secret key
 - `STRIPE_SCALE_PRICE_ID` — Price ID for the Scale subscription
 - `STRIPE_PRO_PRICE_ID` — Price ID for the Pro subscription
@@ -494,11 +500,13 @@ Stripe webhook endpoint for subscription lifecycle events.
 **Auth:** Stripe signature verification (`stripe-signature` header, HMAC-SHA256).
 
 **Handled events:**
+
 - `checkout.session.completed` — Upgrades user to the selected paid tier
 - `customer.subscription.deleted` — Downgrades user to trial/free tier
 - `customer.subscription.updated` — Updates plan based on subscription status
 
 **Environment variables required:**
+
 - `STRIPE_WEBHOOK_SECRET` — Webhook signing secret (`whsec_...`)
 
 ---
@@ -511,9 +519,9 @@ Updates the authenticated user's display name.
 
 **Request body** (JSON):
 
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| `name` | string | Yes | max 100 chars, trimmed |
+| Field  | Type   | Required | Constraints            |
+| ------ | ------ | -------- | ---------------------- |
+| `name` | string | Yes      | max 100 chars, trimmed |
 
 **Response** (200 OK):
 
@@ -525,12 +533,12 @@ Updates the authenticated user's display name.
 
 ### Dashboard Pages
 
-| Path | Description |
-|------|-------------|
-| `/dashboard` | Overview with stats, onboarding banner (new users), upgrade banner (≥80% quota) |
-| `/dashboard/keys` | API key generation, viewing, and revocation |
-| `/dashboard/usage` | Per-key request usage and quota monitoring |
-| `/dashboard/logs` | Audit decision history with threat analysis |
-| `/dashboard/policy` | Security policy configuration viewer |
-| `/dashboard/evidence` | Signed audit evidence export (JSONL) |
-| `/dashboard/settings` | Account settings: profile, plan/billing, sign out |
+| Path                  | Description                                                                     |
+| --------------------- | ------------------------------------------------------------------------------- |
+| `/dashboard`          | Overview with stats, onboarding banner (new users), upgrade banner (≥80% quota) |
+| `/dashboard/keys`     | API key generation, viewing, and revocation                                     |
+| `/dashboard/usage`    | Per-key request usage and quota monitoring                                      |
+| `/dashboard/logs`     | Audit decision history with threat analysis                                     |
+| `/dashboard/policy`   | Security policy configuration viewer                                            |
+| `/dashboard/evidence` | Signed audit evidence export (JSONL)                                            |
+| `/dashboard/settings` | Account settings: profile, plan/billing, sign out                               |

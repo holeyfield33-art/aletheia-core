@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, useRef } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useRef,
+} from "react";
 
 type ToastType = "success" | "error" | "info";
 
@@ -33,7 +39,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const counter = useRef(0);
 
   const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, removing: true } : t)));
+    setToasts((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, removing: true } : t)),
+    );
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, REMOVE_ANIMATION_MS);
