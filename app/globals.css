@@ -150,6 +150,12 @@ a:hover {
 pre,
 code {
   font-family: var(--font-mono);
+  overflow-x: auto;
+}
+
+pre {
+  display: block;
+  max-width: 100%;
 }
 
 /* Scrollable code blocks */
@@ -345,6 +351,36 @@ label {
   .seo-landing-faq {
     grid-template-columns: 1fr !important;
   }
+
+  .hero-page-h1,
+  .seo-page-h1 {
+    font-size: 1.875rem !important;
+  }
+
+  .hero-cta-stack,
+  .seo-page-cta-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .homepage-solutions-grid,
+  .seo-solution-explore-grid,
+  .footer-columns {
+    grid-template-columns: 1fr !important;
+  }
+
+  .footer-col a,
+  .footer-col h3,
+  .homepage-solutions-grid p,
+  .homepage-solutions-grid h3,
+  .protected-agent-grid p,
+  .protected-agent-grid h3,
+  .seo-landing-shell p,
+  .seo-landing-shell li,
+  .seo-landing-shell a,
+  .seo-landing-shell span {
+    font-size: 0.875rem !important;
+  }
 }
 
 /* Mobile navigation */
@@ -388,6 +424,14 @@ label {
   .seo-landing-shell {
     padding: 3rem 1rem !important;
   }
+
+  .feature-grid,
+  .pricing-grid,
+  .services-grid,
+  .protected-agent-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Stack policy split-view on mobile */
   .dashboard-content div[style*="gridTemplateColumns"] {
     grid-template-columns: 1fr !important;

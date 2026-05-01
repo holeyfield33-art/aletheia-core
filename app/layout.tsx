@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { Syne, JetBrains_Mono, Inter } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
@@ -116,85 +117,133 @@ export default async function RootLayout({
 }
 
 function Footer() {
+  const productLinks = [
+    { label: "Demo", href: "/demo" },
+    { label: "Blog", href: "/blog" },
+    { label: "Changelog", href: "/changelog" },
+    { label: "CLI", href: "/cli" },
+    { label: "Docs", href: "/docs" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Services", href: "/#services" },
+    { label: "Status", href: "/status" },
+  ];
+
+  const legalLinks = [
+    { label: "Privacy", href: "/legal/privacy" },
+    { label: "Terms", href: "/legal/terms" },
+    { label: "Security", href: "/legal/security" },
+    { label: "Accessibility", href: "/legal/accessibility" },
+  ];
+
   return (
     <footer
       style={{
         borderTop: "1px solid var(--border)",
         padding: "2.5rem 2rem",
-        textAlign: "center",
+        textAlign: "left",
       }}
     >
       <div
+        className="footer-columns"
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
           gap: "1.5rem",
           marginBottom: "1rem",
+          maxWidth: "980px",
+          margin: "0 auto 1rem",
         }}
       >
-        {[
-          { label: "Demo", href: "/demo" },
-          { label: "Blog", href: "/blog" },
-          { label: "Changelog", href: "/changelog" },
-          { label: "CLI", href: "/cli" },
-          { label: "Docs", href: "/docs" },
-          { label: "Pricing", href: "/pricing" },
-          { label: "Services", href: "/#services" },
-          { label: "Solutions", href: "/#explore-aletheia" },
-          { label: "Status", href: "/status" },
-          ...SEO_SOLUTIONS.map((entry) => ({
-            label: entry.title,
-            href: entry.href,
-          })),
-          { label: "GitHub", href: URLS.github },
-          {
-            label: `${URLS.contactEmail}`,
-            href: `mailto:${URLS.contactEmail}`,
-          },
-        ].map(({ label, href }) => (
-          <a
-            key={label}
-            href={href}
+        <div className="footer-col" style={{ display: "grid", gap: "0.45rem" }}>
+          <h3
             style={{
-              color: "var(--muted)",
-              fontSize: "0.85rem",
-              textDecoration: "none",
+              fontFamily: "var(--font-mono)",
+              color: "var(--white)",
+              fontSize: "0.82rem",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
             }}
           >
-            {label}
+            Product
+          </h3>
+          {productLinks.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              style={{ color: "var(--muted)", fontSize: "0.88rem", textDecoration: "none" }}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="footer-col" style={{ display: "grid", gap: "0.45rem" }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-mono)",
+              color: "var(--white)",
+              fontSize: "0.82rem",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Solutions
+          </h3>
+          {SEO_SOLUTIONS.map((entry) => (
+            <Link
+              key={entry.href}
+              href={entry.href}
+              style={{ color: "var(--muted)", fontSize: "0.88rem", textDecoration: "none" }}
+            >
+              {entry.title}
+            </Link>
+          ))}
+        </div>
+
+        <div className="footer-col" style={{ display: "grid", gap: "0.45rem" }}>
+          <h3
+            style={{
+              fontFamily: "var(--font-mono)",
+              color: "var(--white)",
+              fontSize: "0.82rem",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Legal
+          </h3>
+          {legalLinks.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              style={{ color: "var(--muted)", fontSize: "0.88rem", textDecoration: "none" }}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <a
+            href={URLS.github}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--muted)", fontSize: "0.88rem", textDecoration: "none" }}
+          >
+            GitHub
           </a>
-        ))}
+          <a
+            href={`mailto:${URLS.contactEmail}`}
+            style={{ color: "var(--muted)", fontSize: "0.88rem", textDecoration: "none" }}
+          >
+            {URLS.contactEmail}
+          </a>
+        </div>
       </div>
       <div
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: "1.25rem",
-          marginBottom: "1rem",
+          color: "var(--muted)",
+          fontSize: "0.82rem",
+          textAlign: "center",
         }}
       >
-        {[
-          { label: "Privacy", href: "/legal/privacy" },
-          { label: "Terms", href: "/legal/terms" },
-          { label: "Security", href: "/legal/security" },
-          { label: "Accessibility", href: "/legal/accessibility" },
-        ].map(({ label, href }) => (
-          <a
-            key={label}
-            href={href}
-            style={{
-              color: "var(--muted)",
-              fontSize: "0.78rem",
-              textDecoration: "none",
-            }}
-          >
-            {label}
-          </a>
-        ))}
-      </div>
-      <div style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
         &copy; {PRODUCT.copyrightYear} {PRODUCT.copyrightHolder} &mdash;{" "}
         {PRODUCT.license} License &nbsp;|&nbsp; v{PRODUCT.version}
       </div>

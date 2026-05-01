@@ -46,34 +46,30 @@ export const STATUS = {
 
 export const SEO_SOLUTIONS = [
   {
-    href: "/ai-runtime-audit",
-    title: "AI Runtime Audit",
-    summary:
-      "Threat-model your agent workflow and surface bypass paths before attackers do.",
+    href: "/ai-agent-security",
+    title: "AI Agent Security",
+    summary: "Runtime protection for tool-using AI agents.",
   },
   {
-    href: "/prompt-injection-defense",
-    title: "Prompt Injection Defense",
+    href: "/prompt-injection-protection",
+    title: "Prompt Injection Protection",
     summary:
-      "Harden against instruction smuggling, contextual camouflage, and override attempts.",
+      "Block override attempts, unsafe instructions, and data exfiltration prompts.",
   },
   {
-    href: "/agent-policy-enforcement",
-    title: "Agent Policy Enforcement",
-    summary:
-      "Bind decisions to signed policy manifests and fail closed on unverifiable actions.",
+    href: "/ai-runtime-security",
+    title: "AI Runtime Security",
+    summary: "Enforce policy before agent actions execute.",
   },
   {
-    href: "/tamper-evident-audit-receipts",
-    title: "Tamper-Evident Audit Receipts",
-    summary:
-      "Generate signed receipts for every decision with deterministic verification fields.",
+    href: "/signed-audit-receipts",
+    title: "Signed Audit Receipts",
+    summary: "Generate verifiable proof of agent decisions.",
   },
   {
-    href: "/enterprise-ai-guardrails",
-    title: "Enterprise AI Guardrails",
-    summary:
-      "Deploy governance guardrails with staged controls for high-risk enterprise actions.",
+    href: "/ai-agent-guardrails",
+    title: "AI Agent Guardrails",
+    summary: "Add pre-execution safety controls to autonomous systems.",
   },
 ] as const;
 

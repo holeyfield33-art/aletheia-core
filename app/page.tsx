@@ -1,6 +1,7 @@
 import { PRODUCT, URLS, STATUS, PRICING } from "@/lib/site-config";
 import type { Metadata } from "next";
 import HomepageAdditions from "@/app/components/HomepageAdditions";
+import HomepageExtensions from "@/app/components/HomepageExtensions";
 
 export const metadata: Metadata = {
   title:
@@ -29,6 +30,8 @@ export default function HomePage() {
       <HomepageAdditions />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <Services />
+      <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
+      <HomepageExtensions />
     </>
   );
 }
@@ -62,6 +65,7 @@ function Hero() {
       </div>
 
       <h1
+        className="hero-page-h1"
         style={{
           fontFamily: "var(--font-head)",
           fontSize: "clamp(2rem, 5vw, 3.2rem)",
@@ -93,6 +97,7 @@ function Hero() {
       </p>
 
       <div
+        className="hero-cta-stack"
         style={{
           display: "flex",
           flexWrap: "wrap",
@@ -113,6 +118,55 @@ function Hero() {
           View GitHub
         </a>
       </div>
+
+      <article
+        style={{
+          marginTop: "1.25rem",
+          border: "1px solid var(--border)",
+          borderLeft: "4px solid var(--crimson)",
+          borderRadius: "10px",
+          background: "var(--surface)",
+          padding: "1.35rem",
+          textAlign: "left",
+        }}
+      >
+        <h2
+          style={{
+            fontFamily: "var(--font-head)",
+            fontSize: "1.25rem",
+            color: "var(--white)",
+            marginBottom: "0.5rem",
+          }}
+        >
+          Book a $100 AI Agent Mini Audit
+        </h2>
+        <p
+          style={{
+            fontSize: "1rem",
+            color: "var(--silver)",
+            lineHeight: 1.65,
+            marginBottom: "0.8rem",
+          }}
+        >
+          I&apos;ll test your AI agent or chatbot for prompt injection, data
+          leakage, unsafe tool calls, and missing audit trails. You get a
+          written report with severity ratings, evidence, and the top fixes.
+        </p>
+        <ul style={{ marginLeft: "1rem", color: "var(--silver)", lineHeight: 1.7 }}>
+          <li>10 adversarial test cases run against your agent</li>
+          <li>Written report with findings and severity ratings</li>
+          <li>Signed Aletheia receipts as tamper-evident evidence</li>
+          <li>Recommended fixes and integration points</li>
+          <li>48-hour turnaround</li>
+        </ul>
+        <a
+          className="btn-primary"
+          style={{ marginTop: "0.9rem" }}
+          href="mailto:info@aletheia-core.com?subject=Mini Audit Request"
+        >
+          Book Mini Audit — $100
+        </a>
+      </article>
     </section>
   );
 }
@@ -272,6 +326,7 @@ function HowItWorks() {
 
         {/* Stage detail cards */}
         <div
+          className="feature-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -555,6 +610,7 @@ function HowToUse() {
           services available.
         </p>
         <div
+          className="pricing-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
@@ -778,6 +834,7 @@ function RecentSecurityUpdates() {
           stack — now production-ready.
         </p>
         <div
+          className="feature-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -903,6 +960,7 @@ function Services() {
           in production.
         </p>
         <div
+          className="services-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
