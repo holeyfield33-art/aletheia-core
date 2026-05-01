@@ -41,7 +41,7 @@ async function sendSlackAlert(message: string): Promise<void> {
 function getStripeClient(): Stripe | null {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) return null;
-  return new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" });
+  return new Stripe(stripeKey, { apiVersion: "2026-04-22.dahlia" });
 }
 
 export async function GET(request: NextRequest) {
