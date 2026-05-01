@@ -23,11 +23,59 @@ anyio==4.13.0 \
     #   httpx
     #   starlette
 asyncpg==0.30.0 \
-    --hash=sha256:c551e9928ab6707602f44811817f82ba3c446e018bfe1d3abecc8ba5f3eac851
+    --hash=sha256:04ff0785ae7eed6cc138e73fc67b8e51d54ee7a3ce9b63666ce55a0bf095f7ba \
+    --hash=sha256:05b185ebb8083c8568ea8a40e896d5f7af4b8554b64d7719c0eaa1eb5a5c3a70 \
+    --hash=sha256:0b448f0150e1c3b96cb0438a0d0aa4871f1472e58de14a3ec320dbb2798fb0d4 \
+    --hash=sha256:0f5712350388d0cd0615caec629ad53c81e506b1abaaf8d14c93f54b35e3595a \
+    --hash=sha256:1292b84ee06ac8a2ad8e51c7475aa309245874b61333d97411aab835c4a2f737 \
+    --hash=sha256:1b11a555a198b08f5c4baa8f8231c74a366d190755aa4f99aacec5970afe929a \
+    --hash=sha256:1b982daf2441a0ed314bd10817f1606f1c28b1136abd9e4f11335358c2c631cb \
+    --hash=sha256:1c06a3a50d014b303e5f6fc1e5f95eb28d2cee89cf58384b700da621e5d5e547 \
+    --hash=sha256:1c198a00cce9506fcd0bf219a799f38ac7a237745e1d27f0e1f66d3707c84a5a \
+    --hash=sha256:26683d3b9a62836fad771a18ecf4659a30f348a561279d6227dab96182f46144 \
+    --hash=sha256:29ff1fc8b5bf724273782ff8b4f57b0f8220a1b2324184846b39d1ab4122031d \
+    --hash=sha256:3152fef2e265c9c24eec4ee3d22b4f4d2703d30614b0b6753e9ed4115c8a146f \
+    --hash=sha256:3326e6d7381799e9735ca2ec9fd7be4d5fef5dcbc3cb555d8a463d8460607956 \
+    --hash=sha256:3356637f0bd830407b5597317b3cb3571387ae52ddc3bca6233682be88bbbc1f \
+    --hash=sha256:393af4e3214c8fa4c7b86da6364384c0d1b3298d45803375572f415b6f673f38 \
+    --hash=sha256:46973045b567972128a27d40001124fbc821c87a6cade040cfcd4fa8a30bcdc4 \
+    --hash=sha256:51da377487e249e35bd0859661f6ee2b81db11ad1f4fc036194bc9cb2ead5056 \
+    --hash=sha256:574156480df14f64c2d76450a3f3aaaf26105869cad3865041156b38459e935d \
+    --hash=sha256:578445f09f45d1ad7abddbff2a3c7f7c291738fdae0abffbeb737d3fc3ab8b75 \
+    --hash=sha256:5b290f4726a887f75dcd1b3006f484252db37602313f806e9ffc4e5996cfe5cb \
+    --hash=sha256:5df69d55add4efcd25ea2a3b02025b669a285b767bfbf06e356d68dbce4234ff \
+    --hash=sha256:5e0511ad3dec5f6b4f7a9e063591d407eee66b88c14e2ea636f187da1dcfff6a \
+    --hash=sha256:64e899bce0600871b55368b8483e5e3e7f1860c9482e7f12e0a771e747988168 \
+    --hash=sha256:68d71a1be3d83d0570049cd1654a9bdfe506e794ecc98ad0873304a9f35e411e \
+    --hash=sha256:6c2a2ef565400234a633da0eafdce27e843836256d40705d83ab7ec42074efb3 \
+    --hash=sha256:6f4e83f067b35ab5e6371f8a4c93296e0439857b4569850b178a01385e82e9ad \
+    --hash=sha256:8b684a3c858a83cd876f05958823b68e8d14ec01bb0c0d14a6704c5bf9711773 \
+    --hash=sha256:9110df111cabc2ed81aad2f35394a00cadf4f2e0635603db6ebbd0fc896f46a4 \
+    --hash=sha256:915aeb9f79316b43c3207363af12d0e6fd10776641a7de8a01212afd95bdf0ed \
+    --hash=sha256:9a0292c6af5c500523949155ec17b7fe01a00ace33b68a476d6b5059f9630305 \
+    --hash=sha256:9b6fde867a74e8c76c71e2f64f80c64c0f3163e687f1763cfaf21633ec24ec33 \
+    --hash=sha256:a3479a0d9a852c7c84e822c073622baca862d1217b10a02dd57ee4a7a081f708 \
+    --hash=sha256:aa403147d3e07a267ada2ae34dfc9324e67ccc4cdca35261c8c22792ba2b10cf \
+    --hash=sha256:aca1548e43bbb9f0f627a04666fedaca23db0a31a84136ad1f868cb15deb6e3a \
+    --hash=sha256:ae374585f51c2b444510cdf3595b97ece4f233fde739aa14b50e0d64e8a7a590 \
+    --hash=sha256:bc6d84136f9c4d24d358f3b02be4b6ba358abd09f80737d1ac7c444f36108454 \
+    --hash=sha256:bfb4dd5ae0699bad2b233672c8fc5ccbd9ad24b89afded02341786887e37927e \
+    --hash=sha256:c42f6bb65a277ce4d93f3fba46b91a265631c8df7250592dd4f11f8b0152150f \
+    --hash=sha256:c47806b1a8cbb0a0db896f4cd34d89942effe353a5035c62734ab13b9f938da3 \
+    --hash=sha256:c551e9928ab6707602f44811817f82ba3c446e018bfe1d3abecc8ba5f3eac851 \
+    --hash=sha256:c7255812ac85099a0e1ffb81b10dc477b9973345793776b128a23e60148dd1af \
+    --hash=sha256:c902a60b52e506d38d7e80e0dd5399f657220f24635fee368117b8b5fce1142e \
+    --hash=sha256:db9891e2d76e6f425746c5d2da01921e9a16b5a71a1c905b13f30e12a257c4af \
+    --hash=sha256:dc1f62c792752a49f88b7e6f774c26077091b44caceb1983509edc18a2222ec0 \
+    --hash=sha256:f23b836dd90bea21104f69547923a02b167d999ce053f3d502081acea2fba15b \
+    --hash=sha256:f59b430b8e27557c3fb9869222559f7417ced18688375825f8f12302c34e915e \
+    --hash=sha256:f86b0e2cd3f1249d6fe6fd6cfe0cd4538ba994e2d8249c0491925629b9104d0f \
+    --hash=sha256:fb622c94db4e13137c4c7f98834185049cc50ee01d8f657ef898b6407c7b9c50 \
+    --hash=sha256:fd4406d09208d5b4a14db9a9dbb311b6d7aeeab57bded7ed2f8ea41aeef39b34
     # via -r requirements.in
-certifi==2026.2.25 \
-    --hash=sha256:027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa \
-    --hash=sha256:e887ab5cee78ea814d3472169153c2d12cd43b14bd03329a39a9c6e2e80bfba7
+certifi==2026.4.22 \
+    --hash=sha256:3cb2210c8f88ba2318d29b0388d1023c8492ff72ecdde4ebdaddbb13a31b1c4a \
+    --hash=sha256:8d455352a37b71bf76a79caa83a3d6c25afee4a385d632127b6afb3963f1c580
     # via
     #   httpcore
     #   httpx
@@ -125,7 +173,8 @@ click==8.3.1 \
     #   typer
     #   uvicorn
 confusable-homoglyphs==3.3.1 \
-    --hash=sha256:84c92cb79dc7f55aa290d0762b2349abd8dee4c16fbe6f99eac978d394e2e6a1
+    --hash=sha256:84c92cb79dc7f55aa290d0762b2349abd8dee4c16fbe6f99eac978d394e2e6a1 \
+    --hash=sha256:b995001c9b2e1b4cea0cf5f3840a7c79188a8cbbad053d693572bd8c1c1ec460
     # via -r requirements.in
 cryptography==46.0.7 \
     --hash=sha256:04959522f938493042d595a736e7dbdff6eb6cc2339c11465b3ff89343b65f65 \
@@ -182,15 +231,15 @@ fastapi==0.135.1 \
     --hash=sha256:46e2fc5745924b7c840f71ddd277382af29ce1cdb7d5eab5bf697e3fb9999c9e \
     --hash=sha256:d04115b508d936d254cea545b7312ecaa58a7b3a0f84952535b4c9afae7668cd
     # via -r requirements.in
-filelock==3.25.2 \
-    --hash=sha256:b64ece2b38f4ca29dd3e810287aa8c48182bbecd1ae6e9ae126c9b35f1382694 \
-    --hash=sha256:ca8afb0da15f229774c9ad1b455ed96e85a81373065fb10446672f64444ddf70
+filelock==3.29.0 \
+    --hash=sha256:69974355e960702e789734cb4871f884ea6fe50bd8404051a3530bc07809cf90 \
+    --hash=sha256:96f5f6344709aa1572bbf631c640e4ebeeb519e08da902c39a001882f30ac258
     # via
     #   huggingface-hub
     #   torch
-fsspec==2026.3.0 \
-    --hash=sha256:1ee6a0e28677557f8c2f994e3eea77db6392b4de9cd1f5d7a9e87a0ae9d01b41 \
-    --hash=sha256:d2ceafaad1b3457968ed14efa28798162f1638dbb5d2a6868a2db002a5ee39a4
+fsspec==2026.4.0 \
+    --hash=sha256:11ef7bb35dab8a394fde6e608221d5cf3e8499401c249bebaeaad760a1a8dec2 \
+    --hash=sha256:301d8ac70ae90ef3ad05dcf94d6c3754a097f9b5fe4667d2787aa359ec7df7e4
     # via
     #   huggingface-hub
     #   torch
@@ -237,16 +286,16 @@ httpx==0.28.1 \
     # via
     #   -r requirements.in
     #   huggingface-hub
-huggingface-hub==1.10.1 \
-    --hash=sha256:696c53cf9c2ac9befbfb5dd41d05392a031c69fc6930d1ed9671debd405b6fff \
-    --hash=sha256:6b981107a62fbe68c74374418983399c632e35786dcd14642a9f2972633c8b5a
+huggingface-hub==1.13.0 \
+    --hash=sha256:e942cb50d6a08dd5306688b1ac05bda157fd2fcc88b63dae405f7bd0d3234005 \
+    --hash=sha256:f6df2dac5abe82ce2fe05873d10d5ff47bc677d616a2f521f4ee26db9415d9d0
     # via
     #   sentence-transformers
     #   tokenizers
     #   transformers
-idna==3.11 \
-    --hash=sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea \
-    --hash=sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902
+idna==3.13 \
+    --hash=sha256:585ea8fe5d69b9181ec1afba340451fba6ba764af97026f92a91d4eef164a242 \
+    --hash=sha256:892ea0cde124a99ce773decba204c5552b69c3c67ffd5f232eb7696135bc8bb3
     # via
     #   anyio
     #   httpx
@@ -444,13 +493,14 @@ numpy==2.4.3 \
     #   scipy
     #   sentence-transformers
     #   transformers
-packaging==26.0 \
-    --hash=sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4 \
-    --hash=sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529
+packaging==26.2 \
+    --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e \
+    --hash=sha256:ff452ff5a3e828ce110190feff1178bb1f2ea2281fa2075aadb987c2fb221661
     # via
     #   huggingface-hub
     #   transformers
 prometheus-client==0.25.0 \
+    --hash=sha256:5e373b75c31afb3c86f1a52fa1ad470c9aace18082d39ec0d2f918d11cc9ba28 \
     --hash=sha256:d5aec89e349a6ec230805d0df882f3807f74fd6c1a2fa86864e3c2279059fed1
     # via -r requirements.in
 pycparser==3.0 \
@@ -788,9 +838,9 @@ regex==2026.4.4 \
     --hash=sha256:fe896e07a5a2462308297e515c0054e9ec2dd18dfdc9427b19900b37dfe6f40b \
     --hash=sha256:ffa81f81b80047ba89a3c69ae6a0f78d06f4a42ce5126b0eb2a0a10ad44e0b2e
     # via transformers
-rich==14.3.3 \
-    --hash=sha256:793431c1f8619afa7d3b52b2cdec859562b950ea0d4b6b505397612db8d5362d \
-    --hash=sha256:b8daa0b9e4eef54dd8cf7c86c03713f53241884e814f4e2f5fb342fe520f639b
+rich==15.0.0 \
+    --hash=sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb \
+    --hash=sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36
     # via typer
 safetensors==0.7.0 \
     --hash=sha256:0071bffba4150c2f46cae1432d31995d77acfd9f8db598b5d1a2ce67e8440ad2 \
@@ -1009,13 +1059,13 @@ tqdm==4.67.3 \
     #   huggingface-hub
     #   sentence-transformers
     #   transformers
-transformers==5.5.3 \
-    --hash=sha256:3f60128e840b40d352655903552e1eed4f94ed49369a4d43e1bc067bd32d3f50 \
-    --hash=sha256:e48f3ec31dd96505e96e66b63a1e43e1ad7a65749e108d9227caaf51051cdb02
+transformers==5.7.0 \
+    --hash=sha256:869660cd8fc92badc041f5551bf755a42f4b9558c93341bf3fa3eeed7065079c \
+    --hash=sha256:a9d35cf39804e3456c1f9bc1a79ad5ffa878640a61f51f66f71c97f4b4e2ce10
     # via sentence-transformers
-typer==0.24.1 \
-    --hash=sha256:112c1f0ce578bfb4cab9ffdabc68f031416ebcc216536611ba21f04e9aa84c9e \
-    --hash=sha256:e39b4732d65fbdcde189ae76cf7cd48aeae72919dea1fdfc16593be016256b45
+typer==0.25.1 \
+    --hash=sha256:75caa44ed46a03fb2dab8808753ffacdbfea88495e74c85a28c5eefcf5f39c89 \
+    --hash=sha256:9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc
     # via
     #   huggingface-hub
     #   transformers
@@ -1045,5 +1095,6 @@ uvicorn==0.41.0 \
 
 # The following packages are considered to be unsafe in a requirements file:
 setuptools==81.0.0 \
+    --hash=sha256:487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a \
     --hash=sha256:fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6
     # via torch
