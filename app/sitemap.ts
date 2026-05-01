@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { URLS } from "@/lib/site-config";
+import { URLS, SEO_SOLUTIONS } from "@/lib/site-config";
 import { BLOG_POSTS } from "@/app/blog/_posts";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -68,6 +68,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.5,
     },
+    ...SEO_SOLUTIONS.map((entry) => ({
+      url: `${URLS.appBase}${entry.href}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.72,
+    })),
     ...BLOG_POSTS.map((post) => ({
       url: `${URLS.appBase}/blog/${post.slug}`,
       lastModified: new Date(post.publishedAt),

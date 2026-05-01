@@ -339,6 +339,12 @@ label {
   .hide-mobile {
     display: none;
   }
+
+  .home-additions-grid,
+  .seo-landing-grid,
+  .seo-landing-faq {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* Mobile navigation */
@@ -373,6 +379,14 @@ label {
   }
   .dashboard-content {
     padding: 1.25rem 1rem !important;
+  }
+
+  .home-additions-shell {
+    padding: 3rem 1rem !important;
+  }
+
+  .seo-landing-shell {
+    padding: 3rem 1rem !important;
   }
   /* Stack policy split-view on mobile */
   .dashboard-content div[style*="gridTemplateColumns"] {

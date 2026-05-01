@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { URLS } from "@/lib/site-config";
+import { URLS, SEO_SOLUTIONS } from "@/lib/site-config";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
           "/cli",
           "/docs",
           "/pricing",
+          ...SEO_SOLUTIONS.map((entry) => entry.href),
         ],
         disallow: ["/dashboard", "/api", "/auth"],
       },

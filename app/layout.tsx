@@ -5,7 +5,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { PRODUCT, STATUS, URLS } from "@/lib/site-config";
+import { PRODUCT, STATUS, URLS, SEO_SOLUTIONS } from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
 import Nav from "@/app/components/Nav";
 import { ToastProvider } from "@/app/components/Toast";
@@ -141,7 +141,12 @@ function Footer() {
           { label: "Docs", href: "/docs" },
           { label: "Pricing", href: "/pricing" },
           { label: "Services", href: "/#services" },
+          { label: "Solutions", href: "/#explore-aletheia" },
           { label: "Status", href: "/status" },
+          ...SEO_SOLUTIONS.map((entry) => ({
+            label: entry.title,
+            href: entry.href,
+          })),
           { label: "GitHub", href: URLS.github },
           {
             label: `${URLS.contactEmail}`,

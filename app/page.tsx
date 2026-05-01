@@ -1,5 +1,6 @@
 import { PRODUCT, URLS, STATUS, PRICING } from "@/lib/site-config";
 import type { Metadata } from "next";
+import HomepageAdditions from "@/app/components/HomepageAdditions";
 
 export const metadata: Metadata = {
   title:
@@ -24,6 +25,8 @@ export default function HomePage() {
       <VerifyItYourself />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <RecentSecurityUpdates />
+      <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
+      <HomepageAdditions />
       <hr style={{ border: "none", borderTop: "1px solid var(--border)" }} />
       <Services />
     </>

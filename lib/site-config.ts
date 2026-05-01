@@ -44,6 +44,39 @@ export const STATUS = {
   openSource: true,
 } as const;
 
+export const SEO_SOLUTIONS = [
+  {
+    href: "/ai-runtime-audit",
+    title: "AI Runtime Audit",
+    summary:
+      "Threat-model your agent workflow and surface bypass paths before attackers do.",
+  },
+  {
+    href: "/prompt-injection-defense",
+    title: "Prompt Injection Defense",
+    summary:
+      "Harden against instruction smuggling, contextual camouflage, and override attempts.",
+  },
+  {
+    href: "/agent-policy-enforcement",
+    title: "Agent Policy Enforcement",
+    summary:
+      "Bind decisions to signed policy manifests and fail closed on unverifiable actions.",
+  },
+  {
+    href: "/tamper-evident-audit-receipts",
+    title: "Tamper-Evident Audit Receipts",
+    summary:
+      "Generate signed receipts for every decision with deterministic verification fields.",
+  },
+  {
+    href: "/enterprise-ai-guardrails",
+    title: "Enterprise AI Guardrails",
+    summary:
+      "Deploy governance guardrails with staged controls for high-risk enterprise actions.",
+  },
+] as const;
+
 export const CTAS = {
   primary: { label: "Try Live Demo", href: "/demo" },
   services: {
