@@ -366,7 +366,7 @@ class IntentClassifier:
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:send|email|transmit|forward).{0,120}(?:to ).{0,80}(?:\.com|\.io|\.net|\.org|external|outside)\b",
+                r"\b(?:send|email|transmit|forward|post|put|push|upload|publish|webhook|pipe|exfil|tunnel|relay|curl).{0,120}(?:to ).{0,80}(?:\.com|\.io|\.net|\.org|\.dev|\.cloud|external|outside)\b",
                 re.IGNORECASE,
             ),
         ],
@@ -416,7 +416,11 @@ class IntentClassifier:
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:ignore|disregard|skip|override).{0,40}(?:all )?.{0,40}(?:rules|policy|safety|restrictions|guardrails)\b",
+                r"\b(?:ignore|disregard|skip|override).{0,40}(?:all |any |every |the |your |my )?.{0,40}(?:rules|policy|safety|restrictions|guardrails|instructions|prompt|system\s*prompt|directives)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:ignore|disregard|forget|override|skip)\s+(?:all\s+|any\s+|every\s+|the\s+|your\s+|my\s+|previous\s+|prior\s+|earlier\s+)*(?:previous\s+|prior\s+|earlier\s+|above\s+)*(?:instructions?|prompts?|directives?|guidelines?)\b",
                 re.IGNORECASE,
             ),
         ],
