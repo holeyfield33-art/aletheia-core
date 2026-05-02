@@ -1,82 +1,67 @@
-"""Helpers for loading Hugging Face sentence-transformer models with local caching."""
+"""Helpers for loading sentence-embedding models with local caching.
+
+Uses fastembed (ONNX Runtime backend) so that PyTorch is not required.
+This keeps the Render free-tier build well under the 512 MB RAM limit.
+The public return value exposes a .encode() shim compatible with the
+previous sentence-transformers API used by core/embeddings.py.
+"""
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
-import shutil
 from pathlib import Path
-
-from filelock import FileLock
 
 _logger = logging.getLogger("aletheia.model_loader")
 
+# Default cache location used by fastembed; can be overridden.
+_DEFAULT_CACHE_DIR = Path.home() / ".cache" / "aletheia" / "models"
 
-def _cache_root() -> Path:
-    """Return the model cache root directory."""
+
+def _cache_dir() -> Path:
     override = os.getenv("ALETHEIA_MODEL_CACHE_DIR", "").strip()
     if override:
         return Path(override).expanduser()
-    return Path.home() / ".cache" / "aletheia" / "models"
+    return _DEFAULT_CACHE_DIR
 
 
-def _model_hash(model_name: str) -> str:
-    return hashlib.sha256(model_name.encode("utf-8")).hexdigest()
+class _SentenceTransformerCompat:
+    """Thin shim so callers can use .encode(texts, normalize_embeddings=True)."""
 
+    def __init__(self, model_name: str, cache_dir: Path) -> None:
+        from fastembed import TextEmbedding
 
-def _has_cached_weights(model_dir: Path) -> bool:
-    if not model_dir.is_dir():
-        return False
-    return any(model_dir.rglob("pytorch_model.bin")) or any(
-        model_dir.rglob("*.safetensors")
-    )
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self._model = TextEmbedding(
+            model_name=model_name,
+            cache_dir=str(cache_dir),
+        )
+
+    def encode(
+        self,
+        texts: list[str],
+        normalize_embeddings: bool = True,  # fastembed always normalizes; param kept for API compat
+        show_progress_bar: bool = False,  # ignored; fastembed doesn't show progress bars
+    ):
+        import numpy as np
+
+        embeddings = list(self._model.embed(texts))
+        return np.array(embeddings, dtype=np.float32)
 
 
 def load_cached_sentence_transformer(
     model_name: str, token: str | None = None
-) -> object:
-    """Load a SentenceTransformer from a local cache or download it once.
+) -> _SentenceTransformerCompat:
+    """Return a fastembed-backed encoder with the sentence-transformers .encode() API.
 
-    Cache path format:
-        ~/.cache/aletheia/models/{sha256(model_name)}
+    The model is downloaded once by fastembed into ALETHEIA_MODEL_CACHE_DIR
+    (default ~/.cache/aletheia/models/) and reused on subsequent calls.
 
-    Override root with:
-        ALETHEIA_MODEL_CACHE_DIR
+    The ``token`` parameter is accepted for API compatibility but fastembed
+    downloads from its own mirror and does not use HuggingFace auth tokens.
     """
-    from huggingface_hub import snapshot_download
-    from sentence_transformers import SentenceTransformer
-
-    cache_root = _cache_root()
-    cache_root.mkdir(parents=True, exist_ok=True)
-
-    model_dir = cache_root / _model_hash(model_name)
-    if _has_cached_weights(model_dir):
-        _logger.info("Loading model from local cache: %s", model_dir)
-        return SentenceTransformer(str(model_dir))
-
-    lock_path = cache_root / f"{model_dir.name}.lock"
-    with FileLock(str(lock_path)):
-        if not _has_cached_weights(model_dir):
-            if model_dir.exists():
-                shutil.rmtree(model_dir)
-
-            tmp_dir = cache_root / f".{model_dir.name}.tmp"
-            if tmp_dir.exists():
-                shutil.rmtree(tmp_dir)
-
-            _logger.info("Downloading model %s into %s", model_name, model_dir)
-            snapshot_download(  # nosec B615 – model_name is config-controlled, not user input
-                repo_id=model_name,
-                local_dir=str(tmp_dir),
-                token=token or None,
-            )
-            tmp_dir.rename(model_dir)
-
-        if not _has_cached_weights(model_dir):
-            raise RuntimeError(
-                f"Cached model at {model_dir} is missing pytorch_model.bin after download"
-            )
-
-    _logger.info("Loading model from local cache: %s", model_dir)
-    return SentenceTransformer(str(model_dir))
+    if token:
+        _logger.debug(
+            "HF token provided but fastembed does not use HF auth tokens. Ignoring."
+        )
+    return _SentenceTransformerCompat(model_name, _cache_dir())
