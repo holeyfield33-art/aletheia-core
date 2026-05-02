@@ -1123,7 +1123,29 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     _auth_method = ctx.user.auth_method if ctx else ""
 
     # --- Degraded mode determination ---
-    degraded = bool(getattr(rate_limiter, "degraded", False) or decision_store.degraded)
+    def _semantic_engine_degraded(last_result: object | None) -> bool:
+        """Only treat semantic layer as degraded for hard engine-offline signals.
+
+        Nitpicker marks `degraded=True` when Qdrant is down but static-manifest
+        fallback can still protect the pipeline. That fallback path should not
+        force a 503 here.
+        """
+        if not last_result:
+            return False
+        degraded_flag = bool(getattr(last_result, "degraded", False))
+        source = str(getattr(last_result, "source", ""))
+        # Explicit engine signal used by fail-closed tests and hard-offline mode.
+        return degraded_flag and source in {"qdrant", "both"}
+
+    _nit_last = getattr(nitpicker, "_last_result", None)
+    _semantic_degraded = _semantic_engine_degraded(_nit_last)
+    _manifest_missing = judge.policy is None
+    degraded = bool(
+        getattr(rate_limiter, "degraded", False)
+        or decision_store.degraded
+        or _semantic_degraded
+        or _manifest_missing
+    )
     fallback_state = "degraded" if degraded else "normal"
 
     # --- Rate limiting (per-IP, tenant-scoped) ---
@@ -1236,7 +1258,36 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         sanitize=True,
     )
 
+    # Recompute degraded after Nitpicker to catch current-request Qdrant failures
+    _nit_last_post = getattr(nitpicker, "_last_result", None)
+    if _semantic_engine_degraded(_nit_last_post):
+        degraded = True
+
     # 3. JUDGE PHASE — now includes payload for semantic veto
+    # Re-check fail-closed after current-request Qdrant degradation is reflected
+    if degraded and not _is_read_only_action(req.action):
+        log_audit_event(
+            decision="DENIED",
+            threat_score=0.0,
+            payload=req.payload,
+            action=req.action,
+            source_ip=client_ip,
+            origin=req.origin,
+            reason="degraded_mode_privileged_action_denied",
+            fallback_state="degraded",
+            request_id=request_id,
+            tenant_id=_tenant_id,
+            user_id=_user_id,
+            auth_method=_auth_method,
+        )
+        return JSONResponse(
+            status_code=503,
+            content={
+                "decision": "DENIED",
+                "reason": "degraded_mode_privileged_action_denied",
+            },
+        )
+
     is_allowed, veto_msg = _run_judge(req.action, clean_input)
 
     # DECISION: block if ANY agent denies (defense-in-depth)

@@ -58,6 +58,13 @@ def warm_up() -> None:
 
 
 _MAX_ENCODE_TEXTS = 1000
+
+
+def is_embedding_model_loaded() -> bool:
+    """Return True if the embedding model singleton has been loaded into memory."""
+    return _model is not None
+
+
 _MAX_TOTAL_TEXT_BYTES = 500_000  # 500 KB total
 _MAX_MODEL_INPUT_CHARS = 2800  # Approx safe cap before model tokenization
 

@@ -66,7 +66,7 @@ export default function SecurityTrustPage() {
         <li>
           <strong style={{ color: "var(--white)" }}>Nitpicker:</strong>{" "}
           Polymorphic intent sanitizer with semantic embedding analysis against
-          18 blocked patterns.
+          a curated bank of static blocked patterns plus a 137-entry semantic manifest.
         </li>
         <li>
           <strong style={{ color: "var(--white)" }}>Judge:</strong>{" "}
@@ -77,7 +77,11 @@ export default function SecurityTrustPage() {
       <p style={p}>
         All three agents must independently pass for a request to proceed. Any
         single agent can deny. The system fails closed — if any component is
-        unavailable, the request is denied.
+        unavailable, the request is denied. The system fails closed when the rate limiter
+        or decision store is unavailable. Semantic engine degradation is logged and
+        triggers fail-closed behavior for privileged actions when the embedded analysis
+        layer is offline. Audit chain continuity is guaranteed within a single instance;
+        multi-replica chain coordination is planned for a future release.
       </p>
 
       <h2 style={h2}>Data Protection</h2>

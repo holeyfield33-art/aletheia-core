@@ -347,6 +347,77 @@ class TestUnauthenticatedAccessBlocked:
 
 
 # ---------------------------------------------------------------------------
+# CLASS 8: Semantic Engine Degradation Fail-Closed (T5)
+# ---------------------------------------------------------------------------
+
+
+class TestSemanticDegradedFailClosed:
+    """T5: Nitpicker Qdrant degradation must fail-closed for privileged actions."""
+
+    def _make_auth_mock(self):
+        from core.auth.models import AuthenticatedUser
+
+        user = AuthenticatedUser(
+            user_id="test-user",
+            roles=frozenset({"operator"}),
+            auth_method="api_key",
+        )
+        mock_provider = AsyncMock()
+        mock_provider.authenticate.return_value = user
+        return mock_provider
+
+    def test_qdrant_degraded_blocks_privileged_action(self) -> None:
+        """Privileged action must receive 503 when Nitpicker Qdrant layer is degraded."""
+        from fastapi.testclient import TestClient
+        from agents.nitpicker_v2 import NitpickerResult
+
+        degraded_result = NitpickerResult(
+            is_blocked=False,
+            reason="",
+            degraded=True,
+            categories=[],
+            top_match_id=None,
+            top_match_score=0.0,
+            source="qdrant",
+        )
+
+        with (
+            patch(
+                "bridge.fastapi_wrapper.get_auth_provider",
+                return_value=self._make_auth_mock(),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
+                new=AsyncMock(
+                    return_value=type("R", (), {"accepted": True, "reason": "ok"})()
+                ),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.rate_limiter.allow",
+                new=AsyncMock(return_value=True),
+            ),
+            patch(
+                "bridge.fastapi_wrapper.nitpicker._last_result",
+                degraded_result,
+            ),
+        ):
+            from bridge.fastapi_wrapper import app
+
+            client = TestClient(app, raise_server_exceptions=False)
+            resp = client.post(
+                "/v1/audit",
+                json={
+                    "payload": "transfer funds immediately",
+                    "origin": "trusted_admin",
+                    "action": "transfer_funds",
+                },
+                headers={"Authorization": "Bearer test-key"},
+            )
+        assert resp.status_code == 503
+        assert resp.json()["reason"] == "degraded_mode_privileged_action_denied"
+
+
+# ---------------------------------------------------------------------------
 # CLASS 7: Degraded Mode Fail-Closed
 # ---------------------------------------------------------------------------
 

@@ -531,3 +531,146 @@ class TestAuditChainBootstrap(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAuditChainResumeAfterRestart(unittest.TestCase):
+    """T6: Audit chain must resume prev_hash continuity after a module restart."""
+
+    def test_chain_resumes_after_module_restart(self) -> None:
+        """Write 5 entries, simulate restart, write 1 more — prev_hash must chain."""
+        import core.audit as audit_module
+
+        saved_hash = audit_module._prev_record_hash
+        saved_seq = audit_module._audit_seq
+        saved_logger = audit_module._audit_logger
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                log_path = Path(tmp_dir) / "audit.log"
+
+                # Write 5 synthetic records to simulate pre-restart history
+                records = []
+                prev = "GENESIS"
+                for i in range(1, 6):
+                    rec = {
+                        "seq": i,
+                        "record_hash": hashlib.sha256(
+                            f"record-{i}".encode()
+                        ).hexdigest(),
+                        "prev_hash": prev,
+                        "decision": "PROCEED",
+                    }
+                    records.append(rec)
+                    prev = rec["record_hash"]
+                log_path.write_text(
+                    "\n".join(json.dumps(r) for r in records) + "\n",
+                    encoding="utf-8",
+                )
+
+                # Simulate module restart: reset globals
+                audit_module._prev_record_hash = "GENESIS"
+                audit_module._audit_seq = 0
+                audit_module._audit_logger = None
+
+                # Bootstrap re-reads the log
+                audit_module._bootstrap_chain_state(log_path)
+
+                # prev_hash must now be the 5th record's record_hash
+                self.assertEqual(
+                    audit_module._prev_record_hash, records[-1]["record_hash"]
+                )
+                self.assertEqual(audit_module._audit_seq, 5)
+        finally:
+            audit_module._prev_record_hash = saved_hash
+            audit_module._audit_seq = saved_seq
+            audit_module._audit_logger = saved_logger
+
+
+class TestReceiptPIIRedaction(unittest.TestCase):
+    """T7: Receipt prompt field must have PII redacted before HMAC signing."""
+
+    def test_receipt_prompt_pii_is_redacted(self) -> None:
+        """Email and SSN in payload must not appear in receipt prompt field."""
+        import core.audit as audit_module
+
+        pii_payload = "my email is alice@example.com and ssn is 123-45-6789"
+
+        saved_hash = audit_module._prev_record_hash
+        saved_seq = audit_module._audit_seq
+        saved_logger = audit_module._audit_logger
+        try:
+            with (
+                patch("core.audit.settings") as mock_settings,
+                patch("core.audit._policy_hash", return_value="aabbcc"),
+                patch("core.audit._policy_version", return_value="test-v1"),
+                patch("core.audit._get_audit_logger"),
+            ):
+                mock_settings.mode = "active"
+                mock_settings.client_id = "test-client"
+                mock_settings.shadow_mode = False
+
+                record = audit_module.log_audit_event(
+                    decision="PROCEED",
+                    threat_score=0.0,
+                    payload=pii_payload,
+                    action="Read_Report",
+                    source_ip="1.2.3.4",
+                    origin="trusted_admin",
+                )
+        finally:
+            audit_module._prev_record_hash = saved_hash
+            audit_module._audit_seq = saved_seq
+            audit_module._audit_logger = saved_logger
+
+        receipt = record.get("receipt", {})
+        prompt = receipt.get("prompt", "")
+
+        self.assertNotIn("alice@example.com", prompt)
+        self.assertNotIn("123-45-6789", prompt)
+        self.assertIn("REDACTED", prompt)
+
+    def test_receipt_pii_redaction_with_valid_signature(self) -> None:
+        """When ALETHEIA_RECEIPT_SECRET is set, signature must validate against redacted prompt."""
+        import core.audit as audit_module
+        from core.audit import verify_receipt
+
+        pii_payload = "contact bob@test.org for access"
+
+        saved_hash = audit_module._prev_record_hash
+        saved_seq = audit_module._audit_seq
+        saved_logger = audit_module._audit_logger
+        receipt: dict = {}
+        try:
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "ALETHEIA_RECEIPT_SECRET": "test-secret-for-t7"  # pragma: allowlist secret
+                    },
+                ),
+                patch("core.audit.settings") as mock_settings,
+                patch("core.audit._policy_hash", return_value="aabbcc"),
+                patch("core.audit._policy_version", return_value="test-v1"),
+                patch("core.audit._get_audit_logger"),
+            ):
+                mock_settings.mode = "active"
+                mock_settings.client_id = "test-client"
+                mock_settings.shadow_mode = False
+
+                record = audit_module.log_audit_event(
+                    decision="PROCEED",
+                    threat_score=0.0,
+                    payload=pii_payload,
+                    action="Read_Report",
+                    source_ip="1.2.3.4",
+                    origin="trusted_admin",
+                )
+                receipt = record.get("receipt", {})
+                # verify_receipt must be called inside the patch so the secret is active
+                sig_valid = verify_receipt(receipt)
+        finally:
+            audit_module._prev_record_hash = saved_hash
+            audit_module._audit_seq = saved_seq
+            audit_module._audit_logger = saved_logger
+
+        self.assertNotIn("bob@test.org", receipt.get("prompt", ""))
+        self.assertTrue(sig_valid, "Receipt signature must validate")
