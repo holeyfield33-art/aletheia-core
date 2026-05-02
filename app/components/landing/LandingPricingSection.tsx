@@ -104,31 +104,23 @@ export default function LandingPricingSection() {
           ))}
         </div>
 
-        <article
+        <p
           style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "14px",
-            padding: "1.25rem",
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "1rem",
-            flexWrap: "wrap",
-            alignItems: "center",
+            color: "var(--muted)",
+            fontSize: "0.88rem",
+            lineHeight: 1.65,
+            marginTop: "0.85rem",
+            textAlign: "center",
           }}
         >
-          <div>
-            <div style={{ fontFamily: "var(--font-head)", fontSize: "1.25rem", color: "var(--white)", marginBottom: "0.35rem" }}>
-              Need a guided review first?
-            </div>
-            <div style={{ color: "var(--silver)", lineHeight: 1.6 }}>
-              Use the existing mini-audit offer before you deploy or buy hosted protection.
-            </div>
-          </div>
-          <a className="btn-primary" href="mailto:info@aletheia-core.com?subject=Mini%20Audit%20Request">
-            Book Mini Audit
+          Need a security review first?{" "}
+          <a
+            href="mailto:info@aletheia-core.com?subject=Mini Audit Request"
+            style={{ color: "var(--silver)", textDecoration: "none", fontWeight: 600 }}
+          >
+            Book a mini audit →
           </a>
-        </article>
+        </p>
       </div>
     </section>
   );

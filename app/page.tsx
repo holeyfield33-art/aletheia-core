@@ -25,49 +25,7 @@ export default function HomePage() {
   return (
     <>
       <HeroRuntimeFirewall />
-      <section style={{ padding: "0 1.5rem 2.25rem" }}>
-        <div className="container" style={{ maxWidth: "1120px" }}>
-          <article
-            style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border-hi)",
-              borderLeft: "6px solid var(--crimson)",
-              borderRadius: "14px",
-              padding: "1.35rem",
-            }}
-          >
-            <h2
-              style={{
-                fontFamily: "var(--font-head)",
-                fontSize: "clamp(1.5rem, 4vw, 2rem)",
-                color: "var(--white)",
-                marginBottom: "0.7rem",
-              }}
-            >
-              Book a $100 AI Agent Mini Audit
-            </h2>
-            <p style={{ color: "var(--silver)", lineHeight: 1.7, marginBottom: "0.9rem" }}>
-              I&apos;ll test your AI agent or chatbot for prompt injection, data leakage,
-              unsafe tool calls, and missing audit trails. You get a written report with
-              severity ratings, evidence, and the top fixes.
-            </p>
-            <ul style={{ color: "var(--silver)", lineHeight: 1.8, marginBottom: "1rem", paddingLeft: "1.15rem" }}>
-              <li>10 adversarial test cases</li>
-              <li>Written report with severity ratings</li>
-              <li>Signed receipts as evidence</li>
-              <li>Recommended fixes and integration points</li>
-              <li>48-hour turnaround</li>
-            </ul>
-            <a
-              className="btn-primary"
-              href="mailto:info@aletheia-core.com?subject=Mini Audit Request"
-            >
-              Book Mini Audit — $100
-            </a>
-          </article>
-        </div>
-      </section>
-      <RedTeamDemoSection videoUrl={process.env.NEXT_PUBLIC_RED_TEAM_DEMO_VIDEO_URL} />
+      <RedTeamDemoSection />
       <TraderAgentDemoSection videoUrl={process.env.NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL} />
       <LiveAletheiaDemoSection />
       <ReceiptVerificationFlipCard />

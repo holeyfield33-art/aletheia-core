@@ -35,6 +35,49 @@ const EXAMPLE_RECEIPT = `{
   "origin": "agent-001"
 }`;
 
+function normalizeReceiptKey(rawKey: string): string {
+  return rawKey
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function parseReceipt(input: string): ReceiptFields | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as ReceiptFields;
+    }
+  } catch {
+    // Fallback to plain text parser
+  }
+
+  const lines = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2 || lines.length % 2 !== 0) {
+    return null;
+  }
+
+  const obj: Record<string, string> = {};
+  for (let i = 0; i < lines.length; i += 2) {
+    const key = normalizeReceiptKey(lines[i]);
+    const value = lines[i + 1];
+    if (!key) return null;
+    obj[key] = value;
+  }
+
+  return Object.keys(obj).length > 0 ? (obj as ReceiptFields) : null;
+}
+
 export default function VerifyPage() {
   const [input, setInput] = useState("");
   const [parsed, setParsed] = useState<ReceiptFields | null>(null);
@@ -49,16 +92,15 @@ export default function VerifyPage() {
       return;
     }
 
-    try {
-      const obj = JSON.parse(input);
-      if (typeof obj !== "object" || obj === null) {
-        setParseError("Receipt must be a JSON object.");
-        return;
-      }
-      setParsed(obj as ReceiptFields);
-    } catch {
-      setParseError("Could not parse JSON. Check for syntax errors.");
+    const obj = parseReceipt(input);
+    if (!obj) {
+      setParseError(
+        "Could not parse receipt. Paste valid JSON or the plain text receipt copied from your dashboard or CLI output.",
+      );
+      return;
     }
+
+    setParsed(obj);
   }
 
   function handleClear() {
@@ -162,7 +204,17 @@ export default function VerifyPage() {
           marginBottom: "1.25rem",
         }}
       >
-        <label htmlFor="receipt-input">Paste receipt JSON</label>
+        <label htmlFor="receipt-input">Paste receipt</label>
+        <p
+          style={{
+            color: "var(--muted)",
+            fontSize: "0.84rem",
+            marginBottom: "0.55rem",
+            lineHeight: 1.55,
+          }}
+        >
+          Paste your receipt JSON or plain text — both formats are supported.
+        </p>
         <textarea
           id="receipt-input"
           rows={10}
