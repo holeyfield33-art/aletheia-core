@@ -1040,7 +1040,7 @@ async def evaluate_policy(req: EvaluateRequest, request: Request) -> JSONRespons
     import uuid
 
     client_ip = _get_client_ip(request)
-    request_id = str(uuid.uuid4())[:16]
+    request_id = str(uuid.uuid4())
     start_time = _time.time()
 
     # --- Input hardening ---
@@ -1113,7 +1113,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
     import uuid
 
     client_ip = _get_client_ip(request)
-    request_id = str(uuid.uuid4())[:16]
+    request_id = str(uuid.uuid4())
     start_time = _time.time()
 
     # --- Extract tenant context from enterprise auth ---
@@ -1290,7 +1290,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         reason=reason if is_blocked else "",
         latency_ms=latency,
         fallback_state=fallback_state,
-        extra={"request_id": request_id},
+        request_id=request_id,
         tenant_id=_tenant_id,
         user_id=_user_id,
         auth_method=_auth_method,
@@ -1378,7 +1378,7 @@ async def agent_trifecta_audit(
 ) -> JSONResponse:
     import uuid
 
-    request_id = str(uuid.uuid4())[:16]
+    request_id = str(uuid.uuid4())
     try:
         client_ip = _get_client_ip(request)
 

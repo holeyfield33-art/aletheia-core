@@ -111,6 +111,13 @@ class AletheiaNitpickerV2:
         self._semantic_manifest: Optional[SemanticManifest] = None
         self._thresholds: ThresholdsConfig = ThresholdsConfig()
         self._manifest_version: Optional[str] = None
+
+        # Static-manifest fallback — entries from data/semantic_manifest.json
+        # Populated by _load_semantic_manifest; encoded lazily on first use.
+        self._manifest_entries: list[dict] = []
+        self._manifest_embeddings: Optional[np.ndarray] = None
+        self._manifest_embeddings_lock = threading.Lock()
+
         self._load_semantic_manifest()
 
     # ------------------------------------------------------------------
@@ -122,6 +129,9 @@ class AletheiaNitpickerV2:
 
         Falls back to default ThresholdsConfig if the manifest is missing
         or invalid — never blocks init.
+
+        Additionally loads ``data/semantic_manifest.json`` as a static
+        fallback embedding bank used when Qdrant is degraded.
         """
         import json
         from pathlib import Path
@@ -141,12 +151,47 @@ class AletheiaNitpickerV2:
                         "Semantic manifest loaded: version=%s",
                         self._manifest_version,
                     )
-                    return
+                    break
             except Exception as exc:
                 _nitpicker_logger.warning(
                     "Failed to load semantic manifest from %s: %s", path, exc
                 )
-        _nitpicker_logger.debug("No semantic manifest found, using default thresholds")
+
+        # Load data/semantic_manifest.json as static fallback bank.
+        # Entries here are used for cosine-similarity checks when Qdrant is
+        # degraded — they are the safety floor independent of Qdrant availability.
+        data_manifest_path = Path(
+            os.getenv("ALETHEIA_DATA_MANIFEST", "data/semantic_manifest.json")
+        )
+        try:
+            if data_manifest_path.is_file():
+                raw_data = json.loads(data_manifest_path.read_text(encoding="utf-8"))
+                entries = raw_data.get("entries", [])
+                # If manifest thresholds not yet loaded, pick up from data manifest
+                if self._semantic_manifest is None:
+                    raw_thresholds = raw_data.get("thresholds", {})
+                    if raw_thresholds:
+                        try:
+                            self._thresholds = ThresholdsConfig.model_validate(
+                                raw_thresholds
+                            )
+                        except Exception:
+                            pass
+                self._manifest_entries = [e for e in entries if e.get("enabled", True)]
+                _nitpicker_logger.info(
+                    "Static fallback manifest loaded: %d entries from %s",
+                    len(self._manifest_entries),
+                    data_manifest_path,
+                )
+        except Exception as exc:
+            _nitpicker_logger.warning(
+                "Failed to load data manifest from %s: %s", data_manifest_path, exc
+            )
+
+        if not self._semantic_manifest:
+            _nitpicker_logger.debug(
+                "No primary semantic manifest found, using default thresholds"
+            )
 
     # ------------------------------------------------------------------
     # Semantic check
@@ -258,6 +303,7 @@ class AletheiaNitpickerV2:
         top_match_score: float = 0.0
         top_match_threshold: float = 0.0
         top_match_category: Optional[str] = None
+        source: str = "static"  # may be overwritten in degraded path
 
         if not static_msg:
             # Only hit Qdrant if static rules didn't already block
@@ -267,8 +313,37 @@ class AletheiaNitpickerV2:
 
             if degraded:
                 _nitpicker_logger.warning(
-                    "Qdrant degraded — proceeding with static result only"
+                    "Qdrant degraded — checking static-manifest fallback bank"
                 )
+                # ---- Degraded path: cosine-sim against data/semantic_manifest.json ----
+                if self._manifest_entries:
+                    if self._manifest_embeddings is None:
+                        with self._manifest_embeddings_lock:
+                            if self._manifest_embeddings is None:
+                                texts = [e["text"] for e in self._manifest_entries]
+                                self._manifest_embeddings = encode(texts)
+                    query_vec = encode([stripped])
+                    sims = cosine_similarity(query_vec, self._manifest_embeddings)[0]
+                    best_idx = int(np.argmax(sims))
+                    best_score = float(sims[best_idx])
+                    best_entry = self._manifest_entries[best_idx]
+                    cat = best_entry.get("category", "policy_evasion")
+                    threshold = self._thresholds.get_threshold_for_category(cat)
+                    if best_score >= threshold:
+                        qdrant_blocked = True
+                        top_match_id = best_entry.get("id", "")
+                        top_match_score = best_score
+                        top_match_threshold = threshold
+                        top_match_category = cat
+                        qdrant_reason = (
+                            f"[SEMANTIC_BLOCK] Static-manifest match "
+                            f"'{top_match_id}' category={cat} "
+                            f"score={best_score:.2f} "
+                            f"(threshold: {threshold:.2f})"
+                        )
+                        # Override source so callers can distinguish this path
+                        # from a live Qdrant hit.
+                        source = "static_manifest_fallback"
 
             matches = lookup["matches"]
             if matches:
@@ -299,7 +374,10 @@ class AletheiaNitpickerV2:
             source = "static"
         elif qdrant_blocked:
             reason = qdrant_reason
-            source = "qdrant"
+            # Preserve "static_manifest_fallback" set by the degraded path;
+            # a live Qdrant hit would not set `source` ahead of this block.
+            if source != "static_manifest_fallback":
+                source = "qdrant"
         else:
             reason = ""
             source = "static"

@@ -382,5 +382,59 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertEqual(self.client.post("/ready").status_code, 405)
 
 
+class TestRequestIdFormat(unittest.TestCase):
+    """T3: request_id must be a full UUID string (36 chars) in all endpoints."""
+
+    _ip_counter = 0
+
+    def setUp(self) -> None:
+        rate_limiter.reset()
+        scout._query_history.clear()
+        self.client = TestClient(app, raise_server_exceptions=False)
+        TestRequestIdFormat._ip_counter += 1
+        self._ip = f"192.0.9.{self._ip_counter}"
+
+    def test_audit_request_id_is_36_chars(self) -> None:
+        """request_id in /v1/audit metadata must be a full 36-char UUID."""
+        _, body = _post(self.client, _safe_body(self._ip))
+        request_id = body["metadata"]["request_id"]
+        self.assertEqual(
+            len(request_id),
+            36,
+            f"request_id must be 36 chars (full UUID), got {len(request_id)}: {request_id!r}",
+        )
+
+    def test_audit_request_id_in_receipt_matches_metadata(self) -> None:
+        """request_id must be identical in metadata and receipt."""
+        _, body = _post(self.client, _safe_body(self._ip))
+        meta_rid = body["metadata"]["request_id"]
+        receipt_rid = body["receipt"].get("request_id")
+        self.assertEqual(
+            meta_rid,
+            receipt_rid,
+            "request_id in metadata and receipt must match",
+        )
+
+    def test_evaluate_request_id_is_36_chars(self) -> None:
+        """request_id in /v1/evaluate response must be a full 36-char UUID."""
+        body = {
+            "payload": _SAFE_PAYLOAD,
+            "origin": _SAFE_ORIGIN,
+            "action": _SAFE_ACTION,
+        }
+        r = self.client.post(
+            "/v1/evaluate",
+            json=body,
+            headers={"X-Forwarded-For": f"{self._ip}, 10.0.0.1"},
+        )
+        resp = r.json()
+        request_id = resp["request_id"]
+        self.assertEqual(
+            len(request_id),
+            36,
+            f"request_id from /v1/evaluate must be 36 chars, got {len(request_id)}: {request_id!r}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
