@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import SeoSolutionPage from "@/app/components/SeoSolutionPage";
 
 export const metadata: Metadata = {
-  title: "AI Agent Guardrails for Tool-Using Systems | Aletheia Core",
+  title: "AI Agent Guardrails for Tool-Using Systems",
   description:
     "Aletheia Core provides runtime guardrails for AI agents that call tools, APIs, workflows, and backend systems.",
   alternates: { canonical: "https://aletheia-core.com/ai-agent-guardrails" },

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import SeoSolutionPage from "@/app/components/SeoSolutionPage";
 
 export const metadata: Metadata = {
-  title: "AI Runtime Security Layer | Aletheia Core",
+  title: "AI Runtime Security Layer",
   description:
     "Aletheia Core adds a runtime security layer between AI agents and tool execution, helping teams enforce policy before actions run.",
   alternates: { canonical: "https://aletheia-core.com/ai-runtime-security" },

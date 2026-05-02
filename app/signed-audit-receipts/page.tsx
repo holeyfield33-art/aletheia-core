@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import SeoSolutionPage from "@/app/components/SeoSolutionPage";
 
 export const metadata: Metadata = {
-  title: "Signed Audit Receipts for AI Agents | Aletheia Core",
+  title: "Signed Audit Receipts for AI Agents",
   description:
     "Generate signed audit receipts for AI agent actions, blocked requests, policy checks, and runtime enforcement decisions.",
   alternates: { canonical: "https://aletheia-core.com/signed-audit-receipts" },

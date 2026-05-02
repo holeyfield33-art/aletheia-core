@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import SeoSolutionPage from "@/app/components/SeoSolutionPage";
 
 export const metadata: Metadata = {
-  title: "Prompt Injection Protection for AI Agents | Aletheia Core",
+  title: "Prompt Injection Protection for AI Agents",
   description:
     "Block prompt injection attempts before AI agents execute unsafe actions. Aletheia Core detects override attempts, exfiltration requests, and policy bypass patterns.",
   alternates: { canonical: "https://aletheia-core.com/prompt-injection-protection" },
