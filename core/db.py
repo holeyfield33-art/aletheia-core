@@ -8,6 +8,7 @@ import os
 import sqlite3
 import tempfile
 import time
+from pathlib import Path
 from typing import Any
 
 from core.config import settings
@@ -78,6 +79,7 @@ async def check_database_health() -> tuple[bool, str]:
         os.path.join(tempfile.gettempdir(), "aletheia", "decisions.sqlite3"),
     )
     try:
+        Path(sqlite_path).parent.mkdir(parents=True, exist_ok=True)
         started = time.perf_counter()
         conn = sqlite3.connect(sqlite_path)
         conn.execute("SELECT 1")

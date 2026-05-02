@@ -134,7 +134,7 @@ export default function Nav() {
                   transition: "background 0.2s",
                 }}
               >
-                Get Started
+                Protect My Agent
               </a>
             </>
           )}
@@ -220,7 +220,7 @@ export default function Nav() {
                   style={{ justifyContent: "center", textAlign: "center" }}
                   onClick={() => setMobileOpen(false)}
                 >
-                  Get Started
+                  Protect My Agent
                 </a>
                 <a
                   href="/auth/login"

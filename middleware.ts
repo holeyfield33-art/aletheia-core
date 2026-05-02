@@ -14,6 +14,7 @@ export default async function middleware(request: NextRequest) {
 
   // Route-level auth guard for authenticated zones.
   const protectedPaths = [
+    "/onboarding",
     "/dashboard",
     "/api/keys",
     "/api/logs",

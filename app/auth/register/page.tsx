@@ -141,6 +141,9 @@ export default function RegisterPage() {
             {error}
             {errorIsEmailTaken && (
               <div style={{ marginTop: "0.5rem" }}>
+                <div style={{ marginBottom: "0.5rem" }}>
+                  An account already exists with this email. Sign in instead.
+                </div>
                 <a
                   href="/auth/login"
                   style={{
@@ -149,7 +152,7 @@ export default function RegisterPage() {
                     fontWeight: 600,
                   }}
                 >
-                  Go to Sign In &rarr;
+                  Sign In &rarr;
                 </a>
               </div>
             )}

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/lib/email";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { normalizeEmail, upsertUserProfile } from "@/lib/auth/profile";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
     const safeName =
       typeof name === "string" ? name.slice(0, MAX_NAME_LENGTH).trim() : null;
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = normalizeEmail(email);
 
     // --- Check for existing user ---
     const existing = await prisma.user.findUnique({
@@ -124,8 +125,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "registration_failed",
-          message:
-            "Unable to create account. If you already have an account, please sign in.",
+          message: "An account already exists with this email. Sign in instead.",
         },
         { status: 400 },
       );
@@ -145,6 +145,12 @@ export async function POST(request: NextRequest) {
         plan: "TRIAL",
         tosAcceptedAt: new Date(),
       },
+    });
+
+    await upsertUserProfile({
+      userId: user.id,
+      email: normalizedEmail,
+      fullName: safeName,
     });
 
     // --- Send verification email ---

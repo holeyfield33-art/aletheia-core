@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireAuth } from "@/lib/server-auth";
+import { requireCompletedOnboarding } from "@/lib/onboarding";
 import DashboardSidebar from "./DashboardSidebar";
 import Breadcrumbs from "./Breadcrumbs";
 
@@ -16,6 +17,7 @@ export default async function DashboardLayout({
 }) {
   const session = await requireAuth();
   const user = session.user;
+  await requireCompletedOnboarding(user.id);
 
   return (
     <div

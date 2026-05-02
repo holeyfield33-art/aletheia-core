@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import UpgradeButton from "@/app/components/UpgradeButton";
+import WelcomeActionCards from "@/app/components/dashboard/WelcomeActionCards";
 
 const cardStyle: React.CSSProperties = {
   background: "var(--surface)",
@@ -175,6 +176,7 @@ export default function DashboardOverview({
   totalQuota,
   currentMonthUsage,
   estimatedPaygCost,
+  profile,
 }: {
   keyCount: number;
   totalRequests: number;
@@ -184,6 +186,12 @@ export default function DashboardOverview({
   totalQuota: number;
   currentMonthUsage: number;
   estimatedPaygCost: number;
+  profile: {
+    useCase?: string | null;
+    primaryGoal?: string | null;
+    agentType?: string | null;
+    onboardingCompleted?: boolean;
+  } | null;
 }) {
   const [showWelcome, setShowWelcome] = useState(isNewUser);
 
@@ -223,6 +231,12 @@ export default function DashboardOverview({
 
   return (
     <div>
+      <WelcomeActionCards
+        useCase={profile?.useCase}
+        primaryGoal={profile?.primaryGoal}
+        agentType={profile?.agentType}
+        onboardingCompleted={profile?.onboardingCompleted}
+      />
       {showWelcome && (
         <WelcomeBanner
           onDismiss={() => setShowWelcome(false)}

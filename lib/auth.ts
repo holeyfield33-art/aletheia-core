@@ -7,6 +7,7 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { normalizeEmail, upsertUserProfile } from "@/lib/auth/profile";
 
 // Distributed login attempt tracking via Prisma (PostgreSQL).
 // Replaces the previous in-memory Map so brute-force protection
@@ -29,6 +30,7 @@ type AppToken = JWT & {
   id?: string;
   role?: string;
   plan?: string;
+  onboardingCompleted?: boolean;
   claimsRefreshedAt?: number;
   deletedAt?: string | null;
 };
@@ -103,6 +105,11 @@ async function refreshTokenClaims(token: AppToken): Promise<AppToken> {
       name: true,
       email: true,
       image: true,
+      profile: {
+        select: {
+          onboardingCompleted: true,
+        },
+      },
     },
   });
 
@@ -122,6 +129,7 @@ async function refreshTokenClaims(token: AppToken): Promise<AppToken> {
     name: user.name ?? token.name,
     email: user.email ?? token.email,
     picture: user.image ?? token.picture,
+    onboardingCompleted: user.profile?.onboardingCompleted ?? false,
     claimsRefreshedAt: Date.now(),
   };
 }
@@ -177,7 +185,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const email = credentials.email.toLowerCase().trim();
+        const email = normalizeEmail(credentials.email);
         const clientIp = extractClientIp(req?.headers);
 
         if (clientIp && !(await consumeLoginIpRateLimit(clientIp))) {
@@ -189,6 +197,13 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: { email },
+          include: {
+            profile: {
+              select: {
+                onboardingCompleted: true,
+              },
+            },
+          },
         });
         if (!user?.password) {
           await recordLoginFailure(email);
@@ -220,6 +235,7 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           role: user.role,
           plan: user.plan,
+          onboardingCompleted: user.profile?.onboardingCompleted ?? false,
         };
       },
     }),
@@ -260,6 +276,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role ?? "USER";
         token.plan = user.plan ?? "TRIAL";
+        token.onboardingCompleted = user.onboardingCompleted ?? false;
         token.deletedAt = null;
         token.claimsRefreshedAt = Date.now();
         return token;
@@ -281,6 +298,7 @@ export const authOptions: NextAuthOptions = {
         session.user.image = token.picture ?? session.user.image;
         session.user.role = token.role;
         session.user.plan = token.plan;
+        session.user.onboardingCompleted = token.onboardingCompleted ?? false;
       }
       return session;
     },
@@ -289,13 +307,20 @@ export const authOptions: NextAuthOptions = {
     async createUser({ user }) {
       // Auto-verify OAuth users (they already verified with provider)
       if (user.email) {
+        const normalizedEmail = normalizeEmail(user.email);
         const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
         if (dbUser && !dbUser.emailVerified) {
           await prisma.user.update({
             where: { id: user.id },
-            data: { emailVerified: new Date() },
+            data: { emailVerified: new Date(), email: normalizedEmail },
           });
         }
+
+        await upsertUserProfile({
+          userId: user.id,
+          email: normalizedEmail,
+          fullName: user.name,
+        });
       }
     },
   },

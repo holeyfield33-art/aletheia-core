@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { PRICING } from "@/lib/site-config";
 import { getCurrentMonthUsage } from "@/lib/usage-tracking";
 import DashboardOverview from "./DashboardOverview";
+import { getUserOnboardingProfile } from "@/lib/onboarding";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -19,6 +20,7 @@ export default async function DashboardIndex() {
   let totalQuota = 0;
   let currentMonthUsage = 0;
   let estimatedPaygCost = 0;
+  let profile = null;
 
   try {
     // Sequential queries — avoids PgBouncer/Supavisor "prepared statement already exists" errors
@@ -32,6 +34,7 @@ export default async function DashboardIndex() {
     totalRequests = agg._sum.requestsUsed ?? 0;
     totalQuota = agg._sum.monthlyQuota ?? 0;
     recentLogs = await prisma.auditLog.count({ where: { userId } });
+    profile = await getUserOnboardingProfile(userId);
     if (session.user.plan === "ENTERPRISE") {
       currentMonthUsage = await getCurrentMonthUsage(userId);
       estimatedPaygCost = currentMonthUsage * PRICING.payg.pricePerReceipt;
@@ -50,6 +53,7 @@ export default async function DashboardIndex() {
       totalQuota={totalQuota}
       currentMonthUsage={currentMonthUsage}
       estimatedPaygCost={estimatedPaygCost}
+      profile={profile}
     />
   );
 }
