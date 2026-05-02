@@ -18,6 +18,7 @@ const BACKEND_BASE = (
   "https://api.aletheia-core.com"
 ).trim();
 const BACKEND_FALLBACK_BASE = "https://aletheia-core.onrender.com";
+const BACKEND_SECONDARY_BASE = "https://api.aletheia-core.com";
 const DEMO_API_KEY = (
   process.env.ALETHEIA_DEMO_API_KEY ??
   process.env.ALETHEIA_API_KEY ??
@@ -28,6 +29,15 @@ const TIMEOUT_MS = parseInt(
   10,
 );
 const ACTIVE_MODE = (process.env.ACTIVE_MODE ?? "").trim().toLowerCase();
+const TRANSIENT_UPSTREAM_STATUS = new Set([502, 503, 504]);
+const MAX_UPSTREAM_ATTEMPTS_PER_BACKEND = Math.max(
+  1,
+  parseInt(process.env.DEMO_UPSTREAM_ATTEMPTS_PER_BACKEND ?? "2", 10),
+);
+const RETRY_BACKOFF_MS = Math.max(
+  50,
+  parseInt(process.env.DEMO_UPSTREAM_RETRY_BACKOFF_MS ?? "250", 10),
+);
 
 /** Allow Vercel to keep the function alive long enough for cold starts. */
 export const maxDuration = 60;
@@ -74,6 +84,14 @@ function validateBackendUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isTransientUpstreamStatus(status: number): boolean {
+  return TRANSIENT_UPSTREAM_STATUS.has(status);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Allowed action values for demo (prevents abuse of the proxy)
@@ -188,7 +206,11 @@ export async function POST(request: NextRequest) {
       rl?.remaining;
   }
 
-  const backendCandidates = [BACKEND_BASE, BACKEND_FALLBACK_BASE].filter(
+  const backendCandidates = [
+    BACKEND_BASE,
+    BACKEND_SECONDARY_BASE,
+    BACKEND_FALLBACK_BASE,
+  ].filter(
     (value, index, arr) => value && arr.indexOf(value) === index,
   );
 
@@ -257,38 +279,78 @@ export async function POST(request: NextRequest) {
 
   let upstream: Response | null = null;
   try {
-    // Retry once against fallback host when primary backend is unreachable or 5xx.
+    // Retry transient 5xx/network errors per backend, then fail over to the next backend.
+    let lastFetchError: unknown = null;
     for (let i = 0; i < backendCandidates.length; i += 1) {
       const base = backendCandidates[i];
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-      try {
-        const res = await fetch(`${base}/v1/audit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(DEMO_API_KEY ? { "X-API-Key": DEMO_API_KEY } : {}),
-          },
-          body: JSON.stringify(auditBody),
-          signal: controller.signal,
-        });
-        upstream = res;
-        if (res.status < 500 || i === backendCandidates.length - 1) {
+
+      for (
+        let attempt = 1;
+        attempt <= MAX_UPSTREAM_ATTEMPTS_PER_BACKEND;
+        attempt += 1
+      ) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        try {
+          const res = await fetch(`${base}/v1/audit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(DEMO_API_KEY ? { "X-API-Key": DEMO_API_KEY } : {}),
+            },
+            body: JSON.stringify(auditBody),
+            signal: controller.signal,
+          });
+
+          upstream = res;
+          const shouldRetrySameBackend =
+            isTransientUpstreamStatus(res.status) &&
+            attempt < MAX_UPSTREAM_ATTEMPTS_PER_BACKEND;
+
+          if (shouldRetrySameBackend) {
+            const backoff = RETRY_BACKOFF_MS * 2 ** (attempt - 1);
+            console.error(
+              `[demo-proxy] upstream ${base} returned ${res.status}; retrying in ${backoff}ms (attempt ${attempt}/${MAX_UPSTREAM_ATTEMPTS_PER_BACKEND})`,
+            );
+            await sleep(backoff);
+            continue;
+          }
+
+          // Stop retrying this backend once we have either success or a non-transient status.
           break;
+        } catch (err) {
+          lastFetchError = err;
+          const canRetrySameBackend =
+            attempt < MAX_UPSTREAM_ATTEMPTS_PER_BACKEND;
+          if (canRetrySameBackend) {
+            const backoff = RETRY_BACKOFF_MS * 2 ** (attempt - 1);
+            console.error(
+              `[demo-proxy] upstream fetch failed for ${base}; retrying in ${backoff}ms (attempt ${attempt}/${MAX_UPSTREAM_ATTEMPTS_PER_BACKEND}):`,
+              err instanceof Error ? err.message : "unknown",
+            );
+            await sleep(backoff);
+            continue;
+          }
+          console.error(
+            `[demo-proxy] upstream fetch failed for ${base}; trying next backend`,
+            err instanceof Error ? err.message : "unknown",
+          );
+        } finally {
+          clearTimeout(timer);
         }
+      }
+
+      if (upstream && (!upstream.status || !isTransientUpstreamStatus(upstream.status))) {
+        break;
+      }
+
+      const hasMoreBackends = i < backendCandidates.length - 1;
+      if (hasMoreBackends) {
         console.error(
-          `[demo-proxy] upstream ${base} returned ${res.status}; trying fallback`,
+          `[demo-proxy] failing over from ${base} to ${backendCandidates[i + 1]}`,
         );
-      } catch (err) {
-        if (i === backendCandidates.length - 1) {
-          throw err;
-        }
-        console.error(
-          `[demo-proxy] upstream fetch failed for ${base}; trying fallback:`,
-          err instanceof Error ? err.message : "unknown",
-        );
-      } finally {
-        clearTimeout(timer);
+      } else if (lastFetchError) {
+        throw lastFetchError;
       }
     }
 
@@ -345,6 +407,16 @@ export async function POST(request: NextRequest) {
           );
         }
       }
+      if (isTransientUpstreamStatus(upstream.status)) {
+        return secureJson(
+          {
+            error: "service_unavailable",
+            message:
+              "Demo backend is warming up. Please retry in a few seconds.",
+          },
+          { status: 503, headers: { "Retry-After": "10" } },
+        );
+      }
       return secureJson(SANITIZED_ERROR, { status: 503 });
     }
 
@@ -385,7 +457,13 @@ export async function POST(request: NextRequest) {
         err instanceof Error ? err.message : "unknown",
       );
     }
-    return secureJson(SANITIZED_ERROR, { status: 503 });
+    return secureJson(
+      {
+        error: "service_unavailable",
+        message: "Demo backend is temporarily unavailable. Please retry shortly.",
+      },
+      { status: 503, headers: { "Retry-After": isTimeout ? "5" : "10" } },
+    );
   }
 }
 
