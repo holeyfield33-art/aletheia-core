@@ -11,6 +11,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any, Literal
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -40,6 +41,7 @@ from core.metrics import (
     metrics_response,
 )
 from core.logging import configure_logging
+from core.agent_trifecta import AgentTrifectaContext, evaluate_agent_trifecta
 
 
 configure_logging()
@@ -579,6 +581,41 @@ class AuditRequest(BaseModel):
     origin: str = Field(..., max_length=128)
     action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
     client_ip_claim: str | None = Field(default=None, max_length=64)
+
+
+class AgentTrifectaAuditRequest(BaseModel):
+    payload: str = Field(..., max_length=10_000)
+    origin: str = Field(..., max_length=128)
+    action: str = Field(
+        ...,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9_\-:.]+$",
+    )
+    input_trust: Literal["trusted", "untrusted", "mixed"]
+    can_read_private_data: bool = False
+    can_access_secrets: bool = False
+    can_send_external_data: bool = False
+    can_write_files: bool = False
+    can_modify_config: bool = False
+    can_execute_shell: bool = False
+    tool_name: str | None = Field(default=None, max_length=128)
+    tool_args: dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class AgentTrifectaMetadata(BaseModel):
+    threat_level: str
+    request_id: str
+    client_id: str
+
+
+class AgentTrifectaAuditResponse(BaseModel):
+    decision: str
+    metadata: AgentTrifectaMetadata
+    reasons: list[str]
+    summary: str
+    receipt: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -1322,6 +1359,153 @@ async def secure_audit(req: AuditRequest, request: Request) -> dict:
         response["reason"] = _sanitise_reason(reason)
 
     return response
+
+
+@app.post(
+    "/v1/agent-trifecta/audit",
+    response_model=AgentTrifectaAuditResponse,
+    tags=["Agent Trifecta", "Runtime Security"],
+    summary="Context-aware agent capability audit",
+    description=(
+        "Detects untrusted input + private data access + external egress "
+        "before tool execution. Returns PROCEED, REVIEW, or DENIED."
+    ),
+)
+async def agent_trifecta_audit(
+    body: AgentTrifectaAuditRequest,
+    request: Request,
+    _auth_ok: None = Depends(_check_api_key),
+) -> JSONResponse:
+    import uuid
+
+    request_id = str(uuid.uuid4())[:16]
+    try:
+        client_ip = _get_client_ip(request)
+
+        ctx_auth: AuthContext | None = getattr(request.state, "auth_context", None)
+        tenant_id = (
+            ctx_auth.user.tenant_id
+            if ctx_auth and ctx_auth.user.tenant_id
+            else "default"
+        )
+        user_id = ctx_auth.user.user_id if ctx_auth else ""
+        auth_method = ctx_auth.user.auth_method if ctx_auth else ""
+
+        rate_key = f"agent_trifecta_audit:{client_ip}"
+        if not await rate_limiter.allow(rate_key, tenant_id=tenant_id):
+            request.state.retry_after = 5
+            return JSONResponse(
+                status_code=429,
+                headers={"Retry-After": "5"},
+                content=AgentTrifectaAuditResponse(
+                    decision="RATE_LIMITED",
+                    metadata=AgentTrifectaMetadata(
+                        threat_level="LOW",
+                        request_id=request_id,
+                        client_id=settings.client_id,
+                    ),
+                    reasons=[],
+                    summary="Rate limit exceeded.",
+                    receipt=None,
+                ).model_dump(),
+            )
+
+        clean_payload = normalize_shadow_text(body.payload)
+        ctx = AgentTrifectaContext(
+            payload=clean_payload,
+            origin=body.origin,
+            action=body.action,
+            input_trust=body.input_trust,
+            can_read_private_data=body.can_read_private_data,
+            can_access_secrets=body.can_access_secrets,
+            can_send_external_data=body.can_send_external_data,
+            can_write_files=body.can_write_files,
+            can_modify_config=body.can_modify_config,
+            can_execute_shell=body.can_execute_shell,
+            tool_name=body.tool_name,
+            tool_args=body.tool_args,
+        )
+
+        result = evaluate_agent_trifecta(ctx)
+
+        threat_score_map = {
+            "LOW": 1.0,
+            "MEDIUM": 5.0,
+            "HIGH": 8.0,
+            "CRITICAL": 10.0,
+        }
+
+        audit_record: dict[str, Any] | None = None
+        try:
+            audit_record = log_audit_event(
+                decision=result.decision,
+                threat_score=threat_score_map.get(result.threat_level, 1.0),
+                payload=clean_payload,
+                action=body.action,
+                source_ip=client_ip,
+                origin=body.origin,
+                reason=",".join(result.reasons),
+                request_id=request_id,
+                tenant_id=tenant_id,
+                user_id=user_id,
+                auth_method=auth_method,
+            )
+        except Exception as exc:
+            _logger.error("Agent trifecta audit logging failed: %s", exc)
+            if settings.mode == "active":
+                return JSONResponse(
+                    status_code=500,
+                    content=AgentTrifectaAuditResponse(
+                        decision="ERROR",
+                        metadata=AgentTrifectaMetadata(
+                            threat_level="HIGH",
+                            request_id=request_id,
+                            client_id=settings.client_id,
+                        ),
+                        reasons=[],
+                        summary="Audit logging failed. Request rejected.",
+                        receipt=None,
+                    ).model_dump(),
+                )
+
+        request_id = (
+            str((audit_record or {}).get("request_id"))
+            if (audit_record or {}).get("request_id")
+            else request_id
+        )
+        receipt = (audit_record or {}).get("receipt") if audit_record else None
+
+        status_code = 403 if result.decision == "DENIED" else 200
+        return JSONResponse(
+            status_code=status_code,
+            content=AgentTrifectaAuditResponse(
+                decision=result.decision,
+                metadata=AgentTrifectaMetadata(
+                    threat_level=result.threat_level,
+                    request_id=request_id,
+                    client_id=settings.client_id,
+                ),
+                reasons=result.reasons,
+                summary=result.summary,
+                receipt=receipt,
+            ).model_dump(),
+        )
+    except Exception as exc:
+        _logger.error("Unhandled /v1/agent-trifecta/audit exception: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content=AgentTrifectaAuditResponse(
+                decision="ERROR",
+                metadata=AgentTrifectaMetadata(
+                    threat_level="HIGH",
+                    request_id=request_id,
+                    client_id=settings.client_id,
+                ),
+                reasons=[],
+                summary="Internal processing error. Request rejected.",
+                receipt=None,
+            ).model_dump(),
+        )
 
 
 # ---------------------------------------------------------------------------
