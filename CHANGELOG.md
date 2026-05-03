@@ -49,7 +49,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Verified
 
 - Frontend build: ✅ passed (48 routes, clean)
-- Backend test suite: ✅ 1114 passed, 16 skipped
+- Backend test suite: ✅ 1193 passed, 16 skipped
 - No regressions from prior release
 
 ---

@@ -227,9 +227,10 @@ export default function PrivacyPolicyPage() {
       <h2 style={h2}>8. Security</h2>
       <p style={p}>
         We implement industry-standard security measures including: bcrypt
-        password hashing, Ed25519-signed policy manifests, HMAC-signed audit
-        receipts, HTTPS enforcement, Content Security Policy headers, rate
-        limiting, and CSRF protection. For details, see our{" "}
+        password hashing, Ed25519-signed policy manifests, Ed25519-signed audit
+        receipts for current decisions, HTTPS enforcement, Content Security
+        Policy headers, rate limiting, and CSRF protection. For details, see
+        our{" "}
         <a href="/legal/security" style={{ color: "var(--crimson-hi)" }}>
           Security &amp; Trust
         </a>{" "}

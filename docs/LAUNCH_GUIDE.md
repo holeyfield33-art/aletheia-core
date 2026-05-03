@@ -48,8 +48,10 @@ python main.py                 # runs the tri-agent audit pipeline
 ## 4) Run as an API server (FastAPI)
 
 ```bash
-# Set required secrets
-export ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32)
+# Set required receipt signing material
+python scripts/generate_receipt_keypair.py --output-dir .secrets/receipt
+export ALETHEIA_RECEIPT_PRIVATE_KEY_PATH=.secrets/receipt/receipt_ed25519.pem
+export ALETHEIA_RECEIPT_PUBLIC_KEY_PATH=.secrets/receipt/receipt_ed25519.pub
 export ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
 
 # Start the server
@@ -90,7 +92,7 @@ PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ## 7) Run tests
 
 ```bash
-# Full test suite (1028 tests, requires torch + sentence-transformers)
+# Full test suite (1193 passed, 16 skipped in latest release validation; requires torch + sentence-transformers)
 pytest tests/ -v
 
 # CI-lightweight (skip embedding-dependent tests)
@@ -114,7 +116,9 @@ Manual steps:
 1. Connect your GitHub repo in the Render dashboard.
 2. Render reads `render.yaml` — it defines the build command, start command, and env vars.
 3. Set env vars in the Render dashboard:
-   - `ALETHEIA_RECEIPT_SECRET` — `openssl rand -hex 32`
+  - `ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` — Ed25519 PEM used to sign new receipts
+  - `ALETHEIA_RECEIPT_PUBLIC_KEY` or `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` — optional explicit public key PEM for verification and disclosure routes
+  - `ALETHEIA_RECEIPT_SECRET` — optional only if you still need to verify legacy HMAC receipts
    - `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
    - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
    - `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
@@ -177,7 +181,7 @@ docker build -t aletheia-core .
 docker run -d \
   -p 8000:8000 \
   -e ALETHEIA_MODE=active \
-  -e ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32) \
+  -e ALETHEIA_RECEIPT_PRIVATE_KEY="$(cat .secrets/receipt/receipt_ed25519.pem)" \
   -e ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32) \
   -e UPSTASH_REDIS_REST_URL=<your-upstash-url> \
   -e UPSTASH_REDIS_REST_TOKEN=<your-upstash-token> \

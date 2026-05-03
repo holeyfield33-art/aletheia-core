@@ -34,12 +34,15 @@ Required production baseline:
 ```bash
 ENVIRONMENT=production
 ALETHEIA_MODE=active
-ALETHEIA_RECEIPT_SECRET=<32+ chars>
+ALETHEIA_RECEIPT_PRIVATE_KEY=<PEM>
 ALETHEIA_KEY_SALT=<32+ chars>
 ALETHEIA_ALIAS_SALT=<32+ chars>
 DATABASE_URL=<postgres-url>
 REDIS_URL=<rediss-url>
 ```
+
+If you still need to verify older HMAC receipts during retention, also set
+`ALETHEIA_RECEIPT_SECRET`.
 
 See [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) for the full matrix.
 

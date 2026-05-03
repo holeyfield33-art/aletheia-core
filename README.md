@@ -20,7 +20,7 @@
   <img src="https://img.shields.io/badge/version-1.9.2-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
-  <img src="https://img.shields.io/badge/tests-1114%20passing-brightgreen" alt="Tests"/>
+  <img src="https://img.shields.io/badge/tests-1193%20passing-brightgreen" alt="Tests"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
@@ -42,7 +42,7 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 - Ed25519-signed policy manifest — tamper triggers hard veto
 - Semantic intent veto — cosine similarity against 50+ camouflage phrases
-- HMAC-signed audit receipts on every decision
+- Ed25519-signed audit receipts for new decisions, with legacy HMAC verification retained during receipt retention windows
 - Fail-closed design — invalid manifest or unverifiable action = automatic DENIED
 - MIT open source — read every line that determines an allow or block
 
@@ -78,7 +78,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric                         | Value                                       |
 | ------------------------------ | ------------------------------------------- |
 | Audit status                   | **PASS**                                    |
-| Tests passing                  | 1114 passed, 16 skipped                     |
+| Tests passing                  | 1193 passed, 16 skipped                     |
 | Blocked semantic patterns      | 24 (static) + Qdrant extended               |
 | Semantic alias phrases (Judge) | 60+ across 6 restricted categories          |
 | Core coverage                  | 89%                                         |
@@ -359,7 +359,7 @@ aletheia-cyber-core/
 │   ├── smoke_test_live.py     # Post-deploy smoke tests
 │   ├── build_semantic_index.py  # Qdrant index builder + signed receipt
 │   └── check_version_sync.py # Pre-commit version consistency check
-├── tests/                     # 1028 tests across core, agents, security, and semantic modules
+├── tests/                     # 1193 passing tests across backend and hosted surfaces
 ├── simulations/               # Adversarial simulation scripts
 ├── main.py                    # CLI entry point
 ├── AGENTS.md                  # Agent communication protocol
@@ -437,7 +437,7 @@ Aletheia maps to the [NIST AI Risk Management Framework](https://www.nist.gov/ar
 | ------------- | ------------------------------------------------------------------------------------------------------------------ |
 | **GOVERN**    | Ed25519-signed policy manifests enforce organisational risk tolerance as immutable, versioned artefacts            |
 | **MAP**       | Semantic intent classifier categorises each request into one of 5 risk categories before agent evaluation          |
-| **MEASURE**   | HMAC-signed audit receipts provide cryptographically verifiable evidence of every enforcement decision             |
+| **MEASURE**   | Ed25519-signed audit receipts provide cryptographically verifiable evidence of every new enforcement decision; legacy HMAC receipts remain verifiable during retention |
 | **MANAGE**    | Daily alias rotation, configurable thresholds, and `active`/`shadow`/`monitor` modes enable adaptive risk response |
 
 ---
@@ -450,7 +450,7 @@ The following controls are implemented and tested in the current codebase:
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | Ed25519 manifest signing     | `manifest/signing.py` — detached signature verified before every policy load. Tamper or missing signature = hard veto.                                                                                         | `test_judge_manifest.py`             |
 | Semantic intent veto         | `agents/judge_v1.py` — cosine similarity against 50+ camouflage aliases across 6 restricted action categories. Two-tier veto: primary threshold (0.55) and grey-zone band (0.40–0.55) with keyword heuristics. | `test_judge.py`, `test_hardening.py` |
-| HMAC-signed audit receipts   | `core/audit.py` — every decision produces an HMAC-SHA256 receipt binding decision, policy hash, payload SHA-256, action, and origin.                                                                           | `test_enterprise.py`                 |
+| Versioned audit receipts     | `core/audit.py` — new decisions produce Ed25519-signed receipts with `signature_algorithm` and `key_id`; legacy HMAC receipts remain verifiable for older records.                                          | `test_enterprise.py`, `test_receipt_signing.py` |
 | PII redaction                | `core/audit.py` — email, phone, SSN, and credit card patterns replaced with `[REDACTED:<type>:<hash>]` before writing to audit logs. Always enabled (cannot be disabled).                                      | `test_pii_redaction.py`              |
 | Config ownership enforcement | `core/config.py` — rejects config files writable by non-owners on shared hosts.                                                                                                                                | `test_config_ownership.py`           |
 | Secret rotation              | `core/secret_rotation.py` — hot-rotate secrets via `POST /v1/rotate` (admin-only, 10s cooldown) or `kill -SIGUSR1`.                                                                                            | `test_core.py`                       |
@@ -492,7 +492,8 @@ Below is the quick-start subset.
 
 | Variable                          | Required         | Description                                                                                                                           |
 | --------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `ALETHEIA_RECEIPT_SECRET`         | YES (production) | HMAC secret for audit receipts. Service will NOT boot in active mode without this. Min 32 chars. Generate via `openssl rand -hex 32`. |
+| `ALETHEIA_RECEIPT_PRIVATE_KEY`    | YES (production) | Ed25519 private key PEM for signing new audit receipts. Service should use this in active mode.                                       |
+| `ALETHEIA_RECEIPT_SECRET`         | Optional         | Legacy HMAC secret retained only when you must verify older receipts during retention.                                                 |
 | `ALETHEIA_ALIAS_SALT`             | RECOMMENDED      | Salt for daily alias rotation. Prevents enumeration attacks. Generate via `openssl rand -hex 32`.                                     |
 | `ALETHEIA_KEY_SALT`               | RECOMMENDED      | HMAC salt for key store hashing. Falls back to plain SHA-256 with a logged warning if unset.                                          |
 | `ALETHEIA_MODE`                   | No               | `active` (default), `shadow`, or `monitor`. Production refuses to start in shadow mode when `ENVIRONMENT=production`.                 |
@@ -520,9 +521,9 @@ Before starting the service in production, complete the following checklist:
 ### 1. Verify required secrets are set
 
 ```bash
-# ALETHEIA_RECEIPT_SECRET is mandatory for active mode
-if [ -z "$ALETHEIA_RECEIPT_SECRET" ]; then
-  echo "ERROR: ALETHEIA_RECEIPT_SECRET not set"
+# ALETHEIA_RECEIPT_PRIVATE_KEY is mandatory for active mode
+if [ -z "$ALETHEIA_RECEIPT_PRIVATE_KEY" ] && [ -z "$ALETHEIA_RECEIPT_PRIVATE_KEY_PATH" ]; then
+  echo "ERROR: receipt signing key not set"
   exit 1
 fi
 
@@ -579,12 +580,12 @@ curl -X POST http://localhost:8000/v1/audit \
 
 ```bash
 # Generate secure secrets
-ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32)
+python scripts/generate_receipt_keypair.py --output-dir .secrets/receipt
 ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
 
 # Start in active mode
 ALETHEIA_MODE=active \
-ALETHEIA_RECEIPT_SECRET="$ALETHEIA_RECEIPT_SECRET" \
+ALETHEIA_RECEIPT_PRIVATE_KEY_PATH=.secrets/receipt/receipt_ed25519.pem \
 ALETHEIA_ALIAS_SALT="$ALETHEIA_ALIAS_SALT" \
 uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
 ```
@@ -598,7 +599,7 @@ Before going live in `active` mode, verify all of the following:
 | #   | Check                                         | Command                                                       |
 | --- | --------------------------------------------- | ------------------------------------------------------------- |
 | 1   | Manifest is signed                            | `python main.py sign-manifest`                                |
-| 2   | `ALETHEIA_RECEIPT_SECRET` is set (≥ 32 chars) | `echo ${#ALETHEIA_RECEIPT_SECRET}`                            |
+| 2   | Ed25519 receipt signing key is configured     | `test -n "$ALETHEIA_RECEIPT_PRIVATE_KEY" -o -n "$ALETHEIA_RECEIPT_PRIVATE_KEY_PATH"` |
 | 3   | `ALETHEIA_ALIAS_SALT` is set                  | `echo ${#ALETHEIA_ALIAS_SALT}`                                |
 | 4   | Health endpoint returns `"status":"ok"`       | `curl http://localhost:8000/health`                           |
 | 5   | Receipt signature is not `UNSIGNED_DEV_MODE`  | Inspect `signature` field in `/v1/audit` response             |
@@ -609,7 +610,7 @@ Required environment variables:
 
 | Variable                         | Required          | Min Length | Notes                                   |
 | -------------------------------- | ----------------- | ---------- | --------------------------------------- |
-| `ALETHEIA_RECEIPT_SECRET`        | YES (active mode) | 32 chars   | Generate: `openssl rand -hex 32`        |
+| `ALETHEIA_RECEIPT_PRIVATE_KEY`   | YES (active mode) | —          | Ed25519 PEM used to sign new receipts   |
 | `ALETHEIA_ALIAS_SALT`            | RECOMMENDED       | 32 chars   | Generate: `openssl rand -hex 32`        |
 | `ALETHEIA_KEY_SALT`              | RECOMMENDED       | —          | HMAC salt for API key hashing.          |
 | `ALETHEIA_MODE`                  | No                | —          | `active` (default), `shadow`, `monitor` |
@@ -794,8 +795,8 @@ Rate limiting supports two backends. When `UPSTASH_REDIS_REST_URL` is configured
 **ADR-002: Threat score discretisation**
 Raw cosine-similarity floats and threat scores are never returned to clients. Returning exact values would let an attacker black-box calibrate their payload against the exact veto threshold. Only discretised bands (`LOW` / `MEDIUM` / `HIGH` / `CRITICAL`) are exposed.
 
-**ADR-003: Startup rejection without RECEIPT_SECRET**
-The service `sys.exit(1)` in `active` mode without `ALETHEIA_RECEIPT_SECRET`. An unsigned receipt (`UNSIGNED_DEV_MODE`) in production would allow an attacker to forge receipts, breaking audit trail integrity. Hard refusal is preferable to degraded operation.
+**ADR-003: Startup rejection without receipt signing material**
+The service should not run `active` mode without configured receipt signing material. An unsigned receipt (`UNSIGNED_DEV_MODE`) in production would allow an attacker to forge receipts, breaking audit trail integrity. Hard refusal is preferable to degraded operation.
 
 **ADR-004: Ed25519 for manifest signing**
 Ed25519 was chosen over RSA for manifest signing: smaller keys, faster verification, no padding oracle attacks, and deterministic signatures. The public key ships with the package; the private key never leaves the operator's control.
@@ -829,7 +830,7 @@ flowchart TB
 
     subgraph Observability["Observability & Audit"]
         AUDIT["Structured Audit Log<br/>(chain-hashed JSON lines)"]
-        RECEIPT["TMR Receipt<br/>(HMAC-SHA256 signed)"]
+        RECEIPT["TMR Receipt<br/>(Ed25519 signed, legacy HMAC verified)"]
         EXPORT["Exporters<br/>(ES, Splunk, Webhook, Syslog)<br/>retry + backoff + DLQ"]
         METRICS["Prometheus Metrics<br/>(/metrics endpoint)"]
         WSSTREAM["WebSocket /ws/audit<br/>(JWT + tenant-scoped<br/>+ PII-redacted)"]

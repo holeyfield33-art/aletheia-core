@@ -30,7 +30,7 @@ export default function TamperEvidentAuditReceiptsPage() {
         {
           name: "Signature Binding",
           detail:
-            "Sign records with HMAC-based receipt signatures and scoped nonce values.",
+            "Sign new records with Ed25519 receipt keys and scoped nonce values, while preserving verification for legacy HMAC receipts.",
         },
         {
           name: "Receipt Verification",

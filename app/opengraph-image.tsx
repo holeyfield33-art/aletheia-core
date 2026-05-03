@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { PRODUCT } from "@/lib/site-config";
 
 export const runtime = "edge";
 export const alt =
@@ -113,7 +114,12 @@ export default function OgImage() {
           gap: "24px",
         }}
       >
-        {["MIT Licensed", "957 Tests", "Open Source", "Signed Receipts"].map(
+        {[
+          "MIT Licensed",
+          `${PRODUCT.testCount} Tests`,
+          "Open Source",
+          "Signed Receipts",
+        ].map(
           (badge) => (
             <div
               key={badge}

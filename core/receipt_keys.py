@@ -8,11 +8,9 @@ can verify receipt signatures without trust in the engine.
 
 from __future__ import annotations
 
-import base64  # noqa: F401  (imported for API symmetry with manifest/signing.py)
 import hashlib
 import os
 from pathlib import Path
-from typing import Optional  # noqa: F401
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (

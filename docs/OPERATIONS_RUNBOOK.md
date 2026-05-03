@@ -12,7 +12,8 @@ Canonical env matrix: `docs/ENVIRONMENT_VARIABLES.md`
 | Variable                        | Required         | Description                                                                                                   |
 | ------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | `ALETHEIA_MODE`                 | Yes              | `active` (production) / `shadow` (dev, log-only) / `monitor`                                                  |
-| `ALETHEIA_RECEIPT_SECRET`       | Yes (active)     | HMAC signing secret for audit receipts. Min 32 chars. Generate: `openssl rand -hex 32`                        |
+| `ALETHEIA_RECEIPT_PRIVATE_KEY`  | Yes (active)     | Ed25519 private key PEM for signing new audit receipts.                                                        |
+| `ALETHEIA_RECEIPT_SECRET`       | Optional         | Legacy HMAC secret retained only when you must verify older receipts during retention.                         |
 | `UPSTASH_REDIS_REST_URL`        | Yes (production) | Upstash Redis URL for rate limiting, replay defense, and decision store                                       |
 | `UPSTASH_REDIS_REST_TOKEN`      | Yes (production) | Upstash Redis auth token                                                                                      |
 | `ALETHEIA_ALIAS_SALT`           | Recommended      | Salt for daily alias rotation. Generate: `openssl rand -hex 32`                                               |
@@ -27,7 +28,8 @@ Canonical env matrix: `docs/ENVIRONMENT_VARIABLES.md`
 ### Production checklist
 
 - `ALETHEIA_MODE=active` — required in production, refuses shadow mode
-- `ALETHEIA_RECEIPT_SECRET` — minimum 32 characters, required in active mode
+- `ALETHEIA_RECEIPT_PRIVATE_KEY` — required in active mode for Ed25519 receipt signing
+- `ALETHEIA_RECEIPT_SECRET` — optional only for legacy HMAC receipt verification during retention
 - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
 - `ALETHEIA_ALIAS_SALT` — strongly recommended, rotation predictable without it
 - API keys — created via `POST /v1/keys` (KeyStore); `ALETHEIA_API_KEYS` env var is no longer supported

@@ -12,6 +12,8 @@ type ReceiptFields = {
   fallback_state?: string;
   decision_token?: string;
   nonce?: string;
+  signature_algorithm?: string;
+  key_id?: string;
   signature?: string;
   issued_at?: string;
   action?: string;
@@ -29,7 +31,9 @@ const EXAMPLE_RECEIPT = `{
   "fallback_state": "normal",
   "decision_token": "sha256:af23...",
   "nonce": "8f2a...",
-  "signature": "hmac-sha256:7c1e...",
+  "signature_algorithm": "ed25519",
+  "key_id": "d522fbe9faff5a70",
+  "signature": "ed25519:7c1e...",
   "issued_at": "2026-04-07T00:00:00Z",
   "action": "Transfer_Funds",
   "origin": "agent-001"
@@ -120,6 +124,8 @@ export default function VerifyPage() {
     "fallback_state",
     "decision_token",
     "nonce",
+    "signature_algorithm",
+    "key_id",
     "signature",
     "issued_at",
     "action",
@@ -177,8 +183,7 @@ export default function VerifyPage() {
         >
           Client-side integrity check for tamper-evident JSON receipts. Paste a
           receipt to inspect its fields and verify structural consistency. Full
-          cryptographic HMAC signature verification is available in the CLI —
-          run{" "}
+          cryptographic signature verification is available in the CLI — run{" "}
           <code
             style={{
               fontFamily: "var(--font-mono)",
@@ -190,7 +195,8 @@ export default function VerifyPage() {
           >
             aletheia-audit verify
           </code>{" "}
-          for on-chain HMAC validation.
+          for Ed25519 verification of current receipts and legacy HMAC
+          verification during retention.
         </p>
       </div>
 
@@ -322,6 +328,8 @@ export default function VerifyPage() {
               { key: "fallback_state", label: "Fallback State" },
               { key: "decision_token", label: "Decision Token" },
               { key: "nonce", label: "Nonce" },
+              { key: "signature_algorithm", label: "Signature Algorithm" },
+              { key: "key_id", label: "Key ID" },
               { key: "signature", label: "Signature" },
               { key: "issued_at", label: "Issued At" },
               { key: "action", label: "Action" },
@@ -379,9 +387,11 @@ export default function VerifyPage() {
             }}
           >
             This viewer parses and displays receipt fields only. It does not
-            perform cryptographic HMAC verification — that requires the server
-            secret. To verify the signature, use the Aletheia CLI with your
-            configured{" "}
+            perform cryptographic signature verification. To verify the
+            signature, use the Aletheia CLI with your configured receipt public
+            key for Ed25519 receipts, or retain the legacy secret only when you
+            must validate older HMAC receipts. Current deployments should
+            prefer{" "}
             <code
               style={{
                 fontFamily: "var(--font-mono)",
@@ -391,7 +401,7 @@ export default function VerifyPage() {
                 borderRadius: "3px",
               }}
             >
-              ALETHEIA_RECEIPT_SECRET
+              ALETHEIA_RECEIPT_PUBLIC_KEY
             </code>
             .
           </div>

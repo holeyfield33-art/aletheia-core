@@ -87,8 +87,10 @@ export default function EvidencePage() {
         }}
       >
         Export all decision receipts as a JSONL file. Each line is an
-        independently verifiable, HMAC-signed audit record. Use this for
-        compliance reviews, incident investigations, and third-party audits.
+        independently verifiable audit record. New receipts are Ed25519-signed,
+        and legacy HMAC receipts remain verifiable during retention. Use this
+        for compliance reviews, incident investigations, and third-party
+        audits.
       </p>
 
       {/* Primary action */}
@@ -184,7 +186,10 @@ export default function EvidencePage() {
             desc: "SHA-256 of active policy at decision time",
           },
           { field: "payload_sha256", desc: "SHA-256 of input payload" },
-          { field: "signature", desc: "HMAC-SHA256 receipt signature" },
+          {
+            field: "signature",
+            desc: "Receipt signature with accompanying algorithm metadata",
+          },
         ].map(({ field, desc }) => (
           <div
             key={field}

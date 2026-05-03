@@ -18,16 +18,18 @@ services:
         sync: false
       - key: ALETHEIA_LOG_LEVEL
         sync: false
-      - key: ALETHEIA_LOG_PII
-        sync: false
       # --- Authn / API keys ---
-      - key: ALETHEIA_API_KEYS
-        sync: false
-      - key: ALETHEIA_ADMIN_KEY
-        sync: false
       - key: SIGNING_SECRET
         sync: false
       # --- Cryptographic salts & secrets ---
+      - key: ALETHEIA_RECEIPT_PRIVATE_KEY
+        sync: false
+      - key: ALETHEIA_RECEIPT_PRIVATE_KEY_PATH
+        sync: false
+      - key: ALETHEIA_RECEIPT_PUBLIC_KEY
+        sync: false
+      - key: ALETHEIA_RECEIPT_PUBLIC_KEY_PATH
+        sync: false
       - key: ALETHEIA_RECEIPT_SECRET
         sync: false
       - key: ALETHEIA_ALIAS_SALT
@@ -37,6 +39,8 @@ services:
       - key: ALETHEIA_KEY_SALT
         sync: false
       - key: ALETHEIA_MANIFEST_HASH
+        sync: false
+      - key: ALETHEIA_MANIFEST_KEY_VERSION
         sync: false
       # --- Backend / persistence ---
       - key: ALETHEIA_DATABASE_BACKEND

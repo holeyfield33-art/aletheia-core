@@ -18,7 +18,11 @@ Aletheia Core v1.9.2 environment reference.
 | `ALETHEIA_MODE`                 | Recommended | Yes          | `active`, `shadow`, `monitor`.                     |
 | ~~`ALETHEIA_API_KEYS`~~         | —           | **Removed**  | Removed in v1.9.0. Use KeyStore (`POST /v1/keys`). |
 | ~~`ALETHEIA_ADMIN_KEY`~~        | —           | **Removed**  | Removed in v1.9.0. Use RBAC permissions.           |
-| `ALETHEIA_RECEIPT_SECRET`       | Recommended | Yes          | HMAC key for signed receipts.                      |
+| `ALETHEIA_RECEIPT_PRIVATE_KEY`  | Recommended | Yes          | Ed25519 private key PEM for signing new receipts.  |
+| `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` | Optional | Recommended  | Filesystem path to the Ed25519 private key PEM.    |
+| `ALETHEIA_RECEIPT_PUBLIC_KEY`   | Optional    | Optional     | Ed25519 public key PEM for verification/disclosure. |
+| `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` | Optional | Optional     | Filesystem path to the Ed25519 public key PEM.     |
+| `ALETHEIA_RECEIPT_SECRET`       | Optional    | Optional     | Legacy HMAC secret used only to verify older receipts during retention. |
 | `ALETHEIA_ALIAS_SALT`           | Recommended | Recommended  | Judge alias rotation salt.                         |
 | `ALETHEIA_ROTATION_SALT`        | Recommended | Recommended  | Nitpicker mode rotation HMAC.                      |
 | `ALETHEIA_KEY_SALT`             | Recommended | Yes          | Salt for API key hashing.                          |
@@ -163,7 +167,7 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<32+ chars>
 DATABASE_URL=<postgres connection>
 DIRECT_URL=<postgres direct connection>
-ALETHEIA_RECEIPT_SECRET=<32+ chars>
+ALETHEIA_RECEIPT_PRIVATE_KEY=<PEM>
 ```
 
 ### Hosted (production baseline)
@@ -176,7 +180,7 @@ NEXTAUTH_SECRET=<32+ chars>
 DATABASE_URL=<prod connection>
 DIRECT_URL=<prod direct connection>
 ALETHEIA_MODE=active
-ALETHEIA_RECEIPT_SECRET=<strong key>
+ALETHEIA_RECEIPT_PRIVATE_KEY=<PEM>
 ALETHEIA_ALIAS_SALT=<strong key>
 ALETHEIA_ROTATION_SALT=<strong key>
 ALETHEIA_KEY_SALT=<strong key>
@@ -184,6 +188,9 @@ ALETHEIA_MANIFEST_HASH=<sha256 hex>
 UPSTASH_REDIS_REST_URL=<upstash url>
 UPSTASH_REDIS_REST_TOKEN=<upstash token>
 ```
+
+If you must verify pre-migration receipts, also retain `ALETHEIA_RECEIPT_SECRET`
+for the retention window.
 
 API keys are created via `POST /v1/keys` (KeyStore). Admin endpoints
 use RBAC permissions (OIDC/SAML bearer tokens). Upstash Redis is

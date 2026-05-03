@@ -1,4 +1,4 @@
-# Threat Model — Aletheia Core v1.7.1
+# Threat Model — Aletheia Core v1.9.2
 
 Formal enumeration of attack surfaces, trust boundaries, and mitigations.
 
@@ -230,5 +230,5 @@ The following are explicitly **not** threats that Aletheia Core is designed to m
 | ------------- | ----------------------------------------------------------------------------- |
 | **GOVERN**    | Ed25519-signed policy manifests enforce risk tolerance as immutable artefacts |
 | **MAP**       | Semantic intent classifier categorises requests into 5 risk categories        |
-| **MEASURE**   | HMAC-signed audit receipts provide cryptographically verifiable evidence      |
+| **MEASURE**   | Ed25519-signed audit receipts provide cryptographically verifiable evidence for new decisions while legacy HMAC receipts remain verifiable during retention |
 | **MANAGE**    | Daily alias rotation, configurable thresholds, active/shadow/monitor modes    |
