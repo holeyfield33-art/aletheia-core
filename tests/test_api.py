@@ -376,10 +376,39 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertIn("demo_key_registered", body)
         self.assertIn("demo_key_status", body)
 
+    def test_public_key_endpoint_serves_manifest_key(self) -> None:
+        from pathlib import Path
+
+        expected = Path("manifest/security_policy.ed25519.pub").read_text(
+            encoding="utf-8"
+        )
+        r = self.client.get("/v1/public-key")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.text, expected)
+        self.assertIn("application/x-pem-file", r.headers.get("content-type", ""))
+
+    def test_well_known_receipt_key_endpoint_serves_same_key(self) -> None:
+        from pathlib import Path
+
+        expected = Path("manifest/security_policy.ed25519.pub").read_text(
+            encoding="utf-8"
+        )
+        r = self.client.get("/.well-known/aletheia-receipt-key.pem")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.text, expected)
+        self.assertIn("application/x-pem-file", r.headers.get("content-type", ""))
+
     def test_unsupported_methods_return_405(self) -> None:
         self.assertEqual(self.client.get("/v1/audit").status_code, 405)
         self.assertEqual(self.client.post("/health").status_code, 405)
         self.assertEqual(self.client.post("/ready").status_code, 405)
+        self.assertEqual(self.client.post("/v1/public-key").status_code, 405)
+        self.assertEqual(
+            self.client.post("/.well-known/aletheia-receipt-key.pem").status_code,
+            405,
+        )
 
 
 class TestRequestIdFormat(unittest.TestCase):

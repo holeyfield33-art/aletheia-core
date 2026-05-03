@@ -939,6 +939,31 @@ def _verify_manifest() -> bool:
         return False
 
 
+def _read_manifest_public_key() -> str:
+    """Read the manifest verification public key in PEM format."""
+    key_path = Path("manifest/security_policy.ed25519.pub")
+    try:
+        return key_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "public_key_unavailable",
+                "message": "Manifest public key is not available.",
+            },
+        ) from exc
+
+
+@app.get("/v1/public-key")
+@app.get("/.well-known/aletheia-receipt-key.pem")
+async def receipt_public_key() -> Response:
+    """Expose the receipt verification public key for external verifiers."""
+    return Response(
+        content=_read_manifest_public_key(),
+        media_type="application/x-pem-file",
+    )
+
+
 @app.get("/health")
 async def health_check(request: Request) -> JSONResponse:
     """Gateway health and readiness endpoint.
