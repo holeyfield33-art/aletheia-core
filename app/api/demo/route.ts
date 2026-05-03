@@ -18,6 +18,10 @@ const BACKEND_BASE = (
   process.env.ALETHEIA_BASE_URL ??
   "https://api.aletheia-core.com"
 ).trim();
+const BACKEND_URLS = (process.env.ALETHEIA_BACKEND_URLS ?? "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
 const BACKEND_FALLBACK_BASE = "https://aletheia-core.onrender.com";
 const BACKEND_SECONDARY_BASE = "https://api.aletheia-core.com";
 const DEMO_API_KEY = (
@@ -199,6 +203,31 @@ function buildDeniedReceipt(
   return { ...receiptCore, signature };
 }
 
+function buildUpstreamUnavailableReceipt(
+  safeAction: string,
+): Record<string, unknown> {
+  const request_id = randomUUID();
+  const policy_version = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
+  const receiptCore = {
+    request_id,
+    decision: "DENIED",
+    rule_id: "DEMO_UPSTREAM_UNAVAILABLE",
+    severity: "HIGH",
+    reason: "upstream_unavailable",
+    action: safeAction,
+    policy_version,
+    semantic_engine: {
+      degraded: true,
+      manifest_version: policy_version,
+      categories_checked: ["availability_guard"],
+    },
+  };
+  const signature = createHmac("sha256", GUARD_SIGN_SECRET)
+    .update(JSON.stringify(receiptCore))
+    .digest("hex");
+  return { ...receiptCore, signature };
+}
+
 function extractInjectionMatch(
   payload: string,
 ): { rule_id: string; severity: string } | null {
@@ -293,13 +322,10 @@ export async function POST(request: NextRequest) {
       rl?.remaining;
   }
 
-  const backendCandidates = [
-    BACKEND_BASE,
-    BACKEND_SECONDARY_BASE,
-    BACKEND_FALLBACK_BASE,
-  ].filter(
-    (value, index, arr) => value && arr.indexOf(value) === index,
-  );
+  const backendCandidates = (BACKEND_URLS.length
+    ? BACKEND_URLS
+    : [BACKEND_BASE, BACKEND_FALLBACK_BASE, BACKEND_SECONDARY_BASE]
+  ).filter((value, index, arr) => value && arr.indexOf(value) === index);
 
   if (backendCandidates.length === 0) {
     console.error("[demo-proxy] No backend URL configured");
@@ -484,7 +510,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (!upstream) {
-      return secureJson(SANITIZED_ERROR, { status: 503 });
+      return secureJson(buildUpstreamUnavailableReceipt(safeAction), {
+        status: 503,
+        headers: { "Retry-After": "10" },
+      });
     }
 
     if (!upstream.ok) {
@@ -546,7 +575,10 @@ export async function POST(request: NextRequest) {
           { status: 503, headers: { "Retry-After": "10" } },
         );
       }
-      return secureJson(SANITIZED_ERROR, { status: 503 });
+      return secureJson(buildUpstreamUnavailableReceipt(safeAction), {
+        status: 503,
+        headers: { "Retry-After": "10" },
+      });
     }
 
     const data = await upstream.json();
@@ -586,13 +618,10 @@ export async function POST(request: NextRequest) {
         err instanceof Error ? err.message : "unknown",
       );
     }
-    return secureJson(
-      {
-        error: "service_unavailable",
-        message: "Demo backend is temporarily unavailable. Please retry shortly.",
-      },
-      { status: 503, headers: { "Retry-After": isTimeout ? "5" : "10" } },
-    );
+    return secureJson(buildUpstreamUnavailableReceipt(safeAction), {
+      status: 503,
+      headers: { "Retry-After": isTimeout ? "5" : "10" },
+    });
   }
 }
 

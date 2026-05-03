@@ -13,7 +13,7 @@ export async function GET() {
   if (process.env.NODE_ENV === "production") {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
     }
   }
 

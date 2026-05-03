@@ -76,11 +76,11 @@ export default function SecurityTrustPage() {
       </ul>
       <p style={p}>
         All three agents must independently pass for a request to proceed. Any
-        single agent can deny. The system fails closed — if any component is
-        unavailable, the request is denied. The system fails closed when the rate limiter
-        or decision store is unavailable. Semantic engine degradation is logged and
-        triggers fail-closed behavior for privileged actions when the embedded analysis
-        layer is offline. Audit chain continuity is guaranteed within a single instance;
+        single agent can deny. The system fails closed for high-risk actions
+        when critical controls are unavailable (for example: rate limiter,
+        decision store, manifest verification, or semantic engine degradation).
+        Availability exceptions are surfaced as explicit denied/degraded
+        responses in the API and demo paths. Audit chain continuity is guaranteed within a single instance;
         multi-replica chain coordination is planned for a future release.
       </p>
 
