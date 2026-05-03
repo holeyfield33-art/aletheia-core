@@ -14,6 +14,10 @@ RUN pip install --no-cache-dir --require-hashes -r requirements.txt
 # Copy application
 COPY . .
 
+# Pre-download embedding model at build time to avoid cold-start download latency.
+# The model is cached to ~/.cache/huggingface/hub by default.
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
 # Verify manifest signature exists — do NOT sign at build time
 RUN python -c "from pathlib import Path; assert Path('manifest/security_policy.json.sig').exists(), 'Missing manifest signature — run: python main.py sign-manifest before building'"
 

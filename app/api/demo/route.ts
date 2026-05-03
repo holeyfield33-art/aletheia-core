@@ -16,14 +16,14 @@ import { incrementUsage } from "@/lib/usage-tracking";
 const BACKEND_BASE = (
   process.env.ALETHEIA_BACKEND_URL ??
   process.env.ALETHEIA_BASE_URL ??
-  "https://api.aletheia-core.com"
+  "https://aletheia-core.onrender.com"
 ).trim();
 const BACKEND_URLS = (process.env.ALETHEIA_BACKEND_URLS ?? "")
   .split(",")
   .map((u) => u.trim())
   .filter(Boolean);
 const BACKEND_FALLBACK_BASE = "https://aletheia-core.onrender.com";
-const BACKEND_SECONDARY_BASE = "https://api.aletheia-core.com";
+// BACKEND_SECONDARY_BASE intentionally removed — api.aletheia-core.com has no dedicated backend host
 const DEMO_API_KEY = (
   process.env.ALETHEIA_DEMO_API_KEY ??
   process.env.ALETHEIA_API_KEY ??
@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
 
   const backendCandidates = (BACKEND_URLS.length
     ? BACKEND_URLS
-    : [BACKEND_BASE, BACKEND_FALLBACK_BASE, BACKEND_SECONDARY_BASE]
+    : [BACKEND_BASE, BACKEND_FALLBACK_BASE]
   ).filter((value, index, arr) => value && arr.indexOf(value) === index);
 
   if (backendCandidates.length === 0) {
