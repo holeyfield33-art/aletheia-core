@@ -6,7 +6,14 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { PRODUCT, STATUS, URLS, SEO_SOLUTIONS } from "@/lib/site-config";
+import {
+  APP_ORIGIN,
+  MARKETING_ORIGIN,
+  PRODUCT,
+  STATUS,
+  URLS,
+  SEO_SOLUTIONS,
+} from "@/lib/site-config";
 import AuthProvider from "@/app/components/AuthProvider";
 import Nav from "@/app/components/Nav";
 import { ToastProvider } from "@/app/components/Toast";
@@ -33,39 +40,52 @@ const inter = Inter({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
-    template: `%s | ${PRODUCT.name}`,
-  },
-  description:
-    "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
-  keywords: [
-    "supply-chain security",
-    "malicious code detection",
-    "Python security",
-    "dependency scanning",
-    "runtime security",
-    "audit receipts",
-    "AI safety",
-    "open-source security",
-  ],
-  openGraph: {
-    type: "website",
-    url: URLS.appBase,
-    siteName: PRODUCT.name,
-    title: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
+function normalizedHost(host: string | null): string {
+  return (host ?? "").split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headerStore = await headers();
+  const host = normalizedHost(
+    headerStore.get("x-forwarded-host") ?? headerStore.get("host"),
+  );
+  const appHost = new URL(APP_ORIGIN).host;
+  const origin = host === appHost ? APP_ORIGIN : MARKETING_ORIGIN;
+
+  return {
+    title: {
+      default: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
+      template: `%s | ${PRODUCT.name}`,
+    },
     description:
       "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
-    description:
-      "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
-  },
-  metadataBase: new URL(URLS.appBase),
-};
+    keywords: [
+      "supply-chain security",
+      "malicious code detection",
+      "Python security",
+      "dependency scanning",
+      "runtime security",
+      "audit receipts",
+      "AI safety",
+      "open-source security",
+    ],
+    openGraph: {
+      type: "website",
+      url: origin,
+      siteName: PRODUCT.name,
+      title: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
+      description:
+        "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${PRODUCT.name} — Runtime audit and pre-execution block layer for AI agents`,
+      description:
+        "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
+    },
+    metadataBase: new URL(origin),
+  };
+}
 
 export default async function RootLayout({
   children,

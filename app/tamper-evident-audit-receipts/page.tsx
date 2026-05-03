@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import SeoLanding from "@/app/components/SeoLanding";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Tamper-Evident Audit Receipts",
   description:
     "Tamper-evident audit receipts for AI decisions using deterministic fields and cryptographic signature verification.",
-  alternates: { canonical: `${URLS.appBase}/tamper-evident-audit-receipts` },
+  alternates: {
+    canonical: `${MARKETING_ORIGIN}/tamper-evident-audit-receipts`,
+  },
 };
 
 export default function TamperEvidentAuditReceiptsPage() {

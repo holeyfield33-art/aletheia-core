@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import SeoLanding from "@/app/components/SeoLanding";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Agent Policy Enforcement",
   description:
     "Agent policy enforcement with signed manifests, semantic vetoes, and deterministic runtime denial controls.",
-  alternates: { canonical: `${URLS.appBase}/agent-policy-enforcement` },
+  alternates: { canonical: `${MARKETING_ORIGIN}/agent-policy-enforcement` },
 };
 
 export default function AgentPolicyEnforcementPage() {

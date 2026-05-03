@@ -1,3 +1,5 @@
+import { APP_ORIGIN } from "@/lib/site-config";
+
 /**
  * Dynamic base URL resolution for NextAuth callbacks and redirects.
  *
@@ -11,5 +13,5 @@ export function getBaseUrl(): string {
   if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   if (process.env.NODE_ENV === "development") return "http://localhost:3000";
-  return "https://app.aletheia-core.com";
+  return APP_ORIGIN;
 }

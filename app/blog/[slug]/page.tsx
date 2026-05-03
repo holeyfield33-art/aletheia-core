@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BLOG_POSTS, getPostBySlug } from "@/app/blog/_posts";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export function generateStaticParams() {
   return BLOG_POSTS.map((post) => ({ slug: post.slug }));
@@ -17,7 +17,7 @@ export function generateMetadata({
     return { title: "Post Not Found" };
   }
 
-  const canonical = `${URLS.appBase}/blog/${post.slug}`;
+  const canonical = `${MARKETING_ORIGIN}/blog/${post.slug}`;
   return {
     title: post.title,
     description: post.description,

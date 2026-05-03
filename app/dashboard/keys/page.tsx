@@ -253,7 +253,7 @@ export default function KeysPage() {
             whiteSpace: "pre",
             marginBottom: "0.75rem",
           }}
-        >{`curl -X POST ${URLS.appBase}/v1/audit \\
+          >{`curl -X POST ${URLS.apiBase}/v1/audit \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: sk_trial_xxxxx" \\
   -d '{

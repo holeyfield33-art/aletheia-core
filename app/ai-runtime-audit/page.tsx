@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import SeoLanding from "@/app/components/SeoLanding";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "AI Runtime Audit",
   description:
     "AI runtime audit blueprint for agent workflows: threat-model actions, enforce policy, and verify signed outcomes.",
-  alternates: { canonical: `${URLS.appBase}/ai-runtime-audit` },
+  alternates: { canonical: `${MARKETING_ORIGIN}/ai-runtime-audit` },
 };
 
 export default function AIRuntimeAuditPage() {

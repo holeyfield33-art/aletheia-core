@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { APP_ORIGIN, MARKETING_ORIGIN } from "@/lib/site-config";
 
 const BYPASS_PATHS = [
   "/api/stripe/checkout",
@@ -8,8 +9,75 @@ const BYPASS_PATHS = [
   "/_next/static",
 ];
 
+const APP_HOST = new URL(APP_ORIGIN).host;
+const MARKETING_HOST = new URL(MARKETING_ORIGIN).host;
+const MARKETING_WWW_HOST = `www.${MARKETING_HOST}`;
+
+function normalizedHost(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-host");
+  const host = forwarded || request.headers.get("host") || "";
+  return host.split(",")[0].trim().toLowerCase();
+}
+
+function stripPort(host: string): string {
+  return host.replace(/:\d+$/, "");
+}
+
+function isAppRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signin") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/api/auth")
+  );
+}
+
+function isAlwaysLocalPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml"
+  );
+}
+
+function redirectToOrigin(
+  request: NextRequest,
+  origin: string,
+  pathname: string,
+): NextResponse {
+  const target = new URL(pathname, origin);
+  target.search = request.nextUrl.search;
+  return NextResponse.redirect(target);
+}
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = stripPort(normalizedHost(request));
+
+  if (host === APP_HOST) {
+    if (pathname === "/") {
+      return redirectToOrigin(request, APP_ORIGIN, "/dashboard");
+    }
+    if (!isAlwaysLocalPath(pathname) && !isAppRoute(pathname)) {
+      return redirectToOrigin(request, MARKETING_ORIGIN, pathname);
+    }
+  }
+
+  if (host === MARKETING_WWW_HOST) {
+    if (isAppRoute(pathname)) {
+      return redirectToOrigin(request, APP_ORIGIN, pathname);
+    }
+    return redirectToOrigin(request, MARKETING_ORIGIN, pathname);
+  }
+
+  if (host === MARKETING_HOST && isAppRoute(pathname)) {
+    return redirectToOrigin(request, APP_ORIGIN, pathname);
+  }
+
   const isBypassed = BYPASS_PATHS.some((path) => pathname.startsWith(path));
 
   // Route-level auth guard for authenticated zones.

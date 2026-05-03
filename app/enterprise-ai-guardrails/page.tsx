@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import SeoLanding from "@/app/components/SeoLanding";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Enterprise AI Guardrails",
   description:
     "Enterprise AI guardrails for policy governance, staged enforcement, and operational resilience across agent systems.",
-  alternates: { canonical: `${URLS.appBase}/enterprise-ai-guardrails` },
+  alternates: { canonical: `${MARKETING_ORIGIN}/enterprise-ai-guardrails` },
 };
 
 export default function EnterpriseAIGuardrailsPage() {

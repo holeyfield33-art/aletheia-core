@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import SeoLanding from "@/app/components/SeoLanding";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Prompt Injection Defense",
   description:
     "Prompt injection defense for AI agents using layered normalization, semantic analysis, and fail-closed enforcement.",
-  alternates: { canonical: `${URLS.appBase}/prompt-injection-defense` },
+  alternates: { canonical: `${MARKETING_ORIGIN}/prompt-injection-defense` },
 };
 
 export default function PromptInjectionDefensePage() {

@@ -57,8 +57,8 @@ export default function PrivacyPolicyPage() {
       <p style={p}>
         {PRODUCT.copyrightHolder} (&quot;we,&quot; &quot;us,&quot; or
         &quot;our&quot;) operates {PRODUCT.name} at{" "}
-        <a href={URLS.appBase} style={{ color: "var(--crimson-hi)" }}>
-          {URLS.appBase}
+        <a href={URLS.landingPage} style={{ color: "var(--crimson-hi)" }}>
+          {URLS.landingPage}
         </a>
         . This Privacy Policy describes how we collect, use, disclose, and
         protect personal information when you use our website and services.

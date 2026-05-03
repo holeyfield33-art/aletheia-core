@@ -8,6 +8,13 @@
  * 2. Update the <!-- PUBLIC FACTS SYNC --> block in docs/index.html
  */
 
+export const MARKETING_ORIGIN =
+  process.env.NEXT_PUBLIC_MARKETING_ORIGIN ?? "https://aletheia-core.com";
+export const APP_ORIGIN =
+  process.env.NEXT_PUBLIC_APP_ORIGIN ?? "https://app.aletheia-core.com";
+export const API_ORIGIN =
+  process.env.NEXT_PUBLIC_API_ORIGIN ?? "https://api.aletheia-core.com";
+
 export const PRODUCT = {
   name: "Aletheia Core",
   tagline:
@@ -26,11 +33,12 @@ export const URLS = {
   contact: "mailto:info@aletheia-core.com?subject=Service Inquiry",
   contactEmail: "info@aletheia-core.com",
   github: "https://github.com/holeyfield33-art/aletheia-core",
-  landingPage: "https://aletheia-core.com",
-  appBase: "https://app.aletheia-core.com",
-  demo: "https://app.aletheia-core.com/demo",
-  verify: "https://app.aletheia-core.com/verify",
-  pricing: "https://app.aletheia-core.com/#pricing",
+  landingPage: MARKETING_ORIGIN,
+  appBase: APP_ORIGIN,
+  apiBase: API_ORIGIN,
+  demo: `${MARKETING_ORIGIN}/demo`,
+  verify: `${MARKETING_ORIGIN}/verify`,
+  pricing: `${MARKETING_ORIGIN}/#pricing`,
 } as const;
 
 export const STATUS = {

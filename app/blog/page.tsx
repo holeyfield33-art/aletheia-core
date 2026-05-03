@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { BLOG_POSTS } from "@/app/blog/_posts";
-import { URLS } from "@/lib/site-config";
+import { MARKETING_ORIGIN } from "@/lib/site-config";
 
 export const metadata: Metadata = {
   title: "Engineering Blog",
   description:
     "Security engineering notes from the Aletheia Core team on policy enforcement, auditability, and agent runtime hardening.",
-  alternates: { canonical: `${URLS.appBase}/blog` },
+  alternates: { canonical: `${MARKETING_ORIGIN}/blog` },
 };
 
 export default function BlogPage() {
