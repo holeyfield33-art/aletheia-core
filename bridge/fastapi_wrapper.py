@@ -239,7 +239,8 @@ async def add_security_and_rate_limit_headers(request: Request, call_next):
     # Security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Cache-Control"] = "no-store"
+    if "Cache-Control" not in response.headers:
+        response.headers["Cache-Control"] = "no-store"
     response.headers["Content-Security-Policy"] = (
         "default-src 'none'; frame-ancestors 'none'"
     )
@@ -937,6 +938,112 @@ def _verify_manifest() -> bool:
         return True
     except Exception:
         return False
+
+
+def _read_manifest_public_key() -> str:
+    """Read the manifest verification public key in PEM format."""
+    key_path = Path("manifest/security_policy.ed25519.pub")
+    try:
+        return key_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "public_key_unavailable",
+                "message": "Manifest public key is not available.",
+            },
+        ) from exc
+
+
+def _manifest_key_id() -> str:
+    """Return stable key ID for manifest Ed25519 public key."""
+    from cryptography.hazmat.primitives import serialization as _serialization
+
+    pem = _read_manifest_public_key()
+    try:
+        key = _serialization.load_pem_public_key(pem.encode("utf-8"))
+        der = key.public_bytes(
+            encoding=_serialization.Encoding.DER,
+            format=_serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "public_key_unavailable",
+                "message": f"Manifest public key is malformed: {exc}",
+            },
+        ) from exc
+    return hashlib.sha256(der).hexdigest()[:16]
+
+
+@app.get("/.well-known/aletheia-receipt-key.pem")
+async def receipt_public_key() -> Response:
+    """Serve the Ed25519 receipt verification key for external verifiers."""
+    from core import receipt_keys
+
+    try:
+        receipt_pem = receipt_keys.public_key_pem()
+    except receipt_keys.ReceiptKeyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "public_key_unavailable",
+                "message": f"Receipt public key is not available: {exc}",
+            },
+        ) from exc
+
+    return Response(
+        content=receipt_pem,
+        media_type="application/x-pem-file",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.get("/.well-known/aletheia-manifest-key.pem")
+async def manifest_public_key() -> Response:
+    """Serve the manifest signature verification key."""
+    return Response(
+        content=_read_manifest_public_key(),
+        media_type="application/x-pem-file",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@app.get("/v1/public-key")
+async def public_key_bundle() -> JSONResponse:
+    """Serve receipt and manifest verification keys and key IDs."""
+    from core import receipt_keys
+
+    try:
+        receipt_pem = receipt_keys.public_key_pem().decode("utf-8")
+        receipt_kid = receipt_keys.key_id()
+    except receipt_keys.ReceiptKeyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "public_key_unavailable",
+                "message": f"Receipt public key is not available: {exc}",
+            },
+        ) from exc
+
+    manifest_pem = _read_manifest_public_key()
+    manifest_kid = _manifest_key_id()
+    return JSONResponse(
+        content={
+            "receipt_key": {
+                "algorithm": "ed25519",
+                "key_id": receipt_kid,
+                "pem": receipt_pem,
+            },
+            "manifest_key": {
+                "algorithm": "ed25519",
+                "key_id": manifest_kid,
+                "pem": manifest_pem,
+            },
+        },
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @app.get("/health")
