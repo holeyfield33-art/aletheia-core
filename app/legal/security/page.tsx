@@ -144,9 +144,26 @@ export default function SecurityTrustPage() {
         <li>Decision (PROCEED / DENIED / SANDBOX_BLOCKED)</li>
         <li>SHA-256 hash of the policy manifest</li>
         <li>SHA-256 hash of the payload</li>
-        <li>HMAC signature binding the decision to the specific request</li>
+        <li>
+          Ed25519 signature binding the decision to the specific request
+          (for receipts issued after 2026-05-03)
+        </li>
         <li>Timestamp, action, origin, threat score, and unique request ID</li>
       </ul>
+      <p style={p}>
+        Receipt signing migrated from HMAC-SHA256 to Ed25519 (asymmetric) on
+        2026-05-03. Receipts issued after that date are signed with our
+        Ed25519 receipt-signing key and can be verified by any third party
+        using the public key at{" "}
+        <a
+          href="/.well-known/aletheia-receipt-key.pem"
+          style={{ color: "var(--crimson-hi)" }}
+        >
+          /.well-known/aletheia-receipt-key.pem
+        </a>
+        . Receipts issued before that date were signed with HMAC-SHA256 and
+        remain verifiable for the audit retention period.
+      </p>
       <p style={p}>
         Receipts can be independently verified using the{" "}
         <a href="/verify" style={{ color: "var(--crimson-hi)" }}>

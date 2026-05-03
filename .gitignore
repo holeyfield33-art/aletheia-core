@@ -36,3 +36,6 @@ coverage.xml
 
 /lib/generated/prisma
 tsconfig.tsbuildinfo
+
+# Generated receipt keypair output
+.secrets/
