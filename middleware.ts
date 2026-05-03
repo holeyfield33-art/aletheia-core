@@ -3,6 +3,7 @@ import { getToken } from "next-auth/jwt";
 import { APP_ORIGIN, MARKETING_ORIGIN } from "@/lib/site-config";
 
 const BYPASS_PATHS = [
+  "/api/v1",
   "/api/stripe/checkout",
   "/api/stripe/webhook",
   "/api/webhooks/stripe",
