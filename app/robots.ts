@@ -20,6 +20,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard", "/api", "/auth"],
       },
     ],
-    sitemap: `${URLS.appBase}/sitemap.xml`,
+    sitemap: `${URLS.landingPage}/sitemap.xml`,
   };
 }

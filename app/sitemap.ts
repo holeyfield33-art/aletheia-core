@@ -3,6 +3,7 @@ import { URLS, SEO_SOLUTIONS } from "@/lib/site-config";
 import { BLOG_POSTS } from "@/app/blog/_posts";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const siteBase = URLS.landingPage;
   const legalPages = [
     "privacy",
     "terms",
@@ -15,73 +16,73 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     {
-      url: URLS.appBase,
+      url: siteBase,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1.0,
     },
     {
-      url: `${URLS.appBase}/demo`,
+      url: `${siteBase}/demo`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.9,
     },
     {
-      url: `${URLS.appBase}/verify`,
+      url: `${siteBase}/verify`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
-      url: `${URLS.appBase}/status`,
+      url: `${siteBase}/status`,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.6,
     },
     {
-      url: `${URLS.appBase}/pricing`,
+      url: `${siteBase}/pricing`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: `${URLS.appBase}/docs`,
+      url: `${siteBase}/docs`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${URLS.appBase}/blog`,
+      url: `${siteBase}/blog`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
-      url: `${URLS.appBase}/changelog`,
+      url: `${siteBase}/changelog`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.6,
     },
     {
-      url: `${URLS.appBase}/cli`,
+      url: `${siteBase}/cli`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.5,
     },
     ...SEO_SOLUTIONS.map((entry) => ({
-      url: `${URLS.appBase}${entry.href}`,
+      url: `${siteBase}${entry.href}`,
       lastModified: new Date(),
       changeFrequency: "monthly" as const,
       priority: 0.72,
     })),
     ...BLOG_POSTS.map((post) => ({
-      url: `${URLS.appBase}/blog/${post.slug}`,
+      url: `${siteBase}/blog/${post.slug}`,
       lastModified: new Date(post.publishedAt),
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
     ...legalPages.map((slug) => ({
-      url: `${URLS.appBase}/legal/${slug}`,
+      url: `${siteBase}/legal/${slug}`,
       lastModified: new Date(),
       changeFrequency: "monthly" as const,
       priority: 0.4,

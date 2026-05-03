@@ -82,7 +82,6 @@ export default async function RootLayout({
     >
       <head>
         <link rel="icon" href="/favicon.ico" />
-        <link rel="canonical" href={URLS.appBase} />
         <Script
           src="/theme-bootstrap.js"
           strategy="beforeInteractive"

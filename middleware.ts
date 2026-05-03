@@ -31,7 +31,7 @@ export default async function middleware(request: NextRequest) {
     });
     if (!token || token.deletedAt) {
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "not_found" }, { status: 404 });
       }
       const loginUrl = new URL("/auth/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);

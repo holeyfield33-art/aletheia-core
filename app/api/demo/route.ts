@@ -39,6 +39,7 @@ const RETRY_BACKOFF_MS = Math.max(
   50,
   parseInt(process.env.DEMO_UPSTREAM_RETRY_BACKOFF_MS ?? "250", 10),
 );
+const NON_BLOCKING_FAILOVER_STATUSES = new Set([400, 401, 404, 405, 408, 421]);
 
 /** Allow Vercel to keep the function alive long enough for cold starts. */
 export const maxDuration = 60;
@@ -50,7 +51,7 @@ const FREE_TIER_EXHAUSTED_MESSAGE = `You've used your ${PRICING.free.receipts.to
 const corsHeaders: Record<string, string> = {
   "X-XSS-Protection": "0",
   "Access-Control-Allow-Origin":
-    process.env.ALETHEIA_CORS_ORIGIN ?? "https://app.aletheia-core.com",
+    process.env.ALETHEIA_CORS_ORIGIN ?? "https://aletheia-core.com",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "600",
@@ -89,6 +90,10 @@ function validateBackendUrl(url: string): boolean {
 
 function isTransientUpstreamStatus(status: number): boolean {
   return TRANSIENT_UPSTREAM_STATUS.has(status);
+}
+
+function shouldFailoverToNextBackend(status: number): boolean {
+  return NON_BLOCKING_FAILOVER_STATUSES.has(status) || isTransientUpstreamStatus(status);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -373,6 +378,8 @@ export async function POST(request: NextRequest) {
     let lastFetchError: unknown = null;
     for (let i = 0; i < backendCandidates.length; i += 1) {
       const base = backendCandidates[i];
+      const hasMoreBackends = i < backendCandidates.length - 1;
+      let shouldTryNextBackend = false;
 
       for (
         let attempt = 1;
@@ -411,6 +418,23 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
+          if (
+            !res.ok &&
+            hasMoreBackends &&
+            shouldFailoverToNextBackend(res.status) &&
+            res.status !== 403 &&
+            res.status !== 429
+          ) {
+            shouldTryNextBackend = true;
+            upstream = null;
+            console.error(
+              "[demo-proxy] upstream %s returned %d; failing over to %s",
+              base,
+              res.status,
+              backendCandidates[i + 1],
+            );
+          }
+
           // Stop retrying this backend once we have either success or a non-transient status.
           break;
         } catch (err) {
@@ -440,11 +464,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (shouldTryNextBackend) {
+        continue;
+      }
+
       if (upstream && (!upstream.status || !isTransientUpstreamStatus(upstream.status))) {
         break;
       }
 
-      const hasMoreBackends = i < backendCandidates.length - 1;
       if (hasMoreBackends) {
         console.error(
           "[demo-proxy] failing over from %s to %s",
