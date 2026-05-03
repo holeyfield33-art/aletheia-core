@@ -261,6 +261,8 @@ class Receipt(BaseModel):
     issued_at: str
     signature: str = ""
     warning: Optional[str] = Field(default=None)
+    signature_algorithm: str = "hmac-sha256"
+    key_id: Optional[str] = Field(default=None)
 
     @field_validator("prompt")
     @classmethod
@@ -270,7 +272,12 @@ class Receipt(BaseModel):
         return value
 
     def _canonical_string(self) -> str:
-        """Return canonical receipt string used for HMAC signing."""
+        """Canonical string used for signing.
+
+        For backward compatibility with pre-migration HMAC receipts, the
+        signature_algorithm and key_id fields are appended only when
+        signature_algorithm is not the legacy default or key_id is present.
+        """
         canonical = (
             f"{self.decision}|{self.policy_hash}|{self.policy_version}|"
             f"{self.payload_sha256}"
@@ -282,6 +289,10 @@ class Receipt(BaseModel):
             f"{self.fallback_state}|{self.issued_at}|"
             f"{self.decision_token}|{self.nonce}"
         )
+        if self.signature_algorithm != "hmac-sha256" or self.key_id:
+            canonical += f"|alg:{self.signature_algorithm}"
+            if self.key_id:
+                canonical += f"|kid:{self.key_id}"
         return canonical
 
 
@@ -423,13 +434,14 @@ def build_tmr_receipt(
     fallback_state: str = "normal",
     issued_at: str = "",
 ) -> dict[str, Any]:
-    """Build a tamper-evident receipt signed with a private HMAC secret.
+    """Build a tamper-evident receipt.
 
-    Signs: decision + policy_hash + payload_sha256 + action + origin + timestamp.
-    Including payload_sha256, action, and origin prevents receipt replay attacks
-    where a valid receipt from a benign request is reused for a malicious one.
+    Signs with Ed25519 if ALETHEIA_RECEIPT_PRIVATE_KEY is configured;
+    falls back to HMAC-SHA256 if only ALETHEIA_RECEIPT_SECRET is set.
+    Returns an unsigned receipt with a warning if neither is configured.
     """
-    secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
+    from core import receipt_keys
+
     issued_at = issued_at or datetime.now(timezone.utc).isoformat()
     nonce = os.urandom(16).hex()
     decision_token = hashlib.sha256(
@@ -454,13 +466,29 @@ def build_tmr_receipt(
     if prompt is not None:
         receipt_payload["prompt"] = prompt
 
+    if receipt_keys.is_configured():
+        receipt_payload["signature_algorithm"] = "ed25519"
+        receipt_payload["key_id"] = receipt_keys.key_id()
+
+        receipt = Receipt.model_validate(receipt_payload)
+        priv = receipt_keys.load_private_key()
+        sig_bytes = priv.sign(receipt._canonical_string().encode("utf-8"))
+
+        signed: dict[str, Any] = receipt.model_dump(exclude_none=True)
+        signed["signature"] = sig_bytes.hex()
+        return signed
+
+    secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
+    receipt_payload["signature_algorithm"] = "hmac-sha256"
+
     receipt = Receipt.model_validate(receipt_payload)
 
     if not secret:
         unsigned = receipt.model_dump(exclude_none=True)
         unsigned["signature"] = "UNSIGNED_DEV_MODE"
         unsigned["warning"] = (
-            "Set ALETHEIA_RECEIPT_SECRET for production receipt signing."
+            "Set ALETHEIA_RECEIPT_PRIVATE_KEY (preferred) or "
+            "ALETHEIA_RECEIPT_SECRET (legacy) for production receipt signing."
         )
         return dict(unsigned)
 
@@ -476,10 +504,13 @@ def build_tmr_receipt(
 
 
 def verify_receipt(receipt: dict[str, Any]) -> bool:
-    """Verify a TMR receipt signature against the configured HMAC secret."""
-    secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
-    if not secret:
-        return False
+    """Verify a TMR receipt signature.
+
+    Algorithm dispatched by receipt['signature_algorithm']:
+      - "ed25519": verify with public key from receipt_keys
+      - "hmac-sha256" (default for legacy receipts): verify with
+        ALETHEIA_RECEIPT_SECRET
+    """
 
     provided_sig = receipt.get("signature")
     if not isinstance(provided_sig, str) or not provided_sig:
@@ -492,9 +523,36 @@ def verify_receipt(receipt: dict[str, Any]) -> bool:
     except Exception:
         return False
 
-    expected_sig = hmac.new(
-        secret,
-        parsed._canonical_string().encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-    return hmac.compare_digest(provided_sig, expected_sig)
+    algorithm = parsed.signature_algorithm
+
+    if algorithm == "ed25519":
+        from cryptography.exceptions import InvalidSignature
+        from core import receipt_keys
+
+        try:
+            pub = receipt_keys.load_public_key()
+        except receipt_keys.ReceiptKeyError:
+            return False
+        try:
+            sig_bytes = bytes.fromhex(provided_sig)
+        except ValueError:
+            return False
+        try:
+            pub.verify(sig_bytes, parsed._canonical_string().encode("utf-8"))
+            return True
+        except InvalidSignature:
+            return False
+
+    if algorithm == "hmac-sha256":
+        secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
+        if not secret:
+            return False
+
+        expected_sig = hmac.new(
+            secret,
+            parsed._canonical_string().encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        return hmac.compare_digest(provided_sig, expected_sig)
+
+    return False
