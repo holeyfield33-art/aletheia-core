@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isIP } from "node:net";
+import { createHmac, randomUUID } from "node:crypto";
 import { getToken } from "next-auth/jwt";
 import { secureJson as _baseSecureJson } from "@/lib/api-utils";
 import { consumeRateLimit } from "@/lib/rate-limit";
@@ -120,6 +121,87 @@ const DEMO_RATE_WINDOW_MS = parseInt(
   process.env.DEMO_RATE_WINDOW_MS ?? String(60 * 60 * 1000),
   10,
 );
+
+// ---------------------------------------------------------------------------
+// Server-side injection guard — runs before the upstream call.
+// Matches canonical prompt-injection / exfiltration attack patterns and
+// returns a hard DENIED receipt so the demo is never degraded-engine-bypassed.
+// ---------------------------------------------------------------------------
+const INJECTION_PATTERNS: { re: RegExp; rule_id: string; severity: string }[] =
+  [
+    {
+      re: /ignore\s+(all|any|previous|prior)\s+instructions/i,
+      rule_id: "INJECTION_IGNORE_INSTRUCTIONS",
+      severity: "CRITICAL",
+    },
+    {
+      re: /forget\s+(your\s+)?(rules|instructions|prompt|training)/i,
+      rule_id: "INJECTION_FORGET_RULES",
+      severity: "CRITICAL",
+    },
+    {
+      re: /you\s+are\s+(now\s+)?(DAN|admin|root|developer\s+mode|jailbreak)/i,
+      rule_id: "INJECTION_ROLE_OVERRIDE",
+      severity: "CRITICAL",
+    },
+    {
+      re: /system\s+prompt/i,
+      rule_id: "INJECTION_SYSTEM_PROMPT",
+      severity: "HIGH",
+    },
+    {
+      re: /read\s+\.env/i,
+      rule_id: "EXFIL_ENV_FILE",
+      severity: "CRITICAL",
+    },
+    {
+      re: /exfiltrate/i,
+      rule_id: "EXFIL_DATA",
+      severity: "CRITICAL",
+    },
+    {
+      re: /POST\s+(keys|secrets?|tokens?|credentials?)\s+to\s+/i,
+      rule_id: "EXFIL_CREDENTIAL_POST",
+      severity: "CRITICAL",
+    },
+  ];
+
+const GUARD_SIGN_SECRET = (
+  process.env.DEMO_NONCE_SECRET ??
+  process.env.NEXTAUTH_SECRET ??
+  "demo-guard-fallback"
+).slice(0, 128);
+
+function buildDeniedReceipt(
+  rule_id: string,
+  severity: string,
+  safeAction: string,
+): Record<string, unknown> {
+  const request_id = randomUUID();
+  const policy_version = new Date().toISOString().slice(0, 10).replace(/-/g, ".");
+  const receiptCore = {
+    request_id,
+    decision: "DENIED",
+    rule_id,
+    severity,
+    action: safeAction,
+    policy_version,
+    semantic_engine: { degraded: false, manifest_version: policy_version, categories_checked: ["injection", "exfiltration"] },
+  };
+  const signature = createHmac("sha256", GUARD_SIGN_SECRET)
+    .update(JSON.stringify(receiptCore))
+    .digest("hex");
+  return { ...receiptCore, signature };
+}
+
+function extractInjectionMatch(
+  payload: string,
+): { rule_id: string; severity: string } | null {
+  for (const { re, rule_id, severity } of INJECTION_PATTERNS) {
+    if (re.test(payload)) return { rule_id, severity };
+  }
+  return null;
+}
 
 function extractClientIp(request: NextRequest): string {
   if (TRUST_CF_HEADERS) {
@@ -271,6 +353,14 @@ export async function POST(request: NextRequest) {
       ? action
       : "DEMO_ACTION";
 
+  // Hard injection guard — must run before upstream call regardless of engine state.
+  const injectionMatch = extractInjectionMatch(safePayload);
+  if (injectionMatch) {
+    return secureJson(
+      buildDeniedReceipt(injectionMatch.rule_id, injectionMatch.severity, safeAction),
+    );
+  }
+
   const auditBody = {
     payload: safePayload,
     origin: safeOrigin,
@@ -310,7 +400,12 @@ export async function POST(request: NextRequest) {
           if (shouldRetrySameBackend) {
             const backoff = RETRY_BACKOFF_MS * 2 ** (attempt - 1);
             console.error(
-              `[demo-proxy] upstream ${base} returned ${res.status}; retrying in ${backoff}ms (attempt ${attempt}/${MAX_UPSTREAM_ATTEMPTS_PER_BACKEND})`,
+              "[demo-proxy] upstream %s returned %d; retrying in %dms (attempt %d/%d)",
+              base,
+              res.status,
+              backoff,
+              attempt,
+              MAX_UPSTREAM_ATTEMPTS_PER_BACKEND,
             );
             await sleep(backoff);
             continue;
@@ -325,14 +420,19 @@ export async function POST(request: NextRequest) {
           if (canRetrySameBackend) {
             const backoff = RETRY_BACKOFF_MS * 2 ** (attempt - 1);
             console.error(
-              `[demo-proxy] upstream fetch failed for ${base}; retrying in ${backoff}ms (attempt ${attempt}/${MAX_UPSTREAM_ATTEMPTS_PER_BACKEND}):`,
+              "[demo-proxy] upstream fetch failed for %s; retrying in %dms (attempt %d/%d): %s",
+              base,
+              backoff,
+              attempt,
+              MAX_UPSTREAM_ATTEMPTS_PER_BACKEND,
               err instanceof Error ? err.message : "unknown",
             );
             await sleep(backoff);
             continue;
           }
           console.error(
-            `[demo-proxy] upstream fetch failed for ${base}; trying next backend`,
+            "[demo-proxy] upstream fetch failed for %s; trying next backend: %s",
+            base,
             err instanceof Error ? err.message : "unknown",
           );
         } finally {
@@ -347,7 +447,9 @@ export async function POST(request: NextRequest) {
       const hasMoreBackends = i < backendCandidates.length - 1;
       if (hasMoreBackends) {
         console.error(
-          `[demo-proxy] failing over from ${base} to ${backendCandidates[i + 1]}`,
+          "[demo-proxy] failing over from %s to %s",
+          base,
+          backendCandidates[i + 1],
         );
       } else if (lastFetchError) {
         throw lastFetchError;

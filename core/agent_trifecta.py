@@ -97,7 +97,7 @@ def _infer_capabilities(ctx: AgentTrifectaContext) -> None:
     ):
         ctx.can_read_private_data = True
 
-    _logger.debug(
+    _logger.debug(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         "agent_trifecta inferred flags: read_private=%s access_secrets=%s send_external=%s "
         "modify_config=%s exec_shell=%s",
         ctx.can_read_private_data,

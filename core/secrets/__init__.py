@@ -26,13 +26,7 @@ from core.secrets.base import SecretManager
 
 _logger = logging.getLogger("aletheia.secrets")
 
-_BACKENDS = {
-    "env": "core.secrets.env.EnvSecretManager",
-    "vault": "core.secrets.vault.VaultSecretManager",
-    "aws": "core.secrets.aws.AWSSecretManager",
-    "azure": "core.secrets.azure.AzureSecretManager",
-    "gcp": "core.secrets.gcp.GCPSecretManager",
-}
+_BACKENDS = {"env", "vault", "aws", "azure", "gcp"}
 
 _instance: Optional[SecretManager] = None
 
@@ -48,19 +42,32 @@ def get_secret_manager() -> SecretManager:
         return _instance
 
     backend_name = os.environ.get("ALETHEIA_SECRET_BACKEND", "env").lower().strip()
-    fqn = _BACKENDS.get(backend_name)
-    if fqn is None:
+    if backend_name not in _BACKENDS:
         raise ValueError(
             f"Unknown secret backend '{backend_name}'. "
             f"Valid options: {', '.join(sorted(_BACKENDS))}."
         )
 
-    module_path, class_name = fqn.rsplit(".", 1)
-    import importlib
+    if backend_name == "env":
+        from core.secrets.env import EnvSecretManager
 
-    module = importlib.import_module(module_path)
-    cls = getattr(module, class_name)
-    _instance = cls()
+        _instance = EnvSecretManager()
+    elif backend_name == "vault":
+        from core.secrets.vault import VaultSecretManager
+
+        _instance = VaultSecretManager()
+    elif backend_name == "aws":
+        from core.secrets.aws import AWSSecretManager
+
+        _instance = AWSSecretManager()
+    elif backend_name == "azure":
+        from core.secrets.azure import AzureSecretManager
+
+        _instance = AzureSecretManager()
+    else:
+        from core.secrets.gcp import GCPSecretManager
+
+        _instance = GCPSecretManager()
     _logger.info(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         "Secret manager initialised: backend=%s", backend_name
     )

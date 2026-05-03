@@ -150,29 +150,84 @@ def migrate_decision_store(db_path: str, *, dry_run: bool = False) -> int:
         _skip(f"{db_path} does not exist")
         return 0
 
-    _ALLOWED_TABLES = frozenset({"decision_tokens", "deployment_bundle"})
+    _ALLOWED_TABLES = ("decision_tokens", "deployment_bundle")
+
+    def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+        if table == "decision_tokens":
+            rows = conn.execute("PRAGMA table_info(decision_tokens)").fetchall()
+        elif table == "deployment_bundle":
+            rows = conn.execute("PRAGMA table_info(deployment_bundle)").fetchall()
+        else:
+            raise ValueError(f"Unexpected table name: {table!r}")
+        return {row[1] for row in rows}
+
+    def _table_total(conn: sqlite3.Connection, table: str) -> int:
+        if table == "decision_tokens":
+            return int(
+                conn.execute("SELECT COUNT(*) FROM decision_tokens").fetchone()[0]
+            )
+        if table == "deployment_bundle":
+            return int(
+                conn.execute("SELECT COUNT(*) FROM deployment_bundle").fetchone()[0]
+            )
+        raise ValueError(f"Unexpected table name: {table!r}")
+
+    def _table_missing_tenant_count(conn: sqlite3.Connection, table: str) -> int:
+        if table == "decision_tokens":
+            return int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM decision_tokens WHERE tenant_id IS NULL OR tenant_id = ''"
+                ).fetchone()[0]
+            )
+        if table == "deployment_bundle":
+            return int(
+                conn.execute(
+                    "SELECT COUNT(*) FROM deployment_bundle WHERE tenant_id IS NULL OR tenant_id = ''"
+                ).fetchone()[0]
+            )
+        raise ValueError(f"Unexpected table name: {table!r}")
+
+    def _add_tenant_column(conn: sqlite3.Connection, table: str) -> None:
+        if table == "decision_tokens":
+            conn.execute(
+                "ALTER TABLE decision_tokens ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+            )
+            return
+        if table == "deployment_bundle":
+            conn.execute(
+                "ALTER TABLE deployment_bundle ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
+            )
+            return
+        raise ValueError(f"Unexpected table name: {table!r}")
+
+    def _backfill_tenant(conn: sqlite3.Connection, table: str) -> int:
+        if table == "decision_tokens":
+            cursor = conn.execute(
+                "UPDATE decision_tokens SET tenant_id = 'default' "
+                "WHERE tenant_id IS NULL OR tenant_id = ''"
+            )
+            return int(cursor.rowcount)
+        if table == "deployment_bundle":
+            cursor = conn.execute(
+                "UPDATE deployment_bundle SET tenant_id = 'default' "
+                "WHERE tenant_id IS NULL OR tenant_id = ''"
+            )
+            return int(cursor.rowcount)
+        raise ValueError(f"Unexpected table name: {table!r}")
 
     conn = sqlite3.connect(db_path)
     try:
         migrated = 0
-        for table in ("decision_tokens", "deployment_bundle"):
-            if table not in _ALLOWED_TABLES:
-                raise ValueError(f"Unexpected table name: {table!r}")
-            columns = {
-                row[1]
-                for row in conn.execute(f"PRAGMA table_info({table})").fetchall()  # nosec B608
-            }
+        for table in _ALLOWED_TABLES:
+            columns = _table_columns(conn, table)
             needs_column = "tenant_id" not in columns
 
             if needs_column:
-                count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608
+                count = _table_total(conn, table)
             else:
-                count = conn.execute(
-                    f"SELECT COUNT(*) FROM {table} "  # nosec B608
-                    f"WHERE tenant_id IS NULL OR tenant_id = ''"
-                ).fetchone()[0]
+                count = _table_missing_tenant_count(conn, table)
 
-            total = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # nosec B608
+            total = _table_total(conn, table)
             print(f"     {table}: {total} rows")
 
             if dry_run:
@@ -187,16 +242,10 @@ def migrate_decision_store(db_path: str, *, dry_run: bool = False) -> int:
                 continue
 
             if needs_column:
-                conn.execute(
-                    f"ALTER TABLE {table} ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"  # nosec B608
-                )
+                _add_tenant_column(conn, table)
                 _info(f"Added tenant_id column to {table}")
 
-            cursor = conn.execute(
-                f"UPDATE {table} SET tenant_id = 'default' "  # nosec B608
-                f"WHERE tenant_id IS NULL OR tenant_id = ''"
-            )
-            migrated += cursor.rowcount
+            migrated += _backfill_tenant(conn, table)
 
         if not dry_run:
             conn.commit()

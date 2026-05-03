@@ -274,9 +274,9 @@ export default function SeoLanding({
 
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      >
+        {JSON.stringify(faqJsonLd)}
+      </script>
     </section>
   );
 }

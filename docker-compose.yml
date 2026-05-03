@@ -3,6 +3,12 @@ version: "3.8"
 services:
   postgres:
     image: postgres:16-alpine
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
     environment:
       POSTGRES_USER: aletheia
       POSTGRES_PASSWORD: aletheia_dev # pragma: allowlist secret – dev-only Docker Compose password
@@ -14,11 +20,23 @@ services:
 
   redis:
     image: redis:7-alpine
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
     ports:
       - "6379:6379"
 
   qdrant:
     image: qdrant/qdrant:latest
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
     ports:
       - "6333:6333"
     volumes:

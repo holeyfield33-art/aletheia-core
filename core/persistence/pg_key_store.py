@@ -182,7 +182,7 @@ class PgKeyStore:
         )
 
         async with self._pool.acquire() as conn:
-            await conn.execute(
+            await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
                 """INSERT INTO api_keys
                     (id, tenant_id, name, key_hash, key_prefix, plan, status,
                      monthly_quota, requests_used, period_start, period_end,

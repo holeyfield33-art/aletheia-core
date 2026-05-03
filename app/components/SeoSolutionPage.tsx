@@ -254,8 +254,9 @@ export default function SeoSolutionPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
+      >
+        {JSON.stringify(faqSchema)}
+      </script>
     </section>
   );
 }

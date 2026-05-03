@@ -125,7 +125,7 @@ class PgDecisionStore:
                 )
                 # Attempt insert (PK prevents duplicates)
                 try:
-                    await conn.execute(
+                    await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
                         """INSERT INTO decision_tokens
                            (token, tenant_id, request_id, issued_at, expires_at,
                             policy_version, manifest_hash)

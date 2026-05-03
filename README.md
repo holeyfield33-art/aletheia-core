@@ -720,7 +720,7 @@ Pluggable backends fan-out audit records in real time. Enable via environment va
 
 ### WebSocket Audit Stream
 
-Connect to `ws://<host>/ws/audit?token=<api_key>` for a live, tenant-scoped, PII-redacted
+Connect to `wss://<host>/ws/audit?token=<api_key>` for a live, tenant-scoped, PII-redacted
 stream of audit events. Admin keys see all tenants.
 
 **Authentication modes:**
