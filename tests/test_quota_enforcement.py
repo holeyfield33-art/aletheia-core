@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import os
+import asyncio
 import tempfile
 import unittest
 from unittest.mock import patch, AsyncMock
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
+from fastapi import HTTPException
 
-from core.key_store import KeyStore, _hash_key
+from core.key_store import KeyStore, QuotaCheck, _hash_key
 from core.auth.models import AuthenticatedUser
 
 
@@ -148,6 +151,76 @@ class TestApiKeyAuth(unittest.TestCase):
         detail = body.get("detail", {})
         self.assertEqual(detail.get("error"), "quota_exceeded")
         self.assertIn("monthly request limit", detail.get("message", "").lower())
+
+    def test_hosted_prisma_fallback_allows_valid_site_key(self) -> None:
+        from bridge.fastapi_wrapper import _check_api_key
+
+        request = SimpleNamespace(state=SimpleNamespace(auth_context=None))
+        with (
+            patch(
+                "bridge.fastapi_wrapper.key_store.check_and_increment",
+                return_value=QuotaCheck(
+                    allowed=False,
+                    reason="Invalid API key.",
+                    requests_used=0,
+                    monthly_quota=0,
+                ),
+            ),
+            patch(
+                "bridge.fastapi_wrapper._check_hosted_prisma_api_key",
+                new=AsyncMock(
+                    return_value=QuotaCheck(
+                        allowed=True,
+                        reason="OK",
+                        requests_used=1,
+                        monthly_quota=1000,
+                    )
+                ),
+            ),
+        ):
+            asyncio.run(
+                _check_api_key(
+                    request,
+                    x_api_key="sk_trial_hosted_valid",  # pragma: allowlist secret
+                )
+            )
+
+    def test_hosted_prisma_fallback_enforces_quota(self) -> None:
+        from bridge.fastapi_wrapper import _check_api_key
+
+        request = SimpleNamespace(state=SimpleNamespace(auth_context=None))
+        with (
+            patch(
+                "bridge.fastapi_wrapper.key_store.check_and_increment",
+                return_value=QuotaCheck(
+                    allowed=False,
+                    reason="Invalid API key.",
+                    requests_used=0,
+                    monthly_quota=0,
+                ),
+            ),
+            patch(
+                "bridge.fastapi_wrapper._check_hosted_prisma_api_key",
+                new=AsyncMock(
+                    return_value=QuotaCheck(
+                        allowed=False,
+                        reason="Monthly request limit exceeded (1000/1000).",
+                        requests_used=1000,
+                        monthly_quota=1000,
+                    )
+                ),
+            ),
+        ):
+            with self.assertRaises(HTTPException) as exc:
+                asyncio.run(
+                    _check_api_key(
+                        request,
+                        x_api_key="sk_trial_hosted_quota",  # pragma: allowlist secret
+                    )
+                )
+
+        self.assertEqual(exc.exception.status_code, 429)
+        self.assertEqual(exc.exception.detail.get("error"), "quota_exceeded")
 
 
 class TestKeyManagementEndpoints(unittest.TestCase):

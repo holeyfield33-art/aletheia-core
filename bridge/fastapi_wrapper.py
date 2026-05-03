@@ -7,9 +7,11 @@ import time as _time
 import asyncio
 
 import hashlib
+import hmac
 import os
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
@@ -31,7 +33,7 @@ from core.rate_limit import eval_rate_limiter, rate_limiter
 from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
 from core.runtime_security import classify_blocked_intent
-from core.key_store import key_store
+from core.key_store import QuotaCheck, key_store
 from core.secret_rotation import install_sigusr1_handler, rotate_secrets
 from core.metrics import (
     REQUEST_COUNTER,
@@ -658,7 +660,127 @@ def _get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-def _check_api_key(
+def _hash_hosted_api_key(raw_key: str) -> str:
+    """Mirror Next.js key hashing for hosted Prisma ApiKey records."""
+    salt = os.getenv("ALETHEIA_KEY_SALT", "")
+    if salt:
+        return hmac.new(
+            salt.encode("utf-8"), raw_key.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+
+def _normalize_utc(ts: datetime) -> datetime:
+    """Normalize timestamps from Postgres for UTC-safe comparisons."""
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc)
+
+
+def _current_utc_month_bounds(now: datetime) -> tuple[datetime, datetime]:
+    period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if now.month == 12:
+        period_end = period_start.replace(year=now.year + 1, month=1)
+    else:
+        period_end = period_start.replace(month=now.month + 1)
+    return period_start, period_end
+
+
+async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
+    """Validate and meter hosted Prisma ApiKey records when SQLite misses.
+
+    Returns None when DATABASE_URL is not configured or lookup fails, allowing
+    the caller to continue returning deterministic unauthorized responses.
+    """
+    database_url = settings.database_url or os.getenv("DATABASE_URL", "")
+    if not database_url:
+        return None
+
+    try:
+        import asyncpg
+
+        key_hash = _hash_hosted_api_key(raw_key)
+        conn = await asyncpg.connect(database_url)
+        try:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """
+                    SELECT id, status, "monthlyQuota", "requestsUsed", "periodStart", "periodEnd"
+                    FROM "ApiKey"
+                    WHERE "keyHash" = $1
+                    LIMIT 1
+                    FOR UPDATE
+                    """,
+                    key_hash,
+                )
+                if not row:
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="Invalid API key.",
+                        requests_used=0,
+                        monthly_quota=0,
+                    )
+
+                status = (row["status"] or "").lower()
+                if status != "active":
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="API key is revoked.",
+                        requests_used=int(row["requestsUsed"]),
+                        monthly_quota=int(row["monthlyQuota"]),
+                    )
+
+                now = datetime.now(timezone.utc)
+                requests_used = int(row["requestsUsed"])
+                monthly_quota = int(row["monthlyQuota"])
+                period_start = _normalize_utc(row["periodStart"])
+                period_end = _normalize_utc(row["periodEnd"])
+
+                if now >= period_end:
+                    period_start, period_end = _current_utc_month_bounds(now)
+                    requests_used = 0
+
+                if requests_used >= monthly_quota:
+                    return QuotaCheck(
+                        allowed=False,
+                        reason=(
+                            f"Monthly request limit exceeded "
+                            f"({requests_used}/{monthly_quota})."
+                        ),
+                        requests_used=requests_used,
+                        monthly_quota=monthly_quota,
+                    )
+
+                next_used = requests_used + 1
+                await conn.execute(
+                    """
+                    UPDATE "ApiKey"
+                    SET "requestsUsed" = $2,
+                        "periodStart" = $3,
+                        "periodEnd" = $4,
+                        "lastUsedAt" = NOW()
+                    WHERE id = $1
+                    """,
+                    row["id"],
+                    next_used,
+                    period_start,
+                    period_end,
+                )
+
+                return QuotaCheck(
+                    allowed=True,
+                    reason="OK",
+                    requests_used=next_used,
+                    monthly_quota=monthly_quota,
+                )
+        finally:
+            await conn.close()
+    except Exception as exc:
+        _logger.warning("Hosted Prisma key lookup failed (fail-closed): %s", exc)
+        return None
+
+
+async def _check_api_key(
     request: Request, x_api_key: str | None = Header(default=None)
 ) -> None:
     """Dependency: validate X-API-Key header and enforce quota.
@@ -692,6 +814,12 @@ def _check_api_key(
 
     # Authenticate via KeyStore only (trial / pro — quota enforced)
     quota = key_store.check_and_increment(x_api_key)
+    if not quota.allowed and "Invalid" in quota.reason:
+        hosted_quota = await _check_hosted_prisma_api_key(x_api_key)
+        if hosted_quota is not None:
+            if hosted_quota.allowed:
+                _logger.info("api key authenticated via hosted Prisma fallback")
+            quota = hosted_quota
     if quota.allowed:
         return
 

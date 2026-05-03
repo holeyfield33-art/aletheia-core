@@ -76,6 +76,15 @@ Aletheia Core v1.9.2 environment reference.
 | `ALETHEIA_BACKEND_URL`           | Optional | Optional    | Next.js API proxy URL.                                              |
 | `ALETHEIA_BASE_URL`              | Optional | Optional    | Canonical base URL for links.                                       |
 
+### Render Persistent Disk (recommended for SQLite deployments)
+
+- Mount path: `/var/data`
+- Suggested env values:
+  - `ALETHEIA_KEYSTORE_PATH=/var/data/keys.db`
+  - `ALETHEIA_DECISION_DB_PATH=/var/data/decisions.sqlite3`
+  - `ALETHEIA_AUDIT_LOG_PATH=/var/data/audit.log`
+- If you do not use `ALETHEIA_DATABASE_BACKEND=postgres`, persistent disk is required for durable API keys and quota counters across restarts.
+
 ---
 
 ## 4) Frontend / Auth (Next.js)

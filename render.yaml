@@ -4,6 +4,10 @@ services:
     runtime: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
     startCommand: uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port $PORT
+    disks:
+      - name: aletheia-data
+        mountPath: /var/data
+        sizeGB: 1
     envVars:
       # --- Core runtime ---
       - key: ENVIRONMENT
@@ -37,8 +41,16 @@ services:
       # --- Backend / persistence ---
       - key: ALETHEIA_DATABASE_BACKEND
         sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: ALETHEIA_ALLOW_ENV_SECRETS
         sync: false
+      - key: ALETHEIA_KEYSTORE_PATH
+        value: /var/data/keys.db
+      - key: ALETHEIA_DECISION_DB_PATH
+        value: /var/data/decisions.sqlite3
+      - key: ALETHEIA_AUDIT_LOG_PATH
+        value: /var/data/audit.log
       # --- Network / CORS / proxy ---
       - key: ALETHEIA_CORS_ORIGINS
         sync: false
