@@ -1343,10 +1343,8 @@ async def evaluate_policy(req: EvaluateRequest, request: Request) -> JSONRespons
     return JSONResponse(status_code=200, content=body)
 
 
-@app.post("/v1/audit", dependencies=[Depends(_check_api_key)])
-async def secure_audit(
-    req: AuditRequest, request: Request
-) -> dict[str, Any] | JSONResponse:
+@app.post("/v1/audit", dependencies=[Depends(_check_api_key)], response_model=None)
+async def secure_audit(req: AuditRequest, request: Request) -> Any:
     import uuid
 
     client_ip = _get_client_ip(request)
