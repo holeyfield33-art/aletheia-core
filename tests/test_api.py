@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 import unittest.mock
+from pathlib import Path
 from unittest.mock import patch
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
 
 from bridge.fastapi_wrapper import app, scout
@@ -59,6 +63,24 @@ def _post(client: TestClient, body: dict) -> tuple[int, dict]:
         "/v1/audit", json=body, headers={"X-Forwarded-For": f"{ip}, 10.0.0.1"}
     )
     return r.status_code, r.json()
+
+
+def _gen_keypair_pem() -> tuple[str, str]:
+    sk = Ed25519PrivateKey.generate()
+    priv_pem = sk.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode("utf-8")
+    pub_pem = (
+        sk.public_key()
+        .public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
+    return priv_pem, pub_pem
 
 
 # ---------------------------------------------------------------------------
@@ -376,10 +398,88 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertIn("demo_key_registered", body)
         self.assertIn("demo_key_status", body)
 
+    def test_receipt_well_known_returns_receipt_key_when_configured(self) -> None:
+        priv_pem, pub_pem = _gen_keypair_pem()
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": priv_pem,
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": pub_pem,
+            },
+            clear=False,
+        ):
+            r = self.client.get("/.well-known/aletheia-receipt-key.pem")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.text, pub_pem)
+        self.assertIn("application/x-pem-file", r.headers.get("content-type", ""))
+        self.assertIn("public, max-age=3600", r.headers.get("cache-control", ""))
+
+    def test_manifest_well_known_returns_manifest_key(self) -> None:
+        expected = Path("manifest/security_policy.ed25519.pub").read_text(
+            encoding="utf-8"
+        )
+        r = self.client.get("/.well-known/aletheia-manifest-key.pem")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.text, expected)
+        self.assertIn("application/x-pem-file", r.headers.get("content-type", ""))
+        self.assertIn("public, max-age=3600", r.headers.get("cache-control", ""))
+
+    def test_public_key_bundle_returns_both_keys_and_key_ids(self) -> None:
+        priv_pem, pub_pem = _gen_keypair_pem()
+        expected_manifest = Path("manifest/security_policy.ed25519.pub").read_text(
+            encoding="utf-8"
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": priv_pem,
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": pub_pem,
+            },
+            clear=False,
+        ):
+            r = self.client.get("/v1/public-key")
+
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("public, max-age=3600", r.headers.get("cache-control", ""))
+
+        body = r.json()
+        self.assertEqual(body["receipt_key"]["algorithm"], "ed25519")
+        self.assertEqual(body["receipt_key"]["pem"], pub_pem)
+        self.assertEqual(len(body["receipt_key"]["key_id"]), 16)
+        int(body["receipt_key"]["key_id"], 16)
+
+        self.assertEqual(body["manifest_key"]["algorithm"], "ed25519")
+        self.assertEqual(body["manifest_key"]["pem"], expected_manifest)
+        self.assertEqual(len(body["manifest_key"]["key_id"]), 16)
+        int(body["manifest_key"]["key_id"], 16)
+
+    def test_receipt_well_known_returns_503_when_unconfigured(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": "",
+                "ALETHEIA_RECEIPT_PRIVATE_KEY_PATH": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY_PATH": "",
+            },
+            clear=False,
+        ):
+            r = self.client.get("/.well-known/aletheia-receipt-key.pem")
+        self.assertEqual(r.status_code, 503)
+
     def test_unsupported_methods_return_405(self) -> None:
         self.assertEqual(self.client.get("/v1/audit").status_code, 405)
         self.assertEqual(self.client.post("/health").status_code, 405)
         self.assertEqual(self.client.post("/ready").status_code, 405)
+        self.assertEqual(self.client.post("/v1/public-key").status_code, 405)
+        self.assertEqual(
+            self.client.post("/.well-known/aletheia-receipt-key.pem").status_code,
+            405,
+        )
+        self.assertEqual(
+            self.client.post("/.well-known/aletheia-manifest-key.pem").status_code,
+            405,
+        )
 
 
 class TestRequestIdFormat(unittest.TestCase):
