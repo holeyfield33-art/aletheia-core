@@ -6,6 +6,7 @@ const BYPASS_PATHS = [
   "/api/stripe/checkout",
   "/api/stripe/webhook",
   "/api/webhooks/stripe",
+  "/api/demo",
   "/_next/static",
 ];
 
@@ -115,6 +116,7 @@ export default async function middleware(request: NextRequest) {
       request.method === "PATCH") &&
     pathname.startsWith("/api/") &&
     !isBypassed &&
+    !request.headers.has("x-api-key") &&
     !pathname.startsWith("/api/auth/") &&
     !pathname.startsWith("/api/webhooks/")
   ) {
@@ -141,7 +143,10 @@ export default async function middleware(request: NextRequest) {
         : null;
 
     if (!sourceHost || !host || sourceHost !== host) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { error: "forbidden", reason: "csrf_origin_mismatch" },
+        { status: 403 },
+      );
     }
   }
 

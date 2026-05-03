@@ -116,17 +116,17 @@ Manual steps:
 1. Connect your GitHub repo in the Render dashboard.
 2. Render reads `render.yaml` — it defines the build command, start command, and env vars.
 3. Set env vars in the Render dashboard:
-  - `ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` — Ed25519 PEM used to sign new receipts
-  - `ALETHEIA_RECEIPT_PUBLIC_KEY` or `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` — optional explicit public key PEM for verification and disclosure routes
-  - `ALETHEIA_RECEIPT_SECRET` — optional only if you still need to verify legacy HMAC receipts
-   - `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
-   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
-   - `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
+- `ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` — Ed25519 PEM used to sign new receipts
+- `ALETHEIA_RECEIPT_PUBLIC_KEY` or `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` — optional explicit public key PEM for verification and disclosure routes
+- `ALETHEIA_RECEIPT_SECRET` — optional only if you still need to verify legacy HMAC receipts
+- `ALETHEIA_ALIAS_SALT` — `openssl rand -hex 32`
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — required for production (rate limiting, replay defense, decision store)
+- `ALETHEIA_POLICY_THRESHOLD` — threat score cutoff (default `7.5`)
 
-- API keys are created via `POST /v1/keys` after deployment (KeyStore)
+API keys are created via `POST /v1/keys` after deployment (KeyStore)
 
-4. Sign the manifest locally (`python main.py sign-manifest`) and commit the `.sig` file before deploying.
-5. Verify: `curl https://<your-app>.onrender.com/health`
+1. Sign the manifest locally (`python main.py sign-manifest`) and commit the `.sig` file before deploying.
+2. Verify: `curl https://<your-app>.onrender.com/health`
 
 ## Deploy to Vercel (frontend dashboard)
 
@@ -139,7 +139,7 @@ Manual steps:
 - `ALETHEIA_DEMO_API_KEY=<value returned by POST /v1/keys>`
 - Optional fallback: `ALETHEIA_API_KEY=<same value>`
 
-4. Deploy. The frontend calls the backend via `/api/demo`.
+1. Deploy. The frontend calls the backend via `/api/demo`.
 
 Note: The demo key should be set on Vercel (server-side route env), not on Render.
 Render validates `X-API-Key` against its KeyStore records created via `POST /v1/keys`.
@@ -160,7 +160,7 @@ Two recommended options:
 - Provision the demo key once with `POST /v1/keys` and store it as
   `ALETHEIA_DEMO_API_KEY` on Vercel.
 
-2. **Auto-seed at startup** (works on SQLite too): set
+1. **Auto-seed at startup** (works on SQLite too): set
    `ALETHEIA_DEMO_API_KEY` on **both** Vercel _and_ Render. The backend's
    lifespan hook (`bridge.fastapi_wrapper._seed_demo_key`) will register the
    key in the local KeyStore on every boot. This is idempotent.
