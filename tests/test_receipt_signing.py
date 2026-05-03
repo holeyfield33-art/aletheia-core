@@ -246,3 +246,171 @@ def test_both_algorithms_configured_prefers_ed25519(monkeypatch) -> None:
 
     assert receipt["signature_algorithm"] == "ed25519"
     assert verify_receipt(receipt) is True
+
+
+# ---------------------------------------------------------------------------
+# Additional edge-case tests
+# ---------------------------------------------------------------------------
+
+
+def test_tamper_nonce_fails_ed25519(monkeypatch) -> None:
+    """Mutating the nonce field after signing must invalidate an Ed25519 receipt."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-tamper-nonce",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    tampered = dict(receipt)
+    tampered["nonce"] = "evil-nonce"
+    assert verify_receipt(tampered) is False
+
+
+def test_tamper_key_id_fails_ed25519(monkeypatch) -> None:
+    """Mutating key_id after signing must invalidate the receipt."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-tamper-kid",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    tampered = dict(receipt)
+    tampered["key_id"] = "0000000000000000"
+    assert verify_receipt(tampered) is False
+
+
+def test_hmac_wrong_secret_fails(monkeypatch) -> None:
+    """HMAC receipt built with one secret must fail when verified with a different secret."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.setenv(
+        "ALETHEIA_RECEIPT_SECRET", "secret-a"
+    )  # pragma: allowlist secret
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-hmac-wrong-secret",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    assert receipt["signature_algorithm"] == "hmac-sha256"
+
+    # Switch to a different secret before verifying
+    monkeypatch.setenv(
+        "ALETHEIA_RECEIPT_SECRET", "secret-b"
+    )  # pragma: allowlist secret
+    assert verify_receipt(receipt) is False
+
+
+def test_prompt_field_included_in_canonical_string_ed25519(monkeypatch) -> None:
+    """Receipt built with a prompt must fail if prompt is mutated after signing."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-prompt",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+        prompt="original prompt",
+    )
+    assert verify_receipt(receipt) is True
+
+    tampered = dict(receipt)
+    tampered["prompt"] = "injected prompt"
+    assert verify_receipt(tampered) is False
+
+
+def test_corrupted_signature_hex_returns_false(monkeypatch) -> None:
+    """A receipt with a hex signature that is wrong length returns False, not an exception."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-corrupt-sig",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    corrupted = dict(receipt)
+    corrupted["signature"] = "deadbeef"  # too short to be a valid Ed25519 signature
+    assert verify_receipt(corrupted) is False
+
+
+def test_verify_receipt_empty_dict_returns_false(monkeypatch) -> None:
+    """verify_receipt() must not raise on a completely empty input — return False."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    assert verify_receipt({}) is False
+
+
+def test_ed25519_receipt_fails_hmac_verification(monkeypatch) -> None:
+    """An Ed25519-signed receipt must not accidentally verify against HMAC path."""
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-crossalg",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    assert receipt["signature_algorithm"] == "ed25519"
+
+    # Force algorithm to hmac-sha256 to simulate an algorithm-swap attack
+    forged = dict(receipt)
+    forged["signature_algorithm"] = "hmac-sha256"
+    monkeypatch.setenv(
+        "ALETHEIA_RECEIPT_SECRET", "any-secret"
+    )  # pragma: allowlist secret
+    assert verify_receipt(forged) is False

@@ -157,3 +157,144 @@ def test_is_configured_false_when_no_key(monkeypatch):
     from core.receipt_keys import is_configured
 
     assert is_configured() is False
+
+
+# ---------------------------------------------------------------------------
+# load_public_key() — explicit env var and file path resolution
+# ---------------------------------------------------------------------------
+
+
+def test_load_public_key_from_env_var(monkeypatch):
+    """load_public_key() resolves from ALETHEIA_RECEIPT_PUBLIC_KEY env var directly."""
+    priv_pem, pub_pem = _generate_pem_pair()
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub_pem)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+
+    from core.receipt_keys import load_public_key
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+    pub = load_public_key()
+    assert isinstance(pub, Ed25519PublicKey)
+
+
+def test_load_public_key_from_file_path(monkeypatch, tmp_path):
+    """load_public_key() resolves from ALETHEIA_RECEIPT_PUBLIC_KEY_PATH env var."""
+    _, pub_pem = _generate_pem_pair()
+    key_file = tmp_path / "receipt_public.pem"
+    key_file.write_text(pub_pem)
+
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY", raising=False)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", str(key_file))
+
+    from core.receipt_keys import load_public_key
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+    pub = load_public_key()
+    assert isinstance(pub, Ed25519PublicKey)
+
+
+def test_load_public_key_no_source_raises(monkeypatch):
+    """load_public_key() raises ReceiptKeyError when no key is reachable."""
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+
+    from core.receipt_keys import load_public_key, ReceiptKeyError
+
+    with pytest.raises(ReceiptKeyError):
+        load_public_key()
+
+
+# ---------------------------------------------------------------------------
+# public_key_pem() — returns PEM bytes
+# ---------------------------------------------------------------------------
+
+
+def test_public_key_pem_returns_pem_bytes(monkeypatch):
+    """public_key_pem() returns bytes starting with -----BEGIN PUBLIC KEY-----."""
+    priv_pem, _ = _generate_pem_pair()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_pem)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+
+    from core.receipt_keys import public_key_pem
+
+    pem = public_key_pem()
+    assert isinstance(pem, bytes)
+    assert pem.startswith(b"-----BEGIN PUBLIC KEY-----")
+
+
+# ---------------------------------------------------------------------------
+# key_id() — uniqueness and error cases
+# ---------------------------------------------------------------------------
+
+
+def test_key_id_distinct_for_different_keypairs(monkeypatch):
+    """key_id() returns different values for two different key pairs."""
+    priv_a, _ = _generate_pem_pair()
+    priv_b, _ = _generate_pem_pair()
+    assert priv_a != priv_b
+
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+
+    from core.receipt_keys import key_id
+
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_a)
+    kid_a = key_id()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_b)
+    kid_b = key_id()
+
+    assert kid_a != kid_b
+
+
+def test_key_id_raises_when_no_key_configured(monkeypatch):
+    """key_id() raises ReceiptKeyError when no private or public key is set."""
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+
+    from core.receipt_keys import key_id, ReceiptKeyError
+
+    with pytest.raises(ReceiptKeyError):
+        key_id()
+
+
+# ---------------------------------------------------------------------------
+# load_private_key() — env var takes precedence over file path
+# ---------------------------------------------------------------------------
+
+
+def test_load_private_key_env_var_takes_precedence_over_file_path(
+    monkeypatch, tmp_path
+):
+    """ALETHEIA_RECEIPT_PRIVATE_KEY (env) resolved before PRIVATE_KEY_PATH (file)."""
+    priv_env, _ = _generate_pem_pair()
+    priv_file, _ = _generate_pem_pair()
+    key_file = tmp_path / "receipt_private.pem"
+    key_file.write_text(priv_file)
+
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_env)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", str(key_file))
+
+    from core.receipt_keys import load_private_key
+
+    key = load_private_key()
+    # Compare public key fingerprints as a proxy (avoids needing priv bytes equality)
+    from cryptography.hazmat.primitives import serialization as ser
+
+    expected_pub = serialization.load_pem_private_key(
+        priv_env.encode(), password=None
+    ).public_key()
+    actual_pub = key.public_key()
+    assert expected_pub.public_bytes(
+        ser.Encoding.Raw, ser.PublicFormat.Raw
+    ) == actual_pub.public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)
