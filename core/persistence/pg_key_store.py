@@ -305,6 +305,8 @@ class PgKeyStore:
                     )
 
                 period_end = datetime.fromisoformat(record.period_end)
+                if period_end.tzinfo is None:
+                    period_end = period_end.replace(tzinfo=timezone.utc)
                 if now >= period_end:
                     from core.key_store import _current_period_bounds
 

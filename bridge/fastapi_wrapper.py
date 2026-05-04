@@ -877,8 +877,8 @@ async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
                     """,
                     row["id"],
                     next_used,
-                    period_start,
-                    period_end,
+                    period_start.replace(tzinfo=None),
+                    period_end.replace(tzinfo=None),
                 )
 
                 return QuotaCheck(
