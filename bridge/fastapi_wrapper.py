@@ -5,6 +5,7 @@ import logging
 import secrets
 import time as _time
 import asyncio
+import json
 
 import hashlib
 import hmac
@@ -903,6 +904,69 @@ async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
         return None
 
 
+async def _lookup_hosted_api_key_user_id(raw_key: str) -> str:
+    """Resolve Prisma ApiKey.userId for dashboard-scoped AuditLog persistence."""
+    if _bridge_pool is None:
+        return ""
+
+    try:
+        key_hash = _hash_hosted_api_key(raw_key)
+        async with _bridge_pool.acquire() as conn:
+            row = await conn.fetchrow(
+                'SELECT "userId" FROM "ApiKey" WHERE "keyHash" = $1 LIMIT 1',
+                key_hash,
+            )
+            if not row:
+                return ""
+            user_id = row["userId"]
+            return str(user_id) if user_id else ""
+    except Exception as exc:
+        _logger.warning("Hosted Prisma user lookup failed: %s", exc)
+        return ""
+
+
+async def _persist_hosted_audit_log(audit_record: dict[str, Any], user_id: str) -> None:
+    """Best-effort mirror of /v1/audit decisions to Prisma AuditLog for dashboard APIs."""
+    if _bridge_pool is None:
+        return
+
+    try:
+        receipt_json = json.dumps(audit_record.get("receipt", {}), default=str)
+        async with _bridge_pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO "AuditLog" (
+                    id, "userId", decision, "threatScore", action, origin,
+                    "sourceIp", reason, "latencyMs", "payloadHash", "policyHash",
+                    "requestId", receipt
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+                """,
+                f"py_{secrets.token_hex(12)}",
+                user_id or None,
+                str(audit_record.get("decision", "")),
+                float(audit_record.get("threat_score", 0.0)),
+                str(audit_record.get("action", "")),
+                str(audit_record.get("origin", "")),
+                str(audit_record.get("source_ip", "")) or None,
+                str(audit_record.get("reason", "")) or None,
+                float(audit_record.get("latency_ms", 0.0)),
+                str(audit_record.get("payload_sha256", "")) or None,
+                str(audit_record.get("policy_hash", "")) or None,
+                str(audit_record.get("request_id", "")) or None,
+                receipt_json,
+            )
+    except Exception as exc:
+        _logger.warning("Hosted AuditLog persist failed (non-fatal): %s", exc)
+
+
+async def _log_audit_and_persist(*, user_id: str, **kwargs: Any) -> dict[str, Any]:
+    """Write canonical audit record and mirror it into hosted Prisma AuditLog."""
+    audit_record = log_audit_event(user_id=user_id, **kwargs)
+    await _persist_hosted_audit_log(audit_record, user_id=user_id)
+    return audit_record
+
+
 async def _check_api_key(
     request: Request, x_api_key: str | None = Header(default=None)
 ) -> None:
@@ -942,6 +1006,9 @@ async def _check_api_key(
         if hosted_quota is not None:
             if hosted_quota.allowed:
                 _logger.info("api key authenticated via hosted Prisma fallback")
+                request.state.api_user_id = await _lookup_hosted_api_key_user_id(
+                    x_api_key
+                )
             quota = hosted_quota
     if quota.allowed:
         return
@@ -1508,7 +1575,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Extract tenant context from enterprise auth ---
     ctx: AuthContext | None = getattr(request.state, "auth_context", None)
     _tenant_id = ctx.user.tenant_id if ctx and ctx.user.tenant_id else "default"
-    _user_id = ctx.user.user_id if ctx else ""
+    _user_id = ctx.user.user_id if ctx else getattr(request.state, "api_user_id", "")
     _auth_method = ctx.user.auth_method if ctx else ""
 
     # --- Degraded mode determination ---
@@ -1540,7 +1607,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Rate limiting (per-IP, tenant-scoped) ---
     if not await rate_limiter.allow(client_ip, tenant_id=_tenant_id):
         request.state.retry_after = 5
-        audit_record = log_audit_event(
+        audit_record = await _log_audit_and_persist(
+            user_id=_user_id,
             decision="RATE_LIMITED",
             threat_score=0.0,
             payload=req.payload,
@@ -1552,7 +1620,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             request_id=request_id,
             receipt_chain=True,
             tenant_id=_tenant_id,
-            user_id=_user_id,
             auth_method=_auth_method,
         )
         rate_limited_response = _build_audit_envelope(
@@ -1570,7 +1637,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
 
     # --- Degraded mode fail-closed for privileged actions ---
     if degraded and not _is_read_only_action(req.action):
-        audit_record = log_audit_event(
+        audit_record = await _log_audit_and_persist(
+            user_id=_user_id,
             decision="DENIED",
             threat_score=0.0,
             payload=req.payload,
@@ -1582,7 +1650,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             request_id=request_id,
             receipt_chain=True,
             tenant_id=_tenant_id,
-            user_id=_user_id,
             auth_method=_auth_method,
         )
         return _build_audit_envelope(
@@ -1602,7 +1669,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Semantic intent classification (pre-agent screen) ---
     intent_decision = classify_blocked_intent(clean_input)
     if intent_decision.blocked:
-        audit_record = log_audit_event(
+        audit_record = await _log_audit_and_persist(
+            user_id=_user_id,
             decision="DENIED",
             threat_score=8.0,
             payload=req.payload,
@@ -1614,7 +1682,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             request_id=request_id,
             receipt_chain=True,
             tenant_id=_tenant_id,
-            user_id=_user_id,
             auth_method=_auth_method,
         )
         return _build_audit_envelope(
@@ -1632,7 +1699,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     sandbox_hit = check_action_sandbox(req.action, clean_input)
     if sandbox_hit:
         sanitized_sandbox_reason = _sanitise_reason(sandbox_hit)
-        audit_record = log_audit_event(
+        audit_record = await _log_audit_and_persist(
+            user_id=_user_id,
             decision="SANDBOX_BLOCKED",
             threat_score=10.0,
             payload=req.payload,
@@ -1644,7 +1712,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             request_id=request_id,
             receipt_chain=True,
             tenant_id=_tenant_id,
-            user_id=_user_id,
             auth_method=_auth_method,
         )
         return _build_audit_envelope(
@@ -1677,7 +1744,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # 3. JUDGE PHASE — now includes payload for semantic veto
     # Re-check fail-closed after current-request Qdrant degradation is reflected
     if degraded and not _is_read_only_action(req.action):
-        audit_record = log_audit_event(
+        audit_record = await _log_audit_and_persist(
+            user_id=_user_id,
             decision="DENIED",
             threat_score=0.0,
             payload=req.payload,
@@ -1689,7 +1757,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             request_id=request_id,
             receipt_chain=True,
             tenant_id=_tenant_id,
-            user_id=_user_id,
             auth_method=_auth_method,
         )
         return _build_audit_envelope(
@@ -1746,7 +1813,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             shadow_verdict = "DENIED"
 
     # --- Structured audit log + TMR receipt ---
-    audit_record = log_audit_event(
+    audit_record = await _log_audit_and_persist(
+        user_id=_user_id,
         decision=decision,
         threat_score=threat_score,
         payload=req.payload,
@@ -1759,7 +1827,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         request_id=request_id,
         receipt_chain=True,
         tenant_id=_tenant_id,
-        user_id=_user_id,
         auth_method=_auth_method,
     )
 

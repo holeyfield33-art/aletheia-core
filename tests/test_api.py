@@ -84,6 +84,25 @@ def _gen_keypair_pem() -> tuple[str, str]:
     return priv_pem, pub_pem
 
 
+class _AcquireContext:
+    def __init__(self, conn: AsyncMock) -> None:
+        self._conn = conn
+
+    async def __aenter__(self) -> AsyncMock:
+        return self._conn
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        return False
+
+
+class _FakeAsyncPool:
+    def __init__(self, conn: AsyncMock) -> None:
+        self._conn = conn
+
+    def acquire(self) -> _AcquireContext:
+        return _AcquireContext(self._conn)
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -605,6 +624,42 @@ class TestAuditEnvelopeContract(unittest.TestCase):
         _, first = _post(self.client, _safe_body(f"{self._ip}1"))
         _, second = _post(self.client, _safe_body(f"{self._ip}2"))
         self.assertNotEqual(first["request_id"], second["request_id"])
+
+
+class TestHostedAuditLogPersistence(unittest.TestCase):
+    _ip_counter = 0
+
+    def setUp(self) -> None:
+        rate_limiter.reset()
+        scout._query_history.clear()
+        self.client = TestClient(app, raise_server_exceptions=False)
+        TestHostedAuditLogPersistence._ip_counter += 1
+        self._ip = f"192.0.11.{TestHostedAuditLogPersistence._ip_counter}"
+
+    def test_persists_audit_log_record_to_prisma_table(self) -> None:
+        conn = AsyncMock()
+        conn.execute = AsyncMock(return_value="INSERT 0 1")
+
+        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+            status, body = _post(self.client, _safe_body(self._ip))
+
+        self.assertEqual(status, 200)
+        conn.execute.assert_awaited_once()
+        args = conn.execute.await_args.args
+        self.assertIn('INSERT INTO "AuditLog"', args[0])
+        self.assertEqual(args[3], body["decision"])
+        self.assertEqual(args[12], body["request_id"])
+
+    def test_persist_failure_is_fail_open(self) -> None:
+        conn = AsyncMock()
+        conn.execute = AsyncMock(side_effect=RuntimeError("db unavailable"))
+
+        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+            status, body = _post(self.client, _safe_body(self._ip))
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["decision"], "PROCEED")
+        conn.execute.assert_awaited_once()
 
 
 if __name__ == "__main__":
