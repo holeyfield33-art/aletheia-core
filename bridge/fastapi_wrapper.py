@@ -661,6 +661,26 @@ def _get_client_ip(request: Request) -> str:
     return "unknown"
 
 
+def _sanitize_asyncpg_url(database_url: str) -> str:
+    """Strip Prisma/pgBouncer-specific query params that asyncpg rejects.
+
+    Prisma adds ``?pgbouncer=true`` to pooler URLs. asyncpg doesn't understand
+    it and raises an InterfaceError, which is silently caught and causes a 401.
+    Also strips ``connection_limit``, ``pool_timeout``, ``schema`` (Prisma-only params).
+    """
+    from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
+
+    _STRIP_PARAMS = {"pgbouncer", "connection_limit", "pool_timeout", "schema"}
+    try:
+        parsed = urlparse(database_url)
+        qs = parse_qs(parsed.query, keep_blank_values=True)
+        filtered = {k: v for k, v in qs.items() if k.lower() not in _STRIP_PARAMS}
+        clean_query = urlencode(filtered, doseq=True)
+        return urlunparse(parsed._replace(query=clean_query))
+    except Exception:
+        return database_url
+
+
 def _hash_hosted_api_key(raw_key: str) -> str:
     """Mirror Next.js key hashing for hosted Prisma ApiKey records."""
     salt = os.getenv("ALETHEIA_KEY_SALT", "")
@@ -701,79 +721,82 @@ async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
         import asyncpg
 
         key_hash = _hash_hosted_api_key(raw_key)
-        conn = await asyncpg.connect(database_url)
+        clean_url = _sanitize_asyncpg_url(database_url)
+        conn = await asyncpg.connect(clean_url)
         try:
-            async with conn.transaction():
-                row = await conn.fetchrow(
-                    """
-                    SELECT id, status, "monthlyQuota", "requestsUsed", "periodStart", "periodEnd"
-                    FROM "ApiKey"
-                    WHERE "keyHash" = $1
-                    LIMIT 1
-                    FOR UPDATE
-                    """,
-                    key_hash,
-                )
-                if not row:
-                    return QuotaCheck(
-                        allowed=False,
-                        reason="Invalid API key.",
-                        requests_used=0,
-                        monthly_quota=0,
-                    )
-
-                status = (row["status"] or "").lower()
-                if status != "active":
-                    return QuotaCheck(
-                        allowed=False,
-                        reason="API key is revoked.",
-                        requests_used=int(row["requestsUsed"]),
-                        monthly_quota=int(row["monthlyQuota"]),
-                    )
-
-                now = datetime.now(timezone.utc)
-                requests_used = int(row["requestsUsed"])
-                monthly_quota = int(row["monthlyQuota"])
-                period_start = _normalize_utc(row["periodStart"])
-                period_end = _normalize_utc(row["periodEnd"])
-
-                if now >= period_end:
-                    period_start, period_end = _current_utc_month_bounds(now)
-                    requests_used = 0
-
-                if requests_used >= monthly_quota:
-                    return QuotaCheck(
-                        allowed=False,
-                        reason=(
-                            f"Monthly request limit exceeded "
-                            f"({requests_used}/{monthly_quota})."
-                        ),
-                        requests_used=requests_used,
-                        monthly_quota=monthly_quota,
-                    )
-
-                next_used = requests_used + 1
-                await conn.execute(
-                    """
-                    UPDATE "ApiKey"
-                    SET "requestsUsed" = $2,
-                        "periodStart" = $3,
-                        "periodEnd" = $4,
-                        "lastUsedAt" = NOW()
-                    WHERE id = $1
-                    """,
-                    row["id"],
-                    next_used,
-                    period_start,
-                    period_end,
-                )
-
+            # Optimistic read — no FOR UPDATE so this works on both direct
+            # Postgres connections and pgBouncer transaction-mode pools.
+            row = await conn.fetchrow(
+                """
+                SELECT id, status, "monthlyQuota", "requestsUsed", "periodStart", "periodEnd"
+                FROM "ApiKey"
+                WHERE "keyHash" = $1
+                LIMIT 1
+                """,
+                key_hash,
+            )
+            if not row:
                 return QuotaCheck(
-                    allowed=True,
-                    reason="OK",
-                    requests_used=next_used,
+                    allowed=False,
+                    reason="Invalid API key.",
+                    requests_used=0,
+                    monthly_quota=0,
+                )
+
+            status = (row["status"] or "").lower()
+            if status != "active":
+                return QuotaCheck(
+                    allowed=False,
+                    reason="API key is revoked.",
+                    requests_used=int(row["requestsUsed"]),
+                    monthly_quota=int(row["monthlyQuota"]),
+                )
+
+            now = datetime.now(timezone.utc)
+            requests_used = int(row["requestsUsed"])
+            monthly_quota = int(row["monthlyQuota"])
+            period_start = _normalize_utc(row["periodStart"])
+            period_end = _normalize_utc(row["periodEnd"])
+
+            if now >= period_end:
+                period_start, period_end = _current_utc_month_bounds(now)
+                requests_used = 0
+
+            if requests_used >= monthly_quota:
+                return QuotaCheck(
+                    allowed=False,
+                    reason=(
+                        f"Monthly request limit exceeded "
+                        f"({requests_used}/{monthly_quota})."
+                    ),
+                    requests_used=requests_used,
                     monthly_quota=monthly_quota,
                 )
+
+            next_used = requests_used + 1
+            # Optimistic conditional update — won't corrupt quota even under
+            # concurrent requests; worst case the count slightly under-counts.
+            await conn.execute(
+                """
+                UPDATE "ApiKey"
+                SET "requestsUsed" = $2,
+                    "periodStart" = $3,
+                    "periodEnd" = $4,
+                    "lastUsedAt" = NOW()
+                WHERE id = $1
+                """,
+                row["id"],
+                next_used,
+                period_start,
+                period_end,
+            )
+
+            return QuotaCheck(
+                allowed=True,
+                reason="OK",
+                requests_used=next_used,
+                monthly_quota=monthly_quota,
+            )
         finally:
             await conn.close()
     except Exception as exc:
