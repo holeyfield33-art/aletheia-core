@@ -238,11 +238,16 @@ async def _lifespan(application: FastAPI):
     _logger.info("Lifespan shutdown: complete")
 
 
+_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+
 app = FastAPI(
     title="Aletheia Core API",
     version="1.9.2",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
     lifespan=_lifespan,
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 
 _CORS_ORIGINS: list[str] = [
@@ -318,7 +323,7 @@ async def enterprise_auth_middleware(request: Request, call_next):
     just pre-populates the context for RBAC checks.
     """
     # Skip auth for fully unauthenticated endpoints (no optional auth either).
-    unauthenticated_paths = {"/health", "/ready", "/docs", "/openapi.json"}
+    unauthenticated_paths = {"/health", "/ready", "/docs", "/redoc", "/openapi.json"}
     if request.url.path in unauthenticated_paths:
         return await call_next(request)
 
