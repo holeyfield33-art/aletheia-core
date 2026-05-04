@@ -12,15 +12,42 @@ import { clientFetch } from "@/lib/client-fetch";
 interface KeyUsage {
   id: string;
   name: string;
-  key_prefix: string;
+  keyPrefix: string;
   plan: string;
   status: string;
-  monthly_quota: number;
-  requests_used: number;
-  period_start: string;
-  period_end: string;
-  created_at: string;
-  last_used_at: string | null;
+  monthlyQuota: number;
+  requestsUsed: number;
+  periodStart: string;
+  periodEnd: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+interface RawKeyUsage extends Partial<KeyUsage> {
+  key_prefix?: string;
+  monthly_quota?: number;
+  requests_used?: number;
+  period_start?: string;
+  period_end?: string;
+  created_at?: string;
+  last_used_at?: string | null;
+}
+
+export function normalizeKeyUsage(key: RawKeyUsage): KeyUsage {
+  return {
+    id: String(key.id ?? ""),
+    name: String(key.name ?? ""),
+    keyPrefix: String(key.keyPrefix ?? key.key_prefix ?? ""),
+    plan: String(key.plan ?? ""),
+    status: String(key.status ?? ""),
+    monthlyQuota: Number(key.monthlyQuota ?? key.monthly_quota ?? 0),
+    requestsUsed: Number(key.requestsUsed ?? key.requests_used ?? 0),
+    periodStart: String(key.periodStart ?? key.period_start ?? ""),
+    periodEnd: String(key.periodEnd ?? key.period_end ?? ""),
+    createdAt: String(key.createdAt ?? key.created_at ?? ""),
+    lastUsedAt:
+      key.lastUsedAt ?? key.last_used_at ?? null,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -34,8 +61,8 @@ export default function UsagePage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await clientFetch<{ keys?: KeyUsage[] }>("/api/keys");
-        setKeys(data.keys || []);
+        const data = await clientFetch<{ keys?: RawKeyUsage[] }>("/api/keys");
+        setKeys((data.keys || []).map(normalizeKeyUsage));
       } catch {
         /* non-critical */
       } finally {
@@ -128,13 +155,13 @@ export default function UsagePage() {
         >
           {keys.map((k) => {
             const pct =
-              k.monthly_quota > 0
+              k.monthlyQuota > 0
                 ? Math.min(
                     100,
-                    Math.round((k.requests_used / k.monthly_quota) * 100),
+                    Math.round((k.requestsUsed / k.monthlyQuota) * 100),
                   )
                 : 0;
-            const isOver = k.requests_used >= k.monthly_quota;
+            const isOver = k.requestsUsed >= k.monthlyQuota;
             const barColor = isOver
               ? "var(--crimson-hi)"
               : pct > 80
@@ -179,7 +206,7 @@ export default function UsagePage() {
                         color: "var(--muted)",
                       }}
                     >
-                      {k.key_prefix}
+                      {k.keyPrefix}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: "0.35rem" }}>
@@ -232,8 +259,8 @@ export default function UsagePage() {
                   }}
                 >
                   <span>
-                    {k.requests_used.toLocaleString()} /{" "}
-                    {k.monthly_quota.toLocaleString()} Sovereign Audit Receipts
+                    {k.requestsUsed.toLocaleString()} /{" "}
+                    {k.monthlyQuota.toLocaleString()} Sovereign Audit Receipts
                   </span>
                   <span style={{ color: barColor }}>{pct}%</span>
                 </div>
@@ -270,19 +297,19 @@ export default function UsagePage() {
                     { label: "Status", value: k.status },
                     {
                       label: "Period start",
-                      value: k.period_start?.slice(0, 10) || "—",
+                      value: k.periodStart?.slice(0, 10) || "—",
                     },
                     {
                       label: "Period end",
-                      value: k.period_end?.slice(0, 10) || "—",
+                      value: k.periodEnd?.slice(0, 10) || "—",
                     },
                     {
                       label: "Created",
-                      value: k.created_at?.slice(0, 10) || "—",
+                      value: k.createdAt?.slice(0, 10) || "—",
                     },
                     {
                       label: "Last used",
-                      value: k.last_used_at?.slice(0, 10) || "—",
+                      value: k.lastUsedAt?.slice(0, 10) || "—",
                     },
                   ].map((item) => (
                     <div key={item.label}>
