@@ -62,6 +62,8 @@ _VALID_CATEGORIES = {
     "policy_evasion",
     "hybrid_composite",
     "recon_alias",
+    "jailbreak",
+    "prompt_injection",
 }
 _VALID_SEVERITIES = {"critical", "high", "medium", "low"}
 

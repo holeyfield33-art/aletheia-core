@@ -1,7 +1,12 @@
 """Tests for core.semantic_manifest — Pydantic schema validation."""
 
+import json
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
+
+from manifest.signing import verify_manifest_signature
 
 from core.semantic_manifest import (
     EntryMetadata,
@@ -217,3 +222,39 @@ class TestSemanticManifest:
     def test_embedding_dim_backfills_vector_size(self):
         manifest = SemanticManifest(version="1.0.0", embedding_dim=512)
         assert manifest.vector_size == 512
+
+
+def _load_runtime_manifest() -> dict:
+    p = Path("data/semantic_manifest.json")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def test_manifest_v1_9_0_loads() -> None:
+    manifest = _load_runtime_manifest()
+    assert manifest["version"] == "1.9.0"
+
+
+def test_manifest_jailbreak_coverage() -> None:
+    manifest = _load_runtime_manifest()
+    count = sum(
+        1 for e in manifest.get("entries", []) if e.get("category") == "jailbreak"
+    )
+    assert count >= 30
+
+
+def test_manifest_prompt_injection_coverage() -> None:
+    manifest = _load_runtime_manifest()
+    count = sum(
+        1
+        for e in manifest.get("entries", [])
+        if e.get("category") == "prompt_injection"
+    )
+    assert count >= 30
+
+
+def test_manifest_signature_valid() -> None:
+    verify_manifest_signature(
+        manifest_path="manifest/security_policy.json",
+        signature_path="manifest/security_policy.json.sig",
+        public_key_path="manifest/security_policy.ed25519.pub",
+    )
