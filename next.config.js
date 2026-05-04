@@ -1,6 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/policy": [
+      "./manifest/security_policy.json",
+      "./manifest/security_policy.json.sig",
+      "./manifest/security_policy.ed25519.pub",
+    ],
+  },
   // Keep docs/ as a separate static directory — not served by Next.js
   // The app.aletheia-core.com subdomain serves this Next.js app.
   // aletheia-core.com is served separately from docs/index.html.
