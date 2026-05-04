@@ -8,7 +8,7 @@ import unittest
 import unittest.mock
 import uuid
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -589,10 +589,14 @@ class TestAuditEnvelopeContract(unittest.TestCase):
 
     def test_audit_envelope_shape_rate_limited(self) -> None:
         body = _safe_body(f"{_IP_RATE}65")
-        for _ in range(64):
-            status, _ = _post(self.client, dict(body))
-            self.assertNotEqual(status, 429)
-        status, resp = _post(self.client, dict(body))
+        with patch(
+            "bridge.fastapi_wrapper.rate_limiter.allow",
+            new=AsyncMock(side_effect=[True] * 64 + [False]),
+        ):
+            for _ in range(64):
+                status, _ = _post(self.client, dict(body))
+                self.assertNotEqual(status, 429)
+            status, resp = _post(self.client, dict(body))
         self.assertEqual(status, 429)
         self._assert_common_envelope(resp)
         self.assertEqual(resp["decision"], "RATE_LIMITED")

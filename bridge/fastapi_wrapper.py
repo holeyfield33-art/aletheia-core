@@ -1631,6 +1631,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Sandbox check — block subprocess/socket/exec patterns early ---
     sandbox_hit = check_action_sandbox(req.action, clean_input)
     if sandbox_hit:
+        sanitized_sandbox_reason = _sanitise_reason(sandbox_hit)
         audit_record = log_audit_event(
             decision="SANDBOX_BLOCKED",
             threat_score=10.0,
@@ -1638,7 +1639,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             action=req.action,
             source_ip=client_ip,
             origin=req.origin,
-            reason=sandbox_hit,
+            reason=sanitized_sandbox_reason,
             fallback_state=fallback_state,
             request_id=request_id,
             receipt_chain=True,
@@ -1648,7 +1649,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         )
         return _build_audit_envelope(
             decision="SANDBOX_BLOCKED",
-            reason=_sanitise_reason(sandbox_hit),
+            reason=sanitized_sandbox_reason,
             request_id=request_id,
             receipt=audit_record["receipt"],
             threat_level="high",

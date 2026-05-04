@@ -35,10 +35,23 @@ export default function LogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [filterDecision, setFilterDecision] = useState("");
   const pageSize = 25;
+
+  const handleCopyRequestId = useCallback(async (requestId: string) => {
+    try {
+      await navigator.clipboard.writeText(requestId);
+      setCopiedRequestId(requestId);
+      window.setTimeout(() => {
+        setCopiedRequestId((current) => (current === requestId ? null : current));
+      }, 1500);
+    } catch {
+      // No-op: clipboard may be blocked by browser permissions.
+    }
+  }, []);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -311,14 +324,54 @@ export default function LogsPage() {
                       padding: "0.45rem 0.65rem",
                       color: "var(--muted)",
                       fontSize: "0.65rem",
-                      maxWidth: "120px",
+                      maxWidth: "200px",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "normal",
                     }}
                     title={log.requestId || ""}
                   >
-                    {log.requestId ? log.requestId.slice(0, 16) + "…" : "—"}
+                    {log.requestId ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.35rem",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            color: "var(--silver)",
+                          }}
+                        >
+                          {log.requestId}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (log.requestId) {
+                              void handleCopyRequestId(log.requestId);
+                            }
+                          }}
+                          style={{
+                            border: "1px solid var(--border)",
+                            background: "var(--surface)",
+                            color: "var(--muted)",
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.62rem",
+                            padding: "0.12rem 0.35rem",
+                            cursor: "pointer",
+                          }}
+                          aria-label={`Copy request ID ${log.requestId}`}
+                        >
+                          {copiedRequestId === log.requestId ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                 </tr>
               ))
