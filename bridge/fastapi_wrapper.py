@@ -352,10 +352,16 @@ _INTERNAL_SECRET: str = os.getenv("ALETHEIA_INTERNAL_SECRET", "").strip()
 # Paths exempt from the guard so health/readiness probes and public key
 # endpoints remain reachable without the Vercel proxy.
 _INTERNAL_SECRET_EXEMPT = frozenset(
-    ["/health", "/ready", "/docs", "/openapi.json", "/metrics",
-     "/.well-known/aletheia-receipt-key.pem",
-     "/.well-known/aletheia-manifest-key.pem",
-     "/v1/public-key"]
+    [
+        "/health",
+        "/ready",
+        "/docs",
+        "/openapi.json",
+        "/metrics",
+        "/.well-known/aletheia-receipt-key.pem",
+        "/.well-known/aletheia-manifest-key.pem",
+        "/v1/public-key",
+    ]
 )
 
 
@@ -1014,6 +1020,38 @@ def _sanitise_reason(reason: str) -> str:
     return first_line.split(":")[0].strip() if ":" in first_line else "Action denied."
 
 
+def _build_audit_envelope(
+    *,
+    decision: str,
+    reason: str,
+    request_id: str,
+    receipt: dict[str, Any] | None,
+    threat_level: str,
+    latency_ms: float,
+    fallback_state: str,
+    status_code: int,
+) -> JSONResponse:
+    client_threat_level = threat_level.lower()
+    if client_threat_level == "critical":
+        client_threat_level = "high"
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "decision": decision,
+            "reason": reason,
+            "request_id": request_id,
+            "receipt": receipt,
+            "metadata": {
+                "threat_level": client_threat_level,
+                "latency_ms": round(latency_ms, 2),
+                "client_id": settings.client_id,
+                "fallback_state": fallback_state,
+            },
+        },
+    )
+
+
 def _run_scout(client_ip: str, clean_input: str) -> tuple[float, str]:
     """Execute the Scout phase and return threat score plus report."""
     return scout.evaluate_threat_context(client_ip, clean_input)
@@ -1502,7 +1540,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Rate limiting (per-IP, tenant-scoped) ---
     if not await rate_limiter.allow(client_ip, tenant_id=_tenant_id):
         request.state.retry_after = 5
-        log_audit_event(
+        audit_record = log_audit_event(
             decision="RATE_LIMITED",
             threat_score=0.0,
             payload=req.payload,
@@ -1511,22 +1549,27 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             origin=req.origin,
             reason="Rate limit exceeded",
             fallback_state=fallback_state,
+            request_id=request_id,
             tenant_id=_tenant_id,
             user_id=_user_id,
             auth_method=_auth_method,
         )
-        return JSONResponse(
+        rate_limited_response = _build_audit_envelope(
+            decision="RATE_LIMITED",
+            reason="Too many requests. Try again later.",
+            request_id=request_id,
+            receipt=audit_record["receipt"],
+            threat_level="low",
+            latency_ms=(_time.time() - start_time) * 1000,
+            fallback_state=fallback_state,
             status_code=429,
-            content={
-                "decision": "RATE_LIMITED",
-                "reason": "Too many requests. Try again later.",
-            },
-            headers={"Retry-After": "5"},
         )
+        rate_limited_response.headers["Retry-After"] = "5"
+        return rate_limited_response
 
     # --- Degraded mode fail-closed for privileged actions ---
     if degraded and not _is_read_only_action(req.action):
-        log_audit_event(
+        audit_record = log_audit_event(
             decision="DENIED",
             threat_score=0.0,
             payload=req.payload,
@@ -1535,16 +1578,20 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             origin=req.origin,
             reason="degraded_mode_privileged_action_denied",
             fallback_state=fallback_state,
+            request_id=request_id,
             tenant_id=_tenant_id,
             user_id=_user_id,
             auth_method=_auth_method,
         )
-        return JSONResponse(
+        return _build_audit_envelope(
+            decision="DENIED",
+            reason="degraded_mode_privileged_action_denied",
+            request_id=request_id,
+            receipt=audit_record["receipt"],
+            threat_level="high",
+            latency_ms=(_time.time() - start_time) * 1000,
+            fallback_state=fallback_state,
             status_code=503,
-            content={
-                "decision": "DENIED",
-                "reason": "degraded_mode_privileged_action_denied",
-            },
         )
 
     # --- Input hardening ---
@@ -1553,7 +1600,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Semantic intent classification (pre-agent screen) ---
     intent_decision = classify_blocked_intent(clean_input)
     if intent_decision.blocked:
-        log_audit_event(
+        audit_record = log_audit_event(
             decision="DENIED",
             threat_score=8.0,
             payload=req.payload,
@@ -1562,22 +1609,26 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             origin=req.origin,
             reason=f"semantic_intent_policy_block:{intent_decision.category}",
             fallback_state=fallback_state,
+            request_id=request_id,
             tenant_id=_tenant_id,
             user_id=_user_id,
             auth_method=_auth_method,
         )
-        return JSONResponse(
+        return _build_audit_envelope(
+            decision="DENIED",
+            reason="Action denied: semantic policy violation.",
+            request_id=request_id,
+            receipt=audit_record["receipt"],
+            threat_level="high",
+            latency_ms=(_time.time() - start_time) * 1000,
+            fallback_state=fallback_state,
             status_code=403,
-            content={
-                "decision": "DENIED",
-                "reason": "Action denied: semantic policy violation.",
-            },
         )
 
     # --- Sandbox check — block subprocess/socket/exec patterns early ---
     sandbox_hit = check_action_sandbox(req.action, clean_input)
     if sandbox_hit:
-        log_audit_event(
+        audit_record = log_audit_event(
             decision="SANDBOX_BLOCKED",
             threat_score=10.0,
             payload=req.payload,
@@ -1586,16 +1637,20 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             origin=req.origin,
             reason=sandbox_hit,
             fallback_state=fallback_state,
+            request_id=request_id,
             tenant_id=_tenant_id,
             user_id=_user_id,
             auth_method=_auth_method,
         )
-        return JSONResponse(
+        return _build_audit_envelope(
+            decision="SANDBOX_BLOCKED",
+            reason=_sanitise_reason(sandbox_hit),
+            request_id=request_id,
+            receipt=audit_record["receipt"],
+            threat_level="high",
+            latency_ms=(_time.time() - start_time) * 1000,
+            fallback_state=fallback_state,
             status_code=403,
-            content={
-                "decision": "SANDBOX_BLOCKED",
-                "reason": _sanitise_reason(sandbox_hit),
-            },
         )
 
     # 1. SCOUT PHASE
@@ -1617,7 +1672,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # 3. JUDGE PHASE — now includes payload for semantic veto
     # Re-check fail-closed after current-request Qdrant degradation is reflected
     if degraded and not _is_read_only_action(req.action):
-        log_audit_event(
+        audit_record = log_audit_event(
             decision="DENIED",
             threat_score=0.0,
             payload=req.payload,
@@ -1631,12 +1686,15 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             user_id=_user_id,
             auth_method=_auth_method,
         )
-        return JSONResponse(
+        return _build_audit_envelope(
+            decision="DENIED",
+            reason="degraded_mode_privileged_action_denied",
+            request_id=request_id,
+            receipt=audit_record["receipt"],
+            threat_level="high",
+            latency_ms=(_time.time() - start_time) * 1000,
+            fallback_state="degraded",
             status_code=503,
-            content={
-                "decision": "DENIED",
-                "reason": "degraded_mode_privileged_action_denied",
-            },
         )
 
     is_allowed, veto_msg = _run_judge(req.action, clean_input)
@@ -1700,13 +1758,19 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
 
     response: dict = {
         "decision": decision,
-        "metadata": {
-            "threat_level": _discretise_threat(threat_score),
-            "latency_ms": round(latency, 2),
-            "request_id": request_id,
-            "client_id": settings.client_id,
-        },
+        "reason": _sanitise_reason(reason) if is_blocked else "",
+        "request_id": request_id,
         "receipt": audit_record["receipt"],
+        "metadata": {
+            "threat_level": (
+                "high"
+                if _discretise_threat(threat_score).lower() == "critical"
+                else _discretise_threat(threat_score).lower()
+            ),
+            "latency_ms": round(latency, 2),
+            "client_id": settings.client_id,
+            "fallback_state": fallback_state,
+        },
     }
 
     # --- Semantic engine block (from Nitpicker Qdrant integration) ---
@@ -1757,9 +1821,6 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         _logger.info(
             "shadow_verdict=DENIED action=%s origin=%s", req.action, req.origin
         )
-    elif is_blocked:
-        response["reason"] = _sanitise_reason(reason)
-
     return response
 
 
