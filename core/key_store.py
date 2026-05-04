@@ -507,6 +507,8 @@ class KeyStore:
 
                 # Billing period reset
                 period_end = datetime.fromisoformat(record.period_end)
+                if period_end.tzinfo is None:
+                    period_end = period_end.replace(tzinfo=timezone.utc)
                 if now >= period_end:
                     new_start, new_end = _current_period_bounds(now)
                     conn.execute(
