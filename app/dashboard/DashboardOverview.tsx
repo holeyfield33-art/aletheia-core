@@ -10,6 +10,18 @@ const cardStyle: React.CSSProperties = {
   padding: "1.5rem",
 };
 
+export function getDashboardCardStyle(isHovered: boolean): React.CSSProperties {
+  return {
+    ...cardStyle,
+    textDecoration: "none",
+    cursor: "pointer",
+    transition: "border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease",
+    borderColor: isHovered ? "var(--border-hi)" : "var(--border)",
+    transform: isHovered ? "translateY(-2px)" : "translateY(0)",
+    boxShadow: isHovered ? "0 14px 30px rgba(0, 0, 0, 0.2)" : "none",
+  };
+}
+
 function WelcomeBanner({
   onDismiss,
   keyCount,
@@ -194,6 +206,7 @@ export default function DashboardOverview({
   } | null;
 }) {
   const [showWelcome, setShowWelcome] = useState(isNewUser);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   const usagePct =
     totalQuota > 0 ? Math.round((totalRequests / totalQuota) * 100) : 0;
@@ -365,7 +378,9 @@ export default function DashboardOverview({
           <a
             key={label}
             href={href}
-            style={{ ...cardStyle, textDecoration: "none" }}
+            onMouseEnter={() => setHoveredCard(href)}
+            onMouseLeave={() => setHoveredCard((current) => (current === href ? null : current))}
+            style={getDashboardCardStyle(hoveredCard === href)}
           >
             <div
               style={{
@@ -430,11 +445,11 @@ export default function DashboardOverview({
           <a
             key={href}
             href={href}
+            onMouseEnter={() => setHoveredCard(href)}
+            onMouseLeave={() => setHoveredCard((current) => (current === href ? null : current))}
             style={{
               display: "block",
-              ...cardStyle,
-              textDecoration: "none",
-              transition: "border-color 0.15s",
+              ...getDashboardCardStyle(hoveredCard === href),
             }}
           >
             <div
