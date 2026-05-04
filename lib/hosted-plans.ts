@@ -11,6 +11,11 @@ export type HostedPlanConfig = {
   logRetentionDays: number;
 };
 
+// Internal plan IDs (TRIAL / PRO / MAX / ENTERPRISE) are decoupled from
+// display names intentionally — PRO maps to the "Scale" Stripe product
+// (STRIPE_SCALE_PRICE_ID, $19) and MAX maps to the "Pro" Stripe product
+// (STRIPE_PRO_PRICE_ID, $49). displayName is what customers see in the
+// dashboard and on invoices; it must match the Stripe product name exactly.
 export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   TRIAL: {
     id: "TRIAL",
@@ -24,7 +29,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   PRO: {
     id: "PRO",
     apiKeyPlan: "pro",
-    displayName: "Scale",
+    displayName: "Scale",       // Stripe product: STRIPE_SCALE_PRICE_ID ($19/mo)
     monthlyPriceCents: 1_900,
     monthlyCalls: 25_000,
     maxActiveKeys: 10,
@@ -33,7 +38,7 @@ export const HOSTED_PLANS: Record<HostedPlanId, HostedPlanConfig> = {
   MAX: {
     id: "MAX",
     apiKeyPlan: "max",
-    displayName: "Pro",
+    displayName: "Pro",         // Stripe product: STRIPE_PRO_PRICE_ID ($49/mo)
     monthlyPriceCents: 4_900,
     monthlyCalls: 100_000,
     maxActiveKeys: 10,

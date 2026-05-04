@@ -276,68 +276,73 @@ class PgKeyStore:
         key_hash = _hash_key(raw_key)
         now = datetime.now(timezone.utc)
 
+        # Transaction + FOR UPDATE serialises concurrent requests for the same
+        # key, preventing the TOCTOU race where two callers both read the same
+        # stale requests_used value, both pass the quota check, and both
+        # increment — resulting in quota being exceeded by the concurrency fan-out.
         async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT * FROM api_keys WHERE key_hash = $1 AND tenant_id = $2",
-                key_hash,
-                tid,
-            )
-            if not row:
-                return QuotaCheck(
-                    allowed=False,
-                    reason="Invalid API key.",
-                    requests_used=0,
-                    monthly_quota=0,
-                )
-            record = self._row_to_record(row)
-
-            if record.status != "active":
-                return QuotaCheck(
-                    allowed=False,
-                    reason="API key has been revoked.",
-                    requests_used=record.requests_used,
-                    monthly_quota=record.monthly_quota,
-                )
-
-            period_end = datetime.fromisoformat(record.period_end)
-            if now >= period_end:
-                from core.key_store import _current_period_bounds
-
-                new_start, new_end = _current_period_bounds(now)
-                await conn.execute(
-                    "UPDATE api_keys SET requests_used = 0, period_start = $1, period_end = $2 "
-                    "WHERE key_hash = $3 AND tenant_id = $4",
-                    new_start.isoformat(),
-                    new_end.isoformat(),
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT * FROM api_keys WHERE key_hash = $1 AND tenant_id = $2 FOR UPDATE",
                     key_hash,
                     tid,
                 )
-                record.requests_used = 0
+                if not row:
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="Invalid API key.",
+                        requests_used=0,
+                        monthly_quota=0,
+                    )
+                record = self._row_to_record(row)
 
-            is_unlimited_payg = record.plan.lower() == "enterprise"
+                if record.status != "active":
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="API key has been revoked.",
+                        requests_used=record.requests_used,
+                        monthly_quota=record.monthly_quota,
+                    )
 
-            if not is_unlimited_payg and record.requests_used >= record.monthly_quota:
+                period_end = datetime.fromisoformat(record.period_end)
+                if now >= period_end:
+                    from core.key_store import _current_period_bounds
+
+                    new_start, new_end = _current_period_bounds(now)
+                    await conn.execute(
+                        "UPDATE api_keys SET requests_used = 0, period_start = $1, period_end = $2 "
+                        "WHERE key_hash = $3 AND tenant_id = $4",
+                        new_start.isoformat(),
+                        new_end.isoformat(),
+                        key_hash,
+                        tid,
+                    )
+                    record.requests_used = 0
+
+                is_unlimited_payg = record.plan.lower() == "enterprise"
+
+                if not is_unlimited_payg and record.requests_used >= record.monthly_quota:
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="This API key has reached its monthly request limit. "
+                        "Upgrade your hosted plan for higher limits.",
+                        requests_used=record.requests_used,
+                        monthly_quota=record.monthly_quota,
+                    )
+
+                await conn.execute(
+                    "UPDATE api_keys SET requests_used = requests_used + 1, last_used_at = $1 "
+                    "WHERE key_hash = $2 AND tenant_id = $3",
+                    now.isoformat(),
+                    key_hash,
+                    tid,
+                )
                 return QuotaCheck(
-                    allowed=False,
-                    reason="This API key has reached its monthly request limit. "
-                    "Upgrade your hosted plan for higher limits.",
-                    requests_used=record.requests_used,
+                    allowed=True,
+                    reason="OK",
+                    requests_used=record.requests_used + 1,
                     monthly_quota=record.monthly_quota,
                 )
-
-            await conn.execute(
-                "UPDATE api_keys SET requests_used = requests_used + 1, last_used_at = $1 "
-                "WHERE key_hash = $2 AND tenant_id = $3",
-                now.isoformat(),
-                key_hash,
-                tid,
-            )
-            return QuotaCheck(
-                allowed=True,
-                reason="OK",
-                requests_used=record.requests_used + 1,
-                monthly_quota=record.monthly_quota,
-            )
 
     async def list_keys_for_user(
         self,
