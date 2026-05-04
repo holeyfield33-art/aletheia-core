@@ -59,13 +59,49 @@ if not (0 <= _TRUSTED_PROXY_DEPTH <= 5):
     raise ValueError(
         f"ALETHEIA_TRUSTED_PROXY_DEPTH must be 0–5, got {_TRUSTED_PROXY_DEPTH}"
     )
-if os.getenv("ENVIRONMENT", "").lower() == "production" and _TRUSTED_PROXY_DEPTH == 1:
-    _logger.warning(
-        "ALETHEIA_TRUSTED_PROXY_DEPTH is at default value (1) in production. "
-        "This may allow IP spoofing if your proxy chain has more than one hop. "
-        "Set ALETHEIA_TRUSTED_PROXY_DEPTH explicitly to match your infrastructure. "
-        "See docs/ENVIRONMENT_VARIABLES.md for guidance."
-    )
+if os.getenv("ENVIRONMENT", "").lower() == "production":
+    if "ALETHEIA_TRUSTED_PROXY_DEPTH" not in os.environ:
+        _logger.warning(
+            "ALETHEIA_TRUSTED_PROXY_DEPTH is not set in production. "
+            "Defaulting to 1 (single proxy hop). "
+            "Set explicitly: 1 for Render-only, 2 for Cloudflare+Render. "
+            "IP-based rate limiting may be spoofable if your chain has more hops."
+        )
+
+# Module-level asyncpg pool for the hosted-Prisma key bridge.
+# Initialised in _lifespan; shared across all requests to avoid per-call TCP
+# connection overhead which would exhaust the DB connection limit under load.
+_bridge_pool: "Any | None" = None
+
+
+async def _init_bridge_pool() -> None:
+    """Create the asyncpg pool used by _check_hosted_prisma_api_key."""
+    global _bridge_pool
+    database_url = settings.database_url or os.getenv("DATABASE_URL", "")
+    if not database_url:
+        _logger.info("Bridge pool: DATABASE_URL not set — hosted key bridge disabled")
+        return
+    try:
+        import asyncpg as _asyncpg
+
+        clean_url = _sanitize_asyncpg_url(database_url)
+        _bridge_pool = await _asyncpg.create_pool(
+            clean_url, min_size=1, max_size=5, command_timeout=10
+        )
+        async with _bridge_pool.acquire() as _probe:
+            await _probe.execute("SELECT 1")
+        _logger.info("Bridge pool: connected and healthy")
+    except Exception as exc:
+        _logger.error("Bridge pool: failed to initialise — %s", exc)
+        _bridge_pool = None
+
+
+async def _close_bridge_pool() -> None:
+    global _bridge_pool
+    if _bridge_pool is not None:
+        await _bridge_pool.close()
+        _bridge_pool = None
+        _logger.info("Bridge pool: closed")
 
 
 @asynccontextmanager
@@ -139,6 +175,11 @@ async def _lifespan(application: FastAPI):
                             "critical startup failure: postgres unavailable"
                         )
 
+        # Bridge pool: shared asyncpg pool for hosted-Prisma key lookups.
+        # Initialised regardless of database_backend so the bridge works even
+        # when the Python backend itself uses SQLite for its own key store.
+        await _init_bridge_pool()
+
         # Audit export workers (Task 4 — Elasticsearch, Splunk, Webhook, Syslog)
         from core.exporters import start_export_workers
 
@@ -190,6 +231,7 @@ async def _lifespan(application: FastAPI):
     if startup_ok:
         await stop_export_workers()
     await close_redis_pool()
+    await _close_bridge_pool()
     if pg_pool is not None:
         await pg_pool.close()
         _logger.info("Postgres pool: closed")
@@ -293,6 +335,55 @@ async def enterprise_auth_middleware(request: Request, call_next):
             _logger.debug("Auth middleware error: %s", exc)
 
     # Always continue — individual endpoints decide if auth is required.
+    return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
+# Internal-secret guard — outermost middleware (defined last = runs first)
+# ---------------------------------------------------------------------------
+
+_INTERNAL_SECRET: str = os.getenv("ALETHEIA_INTERNAL_SECRET", "").strip()
+
+# Paths exempt from the guard so health/readiness probes and public key
+# endpoints remain reachable without the Vercel proxy.
+_INTERNAL_SECRET_EXEMPT = frozenset(
+    ["/health", "/ready", "/docs", "/openapi.json", "/metrics",
+     "/.well-known/aletheia-receipt-key.pem",
+     "/.well-known/aletheia-manifest-key.pem",
+     "/v1/public-key"]
+)
+
+
+@app.middleware("http")
+async def internal_secret_guard(request: Request, call_next):
+    """Reject /v1/* requests that did not arrive via the Vercel proxy.
+
+    When ALETHEIA_INTERNAL_SECRET is set, every request to a guarded path
+    must carry the matching ``x-aletheia-internal`` header.  The Vercel
+    /api/v1/* proxy injects this header automatically (ALETHEIA_INTERNAL_SECRET
+    env var on Vercel).  Direct callers hitting the Render URL receive 403.
+
+    If the env var is unset the guard is a no-op so existing deployments
+    continue to work until the operator explicitly enables it.
+    """
+    if not _INTERNAL_SECRET:
+        return await call_next(request)
+
+    path = request.url.path
+    guarded = path.startswith("/v1/") or path == "/v1"
+    if not guarded or path in _INTERNAL_SECRET_EXEMPT:
+        return await call_next(request)
+
+    provided = request.headers.get("x-aletheia-internal", "")
+    # Use secrets.compare_digest to prevent timing attacks on the secret value.
+    if not provided or not secrets.compare_digest(provided, _INTERNAL_SECRET):
+        _logger.warning(
+            "internal_secret_guard: rejected request path=%s xff=%s",
+            path,
+            request.headers.get("x-forwarded-for", "unknown"),
+        )
+        return JSONResponse(status_code=403, content={"error": "forbidden"})
+
     return await call_next(request)
 
 
@@ -710,95 +801,92 @@ def _current_utc_month_bounds(now: datetime) -> tuple[datetime, datetime]:
 async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
     """Validate and meter hosted Prisma ApiKey records when SQLite misses.
 
-    Returns None when DATABASE_URL is not configured or lookup fails, allowing
-    the caller to continue returning deterministic unauthorized responses.
+    Uses the module-level _bridge_pool to avoid per-request TCP connection
+    overhead. Wraps the SELECT+UPDATE in a transaction with FOR UPDATE so
+    concurrent requests cannot read the same stale quota counter and exceed
+    the monthly limit (TOCTOU fix).
+
+    Returns None when the pool is unavailable or lookup fails, allowing the
+    caller to return a deterministic unauthorized response.
     """
-    database_url = settings.database_url or os.getenv("DATABASE_URL", "")
-    if not database_url:
+    if _bridge_pool is None:
         return None
 
     try:
-        import asyncpg
-
         key_hash = _hash_hosted_api_key(raw_key)
-        clean_url = _sanitize_asyncpg_url(database_url)
-        conn = await asyncpg.connect(clean_url)
-        try:
-            # Optimistic read — no FOR UPDATE so this works on both direct
-            # Postgres connections and pgBouncer transaction-mode pools.
-            row = await conn.fetchrow(
-                """
-                SELECT id, status, "monthlyQuota", "requestsUsed", "periodStart", "periodEnd"
-                FROM "ApiKey"
-                WHERE "keyHash" = $1
-                LIMIT 1
-                """,
-                key_hash,
-            )
-            if not row:
-                return QuotaCheck(
-                    allowed=False,
-                    reason="Invalid API key.",
-                    requests_used=0,
-                    monthly_quota=0,
+        async with _bridge_pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """
+                    SELECT id, status, "monthlyQuota", "requestsUsed",
+                           "periodStart", "periodEnd"
+                    FROM "ApiKey"
+                    WHERE "keyHash" = $1
+                    LIMIT 1
+                    FOR UPDATE
+                    """,
+                    key_hash,
+                )
+                if not row:
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="Invalid API key.",
+                        requests_used=0,
+                        monthly_quota=0,
+                    )
+
+                status = (row["status"] or "").lower()
+                if status != "active":
+                    return QuotaCheck(
+                        allowed=False,
+                        reason="API key is revoked.",
+                        requests_used=int(row["requestsUsed"]),
+                        monthly_quota=int(row["monthlyQuota"]),
+                    )
+
+                now = datetime.now(timezone.utc)
+                requests_used = int(row["requestsUsed"])
+                monthly_quota = int(row["monthlyQuota"])
+                period_start = _normalize_utc(row["periodStart"])
+                period_end = _normalize_utc(row["periodEnd"])
+
+                if now >= period_end:
+                    period_start, period_end = _current_utc_month_bounds(now)
+                    requests_used = 0
+
+                if requests_used >= monthly_quota:
+                    return QuotaCheck(
+                        allowed=False,
+                        reason=(
+                            f"Monthly request limit exceeded "
+                            f"({requests_used}/{monthly_quota})."
+                        ),
+                        requests_used=requests_used,
+                        monthly_quota=monthly_quota,
+                    )
+
+                next_used = requests_used + 1
+                await conn.execute(
+                    """
+                    UPDATE "ApiKey"
+                    SET "requestsUsed" = $2,
+                        "periodStart" = $3,
+                        "periodEnd" = $4,
+                        "lastUsedAt" = NOW()
+                    WHERE id = $1
+                    """,
+                    row["id"],
+                    next_used,
+                    period_start,
+                    period_end,
                 )
 
-            status = (row["status"] or "").lower()
-            if status != "active":
                 return QuotaCheck(
-                    allowed=False,
-                    reason="API key is revoked.",
-                    requests_used=int(row["requestsUsed"]),
-                    monthly_quota=int(row["monthlyQuota"]),
-                )
-
-            now = datetime.now(timezone.utc)
-            requests_used = int(row["requestsUsed"])
-            monthly_quota = int(row["monthlyQuota"])
-            period_start = _normalize_utc(row["periodStart"])
-            period_end = _normalize_utc(row["periodEnd"])
-
-            if now >= period_end:
-                period_start, period_end = _current_utc_month_bounds(now)
-                requests_used = 0
-
-            if requests_used >= monthly_quota:
-                return QuotaCheck(
-                    allowed=False,
-                    reason=(
-                        f"Monthly request limit exceeded "
-                        f"({requests_used}/{monthly_quota})."
-                    ),
-                    requests_used=requests_used,
+                    allowed=True,
+                    reason="OK",
+                    requests_used=next_used,
                     monthly_quota=monthly_quota,
                 )
-
-            next_used = requests_used + 1
-            # Optimistic conditional update — won't corrupt quota even under
-            # concurrent requests; worst case the count slightly under-counts.
-            await conn.execute(
-                """
-                UPDATE "ApiKey"
-                SET "requestsUsed" = $2,
-                    "periodStart" = $3,
-                    "periodEnd" = $4,
-                    "lastUsedAt" = NOW()
-                WHERE id = $1
-                """,
-                row["id"],
-                next_used,
-                period_start,
-                period_end,
-            )
-
-            return QuotaCheck(
-                allowed=True,
-                reason="OK",
-                requests_used=next_used,
-                monthly_quota=monthly_quota,
-            )
-        finally:
-            await conn.close()
     except Exception as exc:
         _logger.warning("Hosted Prisma key lookup failed (fail-closed): %s", exc)
         return None

@@ -8,6 +8,24 @@ const BACKEND_BASE = (
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 
+// Headers that must never be forwarded to the backend.
+// Cookie leaks the NextAuth session JWT; the Vercel-specific headers are
+// internal routing metadata irrelevant to the upstream FastAPI service.
+const STRIPPED_REQUEST_HEADERS = new Set([
+  "cookie",
+  "set-cookie",
+  "x-vercel-id",
+  "x-vercel-deployment-url",
+  "x-vercel-forwarded-for",
+  "x-middleware-subrequest",
+  "x-middleware-invoke",
+]);
+
+// Shared secret that Render verifies on every /v1/* request so the backend
+// rejects direct public traffic that bypasses Vercel auth/rate-limiting.
+// Set ALETHEIA_INTERNAL_SECRET to the same value on both Vercel and Render.
+const INTERNAL_SECRET = process.env.ALETHEIA_INTERNAL_SECRET ?? "";
+
 function secureGatewayError(status: number): NextResponse {
   return NextResponse.json(
     { error: "gateway_unavailable" },
@@ -51,8 +69,20 @@ async function proxyToBackend(
 
   const targetUrl = buildBackendUrl(pathSegments, request.nextUrl.search);
 
-  const headers = new Headers(request.headers);
+  // Forward headers, minus sensitive browser/session headers.
+  const headers = new Headers();
+  for (const [key, value] of request.headers.entries()) {
+    if (!STRIPPED_REQUEST_HEADERS.has(key.toLowerCase())) {
+      headers.set(key, value);
+    }
+  }
   headers.set("x-forwarded-host", request.headers.get("host") ?? "");
+
+  // Inject the proxy-identity secret so Render can verify traffic came
+  // through Vercel rather than being sent directly by an external caller.
+  if (INTERNAL_SECRET) {
+    headers.set("x-aletheia-internal", INTERNAL_SECRET);
+  }
 
   const body = request.method === "GET" || request.method === "OPTIONS"
     ? undefined
