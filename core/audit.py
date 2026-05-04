@@ -65,6 +65,23 @@ _audit_seq: int = 0
 import threading as _threading  # noqa: E402
 
 _chain_lock = _threading.Lock()
+_receipt_chain_lock = _threading.Lock()
+_prev_receipt_chain_hash: str = "GENESIS"
+_receipt_chain_seq: int = 0
+
+
+def _next_receipt_chain(record_hash: str) -> tuple[int, str]:
+    """Advance the public receipt chain and return (index, hash)."""
+    global _prev_receipt_chain_hash, _receipt_chain_seq
+
+    with _receipt_chain_lock:
+        _receipt_chain_seq += 1
+        index = _receipt_chain_seq
+        chain_hash = hashlib.sha256(
+            f"{_prev_receipt_chain_hash}|{record_hash}|{index}".encode("utf-8")
+        ).hexdigest()
+        _prev_receipt_chain_hash = chain_hash
+        return index, chain_hash
 
 
 def _load_last_audit_record(log_path: Path) -> Optional[dict[str, Any]]:
@@ -248,6 +265,7 @@ class Receipt(BaseModel):
     """Canonical TMR receipt payload used for signing and verification."""
 
     decision: str
+    reason: str = ""
     policy_hash: str
     policy_version: str = "UNKNOWN"
     payload_sha256: str = ""
@@ -259,6 +277,9 @@ class Receipt(BaseModel):
     decision_token: str
     nonce: str
     issued_at: str
+    timestamp: str = ""
+    chain_index: int = 0
+    chain_hash: str = ""
     signature: str = ""
     warning: Optional[str] = Field(default=None)
     signature_algorithm: str = "hmac-sha256"
@@ -289,6 +310,12 @@ class Receipt(BaseModel):
             f"{self.fallback_state}|{self.issued_at}|"
             f"{self.decision_token}|{self.nonce}"
         )
+        # Keep backward compatibility: include extended fields only when present.
+        if self.reason or self.timestamp or self.chain_index > 0 or self.chain_hash:
+            canonical += (
+                f"|reason:{self.reason}|ts:{self.timestamp}|"
+                f"chain_index:{self.chain_index}|chain_hash:{self.chain_hash}"
+            )
         if self.signature_algorithm != "hmac-sha256" or self.key_id:
             canonical += f"|alg:{self.signature_algorithm}"
             if self.key_id:
@@ -313,6 +340,7 @@ def log_audit_event(
     replay_token_outcome: str = "",
     status_code: int = 0,
     extra: Optional[dict[str, Any]] = None,
+    receipt_chain: bool = False,
     tenant_id: str = "default",
     user_id: str = "",
     auth_method: str = "",
@@ -405,8 +433,14 @@ def log_audit_event(
         pass  # WS broadcast is optional
 
     # Build TMR-style receipt
+    receipt_chain_index = 0
+    receipt_chain_hash = ""
+    if receipt_chain:
+        receipt_chain_index, receipt_chain_hash = _next_receipt_chain(record_hash)
+
     receipt = build_tmr_receipt(
         decision=decision,
+        reason=record.get("reason", ""),
         policy_hash=record["policy_hash"],
         policy_version=record["policy_version"],
         payload_sha256=record.get("payload_sha256", ""),
@@ -416,6 +450,9 @@ def log_audit_event(
         request_id=request_id,
         fallback_state=fallback_state,
         issued_at=record["timestamp"],
+        timestamp=record["timestamp"],
+        chain_index=receipt_chain_index,
+        chain_hash=receipt_chain_hash,
     )
     record["receipt"] = receipt
     return record
@@ -424,6 +461,7 @@ def log_audit_event(
 def build_tmr_receipt(
     *,
     decision: str,
+    reason: str = "",
     policy_hash: str,
     policy_version: str = "UNKNOWN",
     payload_sha256: str = "",
@@ -433,6 +471,9 @@ def build_tmr_receipt(
     request_id: str = "",
     fallback_state: str = "normal",
     issued_at: str = "",
+    timestamp: str = "",
+    chain_index: int = 0,
+    chain_hash: str = "",
 ) -> dict[str, Any]:
     """Build a tamper-evident receipt.
 
@@ -452,6 +493,7 @@ def build_tmr_receipt(
 
     receipt_payload: dict[str, Any] = {
         "decision": decision,
+        "reason": reason,
         "policy_hash": policy_hash,
         "policy_version": policy_version,
         "payload_sha256": payload_sha256,
@@ -462,6 +504,9 @@ def build_tmr_receipt(
         "decision_token": decision_token,
         "nonce": nonce,
         "issued_at": issued_at,
+        "timestamp": timestamp or issued_at,
+        "chain_index": chain_index,
+        "chain_hash": chain_hash,
     }
     if prompt is not None:
         receipt_payload["prompt"] = prompt
