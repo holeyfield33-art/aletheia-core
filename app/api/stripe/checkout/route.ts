@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/auth-config";
 import { PRICING } from "@/lib/site-config";
+import { URLS } from "@/lib/site-config";
 
 type CheckoutTier = "scale" | "pro" | "payg";
 type CheckoutSelection = CheckoutTier | "enterprise";
@@ -90,11 +91,11 @@ async function createCheckoutResponse(
 
   const selectedTier = normalizeTier(url.searchParams.get("tier") ?? body.tier);
   if (selectedTier === "enterprise") {
-    const contactUrl = new URL("/contact", url.origin);
+    const contactUrl = `mailto:${URLS.contactEmail}?subject=Enterprise%20Inquiry`;
     if (redirectToStripe) {
       return NextResponse.redirect(contactUrl);
     }
-    return NextResponse.json({ url: contactUrl.toString() });
+    return NextResponse.json({ url: contactUrl });
   }
 
   const internalPlan = getInternalPlanForTier(selectedTier);
