@@ -344,7 +344,14 @@ export async function POST(request: NextRequest) {
     console.error(
       "[demo-proxy] No demo API key configured (ALETHEIA_DEMO_API_KEY/ALETHEIA_API_KEY)",
     );
-    return secureJson({ error: "service_unavailable" }, { status: 503 });
+    return secureJson(
+      {
+        error: "demo_unconfigured",
+        message:
+          "The hosted demo is being configured. Try again in a moment, or use the local install instructions in the docs.",
+      },
+      { status: 503 },
+    );
   }
 
   // Raw body size check (character count)

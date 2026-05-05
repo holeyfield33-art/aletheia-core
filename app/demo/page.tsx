@@ -630,12 +630,27 @@ export default function DemoPage() {
                       "Your free Sovereign Audit Receipts are exhausted."
                     : result.error === "rate_limited"
                       ? `Rate limit reached. Try again${retryAfter ? ` in ${retryAfter}s` : " shortly"}.`
+                      : result.error === "demo_unconfigured"
+                        ? result.message ||
+                          "The hosted demo is being configured. Try again in a moment, or use the local install instructions in the docs."
                       : result.error === "request_timeout"
                         ? "Request timed out. The backend may be starting up — try again in a few seconds."
                         : result.error === "service_unavailable"
                           ? "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."
                           : "Something went wrong. Please try again."}
                 </span>
+                {result.error === "demo_unconfigured" && (
+                  <a
+                    href="/docs"
+                    style={{
+                      color: "var(--crimson-hi)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.82rem",
+                    }}
+                  >
+                    Open setup docs
+                  </a>
+                )}
               </div>
             ) : (
               <div>
