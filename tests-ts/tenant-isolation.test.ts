@@ -138,7 +138,7 @@ describe("Tenant isolation — /api/logs", () => {
     const { GET } = await import("@/app/api/logs/[id]/route");
     const res = await GET(
       makeGet(`http://localhost/api/logs/${USER_A_LOG.id}`),
-      { params: { id: USER_A_LOG.id } },
+      { params: Promise.resolve({ id: USER_A_LOG.id }) },
     );
 
     expect(res.status).toBe(404);
@@ -166,7 +166,7 @@ describe("Tenant isolation — /api/keys", () => {
     mockApiKeyFindMany.mockResolvedValue([]);
 
     const { GET } = await import("@/app/api/keys/route");
-    const res = await GET(makeGet("http://localhost/api/keys"));
+    const res = await GET();
     expect(res.status).toBe(200);
 
     const callArgs = mockApiKeyFindMany.mock.calls[0][0];
@@ -219,14 +219,14 @@ describe("Tenant isolation — unauthenticated access", () => {
   it("/api/logs/[id] returns 401 to unauthenticated request", async () => {
     const { GET } = await import("@/app/api/logs/[id]/route");
     const res = await GET(makeGet("http://localhost/api/logs/log_abc"), {
-      params: { id: "log_abc" },
+      params: Promise.resolve({ id: "log_abc" }),
     });
     expect(res.status).toBe(401);
   });
 
   it("/api/keys returns 401 to unauthenticated request", async () => {
     const { GET } = await import("@/app/api/keys/route");
-    const res = await GET(makeGet("http://localhost/api/keys"));
+    const res = await GET();
     expect(res.status).toBe(401);
   });
 });

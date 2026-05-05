@@ -14,14 +14,14 @@ import { secureJson } from "@/lib/api-utils";
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return secureJson({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await context.params;
   if (!id || typeof id !== "string") {
     return secureJson({ error: "not_found" }, { status: 404 });
   }
