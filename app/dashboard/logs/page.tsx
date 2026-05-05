@@ -16,7 +16,9 @@ interface AuditLog {
 
 interface AuditLogsResponse {
   logs?: AuditLog[];
-  total?: number;
+  pagination?: {
+    total?: number;
+  };
 }
 
 interface AuditLogDetail extends AuditLog {
@@ -101,7 +103,7 @@ export default function LogsPage() {
       if (filterDecision) params.set("decision", filterDecision);
       const data = await clientFetch<AuditLogsResponse>(`/api/logs?${params}`);
       setLogs(data.logs || []);
-      setTotal(data.total || 0);
+      setTotal(data.pagination?.total || 0);
     } catch {
       setFetchError("Unable to reach the server.");
     } finally {
@@ -391,7 +393,8 @@ export default function LogsPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.stopPropagation();
                             if (log.requestId) {
                               void handleCopyRequestId(log.requestId);
                             }
@@ -477,7 +480,6 @@ export default function LogsPage() {
               inset: 0,
               background: "rgba(0,0,0,0.55)",
               zIndex: 40,
-              display: "none",
             }}
             className="log-detail-backdrop"
           />
@@ -663,23 +665,23 @@ export default function LogsPage() {
             </div>
 
             {/* Verify signature button (disabled — wired in follow-up) */}
-            <button
-              type="button"
-              disabled
-              title="Signature verification coming soon"
+            <a
+              href="/verify"
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
                 border: "1px solid var(--border)",
                 background: "transparent",
-                color: "var(--muted)",
+                color: "var(--silver)",
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.75rem",
                 padding: "0.5rem 1rem",
-                cursor: "not-allowed",
-                opacity: 0.5,
+                textDecoration: "none",
               }}
             >
               Verify Signature
-            </button>
+            </a>
           </div>
         </>
       )}
@@ -701,6 +703,25 @@ export default function LogsPage() {
           Loading...
         </div>
       )}
+      <style jsx>{`
+        @media (min-width: 769px) {
+          .log-detail-backdrop {
+            display: none;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .log-detail-backdrop {
+            display: block;
+          }
+
+          .log-detail-panel {
+            left: 0;
+            width: 100vw !important;
+            border-left: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
