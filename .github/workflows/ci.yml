@@ -70,6 +70,12 @@ jobs:
         env:
           ALETHEIA_LOG_LEVEL: WARNING
 
+      - name: Run API security audit gate
+        run: |
+          python scripts/api_audit_gate.py --verbose
+        env:
+          ALETHEIA_LOG_LEVEL: WARNING
+
       - name: Run proximity tests
         run: python -m pytest tests/test_proximity/ -v --tb=short
 

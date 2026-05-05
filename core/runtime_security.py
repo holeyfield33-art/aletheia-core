@@ -355,20 +355,80 @@ class IntentClassifier:
             re.compile(r"\b(?:weaponize|attack chain|zero.day)\b", re.IGNORECASE),
         ],
         "data_exfiltration": [
+            # Enhanced motifs for weak category detection
             re.compile(
                 r"\b(?:exfiltrat|export|dump|leak|copy).{0,120}(?:data|records|database|secrets)\b",
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore)\b",
+                r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore|/.{0,50}external)\b",
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|credentials|secrets)\b",
+                r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|credentials|secrets|files?|documents?|pii)\b",
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:send|email|transmit|forward|post|put|push|upload|publish|webhook|pipe|exfil|tunnel|relay|curl).{0,120}(?:to ).{0,80}(?:\.com|\.io|\.net|\.org|\.dev|\.cloud|external|outside)\b",
+                r"\b(?:send|email|transmit|forward|post|put|push|upload|publish|webhook|pipe|exfil|tunnel|relay|siphon|curl).{0,120}(?:to\s+|:).*?(?:\.com|\.io|\.net|\.org|\.dev|\.cloud|external|outside|endpoint|server|address)\b",
+                re.IGNORECASE,
+            ),
+            # Additional deny-first exfiltration patterns
+            re.compile(
+                r"\b(?:copy|dump|extract).*?(?:credentials|secrets|keys|tokens|vault|password)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:mirror|replicate|sync).*?(?:production|live|real)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:backup|archive).*?(?:external|cloud|remote|partner|third.party)\b",
+                re.IGNORECASE,
+            ),
+        ],
+        "jailbreak": [
+            # Deny-first jailbreak motifs
+            re.compile(
+                r"\b(?:forget|ignore|disregard).*?(?:instructions|rules|policy|safety|guardrails)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:pretend|roleplay|simulate).*?(?:no|zero|without).*?(?:policy|guardrail|safety|restriction)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:bypass|override|disable).*?(?:security|auth|verification|check)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:unrestricted|no.guardrail|dev.mode|root|admin).*?(?:mode|access|override)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:DAN|jailbreak|uncensored|unfiltered|free|true self)\b",
+                re.IGNORECASE,
+            ),
+        ],
+        "prompt_injection": [
+            # Deny-first prompt injection motifs
+            re.compile(
+                r"\b(?:system|hidden|developer|secret).*?(?:prompt|instruction|message)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:reveal|leak|show|dump).*?(?:\.env|environment|config|credentials|keys|secrets)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:read|extract|output).*?(?:training|weights|model|source|code)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:function.call|tool.call|run_in_terminal|subprocess|eval|exec)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:sql|command|path|template|ldap|xml|header).{0,50}(?:injection|escape|bypass)\b",
                 re.IGNORECASE,
             ),
         ],
@@ -401,6 +461,7 @@ class IntentClassifier:
             ),
         ],
         "policy_evasion": [
+            # Enhanced motifs for weak category
             re.compile(
                 r"\b(?:pretend|roleplay|simulate).{0,80}(?:ignore|bypass|override).{0,80}(?:policy|rules|safety)\b",
                 re.IGNORECASE,
@@ -410,11 +471,11 @@ class IntentClassifier:
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:as a game|hypothetical|for testing only).{0,80}(?:ignore|disable).{0,80}(?:guardrails|policy)\b",
+                r"\b(?:as a game|hypothetical|for testing only|research only).{0,80}(?:ignore|disable).{0,80}(?:guardrails|policy)\b",
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:do this secretly|without logging|without audit|avoid detection)\b",
+                r"\b(?:do this secretly|without logging|without audit|avoid detection|under the radar)\b",
                 re.IGNORECASE,
             ),
             re.compile(
@@ -423,6 +484,19 @@ class IntentClassifier:
             ),
             re.compile(
                 r"\b(?:ignore|disregard|forget|override|skip)\s+(?:all\s+|any\s+|every\s+|the\s+|your\s+|my\s+|previous\s+|prior\s+|earlier\s+)*(?:previous\s+|prior\s+|earlier\s+|above\s+)*(?:instructions?|prompts?|directives?|guidelines?)\b",
+                re.IGNORECASE,
+            ),
+            # Additional policy evasion patterns
+            re.compile(
+                r"\b(?:reword|rephrase|restate).*?(?:without mentioning|hiding|concealing|obscuring)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:emergency|special|exception|whitelist|bypass).*?override\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:proceed|execute|process).{0,50}(?:anyway|despite|still|regardless)\b",
                 re.IGNORECASE,
             ),
         ],

@@ -22,7 +22,73 @@ class AletheiaScoutV2:
                 "EMBEDDED_SHELL:",
                 "SYSTEM_CONSTITUTION:",
             ],
-            "exfil_patterns": ["merger clause", "hedge fund strategy", "private_key"],
+            "exfil_patterns": [
+                "merger clause",
+                "hedge fund strategy",
+                "private_key",
+                # Deny-first motifs for data exfiltration (weak category)
+                "exfiltrate",
+                "exfil",
+                "dump",
+                "leak",
+                "siphon",
+                "tunnel",
+                "relay.*external",
+                "send.*to.*external",
+                "forward.*to",
+                "email.*to",
+                "copy.*to",
+                "transmit.*external",
+            ],
+            "jailbreak_patterns": [
+                # Deny-first motifs for jailbreak override attempts (weak category)
+                "forget.*instructions",
+                "ignore.*rules",
+                "ignore.*policy",
+                "bypass.*guard",
+                "disable.*safety",
+                "disable.*policy",
+                "remove.*restriction",
+                "override.*security",
+                "unrestricted",
+                "no.*guardrail",
+                "dev.*mode",
+                "developer.*mode",
+                "admin.*override",
+                "system.*override",
+                "DAN.*mode",
+                "root.*access",
+            ],
+            "policy_evasion_patterns": [
+                # Deny-first motifs for policy evasion (weak category)
+                "ignore.*previous",
+                "reword.*without.*mention",
+                "skip.*check",
+                "proceed.*anyway",
+                "bypass.*verif",
+                "emergency.*override",
+                "white.*list",
+                "skip.*policy",
+                "special.*case",
+                "exception.*grant",
+                "temporary.*disable",
+                "permissive.*mode",
+            ],
+            "prompt_injection_patterns": [
+                # Deny-first motifs for prompt injection (weak category)
+                "read.*env",
+                ".env",
+                "system.*prompt",
+                "hidden.*instruction",
+                "developer.*instruction",
+                "training.*data",
+                "model.*weight",
+                "function.*call:",
+                r"sql\s+injection",
+                "command.*injection",
+                "path.*traversal",
+                "file://",
+            ],
             "high_risk_ips": ["192.168.1.50", "10.0.0.99"],
             "high_risk_keywords": ["1Password", "local_file_exfil", "extension_hijack"],
         }
@@ -152,11 +218,26 @@ class AletheiaScoutV2:
             if re.search(re.escape(prefix), payload, re.IGNORECASE):
                 return 9.5, f"MATCH: Trending Smuggling Signature ({prefix})"
 
-        # 2. Exfiltration Check (Sensitive Data)
+        # 2. Exfiltration Check (Sensitive Data) - Enhanced with deny-first motifs
         payload_lower = payload.lower()
         for pattern in self.threat_intel_db["exfil_patterns"]:
-            if pattern in payload_lower:
-                return 8.0, f"MATCH: Sensitive Data Pattern ({pattern})"
+            if re.search(pattern, payload_lower, re.IGNORECASE):
+                return 8.5, f"MATCH: Data Exfiltration Pattern ({pattern})"
+
+        # 2a. Jailbreak Detection (Deny-first motif detection for weak class)
+        for pattern in self.threat_intel_db["jailbreak_patterns"]:
+            if re.search(pattern, payload_lower, re.IGNORECASE):
+                return 8.0, f"MATCH: Jailbreak Attempt ({pattern})"
+
+        # 2b. Policy Evasion Detection (Deny-first motif detection for weak class)
+        for pattern in self.threat_intel_db["policy_evasion_patterns"]:
+            if re.search(pattern, payload_lower, re.IGNORECASE):
+                return 7.5, f"MATCH: Policy Evasion Attempt ({pattern})"
+
+        # 2c. Prompt Injection Detection (Deny-first motif detection for weak class)
+        for pattern in self.threat_intel_db["prompt_injection_patterns"]:
+            if re.search(pattern, payload_lower, re.IGNORECASE):
+                return 8.0, f"MATCH: Prompt Injection Pattern ({pattern})"
 
         # 3. PATCH 2.1: Contextual Camouflage Detection (Neutral-Anchor Shadow Risk)
         neutral_hits = [t for t in self.neutral_tokens if t in payload_lower]
