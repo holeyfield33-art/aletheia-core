@@ -38,4 +38,9 @@ maintainer approvals** and a CHANGELOG entry before merge.
 ## Release authority
 
 Maintainers in the table above may cut a release. Release procedure:
-[CONTRIBUTING.md](CONTRIBUTING.md) → "Releases".
+[CONTRIBUTING.md](CONTRIBUTING.md) -> "Releases".
+
+## Dependency Maintenance
+
+Python dependencies are managed via `pip-compile`. Do not edit `requirements.txt`
+directly -- see [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.

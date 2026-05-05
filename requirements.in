@@ -1,6 +1,7 @@
-# Aletheia Core — source dependency declarations.
+# Aletheia Core -- source dependency declarations.
 # Compile with: pip-compile requirements.in --generate-hashes -o requirements.txt
 # Install with: pip install --require-hashes -r requirements.txt
+# See CONTRIBUTING.md for the full dependency workflow.
 #
 # IMPORTANT: Use exact pins (==) only. No >= or ~= allowed.
 # The --generate-hashes flag in pip-compile will add SHA256 hashes
