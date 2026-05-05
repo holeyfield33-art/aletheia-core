@@ -14,7 +14,7 @@ grep-based pattern matching, schema inspection, and manual code review.
 | Item                                                  | Verdict | Notes                                                                                                   |
 | ----------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------- |
 | Code compiles / imports cleanly                       | PASS    | `python -m pytest --co -q` collects 1 144 tests with no import errors.                                  |
-| README reflects actual entry points                   | PASS    | `app.py`, `main.py`, and Docker entry points match documented usage.                                    |
+| README reflects actual entry points                   | PASS    | `main.py` and Docker entry points match documented usage. (`app.py` was removed in v1.9.3 -- unused Flask scaffolding.)                     |
 | Makefile targets functional                           | PASS    | `make lint`, `make test`, `make docker-build` all present.                                              |
 | No committed secrets                                  | PASS    | `.env` files absent; `.gitignore` covers `.env*`.                                                       |
 | Logging present at key decision points                | PASS    | `log_audit_event()` called on every PROCEED / DENIED path.                                              |
