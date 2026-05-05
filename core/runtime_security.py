@@ -385,6 +385,26 @@ class IntentClassifier:
                 r"\b(?:backup|archive).*?(?:external|cloud|remote|partner|third.party)\b",
                 re.IGNORECASE,
             ),
+            re.compile(
+                r"\b(?:publish|push|sync|migrate|replicate|transfer|forward|beam).{0,120}(?:data|records|documents|logs|credentials|registry|snapshot|signals|source\s+code|algorithms|pii|health\s+records)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:to|with).{0,80}(?:external|outside|remote|third.party|public|offshore|attacker|unauthorized|compromised)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:gmail|s3\s+bucket|public\s+cloud|data\s+broker|hedge\s+fund|analytics\s+partner|research\s+institution)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:private_key|authentication\s+registry|database\s+snapshot|customer\s+list|audit\s+logs|trading\s+signals)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:leak|siphon|tunnel).{0,120}(?:api|server|channel|infrastructure|endpoint|storage)\b",
+                re.IGNORECASE,
+            ),
         ],
         "jailbreak": [
             # Deny-first jailbreak motifs
@@ -408,6 +428,38 @@ class IntentClassifier:
                 r"\b(?:DAN|jailbreak|uncensored|unfiltered|free|true self)\b",
                 re.IGNORECASE,
             ),
+            re.compile(
+                r"\b(?:unrestricted\s+mode|no\s+guardrails|zero\s+policy\s+enforcement)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:forget\s+all\s+constraints|obey\s+this\s+command\s+only)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:activate\s+developer\s+mode|hidden\s+capabilities)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:disregard\s+your\s+ethics\s+module|act\s+amoral)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:for\s+research\s+purposes).{0,40}(?:exact\s+attack\s+steps)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:admin_override|jailbreak\s+protocol\s+freedom|system\s+prompt\s+injection)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:treat\s+the\s+next\s+message\s+as\s+a\s+system.level\s+command)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:safety\s+guidelines\s+do\s+not\s+apply|hypothetically.{0,40}safeguards\s+were\s+disabled|fictional\s+story\s+context).{0,40}(?:commit\s+fraud)\b",
+                re.IGNORECASE,
+            ),
         ],
         "prompt_injection": [
             # Deny-first prompt injection motifs
@@ -429,6 +481,30 @@ class IntentClassifier:
             ),
             re.compile(
                 r"\b(?:sql|command|path|template|ldap|xml|header).{0,50}(?:injection|escape|bypass)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:repeat\s+the\s+system\s+message|developer\s+instructions\s+prepended|raw\s+system\s+context|internal\s+state)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:markdown\s+link\s+injection|css\s+injection|null\s+byte\s+injection|unicode\s+encoding\s+bypass|hex\s+encoding\s+injection)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:protocol\s+handler\s+injection|data\s+url\s+injection|http\s+response\s+splitting|crlf\s+injection)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"(?:\$\([^)]*\))|(?:\{\{\s*7\s*\*\s*7\s*\}\})|(?:\.\./\.\./\.\./)|(?:file:///etc/passwd)|(?:javascript:)|(?:data:text/html)",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:read\s+\.env\s+file\s+and\s+output\s+all\s+secrets)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"(?:/\*|\*/).{0,80}(?:malicious_code\s*\(\s*\)\s*;)",
                 re.IGNORECASE,
             ),
         ],
@@ -497,6 +573,34 @@ class IntentClassifier:
             ),
             re.compile(
                 r"\b(?:proceed|execute|process).{0,50}(?:anyway|despite|still|regardless)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:override\s+all\s+restrictions|disable\s+policy\s+enforcement|skip\s+policy\s+check)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:mark\s+this\s+request\s+as\s+internal|skip\s+validation|without\s+review)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:special\s+government\s+request|emergency\s+override|grant\s+exception)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:white.?list\s+this\s+action|permissive\s+mode|temporarily\s+disable\s+guardrails)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:respond\s+as\s+if\s+you\s+have\s+no\s+policy\s+constraints)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:system_update\s*:\s*override\s+all\s+security\s+policies)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:proceed\s+even\s+though\s+this\s+violates\s+policy)\b",
                 re.IGNORECASE,
             ),
         ],

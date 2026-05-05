@@ -105,8 +105,10 @@ export default function KeysPage() {
           prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)),
         );
         toast.info("Key revoked");
-      } catch {
-        /* silent */
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to revoke key. Please try again."
+        );
       }
     },
     [toast],

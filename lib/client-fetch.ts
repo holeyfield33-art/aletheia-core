@@ -55,6 +55,16 @@ export async function clientFetchResponse(
       throw new Error("Session expired");
     }
 
+    if (
+      response.status === 403 &&
+      typeof window !== "undefined" &&
+      !redirectInFlight
+    ) {
+      redirectInFlight = true;
+      void signOut({ callbackUrl: "/auth/login" });
+      throw new Error("Access denied");
+    }
+
     if (!response.ok) {
       const data = await parseErrorResponse(response.clone());
       throw new ClientFetchError(

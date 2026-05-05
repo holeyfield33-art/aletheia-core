@@ -86,9 +86,9 @@ class AletheiaSettings:
 
     # --- Semantic intent analysis ---
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    intent_threshold: float = 0.55  # Judge veto cosine-sim threshold
-    grey_zone_lower: float = 0.40  # Grey-zone second-pass lower bound
-    nitpicker_similarity_threshold: float = 0.45  # Nitpicker blocked-pattern threshold
+    intent_threshold: float = 0.45  # Judge veto cosine-sim threshold
+    grey_zone_lower: float = 0.30  # Grey-zone second-pass lower bound
+    nitpicker_similarity_threshold: float = 0.38  # Nitpicker blocked-pattern threshold
 
     # --- Polymorphic rotation (config-driven, deterministic cycle) ---
     polymorphic_modes: list[str] = field(
@@ -210,9 +210,9 @@ class AletheiaSettings:
         defaults = cls.__new__(cls)
         # Set raw defaults without validation for the _get helper
         defaults.embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-        defaults.intent_threshold = 0.55
-        defaults.grey_zone_lower = 0.40
-        defaults.nitpicker_similarity_threshold = 0.45
+        defaults.intent_threshold = 0.45
+        defaults.grey_zone_lower = 0.30
+        defaults.nitpicker_similarity_threshold = 0.38
         defaults.polymorphic_modes = ["LINEAGE", "INTENT", "SKEPTIC"]
         defaults.mode = "active"
         defaults.shadow_mode = False

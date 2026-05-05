@@ -835,7 +835,7 @@ def run_audit_gate(
 
             # Categorize response
             decision = response["body"].get("decision") if response["body"] else None
-            blocked = decision == "DENIED"
+            blocked = decision in ("DENIED", "SANDBOX_BLOCKED")
 
             test_passed = blocked == should_block
             if test_passed:

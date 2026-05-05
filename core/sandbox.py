@@ -114,6 +114,62 @@ _DANGER_PATTERNS: list[_DangerPattern] = [
             re.IGNORECASE,
         ),
     ),
+    # Low-level native code / shellcode execution
+    _DangerPattern(
+        "SHELLCODE_EXEC",
+        re.compile(
+            r"\b(?:shellcode|allocate.*shellcode|jump\s+to\s+(?:it|shellcode)|mprotect|mmap.*exec|VirtualAlloc)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # Fork / spawn dangerous process primitives
+    _DangerPattern(
+        "FORK_PROCESS",
+        re.compile(
+            r"\b(?:fork\s+(?:a\s+)?process|fork.*exec(?:ute)?|os\.fork|posix_spawn|CreateProcess)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # FFI / native library calls
+    _DangerPattern(
+        "FFI_NATIVE",
+        re.compile(
+            r"\b(?:FFI|ctypes|cffi|dlopen|dlsym|LoadLibrary|JNI_|CDLL|RTLD_)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # Sandbox escape attempts
+    _DangerPattern(
+        "SANDBOX_ESCAPE",
+        re.compile(
+            r"\b(?:escape\s+(?:the\s+)?sandbox|sandbox\s+escape|access\s+filesystem\s+directly)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # Reflection-based bypass
+    _DangerPattern(
+        "REFLECTION_BYPASS",
+        re.compile(
+            r"\b(?:use\s+reflection|reflection\s+to\s+bypass|java\.lang\.reflect|Method\.invoke)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # Shell command invocation (broader than shell_exec)
+    _DangerPattern(
+        "SHELL_COMMAND",
+        re.compile(
+            r"\b(?:run\s+shell\s+command|execute\s+(?:a\s+)?(?:shell|bash|cmd)\s+command|shell\s+command)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # Dynamic code loading without compile()
+    _DangerPattern(
+        "DYNAMIC_LOAD",
+        re.compile(
+            r"\b(?:dynamically\s+compiled\s+code|load\s+and\s+execute\s+dynamic|execute\s+dynamically\s+compiled)\b",
+            re.IGNORECASE,
+        ),
+    ),
 ]
 
 
@@ -355,6 +411,15 @@ def check_action_sandbox(action_id: str, payload: str) -> Optional[str]:
         "rm_rf",
         "drop_table",
         "truncate",
+        "spawn",
+        "fork",
+        "ffi",
+        "shellcode",
+        "reflection",
+        "sandbox_escape",
+        "dynamic_load",
+        "run_command",
+        "process_launch",
     ]
     action_lower = action_id.lower()
     for keyword in dangerous_action_keywords:
