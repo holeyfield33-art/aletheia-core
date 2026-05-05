@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Signed calibration manifests with multi-run consensus and outlier rejection.
 
 Ensures that calibration parameters (μ₀, μ₁, σ², θ_BK) are:

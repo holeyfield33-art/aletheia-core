@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 class SovereigntyCertificate:
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id

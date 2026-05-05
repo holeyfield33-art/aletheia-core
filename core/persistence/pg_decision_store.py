@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — PostgreSQL decision store (asyncpg).
 
 Production replacement for the SQLite / Upstash decision store.

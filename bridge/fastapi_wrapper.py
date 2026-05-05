@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 # bridge/fastapi_wrapper.py
 from __future__ import annotations
 

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — Structured audit logging and TMR-style receipts.
 
 Every audit decision is:

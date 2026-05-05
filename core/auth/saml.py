@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — SAML 2.0 authentication provider.
 
 Validates SAML responses and maps attributes to ``AuthenticatedUser``.

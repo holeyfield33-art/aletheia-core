@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — Role-Based Access Control (RBAC).
 
 Defines a static permission matrix mapping roles to allowed operations.

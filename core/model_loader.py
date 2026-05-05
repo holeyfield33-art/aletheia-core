@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Helpers for loading sentence-embedding models with local caching.
 
 Uses fastembed (ONNX Runtime backend) so that PyTorch is not required.

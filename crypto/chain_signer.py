@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Gate C1: Chain integrity and intent binding.
 
 Verifies that ``request.tool == request.intent.specified_tool``

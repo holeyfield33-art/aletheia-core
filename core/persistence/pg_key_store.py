@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — PostgreSQL key store (asyncpg).
 
 Production-grade replacement for the SQLite key store.  All queries are

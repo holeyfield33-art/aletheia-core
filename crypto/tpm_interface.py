@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """TPM 2.0 interface for hardware-bound identity and chain signing.
 
 Falls back to Ed25519 software signing when TPM hardware is unavailable.

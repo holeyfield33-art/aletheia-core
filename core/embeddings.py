@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — Shared embedding service.
 
 Lazy-loads the SentenceTransformer model once and exposes cosine-similarity

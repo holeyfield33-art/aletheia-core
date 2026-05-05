@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Aletheia Core — API key store with SQLite backend.
 
 Manages API key lifecycle: creation, validation, quota enforcement,

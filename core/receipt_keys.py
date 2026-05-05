@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 """Ed25519 keypair management for receipt signing.
 
 Receipt signing uses Ed25519 (FIPS 186-5 approved). The private key signs
