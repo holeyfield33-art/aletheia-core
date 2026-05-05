@@ -8,19 +8,9 @@ const cardStyle: React.CSSProperties = {
   background: "var(--surface)",
   border: "1px solid var(--border)",
   padding: "1.5rem",
+  cursor: "pointer",
+  transition: "border-color 0.15s, transform 0.15s",
 };
-
-export function getDashboardCardStyle(isHovered: boolean): React.CSSProperties {
-  return {
-    ...cardStyle,
-    textDecoration: "none",
-    cursor: "pointer",
-    transition: "border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease",
-    borderColor: isHovered ? "var(--border-hi)" : "var(--border)",
-    transform: isHovered ? "translateY(-2px)" : "translateY(0)",
-    boxShadow: isHovered ? "0 14px 30px rgba(0, 0, 0, 0.2)" : "none",
-  };
-}
 
 function WelcomeBanner({
   onDismiss,
@@ -206,7 +196,6 @@ export default function DashboardOverview({
   } | null;
 }) {
   const [showWelcome, setShowWelcome] = useState(isNewUser);
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
   const usagePct =
     totalQuota > 0 ? Math.round((totalRequests / totalQuota) * 100) : 0;
@@ -378,9 +367,8 @@ export default function DashboardOverview({
           <a
             key={label}
             href={href}
-            onMouseEnter={() => setHoveredCard(href)}
-            onMouseLeave={() => setHoveredCard((current) => (current === href ? null : current))}
-            style={getDashboardCardStyle(hoveredCard === href)}
+            className="dashboard-card-link"
+            style={{ ...cardStyle, textDecoration: "none" }}
           >
             <div
               style={{
@@ -445,11 +433,11 @@ export default function DashboardOverview({
           <a
             key={href}
             href={href}
-            onMouseEnter={() => setHoveredCard(href)}
-            onMouseLeave={() => setHoveredCard((current) => (current === href ? null : current))}
+            className="dashboard-card-link"
             style={{
               display: "block",
-              ...getDashboardCardStyle(hoveredCard === href),
+              ...cardStyle,
+              textDecoration: "none",
             }}
           >
             <div
@@ -476,6 +464,12 @@ export default function DashboardOverview({
           </a>
         ))}
       </div>
+      <style jsx global>{`
+        .dashboard-card-link:hover {
+          border-color: var(--crimson-hi);
+          transform: translateY(-1px);
+        }
+      `}</style>
     </div>
   );
 }
