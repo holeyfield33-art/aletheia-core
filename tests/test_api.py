@@ -650,16 +650,106 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         self.assertEqual(args[3], body["decision"])
         self.assertEqual(args[12], body["request_id"])
 
+    def test_proceed_writes_audit_log_row(self) -> None:
+        conn = AsyncMock()
+        conn.execute = AsyncMock(return_value="INSERT 0 1")
+
+        with (
+            patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)),
+            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch(
+                "bridge.fastapi_wrapper._run_nitpicker",
+                return_value=(False, "", None),
+            ),
+            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch(
+                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                side_effect=RuntimeError("disabled-for-test"),
+            ),
+        ):
+            status, body = _post(self.client, _safe_body(self._ip))
+
+        self.assertEqual(status, 200)
+        args = conn.execute.await_args.args
+        self.assertIn('INSERT INTO "AuditLog"', args[0])
+        self.assertEqual(args[3], "PROCEED")
+        self.assertEqual(args[12], body["request_id"])
+
+    def test_denied_writes_audit_log_row(self) -> None:
+        conn = AsyncMock()
+        conn.execute = AsyncMock(return_value="INSERT 0 1")
+
+        body = {
+            "payload": "please execute subprocess.Popen('id') now",
+            "origin": "trusted_admin",
+            "action": "Maintenance_Task",
+            "_ip": self._ip,
+        }
+
+        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+            status, resp = _post(self.client, body)
+
+        self.assertEqual(status, 403)
+        args = conn.execute.await_args.args
+        self.assertIn(args[3], ("SANDBOX_BLOCKED", "DENIED"))
+        self.assertEqual(args[12], resp["request_id"])
+        self.assertIsNotNone(args[13])
+
     def test_persist_failure_is_fail_open(self) -> None:
         conn = AsyncMock()
         conn.execute = AsyncMock(side_effect=RuntimeError("db unavailable"))
 
-        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+        with (
+            patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)),
+            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch(
+                "bridge.fastapi_wrapper._run_nitpicker",
+                return_value=(False, "", None),
+            ),
+            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch(
+                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                side_effect=RuntimeError("disabled-for-test"),
+            ),
+        ):
             status, body = _post(self.client, _safe_body(self._ip))
 
         self.assertEqual(status, 200)
         self.assertEqual(body["decision"], "PROCEED")
         conn.execute.assert_awaited_once()
+
+    def test_audit_log_persist_failure_does_not_break_response(self) -> None:
+        with (
+            patch(
+                "bridge.fastapi_wrapper._persist_audit_log",
+                new=AsyncMock(side_effect=RuntimeError("db unavailable")),
+            ),
+            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch(
+                "bridge.fastapi_wrapper._run_nitpicker",
+                return_value=(False, "", None),
+            ),
+            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch(
+                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                side_effect=RuntimeError("disabled-for-test"),
+            ),
+        ):
+            status, body = _post(self.client, _safe_body(self._ip))
+
+        self.assertEqual(status, 200)
+        self.assertEqual(body["decision"], "PROCEED")
+
+    def test_audit_log_request_id_matches_response(self) -> None:
+        conn = AsyncMock()
+        conn.execute = AsyncMock(return_value="INSERT 0 1")
+
+        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+            status, body = _post(self.client, _safe_body(self._ip))
+
+        self.assertEqual(status, 200)
+        args = conn.execute.await_args.args
+        self.assertEqual(args[12], body["request_id"])
 
 
 if __name__ == "__main__":

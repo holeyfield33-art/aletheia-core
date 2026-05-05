@@ -925,45 +925,99 @@ async def _lookup_hosted_api_key_user_id(raw_key: str) -> str:
         return ""
 
 
-async def _persist_hosted_audit_log(audit_record: dict[str, Any], user_id: str) -> None:
-    """Best-effort mirror of /v1/audit decisions to Prisma AuditLog for dashboard APIs."""
+def _generate_cuid() -> str:
+    """Generate a Prisma-compatible compact ID for hosted AuditLog rows."""
+    timestamp_ms = int(_time.time() * 1000)
+    random_block = secrets.token_hex(8)
+    return f"c{timestamp_ms:x}{random_block}"[:25]
+
+
+async def _persist_audit_log(
+    *,
+    user_id: str | None,
+    decision: str,
+    threat_score: float,
+    action: str,
+    origin: str,
+    source_ip: str,
+    reason: str,
+    latency_ms: float,
+    payload_hash: str,
+    policy_hash: str,
+    request_id: str,
+    receipt: dict[str, Any] | None,
+) -> None:
+    """Insert one row into Prisma AuditLog for dashboard visibility.
+
+    Fail-quiet by design: persistence issues must not alter audit decisions.
+    """
     if _bridge_pool is None:
         return
 
     try:
-        receipt_json = json.dumps(audit_record.get("receipt", {}), default=str)
         async with _bridge_pool.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO "AuditLog" (
                     id, "userId", decision, "threatScore", action, origin,
                     "sourceIp", reason, "latencyMs", "payloadHash", "policyHash",
-                    "requestId", receipt
+                    "requestId", receipt, "createdAt"
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, NOW())
                 """,
-                f"py_{secrets.token_hex(12)}",
+                _generate_cuid(),
                 user_id or None,
-                str(audit_record.get("decision", "")),
-                float(audit_record.get("threat_score", 0.0)),
-                str(audit_record.get("action", "")),
-                str(audit_record.get("origin", "")),
-                str(audit_record.get("source_ip", "")) or None,
-                str(audit_record.get("reason", "")) or None,
-                float(audit_record.get("latency_ms", 0.0)),
-                str(audit_record.get("payload_sha256", "")) or None,
-                str(audit_record.get("policy_hash", "")) or None,
-                str(audit_record.get("request_id", "")) or None,
-                receipt_json,
+                decision,
+                float(threat_score),
+                action,
+                origin,
+                source_ip or None,
+                reason or None,
+                float(latency_ms),
+                payload_hash or None,
+                policy_hash or None,
+                request_id or None,
+                json.dumps(receipt) if receipt else None,
             )
     except Exception as exc:
-        _logger.warning("Hosted AuditLog persist failed (non-fatal): %s", exc)
+        _logger.warning(
+            "audit_log_persist_failed request_id=%s err=%s",
+            request_id,
+            exc,
+        )
+
+
+async def _persist_hosted_audit_log(audit_record: dict[str, Any], user_id: str) -> None:
+    """Best-effort mirror of /v1/audit decisions to Prisma AuditLog for dashboard APIs."""
+    await _persist_audit_log(
+        user_id=user_id,
+        decision=str(audit_record.get("decision", "")),
+        threat_score=float(audit_record.get("threat_score", 0.0)),
+        action=str(audit_record.get("action", "")),
+        origin=str(audit_record.get("origin", "")),
+        source_ip=str(audit_record.get("source_ip", "")),
+        reason=str(audit_record.get("reason", "")),
+        latency_ms=float(audit_record.get("latency_ms", 0.0)),
+        payload_hash=str(audit_record.get("payload_sha256", "")),
+        policy_hash=str(audit_record.get("policy_hash", "")),
+        request_id=str(audit_record.get("request_id", "")),
+        receipt=audit_record.get("receipt")
+        if isinstance(audit_record.get("receipt"), dict)
+        else None,
+    )
 
 
 async def _log_audit_and_persist(*, user_id: str, **kwargs: Any) -> dict[str, Any]:
     """Write canonical audit record and mirror it into hosted Prisma AuditLog."""
     audit_record = log_audit_event(user_id=user_id, **kwargs)
-    await _persist_hosted_audit_log(audit_record, user_id=user_id)
+    try:
+        await _persist_hosted_audit_log(audit_record, user_id=user_id)
+    except Exception as exc:
+        _logger.warning(
+            "audit_log_persist_failed request_id=%s err=%s",
+            str(audit_record.get("request_id", "")),
+            exc,
+        )
     return audit_record
 
 
