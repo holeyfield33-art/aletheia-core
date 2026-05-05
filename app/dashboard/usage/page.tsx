@@ -45,8 +45,7 @@ export function normalizeKeyUsage(key: RawKeyUsage): KeyUsage {
     periodStart: String(key.periodStart ?? key.period_start ?? ""),
     periodEnd: String(key.periodEnd ?? key.period_end ?? ""),
     createdAt: String(key.createdAt ?? key.created_at ?? ""),
-    lastUsedAt:
-      key.lastUsedAt ?? key.last_used_at ?? null,
+    lastUsedAt: key.lastUsedAt ?? key.last_used_at ?? null,
   };
 }
 
@@ -61,8 +60,8 @@ export default function UsagePage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await clientFetch<{ keys?: RawKeyUsage[] }>("/api/keys");
-        setKeys((data.keys || []).map(normalizeKeyUsage));
+        const data = await clientFetch<{ keys?: KeyUsage[] }>("/api/keys");
+        setKeys(data.keys || []);
       } catch {
         /* non-critical */
       } finally {
