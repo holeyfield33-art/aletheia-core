@@ -7,6 +7,11 @@ const nextConfig = {
       "./manifest/security_policy.json.sig",
       "./manifest/security_policy.ed25519.pub",
     ],
+    "/api/policy/route": [
+      "./manifest/security_policy.json",
+      "./manifest/security_policy.json.sig",
+      "./manifest/security_policy.ed25519.pub",
+    ],
   },
   // Keep docs/ as a separate static directory — not served by Next.js
   // The app.aletheia-core.com subdomain serves this Next.js app.

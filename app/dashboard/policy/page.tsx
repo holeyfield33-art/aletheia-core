@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { clientFetch } from "@/lib/client-fetch";
+import { clientFetch, isClientFetchError } from "@/lib/client-fetch";
 
 /* ------------------------------------------------------------------ */
 /* Policy field descriptions                                          */
@@ -31,6 +31,7 @@ export default function PolicyPage() {
   const [policy, setPolicy] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [raw, setRaw] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -40,8 +41,29 @@ export default function PolicyPage() {
         );
         setPolicy(data.policy);
         setRaw(JSON.stringify(data.policy, null, 2));
-      } catch {
-        /* non-critical */
+      } catch (error) {
+        if (isClientFetchError(error)) {
+          const payload =
+            typeof error.data === "object" && error.data !== null
+              ? (error.data as { error?: string; hint?: string })
+              : {};
+
+          if (payload.hint === "manifest_not_bundled") {
+            setErrorMessage(
+              "Policy manifest not yet deployed. Try again in a moment.",
+            );
+          } else if (payload.error === "read_failed") {
+            setErrorMessage(
+              "Policy unavailable. Contact support if this persists.",
+            );
+          } else if (error.status === 401 || error.status === 404) {
+            setErrorMessage("Policy not available.");
+          } else {
+            setErrorMessage("Policy unavailable. Please try again shortly.");
+          }
+        } else {
+          setErrorMessage("Policy unavailable. Please try again shortly.");
+        }
       } finally {
         setLoading(false);
       }
@@ -255,7 +277,7 @@ export default function PolicyPage() {
                       textAlign: "center",
                     }}
                   >
-                    Policy not available.
+                    {errorMessage ?? "Policy not available."}
                   </div>
                 )}
               </div>
