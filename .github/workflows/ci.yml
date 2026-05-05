@@ -133,6 +133,8 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npm run lint
+      - name: Check internal links
+        run: python scripts/check_internal_links.py
       - name: Vitest unit tests
         run: npx vitest run
       - name: Build
