@@ -19,6 +19,15 @@ interface AuditLogsResponse {
   total?: number;
 }
 
+interface AuditLogDetail extends AuditLog {
+  latencyMs: number | null;
+  receipt: Record<string, unknown> | null;
+}
+
+interface AuditLogDetailResponse {
+  log?: AuditLogDetail;
+}
+
 const screenReaderOnly: React.CSSProperties = {
   position: "absolute",
   width: "1px",
@@ -36,9 +45,12 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [copiedRequestId, setCopiedRequestId] = useState<string | null>(null);
+  const [copiedReceipt, setCopiedReceipt] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [filterDecision, setFilterDecision] = useState("");
+  const [selectedLog, setSelectedLog] = useState<AuditLogDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const pageSize = 25;
 
   const handleCopyRequestId = useCallback(async (requestId: string) => {
@@ -52,6 +64,31 @@ export default function LogsPage() {
       // No-op: clipboard may be blocked by browser permissions.
     }
   }, []);
+
+  const loadDetail = useCallback(async (id: string) => {
+    setDetailLoading(true);
+    try {
+      const data = await clientFetch<AuditLogDetailResponse>(`/api/logs/${id}`);
+      setSelectedLog(data.log ?? null);
+    } catch {
+      // best-effort
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const handleCopyReceipt = useCallback(
+    async (receipt: Record<string, unknown>) => {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(receipt, null, 2));
+        setCopiedReceipt(true);
+        window.setTimeout(() => setCopiedReceipt(false), 1500);
+      } catch {
+        // No-op
+      }
+    },
+    [],
+  );
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -257,7 +294,11 @@ export default function LogsPage() {
               logs.map((log) => (
                 <tr
                   key={log.id}
-                  style={{ borderBottom: "1px solid var(--border)" }}
+                  onClick={() => void loadDetail(log.id)}
+                  style={{
+                    borderBottom: "1px solid var(--border)",
+                    cursor: "pointer",
+                  }}
                 >
                   <td
                     style={{
@@ -422,6 +463,242 @@ export default function LogsPage() {
           >
             Next
           </button>
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {selectedLog && (
+        <>
+          {/* Backdrop (mobile) */}
+          <div
+            onClick={() => setSelectedLog(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              zIndex: 40,
+              display: "none",
+            }}
+            className="log-detail-backdrop"
+          />
+          {/* Panel */}
+          <div
+            className="log-detail-panel"
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: "420px",
+              background: "var(--surface, #111)",
+              borderLeft: "1px solid var(--border)",
+              zIndex: 50,
+              overflowY: "auto",
+              padding: "1.5rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.7rem",
+                  color: "var(--muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                Receipt Detail
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedLog(null)}
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  color: "var(--silver)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.75rem",
+                  padding: "0.2rem 0.6rem",
+                  cursor: "pointer",
+                }}
+                aria-label="Close detail panel"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Decision badge */}
+            <div>
+              <span
+                style={{
+                  padding: "0.2rem 0.55rem",
+                  fontSize: "0.7rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  background:
+                    selectedLog.decision === "PROCEED"
+                      ? "rgba(46,184,122,0.15)"
+                      : "rgba(176,34,54,0.18)",
+                  color:
+                    selectedLog.decision === "PROCEED"
+                      ? "var(--green)"
+                      : "var(--crimson-hi)",
+                }}
+              >
+                {selectedLog.decision}
+              </span>
+            </div>
+
+            {/* Meta fields */}
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.75rem",
+              }}
+            >
+              <tbody>
+                {(
+                  [
+                    ["Time", new Date(selectedLog.createdAt).toLocaleString()],
+                    ["Action", selectedLog.action],
+                    ["Origin", selectedLog.origin ?? "—"],
+                    ["Threat Score", selectedLog.threatScore != null ? selectedLog.threatScore.toFixed(2) : "—"],
+                    ["Latency", selectedLog.latencyMs != null ? `${selectedLog.latencyMs.toFixed(0)} ms` : "—"],
+                    ["Reason", selectedLog.reason ?? "—"],
+                  ] as [string, string][]
+                ).map(([label, value]) => (
+                  <tr key={label} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ padding: "0.4rem 0.35rem 0.4rem 0", color: "var(--muted)", width: "120px" }}>
+                      {label}
+                    </td>
+                    <td style={{ padding: "0.4rem 0", color: "var(--silver)", wordBreak: "break-word" }}>
+                      {value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Request ID row */}
+            {selectedLog.requestId && (
+              <div>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--muted)", marginBottom: "0.35rem" }}>
+                  Request ID
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <code style={{ fontSize: "0.68rem", color: "var(--silver)", wordBreak: "break-all" }}>
+                    {selectedLog.requestId}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyRequestId(selectedLog.requestId!)}
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: "var(--surface)",
+                      color: "var(--muted)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.62rem",
+                      padding: "0.12rem 0.35rem",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {copiedRequestId === selectedLog.requestId ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Receipt JSON */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", color: "var(--muted)" }}>
+                  Receipt JSON
+                </span>
+                {selectedLog.receipt && (
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyReceipt(selectedLog.receipt!)}
+                    style={{
+                      border: "1px solid var(--border)",
+                      background: "var(--surface)",
+                      color: "var(--muted)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.62rem",
+                      padding: "0.12rem 0.4rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {copiedReceipt ? "Copied" : "Copy all"}
+                  </button>
+                )}
+              </div>
+              <pre
+                style={{
+                  background: "#0a0a0b",
+                  border: "1px solid var(--border)",
+                  padding: "0.75rem",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.67rem",
+                  color: "var(--silver)",
+                  overflowX: "auto",
+                  overflowY: "auto",
+                  maxHeight: "320px",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  flex: 1,
+                }}
+              >
+                {selectedLog.receipt
+                  ? JSON.stringify(selectedLog.receipt, null, 2)
+                  : "No receipt available for this decision."}
+              </pre>
+            </div>
+
+            {/* Verify signature button (disabled — wired in follow-up) */}
+            <button
+              type="button"
+              disabled
+              title="Signature verification coming soon"
+              style={{
+                border: "1px solid var(--border)",
+                background: "transparent",
+                color: "var(--muted)",
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.75rem",
+                padding: "0.5rem 1rem",
+                cursor: "not-allowed",
+                opacity: 0.5,
+              }}
+            >
+              Verify Signature
+            </button>
+          </div>
+        </>
+      )}
+      {detailLoading && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            right: "1.5rem",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            padding: "0.5rem 1rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.72rem",
+            color: "var(--muted)",
+            zIndex: 60,
+          }}
+        >
+          Loading...
         </div>
       )}
     </div>

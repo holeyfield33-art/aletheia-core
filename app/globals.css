@@ -578,3 +578,14 @@ label {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Audit log detail panel — mobile: full-screen modal */
+@media (max-width: 768px) {
+  .log-detail-panel {
+    width: 100% !important;
+    left: 0 !important;
+  }
+  .log-detail-backdrop {
+    display: block !important;
+  }
+}
