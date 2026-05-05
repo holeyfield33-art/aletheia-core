@@ -245,7 +245,7 @@ _is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
 
 app = FastAPI(
     title="Aletheia Core API",
-    version="1.9.2",
+    version="1.9.3",
     description="Runtime audit and pre-execution block layer for autonomous AI agents.",
     lifespan=_lifespan,
     docs_url=None if _is_production else "/docs",

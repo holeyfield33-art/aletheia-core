@@ -5,6 +5,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.9.3] - 2026-05-05
+
+### Added
+
+- Added a dedicated audit log detail flow with a user-scoped `/api/logs/[id]` endpoint so signed receipts can be inspected from the dashboard without exposing cross-tenant records.
+- Added automated coverage for blog slug lookup and authenticated audit-log detail retrieval.
+- Added automated multi-tenant isolation coverage for hosted dashboard and audit-log access paths.
+
+### Changed
+
+- Expanded the signed semantic manifest to v1.9.0 with public-corpus jailbreak and prompt-injection coverage, plus additional indirect exfiltration patterns for the semantic layer.
+- Updated dashboard logs to support clickable receipt inspection with request ID copy actions and mobile-friendly detail panel behavior.
+- Updated the documentation landing page so product cards route to real operator and API materials instead of the marketing homepage.
+- Updated the hosted demo flow to return actionable misconfiguration messaging when the demo key is not configured.
+- Updated footer navigation to expose Cookies, Acceptable Use, and Billing legal pages.
+- Updated dashboard sidebar navigation to use client-side routing for faster in-app transitions.
+
+### Fixed
+
+- Fixed Next.js async params regressions affecting hosted blog article routes and audit-log route handlers.
+- Fixed enterprise checkout so the enterprise tier routes to a working inquiry destination instead of a missing `/contact` page.
+- Fixed policy manifest delivery on hosted deployments by including manifest files in output tracing and surfacing clearer dashboard diagnostics when the manifest is unavailable.
+- Fixed onboarding gating regressions and added verification for resumed partial onboarding flows.
+- Fixed hosted route and key-auth reliability issues across non-Vercel and pooled-database deployments, including proxy auth, quota timing, and backend connection handling.
+- Fixed demo resilience around backend warm-up, upstream failover, and masked customer-facing errors.
+
+### Security
+
+- Hardened the detection pipeline with per-category API audit thresholds, deny-first motifs, and stronger auth error handling for red-team-discovered paths.
+- Signed receipts now cover early-exit denial paths so blocked requests produce tamper-evident artifacts consistently.
+- Hardened hosted auth, proxy, and secret-bound internal request paths to reduce false 401s, header leakage, and bypass opportunities.
+- Improved semantic enforcement coverage for jailbreak and prompt-injection payload families identified during red-team validation.
+
 ## [1.9.2] — 2026-04-25
 
 ### Security Fixes (Critical & High Priority)

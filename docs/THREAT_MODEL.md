@@ -1,4 +1,4 @@
-# Threat Model — Aletheia Core v1.9.2
+# Threat Model — Aletheia Core v1.9.3
 
 Formal enumeration of attack surfaces, trust boundaries, and mitigations.
 

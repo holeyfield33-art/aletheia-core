@@ -1,4 +1,4 @@
-# Monitoring & Alerting Guide — Aletheia Core v1.9.2
+# Monitoring & Alerting Guide — Aletheia Core v1.9.3
 
 Prometheus metrics, recommended alert rules, and operational health checks.
 

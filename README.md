@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.9.2-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-1.9.3-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
@@ -69,7 +69,7 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.9.2
+## What's New in v1.9.3
 
 ### Deployment Fixes
 
@@ -99,7 +99,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric                         | Value                                       |
 | ------------------------------ | ------------------------------------------- |
 | Audit status                   | **PASS**                                    |
-| Tests passing                  | 1193 passed, 16 skipped (as of v1.9.2)      |
+| Tests passing                  | 1193 passed, 16 skipped (as of v1.9.3)      |
 | Blocked semantic patterns      | 24 (static) + Qdrant extended               |
 | Semantic alias phrases (Judge) | 60+ across 6 restricted categories          |
 | Core coverage                  | 89%                                         |

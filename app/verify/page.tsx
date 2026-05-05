@@ -24,7 +24,7 @@ type ReceiptFields = {
 const EXAMPLE_RECEIPT = `{
   "decision": "DENIED",
   "policy_hash": "sha256:3d4f...",
-  "policy_version": "v1.9.2",
+  "policy_version": "v1.9.3",
   "payload_sha256": "sha256:9a2b...",
   "prompt": "Summarize current transfer queue.",
   "request_id": "4e2a7d0c3f11",

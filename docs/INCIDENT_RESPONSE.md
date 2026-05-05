@@ -1,4 +1,4 @@
-# Incident Response — Aletheia Core v1.9.2
+# Incident Response — Aletheia Core v1.9.3
 
 Playbooks for common operational incidents. Each section includes
 symptoms, diagnosis, and resolution steps.

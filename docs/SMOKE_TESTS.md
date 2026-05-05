@@ -1,4 +1,4 @@
-# Smoke Tests — Aletheia Core v1.9.2
+# Smoke Tests — Aletheia Core v1.9.3
 
 Live post-deploy verification against a running Aletheia Core backend.
 

@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-Aletheia Core v1.9.2 environment reference.
+Aletheia Core v1.9.3 environment reference.
 
 - **Local**: development defaults
 - **Hosted**: Render / Vercel / container platform

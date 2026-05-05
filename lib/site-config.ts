@@ -21,7 +21,7 @@ export const PRODUCT = {
     "Professional-grade runtime audit and pre-execution block layer for AI agents.",
   description:
     "Cryptographically signed enforcement, semantic policy hardening, and tamper-evident audit receipts for agentic workflows.",
-  version: "1.9.2",
+  version: "1.9.3",
   testCount: 1193,
   license: "MIT",
   copyrightHolder: "Aletheia Sovereign Systems",

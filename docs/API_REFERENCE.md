@@ -1,4 +1,4 @@
-# API Reference — Aletheia Core v1.9.2
+# API Reference — Aletheia Core v1.9.3
 
 Complete reference for all HTTP endpoints exposed by `bridge/fastapi_wrapper.py`.
 
@@ -156,7 +156,7 @@ Public health endpoint.
 ```json
 {
   "status": "ok",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "uptime_seconds": 3600.0
 }
 ```
