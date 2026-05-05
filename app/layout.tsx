@@ -150,6 +150,9 @@ function Footer() {
   const legalLinks = [
     { label: "Privacy", href: "/legal/privacy" },
     { label: "Terms", href: "/legal/terms" },
+    { label: "Cookies", href: "/legal/cookies" },
+    { label: "Acceptable Use", href: "/legal/acceptable-use" },
+    { label: "Billing", href: "/legal/billing" },
     { label: "Security", href: "/legal/security" },
     { label: "Accessibility", href: "/legal/accessibility" },
   ];
