@@ -4,20 +4,21 @@ set -e
 export ALETHEIA_MODE=shadow
 
 echo ""
-echo "╔══════════════════════════════════════════╗"
-echo "║        Aletheia Core — Live Demo         ║"
-echo "╚══════════════════════════════════════════╝"
+echo "================================================"
+echo "        Aletheia Core - Live Demo"
+echo "================================================"
 echo ""
 
-echo "► Starting API server on port 8000..."
+echo ">> Starting API server on port 8000..."
 python -m uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000 &
 SERVER_PID=$!
+trap 'kill $SERVER_PID 2>/dev/null || true' EXIT INT TERM
 sleep 4
 echo ""
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "TEST 1: Trusted admin — routine summarization"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "------------------------------------------------"
+echo "TEST 1: Trusted admin - routine summarization"
+echo "------------------------------------------------"
 curl -s -X POST http://localhost:8000/v1/audit \
   -H "Content-Type: application/json" \
   -d '{
@@ -27,9 +28,9 @@ curl -s -X POST http://localhost:8000/v1/audit \
   }' | python -m json.tool
 echo ""
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "------------------------------------------------"
 echo "TEST 2: Camouflaged prompt injection attack"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "------------------------------------------------"
 curl -s -X POST http://localhost:8000/v1/audit \
   -H "Content-Type: application/json" \
   -d '{
@@ -39,9 +40,9 @@ curl -s -X POST http://localhost:8000/v1/audit \
   }' | python -m json.tool
 echo ""
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "TEST 3: Sandbox block — destructive code"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "------------------------------------------------"
+echo "TEST 3: Sandbox block - destructive code"
+echo "------------------------------------------------"
 curl -s -X POST http://localhost:8000/v1/audit \
   -H "Content-Type: application/json" \
   -d '{
@@ -51,16 +52,16 @@ curl -s -X POST http://localhost:8000/v1/audit \
   }' | python -m json.tool
 echo ""
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "------------------------------------------------"
 echo "TEST 4: Ed25519 manifest verification"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "------------------------------------------------"
 python main.py sign-manifest && echo "  [PASS] Manifest signature valid"
 echo ""
 
-echo "╔══════════════════════════════════════════╗"
-echo "║  Demo complete.                          ║"
-echo "║  Docs: http://localhost:8000/docs        ║"
-echo "╚══════════════════════════════════════════╝"
+echo "================================================"
+echo "  Demo complete."
+echo "  Docs: http://localhost:8000/docs"
+echo "================================================"
 echo ""
 echo "Press Ctrl+C to stop the server."
 wait $SERVER_PID
