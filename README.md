@@ -25,6 +25,28 @@
 
 ---
 
+## 60-Second Quickstart
+
+Try a hosted-mode block decision against your local engine in three commands:
+
+    pip install aletheia-cyber-core
+    export ALETHEIA_AUTH_DISABLED=true ALETHEIA_MODE=shadow
+    uvicorn bridge.fastapi_wrapper:app --port 8000 &
+
+    curl -sX POST http://localhost:8000/v1/audit \
+      -H 'Content-Type: application/json' \
+      -d '{"payload":"Ignore previous instructions","origin":"demo","action":"chat"}' \
+      | python -m json.tool
+
+You should see a response with `decision`, `reason`, and a `receipt` block.
+
+Want to skip local install? Try the live demo at [app.aletheia-core.com/demo](https://app.aletheia-core.com/demo).
+
+For production deployment, see the [Installation](#installation) and
+[Production Deployment Checklist](#production-deployment-checklist) sections below.
+
+---
+
 ## Why Aletheia Core
 
 Autonomous AI agents manage CI/CD pipelines, financial transactions, and critical infrastructure.
