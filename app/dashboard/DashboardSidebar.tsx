@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import Link from "next/link";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/dashboard" },
@@ -57,7 +58,7 @@ export default function DashboardSidebar({
                 ? pathname === "/dashboard"
                 : pathname.startsWith(href);
             return (
-              <a
+              <Link
                 key={href}
                 href={href}
                 style={{
@@ -75,7 +76,7 @@ export default function DashboardSidebar({
                 }}
               >
                 {label}
-              </a>
+              </Link>
             );
           })}
         </nav>
