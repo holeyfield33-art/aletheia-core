@@ -14,14 +14,14 @@ const sections = [
         title: "Launch Guide",
         description:
           "Deploy Aletheia Core locally or to production in minutes.",
-        href: `${URLS.landingPage}`,
+        href: "https://github.com/holeyfield33-art/aletheia-core/blob/main/docs/LAUNCH_GUIDE.md",
         tag: "Guide",
       },
       {
         title: "SDK Integration",
         description:
           "Integrate the audit engine into your Python, Node.js, or cURL workflow.",
-        href: `${URLS.landingPage}`,
+        href: "https://github.com/holeyfield33-art/aletheia-core/blob/main/docs/SDK_INTEGRATION.md",
         tag: "Guide",
       },
       {
@@ -40,14 +40,14 @@ const sections = [
         title: "POST /v1/audit",
         description:
           "Primary endpoint. Evaluates a payload through the tri-agent pipeline and returns a signed decision.",
-        href: `${URLS.landingPage}`,
+        href: "https://github.com/holeyfield33-art/aletheia-core/blob/main/docs/API_REFERENCE.md",
         tag: "Endpoint",
       },
       {
         title: "Key Management",
         description:
           "Create, list, and revoke API keys. Quota-enforced via X-API-Key header.",
-        href: `${URLS.landingPage}`,
+        href: "https://github.com/holeyfield33-art/aletheia-core/blob/main/docs/API_REFERENCE.md",
         tag: "Endpoint",
       },
       {
@@ -270,6 +270,16 @@ export default function DocsPage() {
               <a
                 key={item.title}
                 href={item.href}
+                target={
+                  item.href.startsWith("https://github.com/")
+                    ? "_blank"
+                    : undefined
+                }
+                rel={
+                  item.href.startsWith("https://github.com/")
+                    ? "noopener noreferrer"
+                    : undefined
+                }
                 style={{
                   display: "block",
                   background: "var(--surface)",
@@ -349,6 +359,8 @@ export default function DocsPage() {
         </p>
         <a
           href={URLS.github}
+          target="_blank"
+          rel="noopener noreferrer"
           className="btn-secondary"
           style={{ textDecoration: "none" }}
         >
