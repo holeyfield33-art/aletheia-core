@@ -277,7 +277,15 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
         original = wrapper_mod.settings.shadow_mode
         try:
             wrapper_mod.settings.shadow_mode = True
-            _, resp = _post(self.client, _blocked_body(f"{_IP_SHADOW}1"))
+            body = _blocked_body(f"{_IP_SHADOW}1")
+            with patch("bridge.fastapi_wrapper.classify_blocked_intent") as mock_intent:
+                mock_intent.return_value.blocked = False
+                mock_intent.return_value.category = "none"
+                mock_intent.return_value.matched_policy = "none"
+                mock_intent.return_value.confidence = 0.0
+                mock_intent.return_value.uncertain = False
+                mock_intent.return_value.reason = "allow"
+                _, resp = _post(self.client, body)
             # Decision flipped to PROCEED in shadow mode
             self.assertEqual(resp["decision"], "PROCEED")
             # shadow_verdict is logged server-side, not exposed in response

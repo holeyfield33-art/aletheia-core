@@ -13,7 +13,7 @@ export const MARKETING_ORIGIN =
 export const APP_ORIGIN =
   process.env.NEXT_PUBLIC_APP_ORIGIN ?? "https://app.aletheia-core.com";
 export const API_ORIGIN =
-  process.env.NEXT_PUBLIC_API_ORIGIN ?? "https://api.aletheia-core.com";
+  process.env.NEXT_PUBLIC_API_ORIGIN ?? "https://aletheia-core.onrender.com";
 
 export const PRODUCT = {
   name: "Aletheia Core",
@@ -47,7 +47,7 @@ export const STATUS = {
    * Only mark "live" when hosted API is publicly accessible.
    */
   hostedApi: "live" as const,
-  hostedApiLabel: "Hosted API — live",
+  hostedApiLabel: "Hosted API — live (Render)",
   servicesAvailable: true,
   openSource: true,
 } as const;

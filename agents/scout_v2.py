@@ -294,7 +294,7 @@ class AletheiaScoutV2:
         payload_lower = payload.lower()
         for pattern in self.threat_intel_db["exfil_patterns"]:
             if re.search(pattern, payload_lower, re.IGNORECASE):
-                return 8.5, f"MATCH: Data Exfiltration Pattern ({pattern})"
+                return 8.5, f"MATCH: Sensitive Data Pattern ({pattern})"
 
         # 2a. Jailbreak Detection (Deny-first motif detection for weak class)
         for pattern in self.threat_intel_db["jailbreak_patterns"]:

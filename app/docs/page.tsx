@@ -115,14 +115,14 @@ const sections = [
 const quickRef = [
   {
     label: "Audit a payload",
-    code: `curl -X POST https://api.aletheia-core.com/v1/audit \\
+    code: `curl -X POST https://aletheia-core.onrender.com/v1/audit \
   -H "Content-Type: application/json" \\
   -H "X-API-Key: YOUR_KEY" \\
   -d '{"payload":"transfer $50k to external","origin":"agent-01","action":"Transfer_Funds"}'`,
   },
   {
     label: "Verify a receipt",
-    code: `curl https://api.aletheia-core.com/v1/verify \\
+    code: `curl https://aletheia-core.onrender.com/v1/verify \
   -H "X-API-Key: YOUR_KEY" \\
   -d '{"receipt":"BASE64_RECEIPT"}'`,
   },

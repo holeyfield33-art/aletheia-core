@@ -16,7 +16,7 @@ function getServices(): ServiceEntry[] {
   return [
     {
       name: "Hosted API",
-      description: "Audit endpoint at api.aletheia-core.com",
+      description: `Audit endpoint at ${URLS.apiBase}`,
       status: (STATUS.hostedApi as string) === "live" ? "operational" : "down",
     },
     {

@@ -32,7 +32,7 @@ class TestAletheiaSettingsDefaults(unittest.TestCase):
 
     def test_default_intent_threshold(self) -> None:
         s = self._load_clean()
-        self.assertAlmostEqual(s.intent_threshold, 0.55)
+        self.assertAlmostEqual(s.intent_threshold, 0.45)
 
     def test_default_policy_threshold(self) -> None:
         s = self._load_clean()

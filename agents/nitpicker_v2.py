@@ -422,7 +422,8 @@ class AletheiaNitpickerV2:
             source = "both"
         elif static_msg:
             reason = static_msg
-            source = "static"
+            if source != "static_manifest_fallback":
+                source = "static"
         elif qdrant_blocked:
             reason = qdrant_reason
             # Preserve "static_manifest_fallback" set by the degraded path;
