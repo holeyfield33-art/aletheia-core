@@ -325,10 +325,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-  // Trust the forwarded host header on Vercel (auto-detected), Render, Railway,
-  // or any reverse-proxy deployment. Required so session cookies validate correctly.
-  // Guards: requires NEXTAUTH_SECRET (enforced below) so there is no spoofing risk.
-  trustHost: true,
 };
 
 // Runtime guard: refuse to start with a weak NEXTAUTH_SECRET in production
