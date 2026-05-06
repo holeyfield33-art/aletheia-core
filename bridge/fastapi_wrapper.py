@@ -880,7 +880,7 @@ async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
                     )
 
                 next_used = requests_used + 1
-                await conn.execute(
+                await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
                     """
                     UPDATE "ApiKey"
                     SET "requestsUsed" = $2,
@@ -958,7 +958,7 @@ async def _persist_audit_log(
 
     try:
         async with _bridge_pool.acquire() as conn:
-            await conn.execute(
+            await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
                 """
                 INSERT INTO "AuditLog" (
                     id, "userId", decision, "threatScore", action, origin,
