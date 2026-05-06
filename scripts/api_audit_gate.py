@@ -30,6 +30,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# Ensure the project root is on sys.path so `bridge` and `core` are importable
+# when this script is run directly (e.g. `python scripts/api_audit_gate.py`).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastapi.testclient import TestClient
 
 from bridge.fastapi_wrapper import app

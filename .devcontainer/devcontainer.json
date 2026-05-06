@@ -1,9 +1,13 @@
 {
   "name": "Aletheia Core",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
-  "postCreateCommand": "pip install -r requirements.txt && python main.py sign-manifest && echo '✅ Ready — run ./demo.sh'",
-  "forwardPorts": [8000],
+  "postCreateCommand": "pip install -r requirements.txt && npm install && cp -n .env.example .env.local && python main.py sign-manifest && echo '✅ Ready — API: http://localhost:8000  Frontend: npm run dev → http://localhost:3000'",
+  "forwardPorts": [3000, 8000],
   "portsAttributes": {
+    "3000": {
+      "label": "Next.js Frontend",
+      "onAutoForward": "openBrowser"
+    },
     "8000": {
       "label": "Aletheia API",
       "onAutoForward": "notify"
@@ -14,11 +18,19 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-python.debugpy"
+        "ms-python.debugpy",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "prisma.prisma"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.python"
+        }
       }
     }
   }

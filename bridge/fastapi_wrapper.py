@@ -391,7 +391,7 @@ async def internal_secret_guard(request: Request, call_next):
     provided = request.headers.get("x-aletheia-internal", "")
     # Use secrets.compare_digest to prevent timing attacks on the secret value.
     if not provided or not secrets.compare_digest(provided, _INTERNAL_SECRET):
-        _logger.warning(
+        _logger.warning(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             "internal_secret_guard: rejected request path=%s xff=%s",
             path,
             request.headers.get("x-forwarded-for", "unknown"),
