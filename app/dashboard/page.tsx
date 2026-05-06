@@ -21,6 +21,8 @@ export default async function DashboardIndex() {
   let currentMonthUsage = 0;
   let estimatedPaygCost = 0;
   let profile = null;
+  let proceededCount = 0;
+  let deniedCount = 0;
 
   try {
     // Sequential queries — avoids PgBouncer/Supavisor "prepared statement already exists" errors
@@ -34,6 +36,15 @@ export default async function DashboardIndex() {
     totalRequests = agg._sum.requestsUsed ?? 0;
     totalQuota = agg._sum.monthlyQuota ?? 0;
     recentLogs = await prisma.auditLog.count({ where: { userId } });
+    const auditCounts = await prisma.auditLog.groupBy({
+      by: ["decision"],
+      where: { userId },
+      _count: { decision: true },
+    });
+    proceededCount = auditCounts.find((c) => c.decision === "PROCEED")?._count.decision ?? 0;
+    deniedCount = auditCounts
+      .filter((c) => ["DENIED", "SANDBOX_BLOCKED", "RATE_LIMITED"].includes(c.decision))
+      .reduce((sum, c) => sum + c._count.decision, 0);
     profile = await getUserOnboardingProfile(userId);
     if (session.user.plan === "ENTERPRISE") {
       currentMonthUsage = await getCurrentMonthUsage(userId);
@@ -49,6 +60,8 @@ export default async function DashboardIndex() {
       totalRequests={totalRequests}
       logCount={recentLogs}
       plan={session.user.plan}
+      proceededCount={proceededCount}
+      deniedCount={deniedCount}
       isNewUser={keyCount === 0 && totalRequests === 0}
       totalQuota={totalQuota}
       currentMonthUsage={currentMonthUsage}

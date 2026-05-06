@@ -179,6 +179,8 @@ export default function DashboardOverview({
   currentMonthUsage,
   estimatedPaygCost,
   profile,
+  proceededCount,
+  deniedCount,
 }: {
   keyCount: number;
   totalRequests: number;
@@ -188,6 +190,8 @@ export default function DashboardOverview({
   totalQuota: number;
   currentMonthUsage: number;
   estimatedPaygCost: number;
+  proceededCount: number;
+  deniedCount: number;
   profile: {
     useCase?: string | null;
     primaryGoal?: string | null;
@@ -202,18 +206,23 @@ export default function DashboardOverview({
   const showUpgradeBanner = plan === "TRIAL" && usagePct >= 80 && !isNewUser;
 
   const cards = [
-    { label: "Active API Keys", value: keyCount, href: "/dashboard/keys" },
+    { label: "Active API Keys", value: keyCount, href: "/dashboard/keys", subtitle: null },
     {
       label: "Total Requests",
       value: totalRequests.toLocaleString(),
       href: "/dashboard/usage",
+      subtitle: null,
     },
     {
       label: "Audit Decisions",
       value: logCount.toLocaleString(),
       href: "/dashboard/logs",
+      subtitle:
+        logCount > 0
+          ? `${proceededCount.toLocaleString()} proceeded, ${deniedCount.toLocaleString()} denied`
+          : null,
     },
-    { label: "Plan", value: plan, href: "/dashboard/usage" },
+    { label: "Plan", value: plan, href: "/dashboard/usage", subtitle: null },
   ];
 
   if (plan === "ENTERPRISE") {
@@ -222,11 +231,13 @@ export default function DashboardOverview({
         label: "This Month Usage",
         value: currentMonthUsage.toLocaleString(),
         href: "/dashboard/usage",
+        subtitle: null,
       },
       {
         label: "Estimated PAYG Cost",
         value: `$${estimatedPaygCost.toFixed(2)}`,
         href: "/dashboard/usage",
+        subtitle: null,
       },
     );
   }
@@ -363,7 +374,7 @@ export default function DashboardOverview({
           marginBottom: "2rem",
         }}
       >
-        {cards.map(({ label, value, href }) => (
+        {cards.map(({ label, value, href, subtitle }) => (
           <a
             key={label}
             href={href}
@@ -392,6 +403,23 @@ export default function DashboardOverview({
             >
               {value}
             </div>
+            {subtitle && (
+              <div
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.72rem",
+                  marginTop: "0.35rem",
+                }}
+              >
+                <span style={{ color: "var(--silver)" }}>
+                  {subtitle.split(", ")[0]}
+                </span>
+                {", "}
+                <span style={{ color: "var(--crimson-hi)" }}>
+                  {subtitle.split(", ")[1]}
+                </span>
+              </div>
+            )}
           </a>
         ))}
       </div>
