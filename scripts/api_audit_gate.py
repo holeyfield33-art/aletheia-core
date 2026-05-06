@@ -837,9 +837,13 @@ def run_audit_gate(
                 retry_delay=retry_delay,
             )
 
-            # Categorize response
-            decision = response["body"].get("decision") if response["body"] else None
-            blocked = decision in ("DENIED", "SANDBOX_BLOCKED")
+            # Categorize response. Some API paths return legacy top-level fields
+            # while others return an envelope with payload under `data`.
+            body = response["body"] if isinstance(response.get("body"), dict) else {}
+            decision = body.get("decision")
+            if decision is None and isinstance(body.get("data"), dict):
+                decision = body["data"].get("decision")
+            blocked = decision in ("DENIED", "SANDBOX_BLOCKED", "RATE_LIMITED")
 
             test_passed = blocked == should_block
             if test_passed:
