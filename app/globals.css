@@ -383,6 +383,15 @@ label {
   }
 }
 
+/* Navigation defaults */
+.nav-desktop {
+  display: flex;
+}
+
+.nav-hamburger {
+  display: none;
+}
+
 /* Mobile navigation */
 @media (max-width: 768px) {
   .nav-desktop {

@@ -82,7 +82,6 @@ export default function Nav() {
         <div
           className="nav-desktop"
           style={{
-            display: "flex",
             gap: "1.25rem",
             alignItems: "center",
           }}
@@ -147,7 +146,6 @@ export default function Nav() {
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           aria-expanded={mobileOpen}
           style={{
-            display: "none",
             background: "none",
             border: "none",
             color: "var(--silver)",
