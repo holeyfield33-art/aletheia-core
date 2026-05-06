@@ -19,6 +19,12 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/.well-known/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=3600" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
