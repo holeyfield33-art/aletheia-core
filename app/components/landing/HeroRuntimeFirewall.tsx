@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { URLS } from "@/lib/site-config";
+import AuthAwareCTA from "@/app/components/AuthAwareCTA";
 
 export default function HeroRuntimeFirewall() {
   return (
@@ -88,12 +88,15 @@ export default function HeroRuntimeFirewall() {
               marginBottom: "1.2rem",
             }}
           >
-            <Link className="btn-primary" href="/auth/register?callbackUrl=%2Fdashboard">
-              Protect My Agent
-            </Link>
-            <Link className="btn-secondary" href="/demo">
+            <AuthAwareCTA
+              anonymousLabel="Protect My Agent"
+              anonymousHref="/auth/register?callbackUrl=%2Fdashboard"
+              authedLabel="Open Dashboard"
+              authedHref="/dashboard"
+            />
+            <a className="btn-secondary" href="/demo">
               Run Live Demo
-            </Link>
+            </a>
             <a
               href={URLS.github}
               target="_blank"

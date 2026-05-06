@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 
 const CLIENT_TIMEOUT_MS = 35_000; // Render cold starts take 15-30s
 
@@ -187,6 +188,8 @@ type AuditResult = {
 /* ------------------------------------------------------------------ */
 
 export default function DemoPage() {
+  const { status } = useSession();
+  const isAuthed = status === "authenticated";
   const [payload, setPayload] = useState(PRESETS[0].payload);
   const [origin, setOrigin] = useState(PRESETS[0].origin);
   const [action, setAction] = useState(PRESETS[0].action);
@@ -875,12 +878,13 @@ export default function DemoPage() {
           }}
         >
           <a
-            href="/auth/register"
+            href={isAuthed ? "/dashboard" : "/auth/register"}
             className="btn-primary"
             style={{ fontSize: "0.92rem", padding: "0.65rem 1.5rem" }}
           >
-            Start Free &rarr;
+            {isAuthed ? "Open Dashboard" : "Start Free \u2192"}
           </a>
+          {!isAuthed && (
           <a
             href="/auth/login"
             className="btn-secondary"
@@ -888,6 +892,7 @@ export default function DemoPage() {
           >
             Sign In
           </a>
+          )}
         </div>
         <p
           style={{

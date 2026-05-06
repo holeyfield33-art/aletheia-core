@@ -1,6 +1,6 @@
-import Link from "next/link";
+import AuthAwareCTA from "@/app/components/AuthAwareCTA";
 
-export default function FinalCTA() {
+export default async function FinalCTA() {
   return (
     <section style={{ padding: "0 1.5rem 4rem" }}>
       <div className="container" style={{ maxWidth: "1120px" }}>
@@ -24,12 +24,15 @@ export default function FinalCTA() {
             Use Aletheia Core to preflight risky prompts, tool calls, and agent decisions before they touch files, secrets, APIs, money, or production systems.
           </p>
           <div className="hero-cta-stack" style={{ display: "flex", gap: "0.8rem", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link className="btn-primary" href="/auth/register?callbackUrl=%2Fdashboard">
-              Protect My Agent
-            </Link>
-            <Link className="btn-secondary" href="/demo">
+            <AuthAwareCTA
+              anonymousLabel="Protect My Agent"
+              anonymousHref="/auth/register?callbackUrl=%2Fdashboard"
+              authedLabel="Open Dashboard"
+              authedHref="/dashboard"
+            />
+            <a className="btn-secondary" href="/demo">
               Run Live Demo
-            </Link>
+            </a>
           </div>
         </div>
       </div>
