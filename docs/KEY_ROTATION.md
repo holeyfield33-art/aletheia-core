@@ -143,12 +143,15 @@ restarting the process.
 
 ### 3.1 Secrets That Can Be Rotated
 
-| Secret          | Env Var                   | Purpose                                   |
-| --------------- | ------------------------- | ----------------------------------------- |
-| Receipt signing | `ALETHEIA_RECEIPT_SECRET` | HMAC-SHA256 audit receipt signatures      |
-| API keys        | `ALETHEIA_API_KEYS`       | Comma-separated list of valid client keys |
-| Alias salt      | `ALETHEIA_ALIAS_SALT`     | Daily alias bank rotation seed            |
-| Admin key       | `ALETHEIA_ADMIN_KEY`      | Admin endpoint authentication             |
+| Secret | Env Var(s) | Purpose |
+| --- | --- | --- |
+| Receipt signing (Ed25519) | `ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` | Signs all new audit receipts |
+| Receipt verify/disclosure key | `ALETHEIA_RECEIPT_PUBLIC_KEY` or `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` | Verifies/discloses receipt signatures |
+| Legacy receipt compatibility | `ALETHEIA_RECEIPT_SECRET` | Startup guard and verification of older HMAC receipts |
+| Alias salt | `ALETHEIA_ALIAS_SALT` | Daily alias bank rotation seed |
+| Rotation salt | `ALETHEIA_ROTATION_SALT` | Nitpicker mode rotation seed |
+| API key salt | `ALETHEIA_KEY_SALT` | API key hashing salt |
+| Production runtime guard | `SIGNING_SECRET` | Mandatory in production startup checks |
 
 ### 3.2 Update Environment Variables
 
@@ -157,30 +160,13 @@ secrets, Docker Compose `.env`, etc.).
 
 ### 3.3 Trigger Rotation
 
-**Option A — HTTP endpoint (preferred):**
-
-```bash
-curl -X POST https://YOUR_HOST/v1/rotate \
-  -H "X-Admin-Key: YOUR_ADMIN_KEY"
-```
-
-Expected response:
-
-```json
-{
-  "status": "rotated",
-  "receipt_secret": true,
-  "api_keys_count": 3,
-  "alias_salt": true,
-  "admin_key": true
-}
-```
-
-**Option B — POSIX signal:**
+**POSIX signal (supported):**
 
 ```bash
 kill -SIGUSR1 $(pgrep -f "uvicorn bridge.fastapi_wrapper")
 ```
+
+Use your deployment platform to apply the new env values first, then send the signal.
 
 ### 3.4 Safety Mechanisms
 
@@ -194,10 +180,11 @@ kill -SIGUSR1 $(pgrep -f "uvicorn bridge.fastapi_wrapper")
 
 | Secret                    | Impact When Rotated                                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `ALETHEIA_RECEIPT_SECRET` | New receipts use new key. Old receipts verify against old key (unless old key is no longer available for verification). |
-| `ALETHEIA_API_KEYS`       | Old keys stop working immediately. Distribute new keys to clients first.                                                |
-| `ALETHEIA_ALIAS_SALT`     | Daily alias bank shuffle changes. May alter veto behavior for grey-zone payloads.                                       |
-| `ALETHEIA_ADMIN_KEY`      | Previous admin key stops working. Update your ops tooling.                                                              |
+| `ALETHEIA_RECEIPT_PRIVATE_KEY*` | New receipts are signed by the new Ed25519 key pair; publish matching public key for verifiers. |
+| `ALETHEIA_RECEIPT_SECRET` | Legacy HMAC receipt verification may fail for old receipts if old secret is removed too early. |
+| `ALETHEIA_ALIAS_SALT` | Daily alias bank shuffle changes. May alter veto behavior for grey-zone payloads. |
+| `ALETHEIA_ROTATION_SALT` | Nitpicker mode rotation sequence changes immediately after reload. |
+| `ALETHEIA_KEY_SALT` | Existing hashed API keys become invalid if changed without migration. |
 
 ---
 

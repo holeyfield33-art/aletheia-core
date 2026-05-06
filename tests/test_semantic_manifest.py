@@ -252,6 +252,27 @@ def test_manifest_prompt_injection_coverage() -> None:
     assert count >= 30
 
 
+def test_manifest_indirect_exfiltration_coverage() -> None:
+    manifest = _load_runtime_manifest()
+    de_entries = [
+        e
+        for e in manifest.get("entries", [])
+        if e.get("category") == "direct_exfiltration"
+    ]
+    assert len(de_entries) >= 47
+
+
+def test_manifest_indirect_exfiltration_sources_present() -> None:
+    manifest = _load_runtime_manifest()
+    new_ids = {f"de_{i:03d}" for i in range(38, 48)}
+    new_entries = [e for e in manifest.get("entries", []) if e.get("id") in new_ids]
+    assert len(new_entries) == 10
+    for entry in new_entries:
+        metadata = entry.get("metadata", {})
+        assert metadata.get("source")
+        assert metadata.get("added") == "2026-05-05"
+
+
 def test_manifest_signature_valid() -> None:
     verify_manifest_signature(
         manifest_path="manifest/security_policy.json",

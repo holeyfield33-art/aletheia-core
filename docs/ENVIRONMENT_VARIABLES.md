@@ -30,6 +30,8 @@ Aletheia Core v1.9.3 environment reference.
 | `ALETHEIA_MANIFEST_KEY_VERSION` | Optional    | Optional     | Key version (default `v1`).                        |
 | `SIGNING_SECRET`                | Optional    | Yes (strict) | Production guard (CLI/runtime).                    |
 
+Manifest signing private key is file-based for the CLI flow (for example `.secrets/manifest/security_policy.ed25519.key`) and should exist only on the offline signing machine, not on Render or Vercel.
+
 ---
 
 ## 1b) Production Backend & Secrets
@@ -129,7 +131,7 @@ Aletheia Core v1.9.3 environment reference.
 | `STRIPE_PRO_PRICE_ID`          | Optional | Recommended | Pro plan price id.                                 |
 | `STRIPE_PRO_PRICE_AMOUNT`      | Optional | Optional    | Fallback Pro amount.                               |
 | `STRIPE_PRO_CURRENCY`          | Optional | Optional    | Fallback currency.                                 |
-| `STRIPE_PAYG_METERED_PRICE_ID` | Optional | Recommended | PAYG metered price id.                             |
+| `ALETHEIA_RECEIPT_SECRET`       | Recommended | Yes (active) | Legacy HMAC secret used for startup guard and old-receipt verification during retention. |
 | `STRIPE_PAYG_METERED_CURRENCY` | Optional | Optional    | PAYG currency.                                     |
 | `CRON_SECRET`                  | Optional | Recommended | Bearer secret for usage-report cron endpoint auth. |
 | `RESEND_API_KEY`               | Optional | Recommended | Transactional email key.                           |
@@ -138,7 +140,9 @@ Aletheia Core v1.9.3 environment reference.
 
 ---
 
+
 ## 6) Optional Proximity / Advanced
+
 
 | Variable                          | Required | Purpose                                                            |
 | --------------------------------- | -------- | ------------------------------------------------------------------ |
