@@ -196,12 +196,22 @@ class AletheiaSettings:
             env_val = _env(f"ALETHEIA_{key.upper()}")
             if env_val:
                 # Coerce to the expected type
+                if isinstance(default, bool):
+                    normalized = env_val.strip().lower()
+                    if normalized in {"1", "true", "yes", "on", "y", "t"}:
+                        return True
+                    if normalized in {"0", "false", "no", "off", "n", "f"}:
+                        return False
+                    raise ValueError(f"Invalid boolean value for {key}: {env_val!r}")
                 if isinstance(default, float):
                     return float(env_val)
                 if isinstance(default, int):
-                    return int(env_val)
-                if isinstance(default, bool):
-                    return env_val.lower() in ("1", "true", "yes")
+                    try:
+                        return int(env_val)
+                    except ValueError as exc:
+                        raise ValueError(
+                            f"Invalid integer value for {key}: {env_val!r}"
+                        ) from exc
                 if isinstance(default, list):
                     return [s.strip() for s in env_val.split(",")]
                 return env_val

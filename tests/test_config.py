@@ -197,6 +197,49 @@ class TestEnvVarOverrides(unittest.TestCase):
         self.assertEqual(s.log_level, "WARNING")
 
 
+class TestEnvVarTypeCoercion(unittest.TestCase):
+    """Typed env var coercion should be explicit and fail with helpful errors."""
+
+    def _load_with_env(self, env_vars: dict):
+        from core.config import AletheiaSettings
+
+        with patch("core.config._load_yaml", return_value={}):
+            clean_env = {
+                k: v for k, v in os.environ.items() if not k.startswith("ALETHEIA_")
+            }
+            clean_env.update(env_vars)
+            with patch.dict(os.environ, clean_env, clear=True):
+                return AletheiaSettings.load()
+
+    def test_fips_mode_bool_truthy_values(self) -> None:
+        for value in ("true", "1", "YES", "on"):
+            with self.subTest(value=value):
+                s = self._load_with_env({"ALETHEIA_FIPS_MODE": value})
+                self.assertTrue(s.fips_mode)
+
+    def test_fips_mode_bool_falsy_values(self) -> None:
+        for value in ("false", "0", "no", "OFF"):
+            with self.subTest(value=value):
+                s = self._load_with_env({"ALETHEIA_FIPS_MODE": value})
+                self.assertFalse(s.fips_mode)
+
+    def test_fips_mode_bool_invalid_value_mentions_field_name(self) -> None:
+        with self.assertRaisesRegex(ValueError, "fips_mode"):
+            self._load_with_env({"ALETHEIA_FIPS_MODE": "maybe"})
+
+    def test_rate_limit_invalid_int_mentions_field_name(self) -> None:
+        with self.assertRaisesRegex(ValueError, "rate_limit_per_second"):
+            self._load_with_env({"ALETHEIA_RATE_LIMIT_PER_SECOND": "abc"})
+
+    def test_load_succeeds_when_fips_mode_unset(self) -> None:
+        s = self._load_with_env({})
+        self.assertFalse(s.fips_mode)
+
+    def test_load_succeeds_when_fips_mode_false_string(self) -> None:
+        s = self._load_with_env({"ALETHEIA_FIPS_MODE": "false"})
+        self.assertFalse(s.fips_mode)
+
+
 class TestLoadYamlFileDiscovery(unittest.TestCase):
     """_load_yaml() should find and parse config.yaml from disk."""
 
