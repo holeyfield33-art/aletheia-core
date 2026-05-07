@@ -33,7 +33,6 @@ services:
     image: qdrant/qdrant:latest
     security_opt:
       - no-new-privileges:true
-    read_only: true
     tmpfs:
       - /tmp
       - /run
