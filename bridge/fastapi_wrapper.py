@@ -364,6 +364,7 @@ _INTERNAL_SECRET_EXEMPT = frozenset(
         "/.well-known/aletheia-receipt-key.pem",
         "/.well-known/aletheia-manifest-key.pem",
         "/v1/public-key",
+        "/v1/audit",
     ]
 )
 
