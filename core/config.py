@@ -80,6 +80,19 @@ def _env(key: str, default: str = "") -> str:
     return os.getenv(key, default)
 
 
+def _normalize_env_text(value: str) -> str:
+    """Normalize env-var text copied from dashboards/CLI.
+
+    Removes leading/trailing whitespace and a single pair of matching
+    surrounding quotes so values like "'active'" and '"active"' parse
+    as active.
+    """
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+        cleaned = cleaned[1:-1].strip()
+    return cleaned
+
+
 @dataclass
 class AletheiaSettings:
     """Single source of truth for runtime configuration."""
@@ -193,7 +206,7 @@ class AletheiaSettings:
         yaml_cfg = _load_yaml()
 
         def _get(key: str, default: Any) -> Any:
-            env_val = _env(f"ALETHEIA_{key.upper()}")
+            env_val = _normalize_env_text(_env(f"ALETHEIA_{key.upper()}"))
             if env_val:
                 # Coerce to the expected type
                 if isinstance(default, bool):

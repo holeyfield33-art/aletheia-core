@@ -171,6 +171,15 @@ class TestEnvVarOverrides(unittest.TestCase):
         self.assertEqual(s.mode, "shadow")
         self.assertTrue(s.shadow_mode)
 
+    def test_env_mode_trims_whitespace_and_quotes(self) -> None:
+        s = self._load_with_env({"ALETHEIA_MODE": "  'active'\n"})
+        self.assertEqual(s.mode, "active")
+        self.assertFalse(s.shadow_mode)
+
+    def test_env_string_field_trims_wrapping_quotes(self) -> None:
+        s = self._load_with_env({"ALETHEIA_CLIENT_ID": '  "CUSTOM_ID"  '})
+        self.assertEqual(s.client_id, "CUSTOM_ID")
+
     def test_env_overrides_client_id_string(self) -> None:
         s = self._load_with_env({"ALETHEIA_CLIENT_ID": "CUSTOM_ID"})
         self.assertEqual(s.client_id, "CUSTOM_ID")
