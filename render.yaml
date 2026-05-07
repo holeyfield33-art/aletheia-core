@@ -76,7 +76,7 @@ services:
       - key: ALETHEIA_DEMO_API_KEY
         sync: false
       # --- Model / AI ---
-      - key: HF_TOKEN
+      - key: HUGGING_FACE_HUB_TOKEN
         sync: false
     plan: free
 

@@ -150,3 +150,36 @@ jobs:
           NEXTAUTH_SECRET: ci-only-placeholder-secret-must-be-32-bytes # pragma: allowlist secret
           DATABASE_URL: postgresql://localhost:5432/ci?schema=public
         run: npx next build
+
+  env-var-inventory:
+    name: Env var inventory drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Scan env usage and compare with canonical doc
+        run: node scripts/ci/check-env-consistency.mjs --check=inventory
+
+  env-doc-consistency:
+    name: Env var docs consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Ensure required env lists stay in sync with canonical matrix
+        run: node scripts/ci/check-env-consistency.mjs --check=docs
+
+  env-example-validation:
+    name: .env.example validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Ensure .env.example contains required variables
+        run: node scripts/ci/check-env-consistency.mjs --check=env-example

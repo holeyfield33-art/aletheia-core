@@ -416,16 +416,12 @@ aletheia-cyber-core/
 
 ### Configuration
 
-All settings are configurable via environment variables (prefixed `ALETHEIA_`) or `config.yaml`:
+All settings are configurable via environment variables (prefixed `ALETHEIA_`) or `config.yaml`.
 
-| Setting                 | Env Var                          | Default     | Description                                    |
-| ----------------------- | -------------------------------- | ----------- | ---------------------------------------------- |
-| `intent_threshold`      | `ALETHEIA_INTENT_THRESHOLD`      | `0.55`      | Cosine similarity threshold for semantic veto  |
-| `grey_zone_lower`       | `ALETHEIA_GREY_ZONE_LOWER`       | `0.40`      | Lower bound of the grey-zone escalation band   |
-| `rate_limit_per_second` | `ALETHEIA_RATE_LIMIT_PER_SECOND` | `10`        | Max requests per second per IP                 |
-| `mode`                  | `ALETHEIA_MODE`                  | `active`    | Defense mode: `active`, `shadow`, or `monitor` |
-| `log_level`             | `ALETHEIA_LOG_LEVEL`             | `INFO`      | Logging verbosity                              |
-| `audit_log_path`        | `ALETHEIA_AUDIT_LOG_PATH`        | `audit.log` | Path to the structured audit log               |
+Canonical, code-verified environment matrix:
+- [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
+
+The matrix is generated from actual runtime references (`os.getenv`, `process.env`, `env_bool`), dynamic settings bindings in `core/config.py`, and Prisma schema env usage.
 
 ### Known Limitations
 
@@ -509,29 +505,24 @@ If this project is useful to your organization, consider reaching out about our 
 Comprehensive local + hosted configuration is documented in:
 **[docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)**
 
-Below is the quick-start subset.
+Startup-critical subset (full list is in [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)):
 
-| Variable                          | Required         | Description                                                                                                                           |
-| --------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `ALETHEIA_RECEIPT_PRIVATE_KEY`    | YES (production) | Ed25519 private key PEM for signing new audit receipts. Service should use this in active mode.                                       |
-| `ALETHEIA_RECEIPT_SECRET`         | Optional         | Legacy HMAC secret retained only when you must verify older receipts during retention.                                                 |
-| `ALETHEIA_ALIAS_SALT`             | RECOMMENDED      | Salt for daily alias rotation. Prevents enumeration attacks. Generate via `openssl rand -hex 32`.                                     |
-| `ALETHEIA_KEY_SALT`               | RECOMMENDED      | HMAC salt for key store hashing. Falls back to plain SHA-256 with a logged warning if unset.                                          |
-| `ALETHEIA_MODE`                   | No               | `active` (default), `shadow`, or `monitor`. Production refuses to start in shadow mode when `ENVIRONMENT=production`.                 |
-| `ALETHEIA_LOG_LEVEL`              | No               | `INFO` (default), `DEBUG`, `WARNING`                                                                                                  |
-| `ALETHEIA_AUDIT_LOG_PATH`         | No               | Path to the structured audit log. Default: `audit.log`. Rejects `..` path components.                                                 |
-| `ALETHEIA_RATE_LIMIT_PER_SECOND`  | No               | Requests per IP per second. Default: `10`                                                                                             |
-| `ALETHEIA_TRUSTED_PROXY_DEPTH`    | No               | Number of trusted reverse proxies (0–5). Default: `1`. Set to `0` for direct connections.                                             |
-| `ALETHEIA_CORS_ORIGINS`           | No               | Comma-separated allowed CORS origins. Default: `https://app.aletheia-core.com,https://aletheia-core.com`                              |
-| `ALETHEIA_CONFIG_PATH`            | No               | Path to a YAML config file. Default: searches for `config.yaml` / `config.yml` in the working directory.                              |
-| `ALETHEIA_KEYSTORE_PATH`          | No               | Path to the key store SQLite database.                                                                                                |
-| `ALETHEIA_MANIFEST_KEY_VERSION`   | No               | Key version tag for manifest signing. Default: `v1`.                                                                                  |
-| `UPSTASH_REDIS_REST_URL`          | YES (production) | Upstash Redis REST endpoint for rate limiting and decision store. Required in production.                                             |
-| `UPSTASH_REDIS_REST_TOKEN`        | YES (production) | Upstash Redis REST token. Required when URL is set.                                                                                   |
-| `CONSCIOUSNESS_PROXIMITY_ENABLED` | No               | Enable optional proximity module. Default: `false`.                                                                                   |
-| `ENVIRONMENT`                     | No               | Set to `production` to enforce active mode and require KeyStore auth.                                                                 |
-| `ALETHEIA_DB_PATH`                | No               | Path to the SQLite decision store. Default: `data/aletheia_decisions.sqlite3`. Used by backup script.                                 |
-| `ALETHEIA_BACKUP_RETENTION_DAYS`  | No               | Days to retain SQLite backups. Default: `7`. Used by `scripts/backup_sqlite.sh`.                                                      |
+| Variable | Required | Condition |
+| --- | --- | --- |
+| `ALETHEIA_RECEIPT_SECRET` | Yes | Required when `ALETHEIA_MODE=active` (default). |
+| `ALETHEIA_ALIAS_SALT` | Yes | Required in production. |
+| `ALETHEIA_KEY_SALT` | Yes | Required in production. |
+| `REDIS_URL` | Conditionally required | Required in production unless both Upstash vars are set. |
+| `UPSTASH_REDIS_REST_URL` | Conditionally required | Required in production if `REDIS_URL` is not set. |
+| `UPSTASH_REDIS_REST_TOKEN` | Conditionally required | Required in production if `REDIS_URL` is not set. |
+| `DATABASE_URL` | Conditionally required | Required if `ALETHEIA_DATABASE_BACKEND=postgres` in production. |
+| `ALETHEIA_ALLOW_SQLITE_PRODUCTION` | Conditionally required | Required when running sqlite backend in production. |
+| `ALETHEIA_ALLOW_ENV_SECRETS` | Conditionally required | Required when using `ALETHEIA_SECRET_BACKEND=env` in production. |
+| `SIGNING_SECRET` | Conditionally required | Required by CLI startup check when running `main.py` in production mode. |
+| `NEXTAUTH_SECRET` | Conditionally required | Required for NextAuth session and JWT flows. |
+| `STRIPE_SECRET_KEY` | Conditionally required | Required when Stripe checkout/usage routes are enabled. |
+| `STRIPE_WEBHOOK_SECRET` | Conditionally required | Required for Stripe webhook verification in production path. |
+| `CRON_SECRET` | Conditionally required | Required for authenticated usage-report cron endpoint. |
 
 ---
 
@@ -542,9 +533,9 @@ Before starting the service in production, complete the following checklist:
 ### 1. Verify required secrets are set
 
 ```bash
-# ALETHEIA_RECEIPT_PRIVATE_KEY is mandatory for active mode
-if [ -z "$ALETHEIA_RECEIPT_PRIVATE_KEY" ] && [ -z "$ALETHEIA_RECEIPT_PRIVATE_KEY_PATH" ]; then
-  echo "ERROR: receipt signing key not set"
+# ALETHEIA_RECEIPT_SECRET is mandatory when ALETHEIA_MODE=active (default)
+if [ -z "$ALETHEIA_RECEIPT_SECRET" ]; then
+  echo "ERROR: ALETHEIA_RECEIPT_SECRET not set"
   exit 1
 fi
 
@@ -553,9 +544,9 @@ if [ -z "$ALETHEIA_ALIAS_SALT" ]; then
   echo "WARNING: ALETHEIA_ALIAS_SALT not set — alias rotation is predictable"
 fi
 
-# Upstash Redis is required in production
-if [ -z "$UPSTASH_REDIS_REST_URL" ]; then
-  echo "ERROR: UPSTASH_REDIS_REST_URL not set — required in production"
+# Production requires either REDIS_URL or both Upstash vars
+if [ "$ENVIRONMENT" = "production" ] && [ -z "$REDIS_URL" ] && [ -z "$UPSTASH_REDIS_REST_URL" ]; then
+  echo "ERROR: REDIS_URL or UPSTASH_REDIS_REST_URL must be set in production"
   exit 1
 fi
 ```
@@ -581,8 +572,7 @@ curl -X POST http://localhost:8000/v1/audit \
     "origin": "admin",
     "action": "Read_Report"
   }'
-# Response must include "signature" field with non-empty HMAC-SHA256 hex string
-# DO NOT use UNSIGNED_DEV_MODE in production
+# Response should include a signed receipt when signing config is present.
 ```
 
 ### 4. Confirm shadow mode does not leak verdicts
@@ -606,7 +596,7 @@ ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
 
 # Start in active mode
 ALETHEIA_MODE=active \
-ALETHEIA_RECEIPT_PRIVATE_KEY_PATH=.secrets/receipt/receipt_ed25519.pem \
+ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32) \
 ALETHEIA_ALIAS_SALT="$ALETHEIA_ALIAS_SALT" \
 uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
 ```
@@ -620,24 +610,16 @@ Before going live in `active` mode, verify all of the following:
 | #   | Check                                         | Command                                                       |
 | --- | --------------------------------------------- | ------------------------------------------------------------- |
 | 1   | Manifest is signed                            | `python main.py sign-manifest`                                |
-| 2   | Ed25519 receipt signing key is configured     | `test -n "$ALETHEIA_RECEIPT_PRIVATE_KEY" -o -n "$ALETHEIA_RECEIPT_PRIVATE_KEY_PATH"` |
+| 2   | Receipt secret is configured                  | `test -n "$ALETHEIA_RECEIPT_SECRET"` |
 | 3   | `ALETHEIA_ALIAS_SALT` is set                  | `echo ${#ALETHEIA_ALIAS_SALT}`                                |
 | 4   | Health endpoint returns `"status":"ok"`       | `curl http://localhost:8000/health`                           |
 | 5   | Receipt signature is not `UNSIGNED_DEV_MODE`  | Inspect `signature` field in `/v1/audit` response             |
 | 6   | Tests pass                                    | `pytest tests/ --ignore=tests/test_api.py -q`                 |
 | 7   | Private key is NOT in Docker image            | `docker run --rm <image> ls /app/manifest/*.key` — must error |
 
-Required environment variables:
+For the full required/optional matrix, use:
 
-| Variable                         | Required          | Min Length | Notes                                   |
-| -------------------------------- | ----------------- | ---------- | --------------------------------------- |
-| `ALETHEIA_RECEIPT_PRIVATE_KEY`   | YES (active mode) | —          | Ed25519 PEM used to sign new receipts   |
-| `ALETHEIA_ALIAS_SALT`            | RECOMMENDED       | 32 chars   | Generate: `openssl rand -hex 32`        |
-| `ALETHEIA_KEY_SALT`              | RECOMMENDED       | —          | HMAC salt for API key hashing.          |
-| `ALETHEIA_MODE`                  | No                | —          | `active` (default), `shadow`, `monitor` |
-| `ALETHEIA_RATE_LIMIT_PER_SECOND` | No                | —          | Default: `10`                           |
-| `ALETHEIA_LOG_LEVEL`             | No                | —          | Default: `INFO`                         |
-| `ALETHEIA_AUDIT_LOG_PATH`        | No                | —          | Default: `audit.log`                    |
+- [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
 
 ---
 

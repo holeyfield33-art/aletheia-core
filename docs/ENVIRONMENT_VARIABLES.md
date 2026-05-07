@@ -1,218 +1,261 @@
-# Environment Variables
+# Environment Variables (Code-Verified)
 
-<!-- markdownlint-disable MD013 -->
+This file is the single source of truth for environment variables used by this repository.
 
-Aletheia Core v1.9.3 environment reference.
+Verification sources:
+- Runtime code references: `os.getenv`, `os.environ`, `env_bool`, `process.env`, `import.meta.env`
+- Dynamic settings loader in `core/config.py` (`ALETHEIA_<field>` mapping)
+- Prisma schema references in `prisma/schema.prisma`
 
-- **Local**: development defaults
-- **Hosted**: Render / Vercel / container platform
+Status meanings:
+- Required: startup/functionality fails without it in the stated condition.
+- Conditionally required: required only for a mode/feature.
+- Optional: default/fallback exists or feature is disabled unless configured.
 
----
+## Startup Gates (FastAPI)
 
-## 1) Core Backend (FastAPI)
+| Variable | Status | Condition | Why |
+| --- | --- | --- | --- |
+| ENVIRONMENT | Optional | Always | Enables strict production checks when `production`. |
+| ALETHEIA_MODE | Optional | Always | Defaults to `active`; production must run active mode. |
+| ALETHEIA_RECEIPT_SECRET | Required | `ALETHEIA_MODE=active` (default) | Startup exits if missing in active mode. |
+| ALETHEIA_ALIAS_SALT | Required | `ENVIRONMENT=production` | Startup exits if missing in production. |
+| ALETHEIA_KEY_SALT | Required | `ENVIRONMENT=production` | Startup exits if missing in production. |
+| REDIS_URL | Conditionally required | `ENVIRONMENT=production` | Required unless Upstash vars are configured. |
+| UPSTASH_REDIS_REST_URL | Conditionally required | `ENVIRONMENT=production` | Required with token if `REDIS_URL` is absent. |
+| UPSTASH_REDIS_REST_TOKEN | Conditionally required | `ENVIRONMENT=production` | Required with URL if `REDIS_URL` is absent. |
+| ALETHEIA_DATABASE_BACKEND | Optional | Always | Default is `sqlite`; `postgres` requires `DATABASE_URL`. |
+| ALETHEIA_DATABASE_URL | Optional | Database URL loaded via settings (`ALETHEIA_DATABASE_URL`) as alternative to `DATABASE_URL`. |
+| DATABASE_URL | Conditionally required | prod + `ALETHEIA_DATABASE_BACKEND=postgres` | Required and must include `sslmode=require`. |
+| ALETHEIA_ALLOW_SQLITE_PRODUCTION | Conditionally required | prod + sqlite backend | Explicit acknowledgement required for sqlite in prod. |
+| ALETHEIA_SECRET_BACKEND | Optional | Always | Default is `env`; can be `vault/aws/azure/gcp`. |
+| ALETHEIA_ALLOW_ENV_SECRETS | Conditionally required | prod + `ALETHEIA_SECRET_BACKEND=env` | Explicit acknowledgement required for env-backed secrets in prod. |
 
-| Variable                        | Local       | Hosted       | Purpose                                            |
-| ------------------------------- | ----------- | ------------ | -------------------------------------------------- |
-| `ENVIRONMENT`                   | Recommended | Yes          | Set `production` for strict guards.                |
-| `ACTIVE_MODE`                   | No          | Recommended  | Production safety confirmation.                    |
-| `ALETHEIA_MODE`                 | Recommended | Yes          | `active`, `shadow`, `monitor`.                     |
-| ~~`ALETHEIA_API_KEYS`~~         | —           | **Removed**  | Removed in v1.9.0. Use KeyStore (`POST /v1/keys`). |
-| ~~`ALETHEIA_ADMIN_KEY`~~        | —           | **Removed**  | Removed in v1.9.0. Use RBAC permissions.           |
-| `ALETHEIA_RECEIPT_PRIVATE_KEY`  | Recommended | Yes          | Ed25519 private key PEM for signing new receipts.  |
-| `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` | Optional | Recommended  | Filesystem path to the Ed25519 private key PEM.    |
-| `ALETHEIA_RECEIPT_PUBLIC_KEY`   | Optional    | Optional     | Ed25519 public key PEM for verification/disclosure. |
-| `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` | Optional | Optional     | Filesystem path to the Ed25519 public key PEM.     |
-| `ALETHEIA_RECEIPT_SECRET`       | Optional    | Optional     | Legacy HMAC secret used only to verify older receipts during retention. |
-| `ALETHEIA_ALIAS_SALT`           | Recommended | Recommended  | Judge alias rotation salt.                         |
-| `ALETHEIA_ROTATION_SALT`        | Recommended | Recommended  | Nitpicker mode rotation HMAC.                      |
-| `ALETHEIA_KEY_SALT`             | Recommended | Yes          | Salt for API key hashing.                          |
-| `ALETHEIA_MANIFEST_HASH`        | Optional    | Recommended  | Pinned SHA-256 of manifest.                        |
-| `ALETHEIA_MANIFEST_KEY_VERSION` | Optional    | Optional     | Key version (default `v1`).                        |
-| `SIGNING_SECRET`                | Optional    | Yes (strict) | Production guard (CLI/runtime).                    |
+## Dynamic Settings Vars (`core/config.py`)
 
-Manifest signing private key is file-based for the CLI flow (for example `.secrets/manifest/security_policy.ed25519.key`) and should exist only on the offline signing machine, not on Render or Vercel.
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ALETHEIA_EMBEDDING_MODEL | Optional | Embedding model id. |
+| ALETHEIA_INTENT_THRESHOLD | Optional | Judge semantic threshold. |
+| ALETHEIA_GREY_ZONE_LOWER | Optional | Grey-zone lower bound. |
+| ALETHEIA_NITPICKER_SIMILARITY_THRESHOLD | Optional | Nitpicker threshold. |
+| ALETHEIA_POLYMORPHIC_MODES | Optional | Override Nitpicker rotation list. |
+| ALETHEIA_LOG_LEVEL | Optional | Backend logging level. |
+| ALETHEIA_AUDIT_LOG_PATH | Optional | Audit log path in settings model. |
+| ALETHEIA_POLICY_THRESHOLD | Optional | Scout deny threshold. |
+| ALETHEIA_RATE_LIMIT_PER_SECOND | Optional | Per-IP rate limit. |
+| ALETHEIA_CLIENT_ID | Optional | Metadata client id label. |
+| ALETHEIA_AUTH_PROVIDER | Optional | Auth provider (`api_key`, `oidc`, `saml`, `multi`). |
+| ALETHEIA_OIDC_ISSUER | Optional | OIDC issuer URL. |
+| ALETHEIA_OIDC_CLIENT_ID | Optional | OIDC client id. |
+| ALETHEIA_OIDC_AUDIENCE | Optional | OIDC JWT audience check. |
+| ALETHEIA_OIDC_ROLE_CLAIM | Optional | OIDC role claim key. |
+| ALETHEIA_SAML_METADATA_URL | Optional | SAML metadata URL. |
+| ALETHEIA_SAML_ENTITY_ID | Optional | SAML SP entity id. |
+| ALETHEIA_SAML_ACS_URL | Optional | SAML ACS URL. |
+| ALETHEIA_FIPS_MODE | Optional | Enables FIPS compliance checks. |
 
----
+## Backend Runtime Vars (literal references)
 
-## 1b) Production Backend & Secrets
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ACTIVE_MODE | Optional | CLI/demo launch guard. |
+| ALETHEIA_CONFIG_PATH | Optional | YAML config path. |
+| ALETHEIA_MANIFEST_HASH | Optional | Manifest hash pinning check. |
+| ALETHEIA_MANIFEST_KEY_VERSION | Optional | Manifest key version tag. |
+| ALETHEIA_MANIFEST_SIGNATURE_PATH | Optional | Custom manifest signature file path. |
+| ALETHEIA_MANIFEST_PUBLIC_KEY_PATH | Optional | Custom manifest public key file path. |
+| ALETHEIA_ROTATION_SALT | Optional | HMAC salt used for daily rotation seed fallback logic. |
+| ALETHEIA_TRUSTED_PROXY_DEPTH | Optional | Trusted reverse-proxy hop depth. |
+| ALETHEIA_CORS_ORIGINS | Optional | Backend CORS allowlist. |
+| ALETHEIA_CORS_ORIGIN | Optional | Legacy single-origin CORS value (demo route). |
+| ALETHEIA_INTERNAL_SECRET | Optional | Internal Vercel->Render trust header secret. |
+| ALETHEIA_AUTH_DISABLED | Optional | Dev auth bypass (blocked in production). |
+| ALETHEIA_API_KEYS | Legacy/optional | Deprecated env key path; read for warning/block behavior. |
+| ALETHEIA_ADMIN_KEY | Legacy/optional | Legacy admin-key compatibility path. |
+| ALETHEIA_API_KEY | Optional | Demo proxy fallback API key. |
+| ALETHEIA_DEMO_API_KEY | Optional | Preferred demo proxy API key. |
+| ALETHEIA_DEMO_ORIGINS | Optional | Demo origins allowlist. |
+| ALETHEIA_ALLOWED_BACKEND_HOSTS | Optional | Demo/proxy backend host allowlist. |
+| ALETHEIA_BACKEND_URL | Optional | Backend URL for Next.js proxy routes. |
+| ALETHEIA_BACKEND_URLS | Optional | Demo backend failover list. |
+| ALETHEIA_BASE_URL | Optional | Backend URL fallback for proxies. |
+| ALETHEIA_REDIS_URL | Optional | Alternate redis URL checked by production validator. |
+| ALETHEIA_KEYSTORE_PATH | Optional | KeyStore sqlite path. |
+| ALETHEIA_DECISION_DB_PATH | Optional | Decision-store sqlite path. |
+| ALETHEIA_TRIAL_QUOTA | Optional | Trial monthly quota override. |
+| ALETHEIA_PRO_QUOTA | Optional | Pro monthly quota override. |
+| ALETHEIA_MAX_QUOTA | Optional | Max monthly quota override. |
+| DATABASE_LOG_QUERIES | Optional | Slow-query logging toggle. |
+| DATABASE_SLOW_QUERY_MS | Optional | Slow-query threshold in ms. |
+| EVAL_RATE_LIMIT_PER_MINUTE | Optional | Evaluation limiter per-minute cap. |
+| EVAL_RATE_BURST | Optional | Evaluation limiter burst cap. |
+| METRICS_ENABLED | Optional | Enables `/metrics`. |
+| ALETHEIA_METRICS_TOKEN | Optional | Bearer token required by `/metrics` in production. |
+| LOG_FORMAT | Optional | Log output format (`json` or text). |
 
-| Variable                               | Local    | Hosted         | Purpose                                               |
-| -------------------------------------- | -------- | -------------- | ----------------------------------------------------- |
-| `ALETHEIA_DATABASE_BACKEND`            | Optional | Recommended    | `sqlite` or `postgres`.                               |
-| `DATABASE_URL`                         | Optional | Yes (postgres) | Postgres connection string.                           |
-| `ALETHEIA_SECRET_BACKEND`              | Optional | Recommended    | `env`/`vault`/`aws`/`azure`/`gcp`.                    |
-| `ALETHEIA_ALLOW_ENV_SECRETS`           | Optional | If using `env` | Opt-in for env secrets in prod.                       |
-| ~~`ALETHEIA_ALLOW_SQLITE_PRODUCTION`~~ | —        | **Removed**    | Removed in v1.9.0. Production requires Upstash Redis. |
-| `ALETHEIA_FIPS_MODE`                   | Optional | Optional       | FIPS-140 compliance checks.                           |
+## TPM / Chain Anchor
 
----
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ALETHEIA_REQUIRE_TPM | Optional | Hard-fail startup when TPM hardware is unavailable. |
+| ALETHEIA_TPM_DEVICE | Optional | TPM device path (default `/dev/tpm0`). |
+| ALETHEIA_CHAIN_KEY_PATH | Optional | Software fallback chain key persistence path. |
+| ALETHEIA_COUNTER_LOG_PATH | Optional | Counter log path used by TPM sovereignty proof tooling. |
 
-## 2) Core Runtime / Policy
+## Receipt Keys / Signing
 
-| Variable                                  | Local    | Hosted      | Purpose                                                               |
-| ----------------------------------------- | -------- | ----------- | --------------------------------------------------------------------- |
-| `ALETHEIA_CONFIG_PATH`                    | Optional | Optional    | YAML config file path.                                                |
-| `ALETHEIA_POLICY_THRESHOLD`               | Optional | Optional    | Scout block threshold.                                                |
-| `ALETHEIA_INTENT_THRESHOLD`               | Optional | Optional    | Judge semantic threshold.                                             |
-| `ALETHEIA_GREY_ZONE_LOWER`                | Optional | Optional    | Grey-zone lower bound.                                                |
-| `ALETHEIA_NITPICKER_SIMILARITY_THRESHOLD` | Optional | Optional    | Nitpicker threshold.                                                  |
-| `ALETHEIA_EMBEDDING_MODEL`                | Optional | Optional    | Default `sentence-transformers/all-MiniLM-L6-v2`.                     |
-| `ALETHEIA_MODEL_CACHE_DIR`                | Optional | Optional    | Override local model cache root (default `~/.cache/aletheia/models`). |
-| `ALETHEIA_POLYMORPHIC_MODES`              | Optional | Optional    | Nitpicker mode list override.                                         |
-| `ALETHEIA_CLIENT_ID`                      | Optional | Optional    | Metadata client ID label.                                             |
-| `ALETHEIA_LOG_LEVEL`                      | Optional | Optional    | `INFO`, `DEBUG`, etc.                                                 |
-| ~~`ALETHEIA_LOG_PII`~~                    | —        | **Removed** | Removed in v1.9.0. PII is always redacted.                            |
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ALETHEIA_RECEIPT_PRIVATE_KEY | Optional | Inline Ed25519 private key PEM. |
+| ALETHEIA_RECEIPT_PRIVATE_KEY_PATH | Optional | File path to Ed25519 private key PEM. |
+| ALETHEIA_RECEIPT_PUBLIC_KEY | Optional | Inline Ed25519 public key PEM. |
+| ALETHEIA_RECEIPT_PUBLIC_KEY_PATH | Optional | File path to Ed25519 public key PEM. |
+| SIGNING_SECRET | Conditionally required | Required by CLI startup check (`main.py`) in production mode. |
 
----
+## Semantic / Qdrant
 
-## 3) Storage, Rate Limit, Network
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ALETHEIA_SEMANTIC_ENABLED | Optional | Enables Qdrant semantic layer. |
+| ALETHEIA_QDRANT_URL | Optional | Qdrant endpoint. |
+| ALETHEIA_QDRANT_API_KEY | Optional | Qdrant cloud API key. |
+| ALETHEIA_QDRANT_COLLECTION | Optional | Qdrant collection name. |
+| ALETHEIA_QDRANT_TIMEOUT_MS | Optional | Qdrant timeout in ms. |
+| ALETHEIA_SEMANTIC_MANIFEST | Optional | Semantic manifest override path. |
+| ALETHEIA_DATA_MANIFEST | Optional | Semantic manifest fallback path. |
+| HUGGING_FACE_HUB_TOKEN | Optional | Model download auth token. |
+| ALETHEIA_MODEL_CACHE_DIR | Optional | Model cache directory override. |
 
-| Variable                         | Local    | Hosted      | Purpose                                                             |
-| -------------------------------- | -------- | ----------- | ------------------------------------------------------------------- |
-| `ALETHEIA_AUDIT_LOG_PATH`        | Optional | Recommended | Audit log file path.                                                |
-| `ALETHEIA_KEYSTORE_PATH`         | Optional | Recommended | SQLite API key store path.                                          |
-| `ALETHEIA_DECISION_DB_PATH`      | Optional | Recommended | Decision store DB path.                                             |
-| `UPSTASH_REDIS_REST_URL`         | Optional | **Yes**     | Redis for rate limit/replay/decision store. Required in production. |
-| `UPSTASH_REDIS_REST_TOKEN`       | Optional | **Yes**     | Upstash Redis auth token. Required in production.                   |
-| `ALETHEIA_RATE_LIMIT_PER_SECOND` | Optional | Optional    | Per-IP request limit.                                               |
-| `ALETHEIA_TRUSTED_PROXY_DEPTH`   | Optional | Recommended | Trusted proxy hop count.                                            |
-| `ALETHEIA_CORS_ORIGINS`          | Optional | Recommended | CORS allowlist (comma-sep).                                         |
-| `ALETHEIA_CORS_ORIGIN`           | Optional | Optional    | Legacy single-origin CORS.                                          |
-| `ALETHEIA_ALLOWED_BACKEND_HOSTS` | Optional | Recommended | SSRF backend allowlist.                                             |
-| `ALETHEIA_BACKEND_URL`           | Optional | Optional    | Next.js API proxy URL.                                              |
-| `ALETHEIA_BASE_URL`              | Optional | Optional    | Canonical base URL for links.                                       |
+## Exporters / Integrations
 
-### Render Persistent Disk (recommended for SQLite deployments)
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ALETHEIA_ES_URL | Optional | Enables Elasticsearch exporter. |
+| ALETHEIA_ES_INDEX | Optional | Elasticsearch index name. |
+| ALETHEIA_ES_API_KEY | Optional | Elasticsearch API key auth. |
+| ALETHEIA_ES_USERNAME | Optional | Elasticsearch basic-auth user. |
+| ALETHEIA_ES_PASSWORD | Optional | Elasticsearch basic-auth password. |
+| ALETHEIA_SPLUNK_HEC_URL | Optional | Enables Splunk exporter (with token). |
+| ALETHEIA_SPLUNK_HEC_TOKEN | Optional | Splunk HEC token. |
+| ALETHEIA_SPLUNK_INDEX | Optional | Splunk index. |
+| ALETHEIA_SPLUNK_SOURCE | Optional | Splunk source label. |
+| ALETHEIA_WEBHOOK_URL | Optional | Enables webhook exporter. |
+| ALETHEIA_WEBHOOK_SECRET | Optional | Webhook shared secret header value. |
+| ALETHEIA_SYSLOG_HOST | Optional | Enables syslog exporter. |
+| ALETHEIA_SYSLOG_PORT | Optional | Syslog port. |
+| ALETHEIA_SYSLOG_PROTO | Optional | Syslog protocol (`udp`/`tcp`). |
+| ALETHEIA_EXPORTER_MAX_RETRIES | Optional | Export retry count. |
+| ALETHEIA_EXPORTER_RETRY_DELAY | Optional | Export retry base delay seconds. |
+| ALETHEIA_EXPORTER_DLQ_SIZE | Optional | Dead-letter queue size cap. |
 
-- Mount path: `/var/data`
-- Suggested env values:
-  - `ALETHEIA_KEYSTORE_PATH=/var/data/keys.db`
-  - `ALETHEIA_DECISION_DB_PATH=/var/data/decisions.sqlite3`
-  - `ALETHEIA_AUDIT_LOG_PATH=/var/data/audit.log`
-- If you do not use `ALETHEIA_DATABASE_BACKEND=postgres`, persistent disk is required for durable API keys and quota counters across restarts.
+## Secret Backends
 
----
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| AWS_REGION | Optional | AWS region for Secrets Manager backend. |
+| ALETHEIA_AWS_SECRET_PREFIX | Optional | AWS secret name prefix. |
+| AZURE_VAULT_URL | Optional | Azure Key Vault URL. |
+| GCP_PROJECT_ID | Optional | GCP project id for Secret Manager. |
+| ALETHEIA_GCP_SECRET_PREFIX | Optional | GCP secret prefix. |
+| VAULT_ADDR | Optional | Vault server address. |
+| VAULT_NAMESPACE | Optional | Vault namespace. |
+| VAULT_MOUNT_POINT | Optional | Vault mount point. |
+| VAULT_PATH_PREFIX | Optional | Vault path prefix. |
+| VAULT_TOKEN | Optional | Vault token auth. |
+| VAULT_ROLE_ID | Optional | Vault AppRole role id. |
+| VAULT_SECRET_ID | Optional | Vault AppRole secret id. |
 
-## 4) Frontend / Auth (Next.js)
+## WebSocket Audit
 
-| Variable                 | Local       | Hosted      | Purpose                           |
-| ------------------------ | ----------- | ----------- | --------------------------------- |
-| `NODE_ENV`               | Auto        | Auto        | Runtime environment marker.       |
-| `NEXTAUTH_URL`           | Yes         | Yes         | NextAuth canonical base URL.      |
-| `NEXTAUTH_SECRET`        | Yes         | Yes         | Signing secret (32+ chars).       |
-| `DATABASE_URL`           | Yes         | Yes         | Prisma runtime DB connection.     |
-| `DIRECT_URL`             | Recommended | Recommended | Prisma direct URL for migrations. |
-| `AUTH_TRUST_HOST`        | Optional    | Optional    | Trusted host mode.                |
-| `VERCEL`                 | Auto        | Auto        | Set by Vercel runtime.            |
-| `VERCEL_URL`             | Auto        | Auto        | Deployment host from Vercel.      |
-| `NEXT_PUBLIC_VERCEL_ENV` | Auto        | Auto        | Vercel environment metadata.      |
-| `NEXT_PUBLIC_VERCEL_URL` | Auto        | Auto        | Public deployment host.           |
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| ALETHEIA_WS_JWT_SECRET | Optional | JWT secret for websocket token mode. |
+| ALETHEIA_WS_MAX_PER_TENANT | Optional | Websocket connection cap per tenant. |
+| ALETHEIA_WS_HEARTBEAT_SECONDS | Optional | Websocket heartbeat interval. |
 
-### Optional OAuth Providers
+## Frontend (Next.js / Vercel)
 
-| Variable               | Required | Purpose              |
-| ---------------------- | -------- | -------------------- |
-| `GITHUB_CLIENT_ID`     | Optional | GitHub OAuth login.  |
-| `GITHUB_CLIENT_SECRET` | Optional | GitHub OAuth secret. |
-| `GOOGLE_CLIENT_ID`     | Optional | Google OAuth login.  |
-| `GOOGLE_CLIENT_SECRET` | Optional | Google OAuth secret. |
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| NODE_ENV | Platform/optional | Node runtime mode checks. |
+| NEXTAUTH_SECRET | Conditionally required | Required for NextAuth session/JWT flows. |
+| NEXTAUTH_URL | Optional | Canonical auth URL override. |
+| VERCEL_URL | Optional | Canonical URL fallback on Vercel. |
+| NEXT_PUBLIC_VERCEL_ENV | Optional | UI preview/production hint. |
+| NEXT_PUBLIC_VERCEL_URL | Optional | UI deployment host hint. |
+| NEXT_PUBLIC_MARKETING_ORIGIN | Optional | Public marketing origin URL. |
+| NEXT_PUBLIC_APP_ORIGIN | Optional | Public app origin URL. |
+| NEXT_PUBLIC_API_ORIGIN | Optional | Public API origin URL. |
+| NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL | Optional | Public homepage demo video URL. |
+| AUTH_CLAIM_REFRESH_MS | Optional | Frontend auth claim refresh interval. |
+| CSP_EXTRA_CONNECT_SRC | Optional | Extra CSP connect-src values. |
+| TRUST_CF_HEADERS | Optional | Use Cloudflare headers for client IP extraction. |
+| GITHUB_CLIENT_ID | Optional | GitHub OAuth provider client id. |
+| GITHUB_CLIENT_SECRET | Optional | GitHub OAuth provider client secret. |
+| GOOGLE_CLIENT_ID | Optional | Google OAuth provider client id. |
+| GOOGLE_CLIENT_SECRET | Optional | Google OAuth provider client secret. |
 
----
+## Billing / Email / Cron
 
-## 5) Billing / Email / Integrations
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| STRIPE_SECRET_KEY | Conditionally required | Stripe checkout and usage-report routes. |
+| STRIPE_WEBHOOK_SECRET | Conditionally required | Stripe webhook verification (required in production path). |
+| STRIPE_SCALE_PRICE_ID | Optional | Hosted scale plan price id. |
+| STRIPE_PRO_PRICE_ID | Optional | Hosted pro plan price id. |
+| STRIPE_PAYG_METERED_PRICE_ID | Optional | PAYG metered price id. |
+| STRIPE_SCALE_PRICE_AMOUNT | Optional | Scale plan amount fallback. |
+| STRIPE_PRO_PRICE_AMOUNT | Optional | Pro plan amount fallback. |
+| STRIPE_SCALE_CURRENCY | Optional | Scale currency fallback. |
+| STRIPE_PRO_CURRENCY | Optional | Pro currency fallback. |
+| STRIPE_PAYG_METERED_CURRENCY | Optional | PAYG metered currency fallback. |
+| STRIPE_PAYG_CURRENCY | Optional | PAYG currency fallback. |
+| CRON_SECRET | Conditionally required | Auth secret for usage cron route. |
+| SLACK_WEBHOOK_URL | Optional | Usage report destination. |
+| RESEND_API_KEY | Optional | Transactional email provider key. |
+| EMAIL_FROM | Optional | Email sender override. |
 
-| Variable                       | Local    | Hosted      | Purpose                                            |
-| ------------------------------ | -------- | ----------- | -------------------------------------------------- |
-| `STRIPE_SECRET_KEY`            | Optional | For billing | Stripe API key.                                    |
-| `STRIPE_WEBHOOK_SECRET`        | Optional | For billing | Stripe webhook signature.                          |
-| `STRIPE_SCALE_PRICE_ID`        | Optional | Recommended | Scale plan price id.                               |
-| `STRIPE_SCALE_PRICE_AMOUNT`    | Optional | Optional    | Fallback Scale amount.                             |
-| `STRIPE_SCALE_CURRENCY`        | Optional | Optional    | Fallback Scale currency.                           |
-| `STRIPE_PRO_PRICE_ID`          | Optional | Recommended | Pro plan price id.                                 |
-| `STRIPE_PRO_PRICE_AMOUNT`      | Optional | Optional    | Fallback Pro amount.                               |
-| `STRIPE_PRO_CURRENCY`          | Optional | Optional    | Fallback currency.                                 |
-| `ALETHEIA_RECEIPT_SECRET`       | Recommended | Yes (active) | Legacy HMAC secret used for startup guard and old-receipt verification during retention. |
-| `STRIPE_PAYG_METERED_CURRENCY` | Optional | Optional    | PAYG currency.                                     |
-| `CRON_SECRET`                  | Optional | Recommended | Bearer secret for usage-report cron endpoint auth. |
-| `RESEND_API_KEY`               | Optional | Recommended | Transactional email key.                           |
-| `EMAIL_FROM`                   | Optional | Recommended | Sender identity.                                   |
-| `HUGGING_FACE_HUB_TOKEN`       | Optional | Optional    | Model download auth token.                         |
+## Demo Proxy Runtime Tuning
 
----
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| DEMO_UPSTREAM_TIMEOUT_MS | Optional | Demo upstream timeout. |
+| DEMO_UPSTREAM_ATTEMPTS_PER_BACKEND | Optional | Attempts per backend target. |
+| DEMO_UPSTREAM_RETRY_BACKOFF_MS | Optional | Retry backoff delay. |
+| DEMO_RATE_LIMIT | Optional | Demo per-IP rate limit. |
+| DEMO_RATE_WINDOW_MS | Optional | Demo rate-limit window. |
+| DEMO_NONCE_SECRET | Optional | HMAC secret for demo nonce/receipt guard fallback. |
 
+## Proximity Module
 
-## 6) Optional Proximity / Advanced
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| CONSCIOUSNESS_PROXIMITY_ENABLED | Optional | Enables optional proximity subsystem. |
+| MNEME_URL | Optional | Mneme endpoint URL. |
+| MNEME_API_KEY | Optional | Mneme API key. |
+| GEOMETRIC_BRAIN_URL | Optional | Geometric brain endpoint URL. |
+| SPECTRAL_POLL_INTERVAL | Optional | Spectral poll interval seconds. |
+| SPECTRAL_DEGRADATION_THRESHOLD | Optional | Spectral degradation threshold. |
+| SPECTRAL_DEGRADATION_CONSECUTIVE | Optional | Consecutive degradation threshold count. |
+| ALETHEIA_ANCHOR_STATE_PATH | Optional | Anchor state persistence path. |
 
+## Prisma Tooling
 
-| Variable                          | Required | Purpose                                                            |
-| --------------------------------- | -------- | ------------------------------------------------------------------ |
-| `CONSCIOUSNESS_PROXIMITY_ENABLED` | Optional | Enable proximity module.                                           |
-| `ALETHEIA_ANCHOR_STATE_PATH`      | Optional | Anchor persistence path.                                           |
-| `MNEME_URL`                       | Optional | Memory/proximity endpoint.                                         |
-| `MNEME_API_KEY`                   | Optional | Memory/proximity API key.                                          |
-| `GEOMETRIC_BRAIN_URL`             | Optional | Advanced relay/scoring.                                            |
-| `ALETHEIA_SMOKE_TIMEOUT`          | Optional | Smoke script timeout override.                                     |
-| `ALETHEIA_DEMO_ORIGINS`           | Optional | Allowed demo origins.                                              |
-| `ALETHEIA_DEMO_API_KEY`           | Optional | Vercel `/api/demo` server-side key sent as `X-API-Key` to backend. |
-| `ALETHEIA_AUTH_DISABLED`          | Optional | Dev auth bypass (never prod).                                      |
-| `ALETHEIA_API_KEY`                | Optional | Fallback for `/api/demo` when `ALETHEIA_DEMO_API_KEY` is unset.    |
+`prisma/schema.prisma` references:
 
-<!-- markdownlint-enable MD013 -->
+| Variable | Status | Purpose |
+| --- | --- | --- |
+| DATABASE_URL | Required for Prisma commands | Prisma datasource URL. |
+| DIRECT_URL | Optional | Prisma direct URL for migrations/introspection. |
 
----
+## Non-runtime (test/CI/script-only) variables in repo
 
-## Minimal Working Sets
+These are present outside runtime app code (tests/workflows/scripts):
 
-### Local (dev)
-
-```bash
-ENVIRONMENT=development
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=<32+ chars>
-DATABASE_URL=<postgres connection>
-DIRECT_URL=<postgres direct connection>
-ALETHEIA_RECEIPT_PRIVATE_KEY=<PEM>
-```
-
-### Hosted (production baseline)
-
-```bash
-ENVIRONMENT=production
-ACTIVE_MODE=true
-NEXTAUTH_URL=https://app.aletheia-core.com
-NEXTAUTH_SECRET=<32+ chars>
-DATABASE_URL=<prod connection>
-DIRECT_URL=<prod direct connection>
-ALETHEIA_MODE=active
-ALETHEIA_RECEIPT_PRIVATE_KEY=<PEM>
-ALETHEIA_ALIAS_SALT=<strong key>
-ALETHEIA_ROTATION_SALT=<strong key>
-ALETHEIA_KEY_SALT=<strong key>
-ALETHEIA_MANIFEST_HASH=<sha256 hex>
-UPSTASH_REDIS_REST_URL=<upstash url>
-UPSTASH_REDIS_REST_TOKEN=<upstash token>
-```
-
-If you must verify pre-migration receipts, also retain `ALETHEIA_RECEIPT_SECRET`
-for the retention window.
-
-API keys are created via `POST /v1/keys` (KeyStore). Admin endpoints
-use RBAC permissions (OIDC/SAML bearer tokens). Upstash Redis is
-required for production deployments (rate limiting, replay defense,
-decision store).
-
-### Demo Proxy Env (Vercel + Render)
-
-- Set on Vercel:
-  - `ALETHEIA_BACKEND_URL=https://aletheia-core.onrender.com`
-  - `ALETHEIA_ALLOWED_BACKEND_HOSTS=aletheia-core.onrender.com,app.aletheia-core.com,aletheia-core.com`
-  - `ALETHEIA_DEMO_API_KEY=<key-from-POST-/v1/keys>` (or `ALETHEIA_API_KEY` as fallback)
-- On Render: also set `ALETHEIA_DEMO_API_KEY` to the **same value** if your KeyStore
-  uses the default SQLite backend on an ephemeral filesystem (e.g. Render free tier).
-  The backend's lifespan hook will idempotently re-import the key on every restart.
-  Skip this only if `ALETHEIA_DATABASE_BACKEND=postgres` with a durable `DATABASE_URL`.
-- For long-lived deploys, prefer Postgres:
-  set `ALETHEIA_DATABASE_BACKEND=postgres` and `DATABASE_URL`, then provision
-  the demo key once via `POST /v1/keys`.
-
-See `docs/LAUNCH_GUIDE.md` → "Hosted demo key persistence" for the full runbook.
+- ALETHEIA_ANOTHER_SECRET
+- ALETHEIA_SMOKE_TIMEOUT
+- ALETHEIA_TEST_SECRET
+- ALETHEIA_WARMUP_URL
+- ALETHEIA_WARMUP_TIMEOUT_SECONDS
+- ALETHEIA_WARMUP_DELAY_SECONDS

@@ -34,15 +34,28 @@ Required production baseline:
 ```bash
 ENVIRONMENT=production
 ALETHEIA_MODE=active
-ALETHEIA_RECEIPT_PRIVATE_KEY=<PEM>
+ALETHEIA_RECEIPT_SECRET=<32+ chars>
 ALETHEIA_KEY_SALT=<32+ chars>
 ALETHEIA_ALIAS_SALT=<32+ chars>
-DATABASE_URL=<postgres-url>
-REDIS_URL=<rediss-url>
+# One redis backend is required in production:
+# REDIS_URL=<rediss-url>
+# or
+# UPSTASH_REDIS_REST_URL=<upstash-url>
+# UPSTASH_REDIS_REST_TOKEN=<upstash-token>
+
+# If using postgres backend in production:
+# ALETHEIA_DATABASE_BACKEND=postgres
+# DATABASE_URL=<postgres-url-with-sslmode=require>
+
+# If staying on sqlite in production, explicit opt-in is required:
+# ALETHEIA_ALLOW_SQLITE_PRODUCTION=true
+
+# If using env secrets backend in production, explicit opt-in is required:
+# ALETHEIA_ALLOW_ENV_SECRETS=true
 ```
 
-If you still need to verify older HMAC receipts during retention, also set
-`ALETHEIA_RECEIPT_SECRET`.
+If you also configure Ed25519 receipt signing keys, set either
+`ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH`.
 
 See [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) for the full matrix.
 
