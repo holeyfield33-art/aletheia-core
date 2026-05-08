@@ -58,6 +58,10 @@ jobs:
           print("Model ready.")
           EOF
 
+      - name: Generate receipt signing keypair for smoke tests
+        run: |
+          python scripts/generate_receipt_keypair.py --out-dir /tmp/receipt --force
+
       - name: Start FastAPI backend
         run: |
           uvicorn bridge.fastapi_wrapper:app --host 127.0.0.1 --port 8000 &
@@ -68,7 +72,7 @@ jobs:
         env:
           ENVIRONMENT: development
           ALETHEIA_RECEIPT_SECRET: ci-test-receipt-secret-32-bytes-ok  # pragma: allowlist secret
-          ALETHEIA_RECEIPT_PRIVATE_KEY_PATH: manifest/security_policy.ed25519.key  # pragma: allowlist secret
+          ALETHEIA_RECEIPT_PRIVATE_KEY_PATH: /tmp/receipt/receipt_private.pem  # pragma: allowlist secret
           ALETHEIA_KEY_SALT: ci-test-key-salt-32-bytes-ok-padding  # pragma: allowlist secret
           ALETHEIA_ALIAS_SALT: ci-test-alias-salt-32-bytes-ok-pad  # pragma: allowlist secret
           ALETHEIA_LOG_LEVEL: WARNING
@@ -88,7 +92,7 @@ jobs:
 
       - name: Verify /v1/public-key
         run: |
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/v1/public-key)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/v1/public-key)
           [ "$STATUS" = "200" ] || (echo "FAIL /v1/public-key returned $STATUS" && exit 1)
 
       - name: Verify /.well-known/aletheia-receipt-key.pem
