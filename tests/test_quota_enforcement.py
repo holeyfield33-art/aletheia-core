@@ -222,6 +222,32 @@ class TestApiKeyAuth(unittest.TestCase):
         self.assertEqual(exc.exception.status_code, 429)
         self.assertEqual(exc.exception.detail.get("error"), "quota_exceeded")
 
+    def test_authorization_bearer_header_accepted_as_api_key(self) -> None:
+        from bridge.fastapi_wrapper import _check_api_key
+
+        request = SimpleNamespace(
+            state=SimpleNamespace(auth_context=None),
+            headers={"authorization": "Bearer sk_trial_header_valid"},
+        )
+
+        with patch(
+            "bridge.fastapi_wrapper.key_store.check_and_increment",
+            return_value=QuotaCheck(
+                allowed=True,
+                reason="OK",
+                requests_used=1,
+                monthly_quota=1000,
+            ),
+        ) as mocked_check:
+            asyncio.run(
+                _check_api_key(
+                    request,
+                    x_api_key=None,
+                )
+            )
+
+        mocked_check.assert_called_once_with("sk_trial_header_valid")
+
 
 class TestKeyManagementEndpoints(unittest.TestCase):
     """Tests for /v1/keys management endpoints (RBAC-based auth)."""

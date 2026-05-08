@@ -27,4 +27,20 @@ describe("middleware anonymous API masking", () => {
 
     expect(response.status).toBe(200);
   });
+
+  it("returns deterministic 404 for unsupported sensitive decoy pages", async () => {
+    const request = new NextRequest("https://app.aletheia-core.com/account");
+    const response = await middleware(request);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "not_found" });
+  });
+
+  it("returns deterministic 404 for nested unsupported sensitive decoy pages", async () => {
+    const request = new NextRequest("https://aletheia-core.com/admin/panel");
+    const response = await middleware(request);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "not_found" });
+  });
 });

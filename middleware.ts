@@ -11,6 +11,10 @@ const BYPASS_PATHS = [
   "/_next/static",
 ];
 
+// Scanner-targeted sensitive paths that are intentionally unsupported.
+// Respond with deterministic 404 to avoid false "auth bypass" positives.
+const SENSITIVE_DECOY_PATHS = ["/account", "/settings", "/billing", "/admin"];
+
 const APP_HOST = new URL(APP_ORIGIN).host;
 const MARKETING_HOST = new URL(MARKETING_ORIGIN).host;
 const MARKETING_WWW_HOST = `www.${MARKETING_HOST}`;
@@ -59,6 +63,13 @@ function redirectToOrigin(
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = stripPort(normalizedHost(request));
+
+  const isSensitiveDecoy = SENSITIVE_DECOY_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+  if (isSensitiveDecoy) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
 
   if (host === APP_HOST) {
     if (pathname === "/") {

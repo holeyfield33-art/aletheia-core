@@ -1062,21 +1062,27 @@ async def _check_api_key(
     if _auth_disabled:
         return
 
-    if not x_api_key:
+    api_key = (x_api_key or "").strip()
+    if not api_key:
+        auth_header = request.headers.get("authorization", "").strip()
+        if auth_header.lower().startswith("bearer "):
+            api_key = auth_header[7:].strip()
+
+    if not api_key:
         raise HTTPException(
             status_code=401,
             detail={"error": "unauthorized", "message": "Valid X-API-Key required."},
         )
 
     # Authenticate via KeyStore only (trial / pro — quota enforced)
-    quota = key_store.check_and_increment(x_api_key)
+    quota = key_store.check_and_increment(api_key)
     if not quota.allowed and "Invalid" in quota.reason:
-        hosted_quota = await _check_hosted_prisma_api_key(x_api_key)
+        hosted_quota = await _check_hosted_prisma_api_key(api_key)
         if hosted_quota is not None:
             if hosted_quota.allowed:
                 _logger.info("api key authenticated via hosted Prisma fallback")
                 request.state.api_user_id = await _lookup_hosted_api_key_user_id(
-                    x_api_key
+                    api_key
                 )
             quota = hosted_quota
     if quota.allowed:
