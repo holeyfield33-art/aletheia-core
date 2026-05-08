@@ -26,7 +26,7 @@ Status meanings:
 | UPSTASH_REDIS_REST_TOKEN | Conditionally required | `ENVIRONMENT=production` | Required with URL if `REDIS_URL` is absent. |
 | ALETHEIA_DATABASE_BACKEND | Optional | Always | Default is `sqlite`; `postgres` requires `DATABASE_URL`. |
 | ALETHEIA_DATABASE_URL | Optional | Database URL loaded via settings (`ALETHEIA_DATABASE_URL`) as alternative to `DATABASE_URL`. |
-| DATABASE_URL | Conditionally required | prod + `ALETHEIA_DATABASE_BACKEND=postgres` | Required and must include `sslmode=require`. |
+| DATABASE_URL | Conditionally required | prod + `ALETHEIA_DATABASE_BACKEND=postgres` | Required and must include `sslmode=require`; for pooled/serverless Postgres add `pgbouncer=true`, otherwise add `statement_cache_size=0` to avoid prepared-statement conflicts. |
 | ALETHEIA_ALLOW_SQLITE_PRODUCTION | Conditionally required | prod + sqlite backend | Explicit acknowledgement required for sqlite in prod. |
 | ALETHEIA_SECRET_BACKEND | Optional | Always | Default is `env`; can be `vault/aws/azure/gcp`. |
 | ALETHEIA_ALLOW_ENV_SECRETS | Conditionally required | prod + `ALETHEIA_SECRET_BACKEND=env` | Explicit acknowledgement required for env-backed secrets in prod. |

@@ -39,3 +39,4 @@ tsconfig.tsbuildinfo
 
 # Generated receipt keypair output
 .secrets/
+.vercel
