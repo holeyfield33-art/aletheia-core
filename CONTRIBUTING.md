@@ -7,19 +7,26 @@ contribute effectively.
 
 1. Fork the repository and clone your fork.
 2. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
+
 3. Install pre-commit hooks:
+
    ```bash
    pip install pre-commit
    pre-commit install
    ```
+
 4. Sign the security manifest (required for tests to pass):
+
    ```bash
    python main.py sign-manifest
    ```
+
 5. Run the test suite to confirm your environment works:
+
    ```bash
    pytest tests/ -v --ignore=tests/test_api.py
    ```
@@ -42,17 +49,19 @@ and includes hash pins for supply-chain integrity.
 
 To add or update a dependency:
 
-    # 1. Edit the source file
-    vim requirements.in
+```bash
+# 1. Edit the source file
+vim requirements.in
 
-    # 2. Recompile the locked file with hashes
-    pip install pip-tools
-    pip-compile --allow-unsafe --generate-hashes \
-      --output-file=requirements.txt requirements.in
+# 2. Recompile the locked file with hashes
+pip install pip-tools
+pip-compile --allow-unsafe --generate-hashes \
+  --output-file=requirements.txt requirements.in
 
-    # 3. Commit both files together
-    git add requirements.in requirements.txt
-    git commit -m "deps: add <package> for <reason>"
+# 3. Commit both files together
+git add requirements.in requirements.txt
+git commit -m "deps: add <package> for <reason>"
+```
 
 The same pattern applies to `requirements-ci.txt` (compiled from itself; minimal CI extras)
 and `requirements-proximity.txt` (compiled from itself; proximity module extras).

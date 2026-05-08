@@ -42,27 +42,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Security Fixes (Critical & High Priority)
 
-**C-1 — Open Redirect via `baseUrl` prefix-match (CRITICAL)**
+## C-1 — Open Redirect via `baseUrl` prefix-match (CRITICAL)
 
 - `lib/auth.ts` redirect callback used `url.startsWith(baseUrl)`, returning true for `https://app.aletheia-core.com.evil.com/...` and `https://app.aletheia-core.com@evil.com/...`.
 - **Fix**: Strict `URL.origin` equality check. Same-origin absolute URLs pass; suffix-match, userinfo, and scheme-mismatch attacks rejected.
 
-**C-2 — Silent email auto-verification in production (CRITICAL)**
+## C-2 — Silent email auto-verification in production (CRITICAL)
 
 - `lib/email.ts` auto-verified accounts when `RESEND_API_KEY` unset, regardless of `NODE_ENV`. Guard wrapped only `console.log`, leaving production vulnerable.
 - **Fix**: Throws `email_service_unconfigured`. Register route catches, deletes user row, returns 503. Unconfigured email service cannot enable impersonation.
 
-**H-1 — JWT staleness after deletion (HIGH)**
+## H-1 — JWT staleness after deletion (HIGH)
 
 - `CLAIM_REFRESH_MS` was 15 minutes, creating wide access window for deleted users.
 - **Fix**: Reduced to 60s (tunable via `AUTH_CLAIM_REFRESH_MS`). Closes post-deletion access on stateless JWT sessions.
 
-**H-2 — Spoofed `cf-connecting-ip` header (HIGH)**
+## H-2 — Spoofed `cf-connecting-ip` header (HIGH)
 
 - `/api/auth/register` and `/api/demo` honored `cf-connecting-ip` unconditionally, bypassing rate limits on non-Cloudflare deployments.
 - **Fix**: Only honor when `TRUST_CF_HEADERS=true`. Default fallback to `x-forwarded-for`.
 
-**H-3 — Demo proxy DoS on shared quota (HIGH)**
+## H-3 — Demo proxy DoS on shared quota (HIGH)
 
 - `/api/demo` had no per-IP rate limit. Attackers could burn shared API key quota in seconds, breaking conversion funnel.
 - **Fix**: Per-IP rate limiter (default 20/hr, tunable via `DEMO_RATE_LIMIT`, `DEMO_RATE_WINDOW_MS`).

@@ -7,7 +7,7 @@ escalation.
 
 | Handle / Role       | Areas                                   | Contact                       |
 | ------------------- | --------------------------------------- | ----------------------------- |
-| `@holeyfield33-art` | Lead — architecture, releases, security | maintainers@aletheia-core.com |
+| `@holeyfield33-art` | Lead — architecture, releases, security | [maintainers@aletheia-core.com](mailto:maintainers@aletheia-core.com) |
 
 Pull request review routing is handled automatically via `.github/CODEOWNERS`.
 
@@ -22,11 +22,11 @@ open a `governance` issue with a short proposal.
 
 | Situation                              | Channel                                                               |
 | -------------------------------------- | --------------------------------------------------------------------- |
-| Security vulnerability                 | security@aletheia-core.com (see [SECURITY.md](SECURITY.md))           |
-| Code of Conduct incident               | info@aletheia-core.com (see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)) |
+| Security vulnerability                 | [security@aletheia-core.com](mailto:security@aletheia-core.com) (see [SECURITY.md](SECURITY.md))           |
+| Code of Conduct incident               | [info@aletheia-core.com](mailto:info@aletheia-core.com) (see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)) |
 | Bug or feature                         | GitHub issue                                                          |
 | Question                               | GitHub Discussions or [SUPPORT.md](SUPPORT.md)                        |
-| Broken hosted demo / production outage | security@aletheia-core.com                                            |
+| Broken hosted demo / production outage | [security@aletheia-core.com](mailto:security@aletheia-core.com)                                            |
 
 ## Decision-making
 
