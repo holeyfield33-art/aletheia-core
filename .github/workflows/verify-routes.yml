@@ -68,6 +68,7 @@ jobs:
         env:
           ENVIRONMENT: development
           ALETHEIA_RECEIPT_SECRET: ci-test-receipt-secret-32-bytes-ok  # pragma: allowlist secret
+          ALETHEIA_RECEIPT_PRIVATE_KEY_PATH: manifest/security_policy.ed25519.key  # pragma: allowlist secret
           ALETHEIA_KEY_SALT: ci-test-key-salt-32-bytes-ok-padding  # pragma: allowlist secret
           ALETHEIA_ALIAS_SALT: ci-test-alias-salt-32-bytes-ok-pad  # pragma: allowlist secret
           ALETHEIA_LOG_LEVEL: WARNING
