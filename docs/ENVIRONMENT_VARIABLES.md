@@ -254,6 +254,8 @@ Status meanings:
 These are present outside runtime app code (tests/workflows/scripts):
 
 - ALETHEIA_ANOTHER_SECRET
+- ALETHEIA_API_URL
+- ALETHEIA_AUTH_HEADER
 - ALETHEIA_SMOKE_TIMEOUT
 - ALETHEIA_TEST_SECRET
 - ALETHEIA_WARMUP_URL

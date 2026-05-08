@@ -60,7 +60,7 @@ jobs:
 
       - name: Start FastAPI backend
         run: |
-          uvicorn main:app --host 127.0.0.1 --port 8000 &
+          uvicorn bridge.fastapi_wrapper:app --host 127.0.0.1 --port 8000 &
           # Wait for startup
           for i in $(seq 1 20); do
             curl -sf http://127.0.0.1:8000/health && break || sleep 2
@@ -248,11 +248,6 @@ jobs:
         image: qdrant/qdrant:latest
         ports:
           - 6333:6333
-        options: >-
-          --health-cmd "curl -sf http://localhost:6333/healthz"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
