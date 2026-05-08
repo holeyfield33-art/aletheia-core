@@ -959,6 +959,18 @@ async def _persist_audit_log(
 
     try:
         async with _bridge_pool.acquire() as conn:
+            # Upsert a minimal User stub so the AuditLog FK constraint is always
+            # satisfied, even when the userId originates from a Render-issued key
+            # that has never touched the Vercel/Supabase User table.
+            if user_id:
+                await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
+                    """
+                    INSERT INTO "User" (id, "updatedAt")
+                    VALUES ($1, NOW())
+                    ON CONFLICT (id) DO UPDATE SET "updatedAt" = EXCLUDED."updatedAt"
+                    """,
+                    user_id,
+                )
             await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
                 """
                 INSERT INTO "AuditLog" (
