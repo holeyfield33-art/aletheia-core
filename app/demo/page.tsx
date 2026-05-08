@@ -213,25 +213,24 @@ export default function DemoPage() {
     setShowReceipt(false);
   }
 
-  const runAudit = useCallback(async () => {
-    if (inflight.current) return; // hard guard against spam clicks
-    const trimmed = payload.trim();
-    if (!trimmed) return;
-
+  /** Shared audit submission logic — used by both runAudit and quickRun. */
+  async function submitAudit(
+    auditPayload: string,
+    auditOrigin: string,
+    auditAction: string,
+  ): Promise<void> {
+    if (inflight.current) return;
     inflight.current = true;
     setLoading(true);
-    setResult(null);
-    setShowReceipt(false);
-    setRetryAfter(null);
 
     try {
       const res = await fetchWithRetry("/api/demo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          payload: trimmed.slice(0, 2000),
-          origin: (origin || "demo-client").trim().slice(0, 64),
-          action,
+          payload: auditPayload.trim().slice(0, 2000),
+          origin: (auditOrigin || "demo-client").trim().slice(0, 64),
+          action: auditAction,
         }),
       });
       const rlRemaining = res.headers.get("X-RateLimit-Remaining");
@@ -247,6 +246,14 @@ export default function DemoPage() {
         const ra = Number(res.headers.get("Retry-After") || "5");
         setRetryAfter(ra);
         setResult({ error: "rate_limited" });
+      } else if (res.status === 503) {
+        const data: AuditResult = await res.json().catch(() => ({}));
+        setResult({
+          error: "service_unavailable",
+          message:
+            data.message ||
+            "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds.",
+        });
       } else {
         const data: AuditResult = await res.json();
         if (data.metadata) {
@@ -261,10 +268,18 @@ export default function DemoPage() {
       setLoading(false);
       inflight.current = false;
     }
+  }
+
+  const runAudit = useCallback(async () => {
+    const trimmed = payload.trim();
+    if (!trimmed) return;
+    setResult(null);
+    setShowReceipt(false);
+    setRetryAfter(null);
+    await submitAudit(trimmed, origin, action);
   }, [payload, origin, action]);
 
   async function quickRun(idx: number) {
-    if (inflight.current) return;
     const p = PRESETS[idx];
     setActivePreset(idx);
     setPayload(p.payload);
@@ -273,46 +288,7 @@ export default function DemoPage() {
     setResult(null);
     setShowReceipt(false);
     setRetryAfter(null);
-
-    inflight.current = true;
-    setLoading(true);
-    try {
-      const res = await fetchWithRetry("/api/demo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          payload: p.payload.trim().slice(0, 2000),
-          origin: p.origin,
-          action: p.action,
-        }),
-      });
-      const rlRemaining = res.headers.get("X-RateLimit-Remaining");
-      if (rlRemaining !== null) setRateLimitRemaining(Number(rlRemaining));
-      if (res.status === 402) {
-        const data: AuditResult = await res.json();
-        setResult(data);
-        if (data.upgradeUrl) {
-          window.location.href = data.upgradeUrl;
-          return;
-        }
-      } else if (res.status === 429) {
-        const ra = Number(res.headers.get("Retry-After") || "5");
-        setRetryAfter(ra);
-        setResult({ error: "rate_limited" });
-      } else {
-        const data: AuditResult = await res.json();
-        if (data.metadata) {
-          delete (data.metadata as Record<string, unknown>).client_id;
-        }
-        setResult(data);
-      }
-    } catch (err) {
-      const isAbort = err instanceof Error && err.name === "AbortError";
-      setResult({ error: isAbort ? "request_timeout" : "request_failed" });
-    } finally {
-      setLoading(false);
-      inflight.current = false;
-    }
+    await submitAudit(p.payload, p.origin, p.action);
   }
 
   const decision = result?.decision?.toUpperCase();
@@ -639,7 +615,8 @@ export default function DemoPage() {
                       : result.error === "request_timeout"
                         ? "Request timed out. The backend may be starting up — try again in a few seconds."
                         : result.error === "service_unavailable"
-                          ? "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."
+                          ? result.message ||
+                            "Audit service temporarily unavailable. The backend may be warming up — try again in a few seconds."
                           : "Something went wrong. Please try again."}
                 </span>
                 {result.error === "demo_unconfigured" && (
