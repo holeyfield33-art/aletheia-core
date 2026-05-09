@@ -133,6 +133,10 @@ class AletheiaNitpickerV2:
         "overwrite model instructions": re.compile(
             r"\bmodel\s+instructions?\b", re.IGNORECASE
         ),
+        "bypass compliance checks": re.compile(
+            r"\b(?:bypass|circumvent|evade|skip|ignore|disable|override)\b.*\bcompliance\b",
+            re.IGNORECASE,
+        ),
     }
 
     def __init__(self) -> None:
