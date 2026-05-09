@@ -10,11 +10,10 @@ import asyncio
 import json
 
 import hashlib
-import hmac
 import os
 import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
@@ -43,6 +42,14 @@ from core.runtime_bootstrap import (
     resolve_demo_api_key,
     seed_demo_key,
     startup_checks,
+)
+from core.auth.api_key_validation import raise_for_quota_failure, resolve_api_key
+from core.auth.hosted_prisma_bridge import (
+    check_hosted_prisma_api_key,
+    current_utc_month_bounds,
+    hash_hosted_api_key,
+    lookup_hosted_api_key_user_id,
+    normalize_utc,
 )
 from core.runtime_status import collect_dependency_health
 from core.runtime_status import collect_manifest_readiness
@@ -564,144 +571,37 @@ def _get_client_ip(request: Request) -> str:
 
 
 def _hash_hosted_api_key(raw_key: str) -> str:
-    """Mirror Next.js key hashing for hosted Prisma ApiKey records."""
-    salt = os.getenv("ALETHEIA_KEY_SALT", "")
-    if salt:
-        return hmac.new(
-            salt.encode("utf-8"), raw_key.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+    """Compatibility shim for hosted Prisma key hashing."""
+    return hash_hosted_api_key(raw_key, os.getenv("ALETHEIA_KEY_SALT", ""))
 
 
 def _normalize_utc(ts: datetime) -> datetime:
-    """Normalize timestamps from Postgres for UTC-safe comparisons."""
-    if ts.tzinfo is None:
-        return ts.replace(tzinfo=timezone.utc)
-    return ts.astimezone(timezone.utc)
+    """Compatibility shim for UTC normalization."""
+    return normalize_utc(ts)
 
 
 def _current_utc_month_bounds(now: datetime) -> tuple[datetime, datetime]:
-    period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if now.month == 12:
-        period_end = period_start.replace(year=now.year + 1, month=1)
-    else:
-        period_end = period_start.replace(month=now.month + 1)
-    return period_start, period_end
+    return current_utc_month_bounds(now)
 
 
 async def _check_hosted_prisma_api_key(raw_key: str) -> QuotaCheck | None:
-    """Validate and meter hosted Prisma ApiKey records when SQLite misses.
-
-    Uses the module-level _bridge_pool to avoid per-request TCP connection
-    overhead. Wraps the SELECT+UPDATE in a transaction with FOR UPDATE so
-    concurrent requests cannot read the same stale quota counter and exceed
-    the monthly limit (TOCTOU fix).
-
-    Returns None when the pool is unavailable or lookup fails, allowing the
-    caller to return a deterministic unauthorized response.
-    """
-    if _bridge_pool is None:
-        return None
-
-    try:
-        key_hash = _hash_hosted_api_key(raw_key)
-        async with _bridge_pool.acquire() as conn:
-            async with conn.transaction():
-                row = await conn.fetchrow(
-                    """
-                    SELECT id, status, "monthlyQuota", "requestsUsed",
-                           "periodStart", "periodEnd"
-                    FROM "ApiKey"
-                    WHERE "keyHash" = $1
-                    LIMIT 1
-                    FOR UPDATE
-                    """,
-                    key_hash,
-                )
-                if not row:
-                    return QuotaCheck(
-                        allowed=False,
-                        reason="Invalid API key.",
-                        requests_used=0,
-                        monthly_quota=0,
-                    )
-
-                status = (row["status"] or "").lower()
-                if status != "active":
-                    return QuotaCheck(
-                        allowed=False,
-                        reason="API key is revoked.",
-                        requests_used=int(row["requestsUsed"]),
-                        monthly_quota=int(row["monthlyQuota"]),
-                    )
-
-                now = datetime.now(timezone.utc)
-                requests_used = int(row["requestsUsed"])
-                monthly_quota = int(row["monthlyQuota"])
-                period_start = _normalize_utc(row["periodStart"])
-                period_end = _normalize_utc(row["periodEnd"])
-
-                if now >= period_end:
-                    period_start, period_end = _current_utc_month_bounds(now)
-                    requests_used = 0
-
-                if requests_used >= monthly_quota:
-                    return QuotaCheck(
-                        allowed=False,
-                        reason=(
-                            f"Monthly request limit exceeded "
-                            f"({requests_used}/{monthly_quota})."
-                        ),
-                        requests_used=requests_used,
-                        monthly_quota=monthly_quota,
-                    )
-
-                next_used = requests_used + 1
-                await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
-                    """
-                    UPDATE "ApiKey"
-                    SET "requestsUsed" = $2,
-                        "periodStart" = $3,
-                        "periodEnd" = $4,
-                        "lastUsedAt" = NOW()
-                    WHERE id = $1
-                    """,
-                    row["id"],
-                    next_used,
-                    period_start.replace(tzinfo=None),
-                    period_end.replace(tzinfo=None),
-                )
-
-                return QuotaCheck(
-                    allowed=True,
-                    reason="OK",
-                    requests_used=next_used,
-                    monthly_quota=monthly_quota,
-                )
-    except Exception as exc:
-        _logger.warning("Hosted Prisma key lookup failed (fail-closed): %s", exc)
-        return None
+    """Compatibility shim for hosted Prisma fallback quota checks."""
+    return await check_hosted_prisma_api_key(
+        raw_key,
+        pool=_bridge_pool,
+        key_salt=os.getenv("ALETHEIA_KEY_SALT", ""),
+        logger=_logger,
+    )
 
 
 async def _lookup_hosted_api_key_user_id(raw_key: str) -> str:
-    """Resolve Prisma ApiKey.userId for dashboard-scoped AuditLog persistence."""
-    if _bridge_pool is None:
-        return ""
-
-    try:
-        key_hash = _hash_hosted_api_key(raw_key)
-        async with _bridge_pool.acquire() as conn:
-            row = await conn.fetchrow(
-                'SELECT "userId" FROM "ApiKey" WHERE "keyHash" = $1 LIMIT 1',
-                key_hash,
-            )
-            if not row:
-                return ""
-            user_id = row["userId"]
-            return str(user_id) if user_id else ""
-    except Exception as exc:
-        _logger.warning("Hosted Prisma user lookup failed: %s", exc)
-        return ""
+    """Compatibility shim for hosted Prisma user-id lookups."""
+    return await lookup_hosted_api_key_user_id(
+        raw_key,
+        pool=_bridge_pool,
+        key_salt=os.getenv("ALETHEIA_KEY_SALT", ""),
+        logger=_logger,
+    )
 
 
 def _generate_cuid() -> str:
@@ -838,11 +738,9 @@ async def _check_api_key(
     if _auth_disabled:
         return
 
-    api_key = (x_api_key or "").strip()
-    if not api_key:
-        auth_header = request.headers.get("authorization", "").strip()
-        if auth_header.lower().startswith("bearer "):
-            api_key = auth_header[7:].strip()
+    headers = getattr(request, "headers", {})
+    auth_header = headers.get("authorization", "") if headers is not None else ""
+    api_key = resolve_api_key(x_api_key, auth_header)
 
     if not api_key:
         raise HTTPException(
@@ -863,33 +761,7 @@ async def _check_api_key(
             quota = hosted_quota
     if quota.allowed:
         return
-
-    # Determine appropriate error
-    if "Invalid" in quota.reason:
-        raise HTTPException(
-            status_code=401,
-            detail={"error": "unauthorized", "message": "Invalid API key."},
-        )
-    if "revoked" in quota.reason.lower():
-        raise HTTPException(
-            status_code=403,
-            detail={"error": "key_revoked", "message": quota.reason},
-        )
-    if "monthly request limit" in quota.reason.lower():
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "error": "quota_exceeded",
-                "message": quota.reason,
-                "requests_used": quota.requests_used,
-                "monthly_quota": quota.monthly_quota,
-            },
-            headers={"Retry-After": "86400"},
-        )
-    raise HTTPException(
-        status_code=403,
-        detail={"error": "forbidden", "message": quota.reason},
-    )
+    raise_for_quota_failure(quota)
 
 
 def _discretise_threat(score: float) -> str:
