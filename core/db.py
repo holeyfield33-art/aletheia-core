@@ -10,6 +10,7 @@ import os
 import sqlite3
 import tempfile
 import time
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,12 @@ _DATABASE_LOG_QUERIES = os.getenv("DATABASE_LOG_QUERIES", "false").strip().lower
     "yes",
 }
 _SLOW_QUERY_MS = int(os.getenv("DATABASE_SLOW_QUERY_MS", "100"))
+
+
+# pgBouncer in transaction/statement mode does not preserve prepared statements
+# across requests. Disable asyncpg's statement cache to avoid
+# "prepared statement ... does not exist" runtime failures.
+ASYNCPG_PGBOUNCER_SAFE_KWARGS: dict[str, Any] = {"statement_cache_size": 0}
 
 
 def _log_if_slow(query: str, elapsed_ms: float) -> None:
@@ -55,6 +62,68 @@ async def execute_postgres_query(query: str, *args: Any) -> Any:
 
     _log_if_slow(query, (time.perf_counter() - started) * 1000)
     return result
+
+
+def sanitize_asyncpg_url(database_url: str) -> str:
+    """Strip Prisma/pgBouncer query params that asyncpg rejects."""
+    strip_params = {"pgbouncer", "connection_limit", "pool_timeout", "schema"}
+    try:
+        parsed = urlparse(database_url)
+        qs = parse_qs(parsed.query, keep_blank_values=True)
+        filtered = {k: v for k, v in qs.items() if k.lower() not in strip_params}
+        clean_query = urlencode(filtered, doseq=True)
+        return urlunparse(parsed._replace(query=clean_query))
+    except Exception:
+        return database_url
+
+
+async def create_asyncpg_pool(
+    database_url: str,
+    *,
+    min_size: int,
+    max_size: int,
+    command_timeout: int | None = None,
+    sanitize_url: bool = False,
+) -> Any:
+    """Create an asyncpg pool with pgBouncer-safe defaults."""
+    import asyncpg
+
+    pool_url = sanitize_asyncpg_url(database_url) if sanitize_url else database_url
+    pool_kwargs: dict[str, Any] = {
+        "min_size": min_size,
+        "max_size": max_size,
+        **ASYNCPG_PGBOUNCER_SAFE_KWARGS,
+    }
+    if command_timeout is not None:
+        pool_kwargs["command_timeout"] = command_timeout
+    return await asyncpg.create_pool(pool_url, **pool_kwargs)
+
+
+async def probe_asyncpg_pool(pool: Any) -> None:
+    """Run a lightweight health probe against a pool."""
+    async with pool.acquire() as conn:
+        await conn.execute("SELECT 1")
+
+
+async def init_optional_postgres_pool() -> Any | None:
+    """Create and probe the main Postgres pool when postgres backend is enabled."""
+    if settings.database_backend != "postgres":
+        return None
+
+    db_url = settings.database_url or os.getenv("DATABASE_URL", "")
+    if not db_url:
+        return None
+
+    pool = await create_asyncpg_pool(db_url, min_size=2, max_size=10)
+    await probe_asyncpg_pool(pool)
+    return pool
+
+
+async def close_asyncpg_pool(pool: Any | None, *, label: str = "Postgres pool") -> None:
+    """Close an asyncpg pool if present and emit a lifecycle log."""
+    if pool is not None:
+        await pool.close()
+        _logger.info("%s: closed", label)
 
 
 async def check_database_health() -> tuple[bool, str]:

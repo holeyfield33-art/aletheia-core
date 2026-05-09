@@ -62,6 +62,19 @@ class IntentDecision:
     reason: str
 
 
+def is_semantic_engine_degraded(last_result: object | None) -> bool:
+    """Return True only for hard semantic-engine offline signals.
+
+    Nitpicker may mark degraded=True when Qdrant is unavailable but static
+    fallback still protects the pipeline; that path should not force 503.
+    """
+    if not last_result:
+        return False
+    degraded_flag = bool(getattr(last_result, "degraded", False))
+    source = str(getattr(last_result, "source", ""))
+    return degraded_flag and source in {"qdrant", "both"}
+
+
 # DEPRECATED: Use AuditRequest from bridge.fastapi_wrapper.
 # This schema remains only for validate_structured_request()
 # backward compatibility. Do not add new usages.

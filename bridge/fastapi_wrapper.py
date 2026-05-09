@@ -27,7 +27,7 @@ from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
 from bridge.utils import normalize_shadow_text
 from core.audit import log_audit_event
-from core.config import settings, env_bool, upstash_configured
+from core.config import settings, env_bool
 from core.auth import get_auth_provider
 from core.auth.models import AuthContext
 from core.auth.rbac import Permission, require_permission, has_permission
@@ -35,9 +35,15 @@ from core.embeddings import warm_up
 from core.rate_limit import eval_rate_limiter, rate_limiter
 from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
-from core.runtime_security import classify_blocked_intent
+from core.runtime_security import classify_blocked_intent, is_semantic_engine_degraded
 from core.key_store import QuotaCheck, key_store
-from core.secret_rotation import install_sigusr1_handler, rotate_secrets
+from core.secret_rotation import rotate_secrets
+from core.runtime_bootstrap import (
+    demo_key_health_signal,
+    resolve_demo_api_key,
+    seed_demo_key,
+    startup_checks,
+)
 from core.metrics import (
     REQUEST_COUNTER,
     LATENCY_HISTOGRAM,
@@ -47,6 +53,12 @@ from core.metrics import (
 )
 from core.logging import configure_logging
 from core.agent_trifecta import AgentTrifectaContext, evaluate_agent_trifecta
+from core.db import (
+    close_asyncpg_pool,
+    create_asyncpg_pool,
+    init_optional_postgres_pool,
+    probe_asyncpg_pool,
+)
 
 
 configure_logging()
@@ -77,12 +89,6 @@ if os.getenv("ENVIRONMENT", "").lower() == "production":
 _bridge_pool: "Any | None" = None
 
 
-# pgBouncer in transaction/statement mode does not preserve prepared statements
-# across requests; disable asyncpg's statement cache to avoid
-# "prepared statement ... does not exist" runtime failures.
-_ASYNCPG_PGBOUNCER_SAFE_KWARGS = {"statement_cache_size": 0}
-
-
 async def _init_bridge_pool() -> None:
     """Create the asyncpg pool used by _check_hosted_prisma_api_key."""
     global _bridge_pool
@@ -91,18 +97,14 @@ async def _init_bridge_pool() -> None:
         _logger.info("Bridge pool: DATABASE_URL not set — hosted key bridge disabled")
         return
     try:
-        import asyncpg as _asyncpg
-
-        clean_url = _sanitize_asyncpg_url(database_url)
-        _bridge_pool = await _asyncpg.create_pool(
-            clean_url,
+        _bridge_pool = await create_asyncpg_pool(
+            database_url,
             min_size=1,
             max_size=5,
             command_timeout=10,
-            **_ASYNCPG_PGBOUNCER_SAFE_KWARGS,
+            sanitize_url=True,
         )
-        async with _bridge_pool.acquire() as _probe:
-            await _probe.execute("SELECT 1")
+        await probe_asyncpg_pool(_bridge_pool)
         _logger.info("Bridge pool: connected and healthy")
     except Exception as exc:
         _logger.error("Bridge pool: failed to initialise — %s", exc)
@@ -111,10 +113,8 @@ async def _init_bridge_pool() -> None:
 
 async def _close_bridge_pool() -> None:
     global _bridge_pool
-    if _bridge_pool is not None:
-        await _bridge_pool.close()
-        _bridge_pool = None
-        _logger.info("Bridge pool: closed")
+    await close_asyncpg_pool(_bridge_pool, label="Bridge pool")
+    _bridge_pool = None
 
 
 @asynccontextmanager
@@ -171,27 +171,14 @@ async def _lifespan(application: FastAPI):
             _logger.info("Redis pool: not configured (using Upstash or in-memory)")
 
         # Postgres pool (optional)
-        if settings.database_backend == "postgres":
-            db_url = settings.database_url or os.getenv("DATABASE_URL", "")
-            if db_url:
-                try:
-                    import asyncpg
-
-                    pg_pool = await asyncpg.create_pool(
-                        db_url,
-                        min_size=2,
-                        max_size=10,
-                        **_ASYNCPG_PGBOUNCER_SAFE_KWARGS,
-                    )
-                    async with pg_pool.acquire() as conn:
-                        await conn.execute("SELECT 1")
-                    _logger.info("Postgres pool: connected and healthy")
-                except Exception as exc:
-                    _logger.error("Postgres pool: connection failed — %s", exc)
-                    if os.getenv("ENVIRONMENT", "").lower() == "production":
-                        raise RuntimeError(
-                            "critical startup failure: postgres unavailable"
-                        )
+        try:
+            pg_pool = await init_optional_postgres_pool()
+            if pg_pool is not None:
+                _logger.info("Postgres pool: connected and healthy")
+        except Exception as exc:
+            _logger.error("Postgres pool: connection failed — %s", exc)
+            if os.getenv("ENVIRONMENT", "").lower() == "production":
+                raise RuntimeError("critical startup failure: postgres unavailable")
 
         # Bridge pool: shared asyncpg pool for hosted-Prisma key lookups.
         # Initialised regardless of database_backend so the bridge works even
@@ -250,9 +237,7 @@ async def _lifespan(application: FastAPI):
         await stop_export_workers()
     await close_redis_pool()
     await _close_bridge_pool()
-    if pg_pool is not None:
-        await pg_pool.close()
-        _logger.info("Postgres pool: closed")
+    await close_asyncpg_pool(pg_pool)
     _logger.info("Lifespan shutdown: complete")
 
 
@@ -455,45 +440,13 @@ def _get_sovereign_runtime():
 
 
 def _resolve_demo_api_key() -> tuple[str, str]:
-    """Return configured demo key and its environment source."""
-    raw_key = os.getenv("ALETHEIA_DEMO_API_KEY", "").strip()
-    if raw_key:
-        return raw_key, "ALETHEIA_DEMO_API_KEY"
-
-    raw_key = os.getenv("ALETHEIA_API_KEY", "").strip()
-    if raw_key:
-        return raw_key, "ALETHEIA_API_KEY"
-
-    return "", ""
+    """Compatibility shim for tests importing wrapper internals."""
+    return resolve_demo_api_key()
 
 
 def _demo_key_health_signal() -> dict[str, str | bool]:
-    """Report whether configured demo key exists in KeyStore."""
-    raw_key, key_source = _resolve_demo_api_key()
-    if not raw_key:
-        return {
-            "configured": False,
-            "registered": False,
-            "status": "not_configured",
-            "source": "",
-        }
-
-    try:
-        registered = key_store.lookup_by_hash(raw_key) is not None
-    except Exception:
-        return {
-            "configured": True,
-            "registered": False,
-            "status": "lookup_error",
-            "source": key_source,
-        }
-
-    return {
-        "configured": True,
-        "registered": registered,
-        "status": "registered" if registered else "missing",
-        "source": key_source,
-    }
+    """Compatibility shim for tests importing wrapper internals."""
+    return demo_key_health_signal(key_store=key_store)
 
 
 def _seed_demo_key() -> None:
@@ -512,186 +465,12 @@ def _seed_demo_key() -> None:
     Operators on a Postgres-backed KeyStore should still create the canonical
     demo key with POST /v1/keys; this seed only catches the gap.
     """
-    raw_key, key_source = _resolve_demo_api_key()
-    if not raw_key:
-        return
-
-    try:
-        if key_store.lookup_by_hash(raw_key) is not None:
-            return
-    except Exception as exc:
-        _logger.warning("demo-key seed: lookup failed (%s); skipping", exc)
-        return
-
-    try:
-        # Inject the externally-provisioned raw key directly into the store.
-        # We cannot use create_key() because it generates a fresh secret.
-        key_store.import_raw_key(
-            name="hosted-demo",
-            raw_key=raw_key,
-            plan="trial",
-            role="operator",
-        )
-        _logger.info("demo-key seed: %s registered in KeyStore", key_source)
-    except AttributeError:
-        _logger.error(
-            "demo-key seed: KeyStore.import_raw_key() not available — "
-            "create the demo key manually via POST /v1/keys"
-        )
-    except Exception as exc:
-        _logger.error("demo-key seed: failed to register demo key (%s)", exc)
+    seed_demo_key(key_store=key_store, logger=_logger)
 
 
 async def _startup_checks() -> None:
-    """Pre-warm embedding model and validate critical secrets at startup."""
-    import sys
-
-    # If ENVIRONMENT=production, refuse shadow mode — deny-decisions must be enforced
-    if (
-        os.getenv("ENVIRONMENT", "").lower() == "production"
-        and settings.mode != "active"
-    ):
-        _logger.critical(
-            "FATAL: ENVIRONMENT=production but ALETHEIA_MODE=%s. "
-            "Production must run in active mode. "
-            "Set ALETHEIA_MODE=active or remove ENVIRONMENT=production. "
-            "Refusing to start.",
-            settings.mode,
-        )
-        sys.exit(1)
-
-    # Refuse to run in active mode without a receipt signing secret
-    receipt_secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "")
-    if settings.mode == "active" and not receipt_secret:
-        _logger.critical(
-            "FATAL: ALETHEIA_RECEIPT_SECRET is not set and mode=active. "
-            "Audit receipts would be unsigned (UNSIGNED_DEV_MODE). "
-            "Set ALETHEIA_RECEIPT_SECRET or switch to mode=shadow for development. "
-            "Refusing to start."
-        )
-        sys.exit(1)
-    # Enforce minimum secret length (32 chars = 256 bits of entropy when hex-encoded)
-    _MIN_SECRET_LEN = 32
-    if receipt_secret and len(receipt_secret) < _MIN_SECRET_LEN:
-        _logger.critical(
-            "FATAL: ALETHEIA_RECEIPT_SECRET is too short (%d chars). "
-            "Minimum is %d characters. Generate with: openssl rand -hex 32",
-            len(receipt_secret),
-            _MIN_SECRET_LEN,
-        )
-        sys.exit(1)
-    if settings.mode == "active":
-        _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
-        if not _auth_disabled:
-            # Verify KeyStore is operational
-            pass  # KeyStore availability is checked by its own init
-    # Block env-based API keys in production (removed — use KeyStore only)
-    if os.getenv("ALETHEIA_API_KEYS", "").strip():
-        if os.getenv("ENVIRONMENT", "").lower() == "production":
-            _logger.critical(
-                "FATAL: ALETHEIA_API_KEYS is set in production. "
-                "Environment-based API keys are no longer supported. "
-                "Use the KeyStore (POST /v1/keys) to provision keys. "
-                "Remove ALETHEIA_API_KEYS to proceed. Refusing to start."
-            )
-            sys.exit(1)
-        _logger.warning(
-            "ALETHEIA_API_KEYS is set but will be IGNORED. "
-            "Environment-based API keys are deprecated. "
-            "Use the KeyStore (POST /v1/keys) to provision keys."
-        )
-    # Block ALETHEIA_AUTH_DISABLED in production
-    if os.getenv("ENVIRONMENT", "").lower() == "production":
-        if env_bool("ALETHEIA_AUTH_DISABLED"):
-            _logger.critical(
-                "FATAL: ALETHEIA_AUTH_DISABLED=true is not allowed in production. "
-                "Configure ALETHEIA_API_KEYS instead. Refusing to start."
-            )
-            sys.exit(1)
-    if not os.getenv("ALETHEIA_ALIAS_SALT", "").strip():
-        if os.getenv("ENVIRONMENT", "").lower() == "production":
-            _logger.critical(
-                "FATAL: ALETHEIA_ALIAS_SALT is not set in production. "
-                "Daily alias bank rotation is predictable without a salt. "
-                "Generate: openssl rand -hex 32. Refusing to start."
-            )
-            sys.exit(1)
-        _logger.warning(
-            "WARNING: ALETHEIA_ALIAS_SALT is not set. "
-            "Daily alias bank rotation is predictable — "
-            "an attacker who knows the manifest hash and date can "
-            "enumerate the alias order. Set this in production. "
-            "Generate: openssl rand -hex 32"
-        )
-    if not os.getenv("ALETHEIA_KEY_SALT", "").strip():
-        if os.getenv("ENVIRONMENT", "").lower() == "production":
-            _logger.critical(
-                "FATAL: ALETHEIA_KEY_SALT is not set in production. "
-                "API key hashing is unsalted. "
-                "Generate: openssl rand -hex 32. Refusing to start."
-            )
-            sys.exit(1)
-
-    # Manifest hash pinning: verify manifest hasn't drifted from expected hash
-    _pinned_hash = os.getenv("ALETHEIA_MANIFEST_HASH", "").strip()
-    if _pinned_hash:
-        try:
-            actual_hash = hashlib.sha256(
-                Path("manifest/security_policy.json").read_bytes()
-            ).hexdigest()
-            if not secrets.compare_digest(_pinned_hash, actual_hash):
-                _logger.critical(
-                    "FATAL: Manifest hash drift detected. "
-                    "Expected %s, got %s. The signed policy may have been "
-                    "tampered with or replaced. Refusing to start.",
-                    _pinned_hash[:16] + "...",
-                    actual_hash[:16] + "...",
-                )
-                sys.exit(1)
-            _logger.info("Manifest hash pinning verified: %s", actual_hash[:16] + "...")
-        except FileNotFoundError:
-            _logger.critical(
-                "FATAL: ALETHEIA_MANIFEST_HASH is set but "
-                "manifest/security_policy.json is missing. Refusing to start."
-            )
-            sys.exit(1)
-    elif os.getenv("ENVIRONMENT", "").lower() == "production":
-        _logger.warning(
-            "WARNING: ALETHEIA_MANIFEST_HASH is not set in production. "
-            "Manifest drift detection is disabled. "
-            "Pin the hash: sha256sum manifest/security_policy.json"
-        )
-
-    # --- Production HA checks: require DATABASE_URL + REDIS_URL for postgres backend ---
-    if os.getenv("ENVIRONMENT", "").lower() == "production":
-        if settings.database_backend == "postgres":
-            if not settings.database_url and not os.getenv("DATABASE_URL", ""):
-                _logger.critical(
-                    "FATAL: database_backend=postgres but DATABASE_URL is not set "
-                    "in production. Refusing to start."
-                )
-                sys.exit(1)
-            db_url = settings.database_url or os.getenv("DATABASE_URL", "")
-            if "sslmode" not in db_url and "sslmode=require" not in db_url:
-                _logger.critical(
-                    "FATAL: DATABASE_URL missing sslmode=require in production. "
-                    "TLS is required. Add ?sslmode=require to your connection string."
-                )
-                sys.exit(1)
-        if not os.getenv("REDIS_URL", "") and not upstash_configured():
-            _logger.critical(
-                "FATAL: Neither REDIS_URL nor UPSTASH_REDIS_REST_URL is set "
-                "in production. Redis is required for distributed rate limiting "
-                "and replay defense. Refusing to start."
-            )
-            sys.exit(1)
-
-    # Install SIGUSR1 handler for hot secret rotation
-    install_sigusr1_handler(
-        reload_api_keys_fn=None,
-        reload_judge_fn=judge.load_policy,
-    )
-    _logger.info("Secret rotation handler installed (kill -SIGUSR1 to rotate)")
+    """Compatibility shim that delegates startup checks to core bootstrap module."""
+    await startup_checks(judge_load_policy=judge.load_policy, logger=_logger)
 
 
 async def _on_startup() -> None:
@@ -780,26 +559,6 @@ def _get_client_ip(request: Request) -> str:
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
-
-
-def _sanitize_asyncpg_url(database_url: str) -> str:
-    """Strip Prisma/pgBouncer-specific query params that asyncpg rejects.
-
-    Prisma adds ``?pgbouncer=true`` to pooler URLs. asyncpg doesn't understand
-    it and raises an InterfaceError, which is silently caught and causes a 401.
-    Also strips ``connection_limit``, ``pool_timeout``, ``schema`` (Prisma-only params).
-    """
-    from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
-
-    _STRIP_PARAMS = {"pgbouncer", "connection_limit", "pool_timeout", "schema"}
-    try:
-        parsed = urlparse(database_url)
-        qs = parse_qs(parsed.query, keep_blank_values=True)
-        filtered = {k: v for k, v in qs.items() if k.lower() not in _STRIP_PARAMS}
-        clean_query = urlencode(filtered, doseq=True)
-        return urlunparse(parsed._replace(query=clean_query))
-    except Exception:
-        return database_url
 
 
 def _hash_hosted_api_key(raw_key: str) -> str:
@@ -1668,23 +1427,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     _user_id = ctx.user.user_id if ctx else getattr(request.state, "api_user_id", "")
     _auth_method = ctx.user.auth_method if ctx else ""
 
-    # --- Degraded mode determination ---
-    def _semantic_engine_degraded(last_result: object | None) -> bool:
-        """Only treat semantic layer as degraded for hard engine-offline signals.
-
-        Nitpicker marks `degraded=True` when Qdrant is down but static-manifest
-        fallback can still protect the pipeline. That fallback path should not
-        force a 503 here.
-        """
-        if not last_result:
-            return False
-        degraded_flag = bool(getattr(last_result, "degraded", False))
-        source = str(getattr(last_result, "source", ""))
-        # Explicit engine signal used by fail-closed tests and hard-offline mode.
-        return degraded_flag and source in {"qdrant", "both"}
-
     _nit_last = getattr(nitpicker, "_last_result", None)
-    _semantic_degraded = _semantic_engine_degraded(_nit_last)
+    _semantic_degraded = is_semantic_engine_degraded(_nit_last)
     _manifest_missing = judge.policy is None
     degraded = bool(
         getattr(rate_limiter, "degraded", False)
@@ -1828,7 +1572,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
 
     # Recompute degraded after Nitpicker to catch current-request Qdrant failures
     _nit_last_post = getattr(nitpicker, "_last_result", None)
-    if _semantic_engine_degraded(_nit_last_post):
+    if is_semantic_engine_degraded(_nit_last_post):
         degraded = True
 
     # 3. JUDGE PHASE — now includes payload for semantic veto
