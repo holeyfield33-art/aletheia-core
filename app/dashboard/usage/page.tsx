@@ -4,64 +4,25 @@ import { useState, useEffect } from "react";
 import { CTAS } from "@/lib/site-config";
 import { SkeletonStatCards } from "@/app/components/Skeleton";
 import { clientFetch } from "@/lib/client-fetch";
-
-/* ------------------------------------------------------------------ */
-/* Types                                                              */
-/* ------------------------------------------------------------------ */
-
-interface KeyUsage {
-  id: string;
-  name: string;
-  keyPrefix: string;
-  plan: string;
-  status: string;
-  monthlyQuota: number;
-  requestsUsed: number;
-  periodStart: string;
-  periodEnd: string;
-  createdAt: string;
-  lastUsedAt: string | null;
-}
-
-interface RawKeyUsage extends Partial<KeyUsage> {
-  key_prefix?: string;
-  monthly_quota?: number;
-  requests_used?: number;
-  period_start?: string;
-  period_end?: string;
-  created_at?: string;
-  last_used_at?: string | null;
-}
-
-export function normalizeKeyUsage(key: RawKeyUsage): KeyUsage {
-  return {
-    id: String(key.id ?? ""),
-    name: String(key.name ?? ""),
-    keyPrefix: String(key.keyPrefix ?? key.key_prefix ?? ""),
-    plan: String(key.plan ?? ""),
-    status: String(key.status ?? ""),
-    monthlyQuota: Number(key.monthlyQuota ?? key.monthly_quota ?? 0),
-    requestsUsed: Number(key.requestsUsed ?? key.requests_used ?? 0),
-    periodStart: String(key.periodStart ?? key.period_start ?? ""),
-    periodEnd: String(key.periodEnd ?? key.period_end ?? ""),
-    createdAt: String(key.createdAt ?? key.created_at ?? ""),
-    lastUsedAt: key.lastUsedAt ?? key.last_used_at ?? null,
-  };
-}
+import {
+  HostedApiKey,
+  RawHostedApiKey,
+  normalizeHostedApiKey,
+} from "@/lib/api-keys";
 
 /* ------------------------------------------------------------------ */
 /* Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function UsagePage() {
-  const [keys, setKeys] = useState<KeyUsage[]>([]);
+  const [keys, setKeys] = useState<HostedApiKey[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const data = await clientFetch<{ keys?: RawKeyUsage[] }>("/api/keys");
-        const normalized = data.keys?.map(normalizeKeyUsage) || [];
+        const data = await clientFetch<{ keys?: RawHostedApiKey[] }>("/api/keys");
+        const normalized = data.keys?.map(normalizeHostedApiKey) || [];
         setKeys(normalized);
       } catch {
         /* non-critical */

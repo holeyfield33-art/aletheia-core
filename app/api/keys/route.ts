@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
 import { secureJson } from "@/lib/api-utils";
+import { serializeHostedApiKey } from "@/lib/api-keys";
 import { getHostedPlanConfig } from "@/lib/hosted-plans";
 
 /**
@@ -54,20 +55,7 @@ export async function GET() {
     },
   });
 
-  // Transform to snake_case to match frontend interface
-  const transformedKeys = keys.map((k) => ({
-    id: k.id,
-    name: k.name,
-    key_prefix: k.keyPrefix,
-    plan: k.plan,
-    status: k.status,
-    monthly_quota: k.monthlyQuota,
-    requests_used: k.requestsUsed,
-    period_start: k.periodStart.toISOString(),
-    period_end: k.periodEnd.toISOString(),
-    created_at: k.createdAt.toISOString(),
-    last_used_at: k.lastUsedAt ? k.lastUsedAt.toISOString() : null,
-  }));
+  const transformedKeys = keys.map(serializeHostedApiKey);
 
   return secureJson({ keys: transformedKeys });
 }
@@ -147,20 +135,12 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Transform to snake_case for consistency with frontend
+  const serializedRecord = serializeHostedApiKey(record);
+
   return secureJson(
     {
       key: rawKey, // returned exactly once
-      id: record.id,
-      name: record.name,
-      key_prefix: record.keyPrefix,
-      plan: record.plan,
-      status: record.status,
-      monthly_quota: record.monthlyQuota,
-      requests_used: 0,
-      period_start: record.periodStart.toISOString(),
-      period_end: record.periodEnd.toISOString(),
-      created_at: record.createdAt.toISOString(),
+      ...serializedRecord,
     },
     { status: 201 },
   );

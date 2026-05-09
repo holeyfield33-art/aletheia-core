@@ -4,45 +4,19 @@ import { useState, useCallback, useEffect } from "react";
 import { useToast } from "@/app/components/Toast";
 import { CTAS, URLS } from "@/lib/site-config";
 import {
+  CreateHostedApiKeyRecord,
+  HostedApiKey,
+  RawHostedApiKey,
+  normalizeHostedApiKey,
+} from "@/lib/api-keys";
+import {
   clientFetch,
   clientFetchResponse,
   isClientFetchError,
 } from "@/lib/client-fetch";
 
-/* ------------------------------------------------------------------ */
-/* Types                                                              */
-/* ------------------------------------------------------------------ */
-
-interface ApiKey {
-  id: string;
-  name: string;
-  key_prefix: string;
-  plan: string;
-  status: string;
-  monthly_quota: number;
-  requests_used: number;
-  period_start: string;
-  period_end: string;
-  created_at: string;
-  last_used_at: string | null;
-}
-
 interface ApiKeysResponse {
-  keys?: ApiKey[];
-}
-
-interface CreateApiKeyResponse {
-  key: string;
-  id: string;
-  name: string;
-  key_prefix: string;
-  plan: string;
-  status: string;
-  monthly_quota: number;
-  requests_used: number;
-  period_start: string;
-  period_end: string;
-  created_at: string;
+  keys?: RawHostedApiKey[];
 }
 
 interface GeneratedKeyDetails {
@@ -58,7 +32,7 @@ interface GeneratedKeyDetails {
 /* ------------------------------------------------------------------ */
 
 export default function KeysPage() {
-  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [keys, setKeys] = useState<HostedApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +53,7 @@ export default function KeysPage() {
   const fetchKeys = async () => {
     try {
       const data = await clientFetch<ApiKeysResponse>("/api/keys");
-      setKeys(data.keys || []);
+      setKeys(data.keys?.map(normalizeHostedApiKey) || []);
     } catch {
       /* non-critical — keys will show empty */
     } finally {
@@ -92,34 +66,20 @@ export default function KeysPage() {
     setError(null);
     setErrorCode(null);
     try {
-      const data = await clientFetch<CreateApiKeyResponse>("/api/keys", {
+      const data = await clientFetch<CreateHostedApiKeyRecord>("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKeyName || "Unnamed Key" }),
       });
+      const normalizedKey = normalizeHostedApiKey(data);
       setGeneratedKey({
         secret: data.key,
-        name: data.name,
-        keyPrefix: data.key_prefix,
-        monthlyQuota: data.monthly_quota,
-        periodEnd: data.period_end,
+        name: normalizedKey.name,
+        keyPrefix: normalizedKey.keyPrefix,
+        monthlyQuota: normalizedKey.monthlyQuota,
+        periodEnd: normalizedKey.periodEnd,
       });
-      setKeys((prev) => [
-        {
-          id: data.id,
-          name: data.name,
-          key_prefix: data.key_prefix,
-          plan: data.plan,
-          status: data.status,
-          monthly_quota: data.monthly_quota,
-          requests_used: data.requests_used,
-          period_start: data.period_start,
-          period_end: data.period_end,
-          created_at: data.created_at,
-          last_used_at: null,
-        },
-        ...prev,
-      ]);
+      setKeys((prev) => [normalizedKey, ...prev]);
       toast.success("API key generated");
     } catch (error) {
       if (
@@ -500,7 +460,7 @@ export default function KeysPage() {
                       color: "var(--silver)",
                     }}
                   >
-                    {k.key_prefix}
+                    {k.keyPrefix}
                   </td>
                   <td style={{ padding: "0.55rem 0.75rem" }}>
                     <span
@@ -546,7 +506,7 @@ export default function KeysPage() {
                       color: "var(--muted)",
                     }}
                   >
-                    {k.created_at?.slice(0, 10) || "—"}
+                    {k.createdAt?.slice(0, 10) || "—"}
                   </td>
                   <td
                     style={{
@@ -554,7 +514,7 @@ export default function KeysPage() {
                       color: "var(--muted)",
                     }}
                   >
-                    {k.last_used_at?.slice(0, 10) || "—"}
+                    {k.lastUsedAt?.slice(0, 10) || "—"}
                   </td>
                   <td
                     style={{ padding: "0.55rem 0.75rem", textAlign: "right" }}

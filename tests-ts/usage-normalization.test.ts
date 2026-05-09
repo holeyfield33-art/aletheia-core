@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeKeyUsage } from "@/app/dashboard/usage/page";
+import { normalizeHostedApiKey } from "@/lib/api-keys";
 
-describe("normalizeKeyUsage", () => {
+describe("normalizeHostedApiKey", () => {
   it("maps camelCase API fields through unchanged", () => {
     expect(
-      normalizeKeyUsage({
+      normalizeHostedApiKey({
         id: "key_1",
         name: "Primary",
         keyPrefix: "sk_trial_...abcd",
@@ -29,7 +29,7 @@ describe("normalizeKeyUsage", () => {
 
   it("accepts legacy snake_case payloads for compatibility", () => {
     expect(
-      normalizeKeyUsage({
+      normalizeHostedApiKey({
         id: "key_2",
         name: "Legacy",
         key_prefix: "sk_trial_...wxyz",
