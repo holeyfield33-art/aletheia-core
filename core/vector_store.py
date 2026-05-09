@@ -33,6 +33,19 @@ QDRANT_COLLECTION: str = os.getenv(
 QDRANT_TIMEOUT_MS: int = int(os.getenv("ALETHEIA_QDRANT_TIMEOUT_MS", "120"))
 QDRANT_ENABLED: bool = env_bool("ALETHEIA_SEMANTIC_ENABLED")
 
+if not QDRANT_ENABLED and any(
+    os.getenv(k)
+    for k in (
+        "ALETHEIA_QDRANT_URL",
+        "ALETHEIA_QDRANT_API_KEY",
+        "ALETHEIA_QDRANT_COLLECTION",
+    )
+):
+    _logger.warning(
+        "Qdrant env vars detected but ALETHEIA_SEMANTIC_ENABLED is false; "
+        "semantic vector checks are disabled."
+    )
+
 # ---------------------------------------------------------------------------
 # Lazy Qdrant client singleton
 # ---------------------------------------------------------------------------
@@ -78,6 +91,13 @@ def _get_client():
                     timeout=QDRANT_TIMEOUT_MS / 1000.0,
                 )
                 _logger.info("Qdrant client connected to %s", QDRANT_URL)
+            except ModuleNotFoundError as exc:
+                _logger.warning(
+                    "Qdrant client dependency missing — degraded: %s. "
+                    "Install qdrant-client in runtime dependencies.",
+                    exc,
+                )
+                return None
             except Exception as exc:
                 _logger.warning("Qdrant client init failed — degraded: %s", exc)
                 return None

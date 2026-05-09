@@ -77,6 +77,12 @@ if os.getenv("ENVIRONMENT", "").lower() == "production":
 _bridge_pool: "Any | None" = None
 
 
+# pgBouncer in transaction/statement mode does not preserve prepared statements
+# across requests; disable asyncpg's statement cache to avoid
+# "prepared statement ... does not exist" runtime failures.
+_ASYNCPG_PGBOUNCER_SAFE_KWARGS = {"statement_cache_size": 0}
+
+
 async def _init_bridge_pool() -> None:
     """Create the asyncpg pool used by _check_hosted_prisma_api_key."""
     global _bridge_pool
@@ -89,7 +95,11 @@ async def _init_bridge_pool() -> None:
 
         clean_url = _sanitize_asyncpg_url(database_url)
         _bridge_pool = await _asyncpg.create_pool(
-            clean_url, min_size=1, max_size=5, command_timeout=10
+            clean_url,
+            min_size=1,
+            max_size=5,
+            command_timeout=10,
+            **_ASYNCPG_PGBOUNCER_SAFE_KWARGS,
         )
         async with _bridge_pool.acquire() as _probe:
             await _probe.execute("SELECT 1")
@@ -167,7 +177,12 @@ async def _lifespan(application: FastAPI):
                 try:
                     import asyncpg
 
-                    pg_pool = await asyncpg.create_pool(db_url, min_size=2, max_size=10)
+                    pg_pool = await asyncpg.create_pool(
+                        db_url,
+                        min_size=2,
+                        max_size=10,
+                        **_ASYNCPG_PGBOUNCER_SAFE_KWARGS,
+                    )
                     async with pg_pool.acquire() as conn:
                         await conn.execute("SELECT 1")
                     _logger.info("Postgres pool: connected and healthy")

@@ -78,6 +78,17 @@ services:
       # --- Model / AI ---
       - key: HUGGING_FACE_HUB_TOKEN
         sync: false
+      # --- Qdrant semantic layer ---
+      - key: ALETHEIA_SEMANTIC_ENABLED
+        sync: false
+      - key: ALETHEIA_QDRANT_URL
+        sync: false
+      - key: ALETHEIA_QDRANT_API_KEY
+        sync: false
+      - key: ALETHEIA_QDRANT_COLLECTION
+        sync: false
+      - key: ALETHEIA_QDRANT_TIMEOUT_MS
+        sync: false
     plan: free
 
   - type: cron
