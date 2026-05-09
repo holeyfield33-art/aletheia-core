@@ -54,7 +54,22 @@ export async function GET() {
     },
   });
 
-  return secureJson({ keys });
+  // Transform to snake_case to match frontend interface
+  const transformedKeys = keys.map((k) => ({
+    id: k.id,
+    name: k.name,
+    key_prefix: k.keyPrefix,
+    plan: k.plan,
+    status: k.status,
+    monthly_quota: k.monthlyQuota,
+    requests_used: k.requestsUsed,
+    period_start: k.periodStart.toISOString(),
+    period_end: k.periodEnd.toISOString(),
+    created_at: k.createdAt.toISOString(),
+    last_used_at: k.lastUsedAt ? k.lastUsedAt.toISOString() : null,
+  }));
+
+  return secureJson({ keys: transformedKeys });
 }
 
 export async function POST(request: NextRequest) {
@@ -107,9 +122,15 @@ export async function POST(request: NextRequest) {
   const keyPrefix = rawKey.slice(0, 12) + "..." + rawKey.slice(-4);
   const quota = planConfig.monthlyCalls;
 
+  // Calculate period boundaries in UTC
   const now = new Date();
-  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+
+  // Period start: first day of current month at 00:00:00 UTC
+  const periodStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  // Period end: first day of next month at 00:00:00 UTC
+  const periodEnd = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0));
 
   const record = await prisma.apiKey.create({
     data: {
@@ -123,22 +144,24 @@ export async function POST(request: NextRequest) {
       requestsUsed: 0,
       periodStart,
       periodEnd,
+      createdAt: now,
     },
   });
 
+  // Transform to snake_case for consistency with frontend
   return secureJson(
     {
       key: rawKey, // returned exactly once
       id: record.id,
       name: record.name,
-      keyPrefix: record.keyPrefix,
+      key_prefix: record.keyPrefix,
       plan: record.plan,
       status: record.status,
-      monthlyQuota: record.monthlyQuota,
-      requestsUsed: 0,
-      periodStart: record.periodStart.toISOString(),
-      periodEnd: record.periodEnd.toISOString(),
-      createdAt: record.createdAt.toISOString(),
+      monthly_quota: record.monthlyQuota,
+      requests_used: 0,
+      period_start: record.periodStart.toISOString(),
+      period_end: record.periodEnd.toISOString(),
+      created_at: record.createdAt.toISOString(),
     },
     { status: 201 },
   );

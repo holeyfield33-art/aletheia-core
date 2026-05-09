@@ -48,7 +48,20 @@ export async function GET(request: NextRequest) {
     return secureJson({ error: "key_not_found" }, { status: 404 });
   }
 
-  return secureJson(key);
+  // Transform to snake_case for consistency
+  return secureJson({
+    id: key.id,
+    name: key.name,
+    key_prefix: key.keyPrefix,
+    plan: key.plan,
+    status: key.status,
+    monthly_quota: key.monthlyQuota,
+    requests_used: key.requestsUsed,
+    period_start: key.periodStart.toISOString(),
+    period_end: key.periodEnd.toISOString(),
+    created_at: key.createdAt.toISOString(),
+    last_used_at: key.lastUsedAt ? key.lastUsedAt.toISOString() : null,
+  });
 }
 
 export async function DELETE(request: NextRequest) {

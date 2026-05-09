@@ -60,8 +60,9 @@ export default function UsagePage() {
   useEffect(() => {
     (async () => {
       try {
-        const data = await clientFetch<{ keys?: KeyUsage[] }>("/api/keys");
-        setKeys(data.keys || []);
+        const data = await clientFetch<{ keys?: RawKeyUsage[] }>("/api/keys");
+        const normalized = data.keys?.map(normalizeKeyUsage) || [];
+        setKeys(normalized);
       } catch {
         /* non-critical */
       } finally {
