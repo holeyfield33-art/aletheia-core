@@ -95,12 +95,14 @@ async function proxyToBackend(
       body,
     });
 
-    const upstreamBody = await upstream.arrayBuffer();
     const responseHeaders = new Headers(upstream.headers);
+    // Upstream may use transfer/content encodings that do not map cleanly
+    // after buffering; stream body through unchanged for response integrity.
+    responseHeaders.delete("content-length");
     responseHeaders.set("Cache-Control", "no-store");
     responseHeaders.set("X-Content-Type-Options", "nosniff");
 
-    return new NextResponse(upstreamBody, {
+    return new NextResponse(upstream.body, {
       status: upstream.status,
       headers: responseHeaders,
     });
