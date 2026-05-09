@@ -75,6 +75,7 @@ jobs:
           ALETHEIA_RECEIPT_PRIVATE_KEY_PATH: /tmp/receipt/receipt_private.pem  # pragma: allowlist secret
           ALETHEIA_KEY_SALT: ci-test-key-salt-32-bytes-ok-padding  # pragma: allowlist secret
           ALETHEIA_ALIAS_SALT: ci-test-alias-salt-32-bytes-ok-pad  # pragma: allowlist secret
+          ALETHEIA_DEMO_API_KEY: ci-test-key  # pragma: allowlist secret
           ALETHEIA_LOG_LEVEL: WARNING
           ALETHEIA_AUTH_DISABLED: "true"
           ALETHEIA_SEMANTIC_ENABLED: "false"
