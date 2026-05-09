@@ -44,6 +44,7 @@ from core.runtime_bootstrap import (
     seed_demo_key,
     startup_checks,
 )
+from core.runtime_status import collect_dependency_health
 from core.metrics import (
     REQUEST_COUNTER,
     LATENCY_HISTOGRAM,
@@ -1130,22 +1131,8 @@ async def health_check(request: Request) -> JSONResponse:
         "startup in progress",
     }
 
-    redis_ready = True
-    try:
-        from core.redis_pool import get_redis_pool
-
-        pool = await get_redis_pool()
-        if pool is not None:
-            await pool.ping()  # type: ignore[union-attr]
-    except Exception:
-        redis_ready = False
-
-    from core.db import check_database_health, check_qdrant_health
-
-    database_ready, database_detail = await check_database_health()
-    qdrant_ready, qdrant_detail = await check_qdrant_health()
-
-    dependencies_ready = redis_ready and database_ready and qdrant_ready
+    dependency_health = await collect_dependency_health()
+    dependencies_ready = dependency_health.all_ready
     status_text = "ok" if (_ready and dependencies_ready) else "degraded"
 
     # Unauthenticated response stays minimal.
@@ -1174,11 +1161,11 @@ async def health_check(request: Request) -> JSONResponse:
                 "version": app.version,
                 "uptime_seconds": round(_time.time() - _BOOT_TIME, 2),
                 "timestamp": _time.time(),
-                "redis_ready": redis_ready,
-                "database_ready": database_ready,
-                "database_status": database_detail,
-                "qdrant_ready": qdrant_ready,
-                "qdrant_status": qdrant_detail,
+                "redis_ready": dependency_health.redis_ready,
+                "database_ready": dependency_health.database_ready,
+                "database_status": dependency_health.database_status,
+                "qdrant_ready": dependency_health.qdrant_ready,
+                "qdrant_status": dependency_health.qdrant_status,
                 "demo_key_configured": demo_key["configured"],
                 "demo_key_registered": demo_key["registered"],
                 "demo_key_status": demo_key["status"],
@@ -1209,25 +1196,11 @@ async def readiness_check() -> JSONResponse:
 
     receipt_configured = bool(os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip())
 
-    # Redis readiness
-    redis_ready = True
-    try:
-        from core.redis_pool import get_redis_pool
-
-        pool = await get_redis_pool()
-        if pool is not None:
-            await pool.ping()  # type: ignore[union-attr]
-    except Exception:
-        redis_ready = False
-
-    from core.db import check_database_health, check_qdrant_health
-
-    database_ready, database_detail = await check_database_health()
-    qdrant_ready, qdrant_detail = await check_qdrant_health()
+    dependency_health = await collect_dependency_health()
 
     demo_key = _demo_key_health_signal()
 
-    ready = manifest_ok and redis_ready and database_ready and qdrant_ready
+    ready = manifest_ok and dependency_health.all_ready
 
     body = {
         "ready": ready,
@@ -1235,11 +1208,11 @@ async def readiness_check() -> JSONResponse:
         "policy_version": policy_version,
         "receipt_signing_configured": receipt_configured,
         "database_backend": settings.database_backend,
-        "redis_ready": redis_ready,
-        "database_ready": database_ready,
-        "database_status": database_detail,
-        "qdrant_ready": qdrant_ready,
-        "qdrant_status": qdrant_detail,
+        "redis_ready": dependency_health.redis_ready,
+        "database_ready": dependency_health.database_ready,
+        "database_status": dependency_health.database_status,
+        "qdrant_ready": dependency_health.qdrant_ready,
+        "qdrant_status": dependency_health.qdrant_status,
         "demo_key_configured": demo_key["configured"],
         "demo_key_registered": demo_key["registered"],
         "demo_key_status": demo_key["status"],
