@@ -42,6 +42,7 @@ from core.runtime_bootstrap import (
     seed_demo_key,
     startup_checks,
 )
+from core.auth.api_key_flow import authenticate_api_key
 from core.auth.api_key_validation import raise_for_quota_failure, resolve_api_key
 from core.auth.hosted_prisma_bridge import (
     check_hosted_prisma_api_key,
@@ -707,17 +708,16 @@ async def _check_api_key(
             detail={"error": "unauthorized", "message": "Valid X-API-Key required."},
         )
 
-    # Authenticate via KeyStore only (trial / pro — quota enforced)
-    quota = key_store.check_and_increment(api_key)
-    if not quota.allowed and "Invalid" in quota.reason:
-        hosted_quota = await _check_hosted_prisma_api_key(api_key)
-        if hosted_quota is not None:
-            if hosted_quota.allowed:
-                _logger.info("api key authenticated via hosted Prisma fallback")
-                request.state.api_user_id = await _lookup_hosted_api_key_user_id(
-                    api_key
-                )
-            quota = hosted_quota
+    auth_result = await authenticate_api_key(
+        api_key,
+        key_store=key_store,
+        hosted_quota_checker=_check_hosted_prisma_api_key,
+        hosted_user_lookup=_lookup_hosted_api_key_user_id,
+        logger=_logger,
+    )
+    if auth_result.user_id:
+        request.state.api_user_id = auth_result.user_id
+    quota = auth_result.quota
     if quota.allowed:
         return
     raise_for_quota_failure(quota)
