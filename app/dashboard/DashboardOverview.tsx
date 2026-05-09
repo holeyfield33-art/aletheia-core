@@ -202,7 +202,7 @@ export default function DashboardOverview({
   const [showWelcome, setShowWelcome] = useState(isNewUser);
 
   const usagePct =
-    totalQuota > 0 ? Math.round((totalRequests / totalQuota) * 100) : 0;
+    totalQuota > 0 ? Math.round((currentMonthUsage / totalQuota) * 100) : 0;
   const showUpgradeBanner = plan === "TRIAL" && usagePct >= 80 && !isNewUser;
 
   const cards = [
@@ -294,7 +294,7 @@ export default function DashboardOverview({
                 color: "var(--silver)",
               }}
             >
-              {totalRequests.toLocaleString()} / {totalQuota.toLocaleString()}{" "}
+              {currentMonthUsage.toLocaleString()} / {totalQuota.toLocaleString()}{" "}
               Sovereign Audit Receipts &middot; Upgrade to Scale for 25K/month
               or Pro for 100K/month
             </div>

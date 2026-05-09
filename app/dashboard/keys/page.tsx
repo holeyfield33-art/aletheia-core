@@ -43,6 +43,7 @@ export default function KeysPage() {
   const [generatedKey, setGeneratedKey] = useState<GeneratedKeyDetails | null>(null);
   const [secretCopied, setSecretCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
   const toast = useToast();
 
   /* Fetch keys on mount */
@@ -101,19 +102,23 @@ export default function KeysPage() {
 
   const handleRevoke = useCallback(
     async (id: string) => {
+      if (revokingKeyId) return;
+      setRevokingKeyId(id);
       try {
         await clientFetchResponse(`/api/keys/${id}`, { method: "DELETE" });
         setKeys((prev) =>
           prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)),
         );
-        toast.info("Key revoked");
+        toast.info("Key revoked. Requests with this key will now be rejected.");
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : "Failed to revoke key. Please try again."
         );
+      } finally {
+        setRevokingKeyId(null);
       }
     },
-    [toast],
+    [revokingKeyId, toast],
   );
 
   const handleCloseModal = useCallback(() => {
@@ -522,6 +527,7 @@ export default function KeysPage() {
                     {k.status === "active" && (
                       <button
                         onClick={() => handleRevoke(k.id)}
+                        disabled={revokingKeyId === k.id}
                         style={{
                           background: "none",
                           border: "1px solid rgba(139,26,42,0.5)",
@@ -529,11 +535,24 @@ export default function KeysPage() {
                           padding: "0.25rem 0.75rem",
                           fontFamily: "var(--font-mono)",
                           fontSize: "0.72rem",
-                          cursor: "pointer",
+                          cursor: revokingKeyId === k.id ? "wait" : "pointer",
+                          opacity: revokingKeyId === k.id ? 0.7 : 1,
                         }}
                       >
-                        Revoke
+                        {revokingKeyId === k.id ? "Revoking..." : "Revoke"}
                       </button>
+                    )}
+                    {k.status === "revoked" && (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.68rem",
+                          color: "var(--muted)",
+                        }}
+                      >
+                        Revoked
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -601,6 +620,11 @@ export default function KeysPage() {
                     {errorCode === "limit_reached" && (
                       <div style={{ marginTop: "0.5rem", color: "var(--silver)" }}>
                         Revoke an unused key or upgrade your hosted plan to create more active keys.
+                        <div style={{ marginTop: "0.5rem" }}>
+                          <a href={CTAS.upgrade.href} style={{ color: "var(--white)" }}>
+                            Upgrade hosted plan
+                          </a>
+                        </div>
                       </div>
                     )}
                     {errorCode === "configuration_error" && (

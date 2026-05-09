@@ -33,6 +33,9 @@ export default function UsagePage() {
   }, []);
 
   const activeKeys = keys.filter((k) => k.status === "active");
+  const quotaExceededKeys = activeKeys.filter(
+    (k) => k.monthlyQuota > 0 && k.requestsUsed >= k.monthlyQuota,
+  );
 
   return (
     <div>
@@ -76,6 +79,29 @@ export default function UsagePage() {
         </a>{" "}
         for higher limits and production access.
       </p>
+
+      {quotaExceededKeys.length > 0 && (
+        <div
+          style={{
+            background: "rgba(176,34,54,0.12)",
+            border: "1px solid rgba(176,34,54,0.45)",
+            padding: "0.9rem 1rem",
+            maxWidth: "760px",
+            marginBottom: "1rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.78rem",
+            color: "var(--silver)",
+            lineHeight: 1.6,
+          }}
+        >
+          {quotaExceededKeys.length} active {quotaExceededKeys.length === 1 ? "key has" : "keys have"} reached monthly quota. Requests will return quota errors until the next period or plan upgrade.
+          <div style={{ marginTop: "0.4rem" }}>
+            <a href={CTAS.upgrade.href} style={{ color: "var(--crimson-hi)" }}>
+              Upgrade hosted plan
+            </a>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <SkeletonStatCards count={3} />
@@ -225,6 +251,18 @@ export default function UsagePage() {
                   </span>
                   <span style={{ color: barColor }}>{pct}%</span>
                 </div>
+                {k.status === "revoked" && (
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.72rem",
+                      color: "var(--muted)",
+                      marginBottom: "0.45rem",
+                    }}
+                  >
+                    This key is revoked and can no longer be used for hosted API calls.
+                  </div>
+                )}
                 <div
                   style={{
                     height: "6px",
