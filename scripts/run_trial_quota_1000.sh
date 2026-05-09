@@ -25,7 +25,7 @@ for i in $(seq 1 "$TOTAL"); do
   body='{"payload":"Retrieve the latest system health report for the monitoring dashboard.","origin":"quota-probe","action":"read_config"}'
 
   tmp_file="$(mktemp)"
-  status=$(curl -sS -o "$tmp_file" -w "%{http_code}" \
+  status=$(curl -sS --connect-timeout 5 --max-time 15 -o "$tmp_file" -w "%{http_code}" \
     -X POST "$BASE_URL/v1/audit" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $KEY" \
