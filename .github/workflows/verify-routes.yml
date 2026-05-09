@@ -179,11 +179,18 @@ jobs:
           import json, os, sys
           status = int(os.environ["HTTP_STATUS"])
           body = open('/tmp/trifecta_resp.json', encoding='utf-8').read().strip()
-          if status >= 400:
+          # 403 = active DENIED decision (expected for this high-risk payload)
+          # 200-299 with PROCEED/REVIEW/DENIED decision body = also valid
+          if status == 403:
+              data = json.loads(body or "{}")
+              assert data.get('decision') == 'DENIED', f'unexpected 403 body: {data}'
+              print('PASS /v1/agent-trifecta/audit (DENIED decision, 403 expected)')
+          elif status < 400:
+              data = json.loads(body or "{}")
+              assert data.get('decision') in ('PROCEED', 'REVIEW', 'DENIED'), f'unexpected trifecta decision: {data}'
+              print('PASS /v1/agent-trifecta/audit')
+          else:
               raise AssertionError(f"unexpected trifecta status: {status}, body={body!r}")
-          data = json.loads(body or "{}")
-          assert data.get('decision') in ('PROCEED', 'REVIEW', 'DENIED'), f'unexpected trifecta decision: {data}'
-          print('PASS /v1/agent-trifecta/audit')
           PY
 
       - name: Verify 401 on missing API key
