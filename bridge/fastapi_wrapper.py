@@ -7,7 +7,6 @@ import logging
 import secrets
 import time as _time
 import asyncio
-import json
 
 import hashlib
 import os
@@ -67,6 +66,11 @@ from core.db import (
     create_asyncpg_pool,
     init_optional_postgres_pool,
     probe_asyncpg_pool,
+)
+from core.persistence.hosted_audit_log import (
+    generate_cuid,
+    persist_audit_log,
+    persist_hosted_audit_log,
 )
 
 
@@ -605,10 +609,8 @@ async def _lookup_hosted_api_key_user_id(raw_key: str) -> str:
 
 
 def _generate_cuid() -> str:
-    """Generate a Prisma-compatible compact ID for hosted AuditLog rows."""
-    timestamp_ms = int(_time.time() * 1000)
-    random_block = secrets.token_hex(8)
-    return f"c{timestamp_ms:x}{random_block}"[:25]
+    """Compatibility shim for hosted AuditLog row id generation."""
+    return generate_cuid()
 
 
 async def _persist_audit_log(
@@ -626,75 +628,32 @@ async def _persist_audit_log(
     request_id: str,
     receipt: dict[str, Any] | None,
 ) -> None:
-    """Insert one row into Prisma AuditLog for dashboard visibility.
-
-    Fail-quiet by design: persistence issues must not alter audit decisions.
-    """
-    if _bridge_pool is None:
-        return
-
-    try:
-        async with _bridge_pool.acquire() as conn:
-            # Upsert a minimal User stub so the AuditLog FK constraint is always
-            # satisfied, even when the userId originates from a Render-issued key
-            # that has never touched the Vercel/Supabase User table.
-            if user_id:
-                await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
-                    """
-                    INSERT INTO "User" (id, "updatedAt")
-                    VALUES ($1, NOW())
-                    ON CONFLICT (id) DO UPDATE SET "updatedAt" = EXCLUDED."updatedAt"
-                    """,
-                    user_id,
-                )
-            await conn.execute(  # nosemgrep: python.lang.security.audit.sqli.asyncpg-sqli.asyncpg-sqli
-                """
-                INSERT INTO "AuditLog" (
-                    id, "userId", decision, "threatScore", action, origin,
-                    "sourceIp", reason, "latencyMs", "payloadHash", "policyHash",
-                    "requestId", receipt, "createdAt"
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, NOW())
-                """,
-                _generate_cuid(),
-                user_id or None,
-                decision,
-                float(threat_score),
-                action,
-                origin,
-                source_ip or None,
-                reason or None,
-                float(latency_ms),
-                payload_hash or None,
-                policy_hash or None,
-                request_id or None,
-                json.dumps(receipt) if receipt else None,
-            )
-    except Exception as exc:
-        _logger.warning(
-            "audit_log_persist_failed request_id=%s err=%s",
-            request_id,
-            exc,
-        )
+    """Compatibility shim for hosted Prisma audit persistence."""
+    await persist_audit_log(
+        pool=_bridge_pool,
+        logger=_logger,
+        user_id=user_id,
+        decision=decision,
+        threat_score=threat_score,
+        action=action,
+        origin=origin,
+        source_ip=source_ip,
+        reason=reason,
+        latency_ms=latency_ms,
+        payload_hash=payload_hash,
+        policy_hash=policy_hash,
+        request_id=request_id,
+        receipt=receipt,
+    )
 
 
 async def _persist_hosted_audit_log(audit_record: dict[str, Any], user_id: str) -> None:
-    """Best-effort mirror of /v1/audit decisions to Prisma AuditLog for dashboard APIs."""
-    await _persist_audit_log(
+    """Compatibility shim for hosted audit log mirroring."""
+    await persist_hosted_audit_log(
+        pool=_bridge_pool,
+        logger=_logger,
+        audit_record=audit_record,
         user_id=user_id,
-        decision=str(audit_record.get("decision", "")),
-        threat_score=float(audit_record.get("threat_score", 0.0)),
-        action=str(audit_record.get("action", "")),
-        origin=str(audit_record.get("origin", "")),
-        source_ip=str(audit_record.get("source_ip", "")),
-        reason=str(audit_record.get("reason", "")),
-        latency_ms=float(audit_record.get("latency_ms", 0.0)),
-        payload_hash=str(audit_record.get("payload_sha256", "")),
-        policy_hash=str(audit_record.get("policy_hash", "")),
-        request_id=str(audit_record.get("request_id", "")),
-        receipt=audit_record.get("receipt")
-        if isinstance(audit_record.get("receipt"), dict)
-        else None,
     )
 
 
