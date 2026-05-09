@@ -45,6 +45,7 @@ from core.runtime_bootstrap import (
     startup_checks,
 )
 from core.runtime_status import collect_dependency_health
+from core.runtime_status import collect_manifest_readiness
 from core.metrics import (
     REQUEST_COUNTER,
     LATENCY_HISTOGRAM,
@@ -996,21 +997,6 @@ def _run_judge(action: str, clean_input: str) -> tuple[bool, str]:
     return judge.verify_action(action, payload=clean_input)
 
 
-def _verify_manifest() -> bool:
-    """Check manifest signature integrity. Returns True if valid."""
-    from manifest.signing import verify_manifest_signature
-
-    try:
-        verify_manifest_signature(
-            manifest_path="manifest/security_policy.json",
-            signature_path="manifest/security_policy.json.sig",
-            public_key_path="manifest/security_policy.ed25519.pub",
-        )
-        return True
-    except Exception:
-        return False
-
-
 def _read_manifest_public_key() -> str:
     """Read the manifest verification public key in PEM format."""
     key_path = Path("manifest/security_policy.ed25519.pub")
@@ -1182,31 +1168,19 @@ async def health_check(request: Request) -> JSONResponse:
 @app.get("/ready")
 async def readiness_check() -> JSONResponse:
     """Readiness probe. Returns 200 if all subsystems are healthy, 503 otherwise."""
-    import json as _json
-
-    manifest_ok = _verify_manifest()
-
-    # Load policy version from manifest
-    try:
-        with open("manifest/security_policy.json", "r", encoding="utf-8") as f:
-            policy_data = _json.load(f)
-        policy_version = policy_data.get("version", "unknown")
-    except Exception:
-        policy_version = "unknown"
-
-    receipt_configured = bool(os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip())
+    manifest_readiness = collect_manifest_readiness()
 
     dependency_health = await collect_dependency_health()
 
     demo_key = _demo_key_health_signal()
 
-    ready = manifest_ok and dependency_health.all_ready
+    ready = manifest_readiness.manifest_ok and dependency_health.all_ready
 
     body = {
         "ready": ready,
-        "manifest_signature": "VALID" if manifest_ok else "INVALID",
-        "policy_version": policy_version,
-        "receipt_signing_configured": receipt_configured,
+        "manifest_signature": manifest_readiness.manifest_signature,
+        "policy_version": manifest_readiness.policy_version,
+        "receipt_signing_configured": manifest_readiness.receipt_signing_configured,
         "database_backend": settings.database_backend,
         "redis_ready": dependency_health.redis_ready,
         "database_ready": dependency_health.database_ready,

@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import os
 
 from core.db import check_database_health, check_qdrant_health
 
@@ -20,6 +22,17 @@ class DependencyHealth:
     @property
     def all_ready(self) -> bool:
         return self.redis_ready and self.database_ready and self.qdrant_ready
+
+
+@dataclass(frozen=True)
+class ManifestReadiness:
+    manifest_ok: bool
+    policy_version: str
+    receipt_signing_configured: bool
+
+    @property
+    def manifest_signature(self) -> str:
+        return "VALID" if self.manifest_ok else "INVALID"
 
 
 async def check_redis_health() -> bool:
@@ -50,4 +63,40 @@ async def collect_dependency_health() -> DependencyHealth:
         database_status=database_status,
         qdrant_ready=qdrant_ready,
         qdrant_status=qdrant_status,
+    )
+
+
+def verify_manifest_signature_status() -> bool:
+    """Return True when the signed security manifest verifies."""
+    from manifest.signing import verify_manifest_signature
+
+    try:
+        verify_manifest_signature(
+            manifest_path="manifest/security_policy.json",
+            signature_path="manifest/security_policy.json.sig",
+            public_key_path="manifest/security_policy.ed25519.pub",
+        )
+        return True
+    except Exception:
+        return False
+
+
+def load_policy_version() -> str:
+    """Load policy manifest version for readiness diagnostics."""
+    try:
+        with open("manifest/security_policy.json", "r", encoding="utf-8") as f:
+            policy_data = json.load(f)
+        return str(policy_data.get("version", "unknown"))
+    except Exception:
+        return "unknown"
+
+
+def collect_manifest_readiness() -> ManifestReadiness:
+    """Collect manifest and receipt-signing readiness metadata."""
+    return ManifestReadiness(
+        manifest_ok=verify_manifest_signature_status(),
+        policy_version=load_policy_version(),
+        receipt_signing_configured=bool(
+            os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip()
+        ),
     )
