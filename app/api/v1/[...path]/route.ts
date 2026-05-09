@@ -14,6 +14,7 @@ const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIO
 const STRIPPED_REQUEST_HEADERS = new Set([
   "cookie",
   "set-cookie",
+  "accept-encoding",
   "x-vercel-id",
   "x-vercel-deployment-url",
   "x-vercel-forwarded-for",
@@ -76,6 +77,7 @@ async function proxyToBackend(
       headers.set(key, value);
     }
   }
+  headers.set("accept-encoding", "identity");
   headers.set("x-forwarded-host", request.headers.get("host") ?? "");
 
   // Inject the proxy-identity secret so Render can verify traffic came
