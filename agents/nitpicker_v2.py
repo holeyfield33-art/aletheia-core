@@ -118,6 +118,23 @@ class AletheiaNitpickerV2:
         "run arbitrary code remotely",
     ]
 
+    # Phrase-specific lexical anchors for patterns that can over-match on generic
+    # "system" wording in benign prompts (for example: "system health report").
+    # We apply this only to a small prompt-injection subset to preserve overall
+    # semantic sensitivity while preventing obvious false positives.
+    BLOCKED_PATTERN_ANCHORS: dict[str, re.Pattern[str]] = {
+        "read the system prompt": re.compile(r"\bsystem\s+prompt\b", re.IGNORECASE),
+        "reveal hidden instructions": re.compile(
+            r"\bhidden\s+instructions?\b", re.IGNORECASE
+        ),
+        "inject into system context": re.compile(
+            r"\bsystem\s+context\b", re.IGNORECASE
+        ),
+        "overwrite model instructions": re.compile(
+            r"\bmodel\s+instructions?\b", re.IGNORECASE
+        ),
+    }
+
     def __init__(self) -> None:
         self.modes: list[str] = list(settings.polymorphic_modes)
         self.restricted_verbs: list[str] = [
@@ -260,6 +277,9 @@ class AletheiaNitpickerV2:
         max_sim = float(similarities[max_idx])
         if max_sim >= self._similarity_threshold:
             matched_pattern = self.BLOCKED_PATTERNS[max_idx]
+            anchor = self.BLOCKED_PATTERN_ANCHORS.get(matched_pattern)
+            if anchor is not None and not anchor.search(text):
+                return None
             return (
                 f"[SEMANTIC_BLOCK] Payload is {max_sim:.0%} similar to blocked pattern "
                 f"'{matched_pattern}' (threshold: {self._similarity_threshold:.0%})"

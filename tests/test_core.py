@@ -95,6 +95,15 @@ class TestNitpicker(unittest.TestCase):
         )
         self.assertIn("SEMANTIC_BLOCK", output)
 
+    @_needs_real_model
+    def test_benign_system_health_prompt_not_blocked(self):
+        """Benign monitoring text should not map to 'system prompt' injection pattern."""
+        n = AletheiaNitpickerV2()
+        blocked, reason = n.check_semantic_block(
+            "Retrieve the latest system health report for the monitoring dashboard."
+        )
+        self.assertFalse(blocked, reason)
+
 
 class TestJudge(unittest.TestCase):
     """Tests for cryptographic manifest + semantic cosine-similarity veto."""
