@@ -21,6 +21,8 @@ import { NextRequest } from "next/server";
 const mockAuditLogFindMany = vi.fn();
 const mockAuditLogFindFirst = vi.fn();
 const mockAuditLogCount = vi.fn();
+const mockApiKeyCount = vi.fn();
+const mockApiKeyCreate = vi.fn();
 const mockApiKeyFindMany = vi.fn();
 const mockApiKeyFindFirst = vi.fn();
 const mockUserProfileFindUnique = vi.fn();
@@ -33,6 +35,8 @@ vi.mock("@/lib/prisma", () => ({
       count: (...a: unknown[]) => mockAuditLogCount(...a),
     },
     apiKey: {
+      count: (...a: unknown[]) => mockApiKeyCount(...a),
+      create: (...a: unknown[]) => mockApiKeyCreate(...a),
       findMany: (...a: unknown[]) => mockApiKeyFindMany(...a),
       findFirst: (...a: unknown[]) => mockApiKeyFindFirst(...a),
     },
@@ -50,6 +54,14 @@ vi.mock("@/lib/api-utils", () => ({
       status: init?.status ?? 200,
       headers: { "Content-Type": "application/json" },
     }),
+}));
+
+vi.mock("@/lib/hosted-plans", () => ({
+  getHostedPlanConfig: () => ({
+    maxActiveKeys: 3,
+    apiKeyPlan: "trial", // pragma: allowlist secret
+    monthlyCalls: 1000,
+  }),
 }));
 
 const mockGetServerSession = vi.fn();
@@ -98,6 +110,14 @@ const USER_A_PROFILE = {
 
 function makeGet(url: string): NextRequest {
   return new NextRequest(url);
+}
+
+function makePost(url: string, body: Record<string, unknown>): NextRequest {
+  return new NextRequest(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 // ================================================================ tests ===
@@ -175,6 +195,32 @@ describe("Tenant isolation — /api/keys", () => {
 
     const body = await res.json();
     expect(JSON.stringify(body)).not.toContain("User A production key");
+  });
+
+  it("create endpoint — whitespace-only key name falls back to Unnamed Key", async () => {
+    mockApiKeyCount.mockResolvedValue(0);
+    mockApiKeyCreate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: "key_new_001",
+      name: String(data.name),
+      keyPrefix: "sk_trial_abc...1234",
+      plan: "trial",
+      status: "active",
+      monthlyQuota: 1000,
+      periodStart: new Date("2026-05-01T00:00:00.000Z"),
+      periodEnd: new Date("2026-06-01T00:00:00.000Z"),
+      createdAt: new Date("2026-05-09T00:00:00.000Z"),
+    }));
+
+    const { POST } = await import("@/app/api/keys/route");
+    const res = await POST(makePost("http://localhost/api/keys", { name: "   " }));
+
+    expect(res.status).toBe(201);
+    const createArgs = mockApiKeyCreate.mock.calls[0][0];
+    expect(createArgs.data.userId).toBe(USER_B_ID);
+    expect(createArgs.data.name).toBe("Unnamed Key");
+
+    const body = await res.json();
+    expect(body.name).toBe("Unnamed Key");
   });
 });
 

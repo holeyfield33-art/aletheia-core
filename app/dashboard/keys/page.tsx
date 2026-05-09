@@ -33,6 +33,24 @@ interface ApiKeysResponse {
 
 interface CreateApiKeyResponse {
   key: string;
+  id: string;
+  name: string;
+  key_prefix: string;
+  plan: string;
+  status: string;
+  monthly_quota: number;
+  requests_used: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
+}
+
+interface GeneratedKeyDetails {
+  secret: string;
+  name: string;
+  keyPrefix: string;
+  monthlyQuota: number;
+  periodEnd: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -44,10 +62,11 @@ export default function KeysPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
 
   /* Modal state */
   const [newKeyName, setNewKeyName] = useState("");
-  const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const [generatedKey, setGeneratedKey] = useState<GeneratedKeyDetails | null>(null);
   const [secretCopied, setSecretCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
   const toast = useToast();
@@ -71,16 +90,37 @@ export default function KeysPage() {
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     setError(null);
+    setErrorCode(null);
     try {
       const data = await clientFetch<CreateApiKeyResponse>("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newKeyName || "Unnamed Key" }),
       });
-      setGeneratedSecret(data.key);
+      setGeneratedKey({
+        secret: data.key,
+        name: data.name,
+        keyPrefix: data.key_prefix,
+        monthlyQuota: data.monthly_quota,
+        periodEnd: data.period_end,
+      });
+      setKeys((prev) => [
+        {
+          id: data.id,
+          name: data.name,
+          key_prefix: data.key_prefix,
+          plan: data.plan,
+          status: data.status,
+          monthly_quota: data.monthly_quota,
+          requests_used: data.requests_used,
+          period_start: data.period_start,
+          period_end: data.period_end,
+          created_at: data.created_at,
+          last_used_at: null,
+        },
+        ...prev,
+      ]);
       toast.success("API key generated");
-      /* Refresh key list */
-      fetchKeys();
     } catch (error) {
       if (
         isClientFetchError(error) &&
@@ -88,8 +128,10 @@ export default function KeysPage() {
         error.data
       ) {
         const payload = error.data as { message?: string; error?: string };
+        setErrorCode(payload.error || null);
         setError(payload.message || payload.error || "Failed to generate key");
       } else {
+        setErrorCode("network_error");
         setError("Network error. Try again.");
       }
     } finally {
@@ -117,18 +159,19 @@ export default function KeysPage() {
   const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setNewKeyName("");
-    setGeneratedSecret(null);
+    setGeneratedKey(null);
     setSecretCopied(false);
     setError(null);
+    setErrorCode(null);
   }, []);
 
   const handleCopy = useCallback(() => {
-    if (generatedSecret) {
-      navigator.clipboard.writeText(generatedSecret);
+    if (generatedKey?.secret) {
+      navigator.clipboard.writeText(generatedKey.secret);
       setSecretCopied(true);
       toast.success("Key copied to clipboard");
     }
-  }, [generatedSecret, toast]);
+  }, [generatedKey, toast]);
 
   const overlay: React.CSSProperties = {
     position: "fixed",
@@ -568,7 +611,7 @@ export default function KeysPage() {
       {showModal && (
         <div style={overlay} onClick={handleCloseModal}>
           <div style={modal} onClick={(e) => e.stopPropagation()}>
-            {!generatedSecret ? (
+            {!generatedKey ? (
               <>
                 <h2
                   style={{
@@ -595,6 +638,16 @@ export default function KeysPage() {
                     }}
                   >
                     {error}
+                    {errorCode === "limit_reached" && (
+                      <div style={{ marginTop: "0.5rem", color: "var(--silver)" }}>
+                        Revoke an unused key or upgrade your hosted plan to create more active keys.
+                      </div>
+                    )}
+                    {errorCode === "configuration_error" && (
+                      <div style={{ marginTop: "0.5rem", color: "var(--silver)" }}>
+                        Hosted key creation is temporarily unavailable. Retry shortly or contact support.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -697,6 +750,38 @@ export default function KeysPage() {
 
                 <div
                   style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                    gap: "0.75rem",
+                    marginBottom: "1rem",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.74rem",
+                  }}
+                >
+                  <div>
+                    <div style={{ color: "var(--muted)", marginBottom: "0.2rem" }}>Name</div>
+                    <div style={{ color: "var(--white)" }}>{generatedKey.name}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--muted)", marginBottom: "0.2rem" }}>Stored Prefix</div>
+                    <div style={{ color: "var(--white)" }}>{generatedKey.keyPrefix}</div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--muted)", marginBottom: "0.2rem" }}>Monthly Quota</div>
+                    <div style={{ color: "var(--white)" }}>
+                      {generatedKey.monthlyQuota.toLocaleString()} receipts
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ color: "var(--muted)", marginBottom: "0.2rem" }}>Current Period Ends</div>
+                    <div style={{ color: "var(--white)" }}>
+                      {generatedKey.periodEnd.slice(0, 10)}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
                     background: "var(--surface)",
                     border: "1px solid var(--border)",
                     padding: "0.75rem 1rem",
@@ -708,7 +793,7 @@ export default function KeysPage() {
                     userSelect: "all",
                   }}
                 >
-                  {generatedSecret}
+                  {generatedKey.secret}
                 </div>
 
                 <div

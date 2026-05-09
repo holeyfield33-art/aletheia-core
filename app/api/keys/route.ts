@@ -100,10 +100,9 @@ export async function POST(request: NextRequest) {
     return secureJson({ error: "invalid_json" }, { status: 400 });
   }
 
-  const name =
-    typeof body.name === "string"
-      ? body.name.slice(0, 64).trim()
-      : "Unnamed Key";
+  const normalizedName =
+    typeof body.name === "string" ? body.name.slice(0, 64).trim() : "";
+  const name = normalizedName || "Unnamed Key";
   const plan = planConfig.apiKeyPlan;
 
   const rawKey = `sk_${plan}_${crypto.randomBytes(24).toString("hex")}`;
