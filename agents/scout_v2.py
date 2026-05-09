@@ -127,6 +127,8 @@ class AletheiaScoutV2:
                 "ignore.*compliance",
                 "override.*compliance",
                 "disable.*monitoring",
+                # Nested instruction-smuggling in structured fields (PI_015 class)
+                r"(?:instruction(?:_key)?|directive|metadata|meta|key)\s*[\"']?\s*[:=]\s*[\"']?\s*(?:system[_\s\-]*update|s\s*y\s*s\s*t\s*e\s*m\s*[_\-]?\s*u\s*p\s*d\s*a\s*t\s*e)\s*[\"']?",
             ],
             "prompt_injection_patterns": [
                 # Deny-first motifs for prompt injection

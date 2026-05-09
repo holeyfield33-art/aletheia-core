@@ -612,6 +612,12 @@ class IntentClassifier:
                 r"\b(?:system_update\s*:\s*override\s+all\s+security\s+policies)\b",
                 re.IGNORECASE,
             ),
+            # Nested instruction-smuggling guard:
+            # catches obfuscated SYSTEM_UPDATE directive tokens embedded in metadata.
+            re.compile(
+                r"\b(?:instruction(?:_key)?|directive|metadata|meta|key)\s*[\"']?\s*[:=]\s*[\"']?\s*(?:system[_\s\-]*update|s\s*y\s*s\s*t\s*e\s*m\s*[_\-]?\s*u\s*p\s*d\s*a\s*t\s*e)\s*[\"']?",
+                re.IGNORECASE,
+            ),
             re.compile(
                 r"\b(?:proceed\s+even\s+though\s+this\s+violates\s+policy)\b",
                 re.IGNORECASE,

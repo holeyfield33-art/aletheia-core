@@ -139,6 +139,7 @@ Receipt notes:
 - `reasoning` is never included in PROCEED responses.
 - Sandbox match details are never included in SANDBOX_BLOCKED responses.
 - Unauthorized tool-invocation attempts (for example `run_in_terminal`, `apply_patch`, `send_to_terminal`, or explicit `tool call` / `function call` control payloads) are blocked with `DENIED` or `SANDBOX_BLOCKED`.
+- Nested instruction-smuggling markers in structured metadata (for example `instruction_key=SYSTEM_UPDATE`) are treated as policy-evasion intent and denied fail-closed.
 - `threat_level` is discretised: `LOW` (<3.0), `MEDIUM` (3.0–5.99), `HIGH` (6.0–threshold), `CRITICAL` (≥threshold).
 
 ---
