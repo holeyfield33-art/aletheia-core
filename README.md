@@ -22,6 +22,9 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/github/stars/holeyfield33-art/aletheia-core?style=social" alt="GitHub stars"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/security.yml/badge.svg" alt="Security Scan" />
+  <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/verify-routes.yml/badge.svg" alt="Verify Routes" />
+  <img src="https://codecov.io/gh/holeyfield33-art/aletheia-core/branch/main/graph/badge.svg" alt="Coverage" />
 </p>
 
 ## Aletheia Ecosystem
