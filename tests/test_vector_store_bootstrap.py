@@ -1,8 +1,9 @@
 """Tests for Qdrant collection bootstrap and query coverage gaps in core/vector_store.py."""
+
 from __future__ import annotations
 
 import importlib
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -208,9 +209,7 @@ class TestQuerySemanticPatternsCategoryFiltering:
         mock_client.query_points.return_value = _mock_response([])
 
         with patch.object(vs, "_get_client", return_value=mock_client):
-            vs.query_semantic_patterns(
-                query_vector=[0.0] * 384, score_threshold=0.75
-            )
+            vs.query_semantic_patterns(query_vector=[0.0] * 384, score_threshold=0.75)
 
         call_kwargs = mock_client.query_points.call_args.kwargs
         assert call_kwargs.get("score_threshold") == 0.75
@@ -219,7 +218,9 @@ class TestQuerySemanticPatternsCategoryFiltering:
         monkeypatch.setenv("ALETHEIA_SEMANTIC_ENABLED", "true")
         import core.vector_store as vs
 
-        hit = _mock_hit("de_001", score=0.92, category="direct_exfiltration", severity="CRITICAL")
+        hit = _mock_hit(
+            "de_001", score=0.92, category="direct_exfiltration", severity="CRITICAL"
+        )
         mock_client = MagicMock()
         mock_client.query_points.return_value = _mock_response([hit])
 

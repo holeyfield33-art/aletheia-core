@@ -1,8 +1,8 @@
 """Tests for core/decision_store.py — SQLite backend and DecisionStore facade."""
+
 from __future__ import annotations
 
 import importlib
-import os
 import pytest
 
 

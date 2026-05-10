@@ -13,6 +13,7 @@ False-positive exclusions:
   - Fragment-only anchors (#section) -- path becomes empty string, skipped
   - /#*         (homepage anchor -- homepage exists)
 """
+
 from __future__ import annotations
 
 import re

@@ -1,10 +1,10 @@
 """Tests for economics modules: circuit_breaker, token_velocity, zero_standing_privileges."""
+
 from __future__ import annotations
 
 import threading
 import time
 
-import pytest
 
 from economics.circuit_breaker import BreakerState, ResourceCircuitBreaker
 from economics.token_velocity import TokenVelocityTracker

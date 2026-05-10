@@ -20,8 +20,16 @@
   <img src="https://img.shields.io/badge/version-1.9.3-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
+  <img src="https://img.shields.io/github/stars/holeyfield33-art/aletheia-core?style=social" alt="GitHub stars"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
+
+## Aletheia Ecosystem
+
+- [aletheia-core](https://github.com/holeyfield33-art/aletheia-core): Runtime audit and pre-execution enforcement layer
+- [aletheia-redteam-kit](https://github.com/holeyfield33-art/aletheia-redteam-kit): Adversarial simulation and policy stress-testing toolkit
+- [aletheia-trader](https://github.com/holeyfield33-art/aletheia-trader): Signal-to-verdict trading workflow demo with signed receipts
+- [aletheia-core-hub](https://github.com/holeyfield33-art/aletheia-core-hub): Public distribution hub for releases, changelog, and policy packs
 
 ---
 
@@ -118,6 +126,8 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 ### Install
 
 ```bash
+pip install aletheia-core
+# Current published package name:
 pip install aletheia-cyber-core
 ```
 
