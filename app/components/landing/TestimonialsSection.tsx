@@ -71,7 +71,7 @@ export default function TestimonialsSection() {
                   margin: 0,
                 }}
               >
-                "{testimonial.quote}"
+                &ldquo;{testimonial.quote}&rdquo;
               </blockquote>
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}>

@@ -17,7 +17,7 @@ export default function ExitIntentPopup({ enabled = true }: ExitIntentPopupProps
 
     const handleMouseLeave = (e: MouseEvent) => {
       // Only trigger at the top of the page
-      if ((e as any).clientY <= 0) {
+      if (e.clientY <= 0) {
         setIsVisible(true);
       }
     };

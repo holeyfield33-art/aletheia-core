@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 export default function SocialProofBar() {
   const [starCount, setStarCount] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch GitHub star count from GitHub API
@@ -21,8 +20,6 @@ export default function SocialProofBar() {
         }
       } catch (error) {
         console.error("Failed to fetch GitHub stars:", error);
-      } finally {
-        setLoading(false);
       }
     };
 

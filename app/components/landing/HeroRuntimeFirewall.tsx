@@ -1,5 +1,4 @@
 import { URLS } from "@/lib/site-config";
-import AuthAwareCTA from "@/app/components/AuthAwareCTA";
 
 export default function HeroRuntimeFirewall() {
   return (
