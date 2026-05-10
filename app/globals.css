@@ -292,7 +292,7 @@ label {
 .badge-proceed {
   display: inline-block;
   background: rgba(46, 184, 122, 0.12);
-  border: 1px solid var(--green);
+  border: 1.5px solid var(--green);
   color: var(--green);
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -300,32 +300,53 @@ label {
   padding: 0.35rem 0.9rem;
   border-radius: 4px;
   letter-spacing: 0.08em;
+  box-shadow: 0 0 8px rgba(46, 184, 122, 0.15);
+  transition: all 0.2s ease;
+}
+
+.badge-proceed:hover {
+  box-shadow: 0 0 16px rgba(46, 184, 122, 0.25);
+  transform: scale(1.05);
 }
 
 .badge-denied {
   display: inline-block;
   background: rgba(176, 34, 54, 0.15);
-  border: 1px solid var(--crimson-hi);
-  color: var(--crimson-hi);
+  border: 1.5px solid var(--crimson-hi);
+  color: #ff6b6b;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   font-weight: 700;
   padding: 0.35rem 0.9rem;
   border-radius: 4px;
   letter-spacing: 0.08em;
+  box-shadow: 0 0 12px rgba(176, 34, 54, 0.25);
+  transition: all 0.2s ease;
+}
+
+.badge-denied:hover {
+  box-shadow: 0 0 20px rgba(176, 34, 54, 0.4);
+  transform: scale(1.05);
 }
 
 .badge-blocked {
   display: inline-block;
-  background: rgba(176, 34, 54, 0.12);
-  border: 1px solid #e67e22;
-  color: #e67e22;
+  background: rgba(230, 126, 34, 0.12);
+  border: 1.5px solid #e67e22;
+  color: #ff9143;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   font-weight: 700;
   padding: 0.35rem 0.9rem;
   border-radius: 4px;
   letter-spacing: 0.08em;
+  box-shadow: 0 0 10px rgba(230, 126, 34, 0.15);
+  transition: all 0.2s ease;
+}
+
+.badge-blocked:hover {
+  box-shadow: 0 0 18px rgba(230, 126, 34, 0.25);
+  transform: scale(1.05);
 }
 
 .badge-error {
@@ -348,7 +369,9 @@ label {
 
   .home-additions-grid,
   .seo-landing-grid,
-  .seo-landing-faq {
+  .seo-landing-faq,
+  .pricing-grid,
+  .feature-grid {
     grid-template-columns: 1fr !important;
   }
 
@@ -361,6 +384,12 @@ label {
   .seo-page-cta-stack {
     flex-direction: column !important;
     align-items: stretch !important;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.85rem 1.5rem !important;
+    font-size: 0.95rem !important;
   }
 
   .homepage-solutions-grid,
@@ -380,6 +409,19 @@ label {
   .seo-landing-shell a,
   .seo-landing-shell span {
     font-size: 0.875rem !important;
+  }
+
+  /* Responsive video containers */
+  [style*="position: relative"] > div[style*="paddingBottom"] {
+    border-radius: 10px;
+  }
+
+  /* Mobile-friendly exit intent popup */
+  [style*="position: fixed"] [style*="bottom: 2rem"] {
+    bottom: 1rem !important;
+    right: 1rem !important;
+    left: 1rem !important;
+    max-width: calc(100vw - 2rem) !important;
   }
 }
 

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import HeroRuntimeFirewall from "@/app/components/landing/HeroRuntimeFirewall";
+import SocialProofBar from "@/app/components/landing/SocialProofBar";
 import RedTeamDemoSection from "@/app/components/landing/RedTeamDemoSection";
 import TraderAgentDemoSection from "@/app/components/landing/TraderAgentDemoSection";
 import LiveAletheiaDemoSection from "@/app/components/landing/LiveAletheiaDemoSection";
+import TestimonialsSection from "@/app/components/landing/TestimonialsSection";
 import ReceiptVerificationFlipCard from "@/app/components/landing/ReceiptVerificationFlipCard";
 import LandingPricingSection from "@/app/components/landing/LandingPricingSection";
 import FinalCTA from "@/app/components/landing/FinalCTA";
+import ExitIntentPopup from "@/app/components/landing/ExitIntentPopup";
 import { PRODUCT } from "@/lib/site-config";
 
 export const metadata: Metadata = {
@@ -25,9 +28,11 @@ export default function HomePage() {
   return (
     <>
       <HeroRuntimeFirewall />
+      <SocialProofBar />
       <RedTeamDemoSection />
       <TraderAgentDemoSection videoUrl={process.env.NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL} />
       <LiveAletheiaDemoSection />
+      <TestimonialsSection />
       <ReceiptVerificationFlipCard />
       <LandingPricingSection />
       <section style={{ padding: "0 1.5rem 2.25rem" }}>
@@ -142,6 +147,7 @@ export default function HomePage() {
           {PRODUCT.name} &middot; Protect your agent before it acts.
         </div>
       </section>
+      <ExitIntentPopup enabled={true} />
     </>
   );
 }

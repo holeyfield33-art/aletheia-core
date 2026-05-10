@@ -71,14 +71,36 @@ export default function LandingPricingSection() {
             <article
               key={card.name}
               style={{
+                position: "relative",
                 background: card.name === "Scale" ? "var(--surface-2)" : "var(--surface)",
-                border: card.name === "Scale" ? "1px solid var(--crimson)" : "1px solid var(--border)",
+                border: card.name === "Scale" ? "2px solid var(--crimson-hi)" : "1px solid var(--border)",
                 borderRadius: "14px",
                 padding: "1.25rem",
                 display: "grid",
                 gap: "0.8rem",
+                transform: card.name === "Scale" ? "scale(1.02)" : "scale(1)",
               }}
             >
+              {card.name === "Scale" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "-12px",
+                    right: "16px",
+                    background: "var(--crimson-hi)",
+                    color: "var(--white)",
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    padding: "0.3rem 0.7rem",
+                    borderRadius: "4px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  ⭐ Popular
+                </div>
+              )}
               <div>
                 <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.74rem", color: "var(--muted)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "0.35rem" }}>
                   {card.name}
@@ -99,6 +121,13 @@ export default function LandingPricingSection() {
                 <Link className={card.name === "Free" ? "btn-secondary" : "btn-primary"} href={card.ctaHref}>
                   {card.ctaLabel}
                 </Link>
+              )}
+              {card.name === "Scale" && (
+                <div style={{ borderTop: "1px solid var(--border-hi)", paddingTop: "0.75rem", marginTop: "0.75rem" }}>
+                  <p style={{ color: "var(--muted)", fontSize: "0.75rem", margin: "0 0 0.25rem", fontStyle: "italic" }}>
+                    💡 2 months free on annual plans
+                  </p>
+                </div>
               )}
             </article>
           ))}

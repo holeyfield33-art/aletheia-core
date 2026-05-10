@@ -58,8 +58,7 @@ export default function HeroRuntimeFirewall() {
               margin: "0 auto 0.8rem",
             }}
           >
-            Watch the attack. Watch the agent. Watch Aletheia block the action
-            before execution.
+            Block unsafe AI agent actions before they execute. Signed receipts included.
           </p>
 
           <p
@@ -81,29 +80,18 @@ export default function HeroRuntimeFirewall() {
             className="hero-cta-stack"
             style={{
               display: "flex",
-              gap: "0.8rem",
+              gap: "1rem",
               justifyContent: "center",
               alignItems: "center",
               flexWrap: "wrap",
               marginBottom: "1.2rem",
             }}
           >
-            <AuthAwareCTA
-              anonymousLabel="Protect My Agent"
-              anonymousHref="/auth/register?callbackUrl=%2Fdashboard"
-              authedLabel="Open Dashboard"
-              authedHref="/dashboard"
-            />
-            <a className="btn-secondary" href="/demo">
-              Run Live Demo
+            <a className="btn-primary" href="/demo" style={{ fontSize: "1.05rem", padding: "0.9rem 1.8rem" }}>
+              Try Live Demo →
             </a>
-            <a
-              href={URLS.github}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--silver)", textDecoration: "none", fontWeight: 600 }}
-            >
-              View GitHub
+            <a className="btn-secondary" href={URLS.github} target="_blank" rel="noopener noreferrer" style={{ fontSize: "1rem", padding: "0.9rem 1.8rem" }}>
+              Deploy Self-Hosted (Free)
             </a>
           </div>
 
@@ -128,13 +116,13 @@ export default function HeroRuntimeFirewall() {
             }}
           >
             {[
-              "Open-source core",
-              "Hosted API",
-              "Signed receipts",
-              "Red-team tested",
+              { label: "MIT Licensed", icon: "📜" },
+              { label: "Red Team Tested", icon: "🔴" },
+              { label: "Ed25519 Signed", icon: "✓" },
+              { label: "1000+ Tests", icon: "✅" },
             ].map((item) => (
               <span
-                key={item}
+                key={item.label}
                 style={{
                   background: "var(--surface)",
                   border: "1px solid var(--border-hi)",
@@ -143,9 +131,13 @@ export default function HeroRuntimeFirewall() {
                   padding: "0.35rem 0.85rem",
                   fontFamily: "var(--font-mono)",
                   fontSize: "0.74rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
                 }}
               >
-                {item}
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
               </span>
             ))}
           </div>
