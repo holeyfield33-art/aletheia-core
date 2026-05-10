@@ -20,8 +20,6 @@
 
 ## Checklist
 
-- [ ] Tests pass locally (`pytest tests/ -q --ignore=tests/test_proximity`)
-- [ ] Linting passes (`ruff check .`)
-- [ ] Documentation updated (if applicable)
-- [ ] No secrets, keys, or credentials committed
-- [ ] CHANGELOG.md updated (if user-facing change)
+- [ ] Type hints added (mypy --strict for new code)
+- [ ] Code reviewed for security implications
+- [ ] Performance impact assessed (if applicable)

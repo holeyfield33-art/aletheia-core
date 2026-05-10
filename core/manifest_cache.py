@@ -115,12 +115,12 @@ def load_and_embed_manifest(
         elapsed_ms,
     )
 
+    model_name = getattr(model, "model_name", None) or "all-MiniLM-L6-v2"
+
     return ManifestCache(
         entries=entries,
         vectors=embeddings,
-        model_name=model.get_sentence_embedding_dimension()
-        and model.model_name
-        or "all-MiniLM-L6-v2",
+        model_name=model_name,
     )
 
 

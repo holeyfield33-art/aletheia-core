@@ -187,8 +187,10 @@ class TestMatchPayload(unittest.TestCase):
 
     def test_match_payload_returns_empty_below_threshold(self):
         """match_payload returns [] when best score is below threshold."""
-        # Reset mock
-        self.mock_model.encode.side_effect = [self.benign_embedding[0]]
+        # Use a broad query vector that remains below a very high threshold.
+        low_sim_query = np.ones(384)
+        low_sim_query = low_sim_query / (np.linalg.norm(low_sim_query) + 1e-8)
+        self.mock_model.encode.side_effect = [low_sim_query]
 
         results = match_payload(
             "check system health",

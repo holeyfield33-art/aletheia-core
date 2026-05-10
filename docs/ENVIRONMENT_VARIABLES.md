@@ -120,6 +120,8 @@ Status meanings:
 | ALETHEIA_SEMANTIC_ENABLED | Optional | Enables Qdrant semantic layer. |
 | ALETHEIA_QDRANT_URL | Optional | Qdrant endpoint. |
 | ALETHEIA_QDRANT_API_KEY | Optional | Qdrant cloud API key. |
+| QDRANT_URL | Optional | Qdrant endpoint used by indexing scripts (for example, scripts/index_qdrant_manifest.py). |
+| QDRANT_API_KEY | Optional | Qdrant API key used by indexing scripts (for example, scripts/index_qdrant_manifest.py). |
 | ALETHEIA_QDRANT_COLLECTION | Optional | Qdrant collection name. |
 | ALETHEIA_QDRANT_TIMEOUT_MS | Optional | Qdrant timeout in ms. |
 | ALETHEIA_SEMANTIC_MANIFEST | Optional | Semantic manifest override path. |
