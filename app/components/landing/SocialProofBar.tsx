@@ -9,11 +9,7 @@ export default function SocialProofBar() {
     // Fetch GitHub star count from GitHub API
     const fetchStars = async () => {
       try {
-        const response = await fetch("https://api.github.com/repos/holeyfield33-art/aletheia-core", {
-          headers: process.env.NEXT_PUBLIC_GITHUB_TOKEN
-            ? { Authorization: `token ${process.env.NEXT_PUBLIC_GITHUB_TOKEN}` }
-            : {},
-        });
+        const response = await fetch("https://api.github.com/repos/holeyfield33-art/aletheia-core");
         if (response.ok) {
           const data = await response.json();
           setStarCount(data.stargazers_count);
