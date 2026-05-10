@@ -15,9 +15,16 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
+else:
+    # Keep module importable in lightweight CI environments where
+    # sentence-transformers is intentionally omitted.
+    SentenceTransformer = Any
 
 
 _logger = logging.getLogger("aletheia.manifest_cache")

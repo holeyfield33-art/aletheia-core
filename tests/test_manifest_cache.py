@@ -3,16 +3,20 @@
 import unittest
 import tempfile
 import json
+import importlib.util
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 from core.manifest_cache import (
     ManifestCache,
     load_and_embed_manifest,
     match_payload,
+)
+
+_HAS_SENTENCE_TRANSFORMERS = (
+    importlib.util.find_spec("sentence_transformers") is not None
 )
 
 
@@ -46,6 +50,10 @@ class TestManifestCache(unittest.TestCase):
             ManifestCache(entries=entries, vectors=vectors)
 
 
+@unittest.skipUnless(
+    _HAS_SENTENCE_TRANSFORMERS,
+    "requires sentence_transformers",
+)
 class TestLoadAndEmbedManifest(unittest.TestCase):
     """Test manifest loading and embedding."""
 
@@ -81,6 +89,8 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
 
     def test_load_and_embed_manifest_success(self):
         """load_and_embed_manifest creates valid cache."""
+        from sentence_transformers import SentenceTransformer
+
         model = SentenceTransformer("all-MiniLM-L6-v2")
         cache = load_and_embed_manifest(str(self.manifest_path), model)
 
@@ -92,6 +102,8 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
 
     def test_load_and_embed_manifest_file_not_found(self):
         """load_and_embed_manifest raises FileNotFoundError for missing file."""
+        from sentence_transformers import SentenceTransformer
+
         model = SentenceTransformer("all-MiniLM-L6-v2")
         with self.assertRaises(FileNotFoundError):
             load_and_embed_manifest("/nonexistent/path.json", model)
@@ -100,6 +112,8 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
         """load_and_embed_manifest raises JSONDecodeError for invalid JSON."""
         bad_path = Path(self.temp_dir.name) / "bad.json"
         bad_path.write_text("not valid json {")
+
+        from sentence_transformers import SentenceTransformer
 
         model = SentenceTransformer("all-MiniLM-L6-v2")
         with self.assertRaises(json.JSONDecodeError):
@@ -114,6 +128,8 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
         bad_path = Path(self.temp_dir.name) / "bad_manifest.json"
         with open(bad_path, "w") as f:
             json.dump(bad_manifest, f)
+
+        from sentence_transformers import SentenceTransformer
 
         model = SentenceTransformer("all-MiniLM-L6-v2")
         with self.assertRaises(ValueError):
