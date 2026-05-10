@@ -101,7 +101,7 @@ class AletheiaSettings:
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     intent_threshold: float = 0.45  # Judge veto cosine-sim threshold
     grey_zone_lower: float = 0.30  # Grey-zone second-pass lower bound
-    nitpicker_similarity_threshold: float = 0.38  # Nitpicker blocked-pattern threshold
+    nitpicker_similarity_threshold: float = 0.75  # Nitpicker blocked-pattern threshold
 
     # --- Polymorphic rotation (config-driven, deterministic cycle) ---
     polymorphic_modes: list[str] = field(
@@ -235,7 +235,7 @@ class AletheiaSettings:
         defaults.embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
         defaults.intent_threshold = 0.45
         defaults.grey_zone_lower = 0.30
-        defaults.nitpicker_similarity_threshold = 0.38
+        defaults.nitpicker_similarity_threshold = 0.75
         defaults.polymorphic_modes = ["LINEAGE", "INTENT", "SKEPTIC"]
         defaults.mode = "active"
         defaults.shadow_mode = False

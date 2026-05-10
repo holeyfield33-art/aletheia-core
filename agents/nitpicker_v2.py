@@ -190,6 +190,12 @@ class AletheiaNitpickerV2:
         self._manifest_embeddings: Optional[np.ndarray] = None
         self._manifest_embeddings_lock = threading.Lock()
 
+        # Startup-cached embeddings and model (injected from bridge lifespan)
+        self._cached_manifest_cache: Optional[object] = None  # ManifestCache instance
+        self._cached_embedding_model: Optional[object] = (
+            None  # SentenceTransformer instance
+        )
+
         self._load_semantic_manifest()
 
     # ------------------------------------------------------------------
@@ -263,6 +269,29 @@ class AletheiaNitpickerV2:
         if not self._semantic_manifest:
             _nitpicker_logger.debug(
                 "No primary semantic manifest found, using default thresholds"
+            )
+
+    # ------------------------------------------------------------------
+    # Cache injection (called from bridge lifespan after manifest_cache init)
+    # ------------------------------------------------------------------
+
+    def set_manifest_cache(self, cache: object, embedding_model: object) -> None:
+        """Inject pre-computed manifest cache and embedding model from lifespan.
+
+        Called during FastAPI startup after ManifestCache is created.
+        Allows Nitpicker to use vectorized similarity matching instead of
+        per-request encoding.
+
+        Args:
+            cache: ManifestCache instance (or None to disable)
+            embedding_model: SentenceTransformer instance or None
+        """
+        self._cached_manifest_cache = cache
+        self._cached_embedding_model = embedding_model
+        if cache is not None:
+            _nitpicker_logger.info(
+                "Manifest cache injected: %d entries ready for vectorized lookup",
+                len(cache.entries),
             )
 
     # ------------------------------------------------------------------
@@ -392,33 +421,72 @@ class AletheiaNitpickerV2:
                 )
                 # ---- Degraded path: cosine-sim against data/semantic_manifest.json ----
                 if self._manifest_entries:
-                    if self._manifest_embeddings is None:
-                        with self._manifest_embeddings_lock:
-                            if self._manifest_embeddings is None:
-                                texts = [e["text"] for e in self._manifest_entries]
-                                self._manifest_embeddings = encode(texts)
-                    query_vec = encode([stripped])
-                    sims = cosine_similarity(query_vec, self._manifest_embeddings)[0]
-                    best_idx = int(np.argmax(sims))
-                    best_score = float(sims[best_idx])
-                    best_entry = self._manifest_entries[best_idx]
-                    cat = best_entry.get("category", "policy_evasion")
-                    threshold = self._thresholds.get_threshold_for_category(cat)
-                    if best_score >= threshold:
-                        qdrant_blocked = True
-                        top_match_id = best_entry.get("id", "")
-                        top_match_score = best_score
-                        top_match_threshold = threshold
-                        top_match_category = cat
-                        qdrant_reason = (
-                            f"[SEMANTIC_BLOCK] Static-manifest match "
-                            f"'{top_match_id}' category={cat} "
-                            f"score={best_score:.2f} "
-                            f"(threshold: {threshold:.2f})"
+                    # Prefer cached embeddings (computed at startup) over per-request encoding
+                    if (
+                        self._cached_manifest_cache is not None
+                        and self._cached_embedding_model is not None
+                    ):
+                        # Use vectorized similarity matching from cache
+                        from core.manifest_cache import match_payload
+
+                        cat_threshold = self._thresholds.get_threshold_for_category(
+                            "policy_evasion"
                         )
-                        # Override source so callers can distinguish this path
-                        # from a live Qdrant hit.
-                        source = "static_manifest_fallback"
+                        cached_matches = match_payload(
+                            stripped,
+                            self._cached_embedding_model,
+                            self._cached_manifest_cache,
+                            threshold=cat_threshold,
+                        )
+                        if cached_matches:
+                            best_entry = cached_matches[0]
+                            best_score = best_entry.get("score", 0.0)
+                            cat = best_entry.get("category", "policy_evasion")
+                            threshold = self._thresholds.get_threshold_for_category(cat)
+                            if best_score >= threshold:
+                                qdrant_blocked = True
+                                top_match_id = best_entry.get("id", "")
+                                top_match_score = best_score
+                                top_match_threshold = threshold
+                                top_match_category = cat
+                                qdrant_reason = (
+                                    f"[SEMANTIC_BLOCK] Cached-manifest match "
+                                    f"'{top_match_id}' category={cat} "
+                                    f"score={best_score:.2f} "
+                                    f"(threshold: {threshold:.2f})"
+                                )
+                                source = "cached_manifest"
+                    elif self._manifest_entries:
+                        # Fallback: per-request encoding (original behavior)
+                        if self._manifest_embeddings is None:
+                            with self._manifest_embeddings_lock:
+                                if self._manifest_embeddings is None:
+                                    texts = [e["text"] for e in self._manifest_entries]
+                                    self._manifest_embeddings = encode(texts)
+                        query_vec = encode([stripped])
+                        sims = cosine_similarity(query_vec, self._manifest_embeddings)[
+                            0
+                        ]
+                        best_idx = int(np.argmax(sims))
+                        best_score = float(sims[best_idx])
+                        best_entry = self._manifest_entries[best_idx]
+                        cat = best_entry.get("category", "policy_evasion")
+                        threshold = self._thresholds.get_threshold_for_category(cat)
+                        if best_score >= threshold:
+                            qdrant_blocked = True
+                            top_match_id = best_entry.get("id", "")
+                            top_match_score = best_score
+                            top_match_threshold = threshold
+                            top_match_category = cat
+                            qdrant_reason = (
+                                f"[SEMANTIC_BLOCK] Static-manifest match "
+                                f"'{top_match_id}' category={cat} "
+                                f"score={best_score:.2f} "
+                                f"(threshold: {threshold:.2f})"
+                            )
+                            # Override source so callers can distinguish this path
+                            # from a live Qdrant hit.
+                            source = "static_manifest_fallback"
 
             matches = lookup["matches"]
             if matches:

@@ -1098,7 +1098,7 @@ pyyaml==6.0.3 \
     # via
     #   -r requirements.in
     #   huggingface-hub
-qdrant-client==1.15.1 \
+qdrant-client>=1.17,<1.18 \
     --hash=sha256:2b975099b378382f6ca1cfb43f0d59e541be6e16a5892f282a4b8de7eff5cb63 \
     --hash=sha256:631f1f3caebfad0fd0c1fba98f41be81d9962b7bf3ca653bed3b727c0e0cbe0e
     # via -r requirements.in

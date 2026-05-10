@@ -208,6 +208,48 @@ async def _lifespan(application: FastAPI):
         # Warmup is best-effort and non-blocking for health/readiness checks.
         asyncio.create_task(asyncio.to_thread(warm_up))
 
+        # Manifest cache initialization (PERFORMANCE: ~24s → <100ms per-request lookup)
+        try:
+            from sentence_transformers import SentenceTransformer
+            from core.manifest_cache import load_and_embed_manifest
+            from pathlib import Path
+
+            embedding_model = SentenceTransformer(
+                settings.embedding_model,
+                device="cpu",
+                cache_folder=None,
+            )
+            manifest_path = Path("data/semantic_manifest.json")
+            if manifest_path.is_file():
+                t_start = _time.time()
+                cache = load_and_embed_manifest(str(manifest_path), embedding_model)
+                elapsed_ms = (_time.time() - t_start) * 1000
+                application.state.manifest_cache = cache
+                application.state.embedding_model = embedding_model
+
+                # Inject cache into Nitpicker for vectorized per-request lookups
+                nitpicker.set_manifest_cache(cache, embedding_model)
+
+                _logger.info(
+                    "Manifest cache ready: %d entries embedded in %.1f ms",
+                    len(cache.entries),
+                    elapsed_ms,
+                )
+            else:
+                _logger.warning(
+                    "Manifest not found at %s; semantic pattern matching degraded",
+                    manifest_path,
+                )
+                application.state.manifest_cache = None
+                application.state.embedding_model = None
+        except Exception as exc:
+            _logger.warning(
+                "Failed to initialize manifest cache: %s; semantic pattern matching degraded",
+                exc,
+            )
+            application.state.manifest_cache = None
+            application.state.embedding_model = None
+
         # Idempotent demo-key seed: lets the public /demo flow survive restarts
         # without re-introducing the deprecated ALETHEIA_API_KEYS env-var auth path.
         # No-op if the key is already known to the KeyStore, or if the env var is unset.

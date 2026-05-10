@@ -431,6 +431,22 @@ All settings are configurable via environment variables (prefixed `ALETHEIA_`) o
 Canonical, code-verified environment matrix:
 - [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md)
 
+**Critical for Receipt Chain Continuity:**
+
+```bash
+ALETHEIA_CHAIN_KEY_PATH=/var/data/chain.key
+```
+
+The Ed25519 chain signing key must persist across restarts to maintain tamper-evident audit trail continuity. Without this setting, every Render deploy regenerates the key, breaking the claim that receipts form an unbroken cryptographic chain.
+
+**Technical details:**
+- Required when using Ed25519 receipt signing (default mode)
+- Path should be on persistent storage (e.g. Render Disk attachment)
+- Must be readable/writable only by the application user
+- On Render: Configure via Dashboard → Disks → attach to `/var/data` with 1GB quota
+
+Without `ALETHEIA_CHAIN_KEY_PATH`, audit receipts are still cryptographically valid per request, but fail the **chain continuity** test across restarts.
+
 The matrix is generated from actual runtime references (`os.getenv`, `process.env`, `env_bool`), dynamic settings bindings in `core/config.py`, and Prisma schema env usage.
 
 ### Known Limitations
