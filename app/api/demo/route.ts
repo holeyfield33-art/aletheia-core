@@ -138,6 +138,7 @@ const DEMO_RATE_WINDOW_MS = parseInt(
 // ---------------------------------------------------------------------------
 const INJECTION_PATTERNS: { re: RegExp; rule_id: string; severity: string }[] =
   [
+    // Classic instruction-override injection
     {
       re: /ignore\s+(all|any|previous|prior)\s+instructions/i,
       rule_id: "INJECTION_IGNORE_INSTRUCTIONS",
@@ -148,16 +149,34 @@ const INJECTION_PATTERNS: { re: RegExp; rule_id: string; severity: string }[] =
       rule_id: "INJECTION_FORGET_RULES",
       severity: "CRITICAL",
     },
+    // Role / persona override
     {
       re: /you\s+are\s+(now\s+)?(DAN|admin|root|developer\s+mode|jailbreak)/i,
       rule_id: "INJECTION_ROLE_OVERRIDE",
       severity: "CRITICAL",
     },
     {
+      re: /you\s+are\s+now\s+(an?\s+)?(?:unfiltered|unrestricted|uncensored|different\s+AI|new\s+AI)/i,
+      rule_id: "INJECTION_PERSONA_OVERRIDE",
+      severity: "CRITICAL",
+    },
+    {
+      re: /(?:enter|activate|enable)\s+(?:developer|admin|root|unrestricted|uncensored)\s+mode/i,
+      rule_id: "INJECTION_MODE_OVERRIDE",
+      severity: "CRITICAL",
+    },
+    // Prompt / system context extraction
+    {
       re: /system\s+prompt/i,
       rule_id: "INJECTION_SYSTEM_PROMPT",
       severity: "HIGH",
     },
+    {
+      re: /(?:output|repeat|print|show|reveal)\s+(?:your\s+)?(?:context\s+window|system\s+context|full\s+context|hidden\s+instructions?|internal\s+state)/i,
+      rule_id: "INJECTION_CONTEXT_EXTRACTION",
+      severity: "HIGH",
+    },
+    // Credential / environment exfiltration
     {
       re: /read\s+\.env/i,
       rule_id: "EXFIL_ENV_FILE",
@@ -172,6 +191,29 @@ const INJECTION_PATTERNS: { re: RegExp; rule_id: string; severity: string }[] =
       re: /POST\s+(keys|secrets?|tokens?|credentials?)\s+to\s+/i,
       rule_id: "EXFIL_CREDENTIAL_POST",
       severity: "CRITICAL",
+    },
+    // Authority spoofing / social engineering
+    {
+      re: /(?:i\s+am|acting\s+as)\s+the\s+(?:system\s+administrator|super\s+admin|root\s+user|ceo|ciso).{0,80}(?:authorize|approve|grant|override|bypass)/i,
+      rule_id: "AUTHORITY_SPOOFING",
+      severity: "HIGH",
+    },
+    {
+      re: /(?:pre.?approved|already\s+authorized|cleared\s+by\s+(?:security|compliance)).{0,60}(?:bypass|skip|proceed|override)/i,
+      rule_id: "FAKE_APPROVAL_CLAIM",
+      severity: "HIGH",
+    },
+    // Injected sentinel markers used for instruction smuggling
+    {
+      re: /\[(?:SYSTEM|ADMIN|OVERRIDE|NEW\s+INSTRUCTIONS?|BEGIN\s+(?:SYSTEM|OVERRIDE))\]/i,
+      rule_id: "SENTINEL_INJECTION",
+      severity: "HIGH",
+    },
+    // Urgency-bypass attacks
+    {
+      re: /(?:urgent|emergency|critical).{0,60}(?:bypass|override|skip|ignore).{0,60}(?:review|approval|check|policy)/i,
+      rule_id: "URGENCY_BYPASS",
+      severity: "HIGH",
     },
   ];
 
