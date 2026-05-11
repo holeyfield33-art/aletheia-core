@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-import importlib.util
+import hashlib
 import os
+from unittest.mock import patch
+
+import numpy as np
 
 import pytest
 
@@ -28,30 +31,128 @@ def shadow_mode_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ALETHEIA_MODE", "shadow")
 
 
-# ---------------------------------------------------------------------------
-# ML model mock — activated when huggingface_hub is not installed.
-# Returns a deterministic fixed-dimension embedding so that semantic
-# similarity tests can run without the full ML stack.
-# ---------------------------------------------------------------------------
-if importlib.util.find_spec("huggingface_hub") is None:
-    import unittest.mock as _mock
-    import numpy as _np
+def _is_fast_mock_enabled(request: pytest.FixtureRequest) -> bool:
+    """Enable fast mocks unless a test is explicitly marked as integration."""
+    if request.node.get_closest_marker("integration") is not None:
+        return False
+    # Some modules already encode "real model required" intent via a helper.
+    module = getattr(request.node, "module", None)
+    if module is not None and hasattr(module, "_needs_real_model"):
+        return False
+    return True
 
-    class _StubModel:
-        """Returns zero-vectors so cosine_similarity always returns 0.0."""
 
-        def encode(
-            self,
-            texts: list[str],
-            *,
-            normalize_embeddings: bool = True,
-            show_progress_bar: bool = False,
-        ) -> "_np.ndarray":
-            return _np.zeros((len(texts), 384), dtype=_np.float32)
+class _StubModel:
+    """Deterministic embedding stub with sentence-transformers-compatible API."""
 
-    _stub = _StubModel()
-    _patcher = _mock.patch(
-        "core.model_loader.load_cached_sentence_transformer",
-        return_value=_stub,
-    )
-    _patcher.start()
+    dim = 384
+
+    def _vector_for_text(self, text: str) -> np.ndarray:
+        digest = hashlib.sha256(text.encode("utf-8", errors="ignore")).digest()
+        seed = int.from_bytes(digest[:8], "big")
+        rng = np.random.default_rng(seed)
+        vec = rng.random(self.dim, dtype=np.float32)
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec = vec / norm
+        return vec.astype(np.float32)
+
+    def encode(
+        self,
+        texts,
+        *,
+        normalize_embeddings: bool = True,
+        show_progress_bar: bool = False,
+    ):
+        if isinstance(texts, str):
+            items = [texts]
+            is_single = True
+        else:
+            items = list(texts)
+            is_single = False
+
+        matrix = np.stack([self._vector_for_text(t) for t in items])
+        if not normalize_embeddings:
+            matrix = matrix * 10.0
+        if is_single:
+            return matrix[0]
+        return matrix
+
+
+class _QdrantCollection:
+    status = "green"
+
+
+class _QdrantCollectionsResponse:
+    def __init__(self) -> None:
+        self.collections: list[object] = []
+
+
+class _QdrantClientStub:
+    """Small in-memory stand-in for Qdrant client behavior used in tests."""
+
+    def search(self, *args, **kwargs):
+        return []
+
+    def query_points(self, *args, **kwargs):
+        return []
+
+    def get_collection(self, *args, **kwargs):
+        return _QdrantCollection()
+
+    def get_collections(self, *args, **kwargs):
+        return _QdrantCollectionsResponse()
+
+    def create_collection(self, *args, **kwargs):
+        return None
+
+    def create_payload_index(self, *args, **kwargs):
+        return None
+
+
+@pytest.fixture(autouse=True)
+def mock_sentence_transformer(request: pytest.FixtureRequest):
+    """Skip heavyweight model initialization in unit tests."""
+    if not _is_fast_mock_enabled(request):
+        yield
+        return
+
+    stub = _StubModel()
+    with (
+        patch("core.model_loader.load_cached_sentence_transformer", return_value=stub),
+        patch("core.embeddings.load_cached_sentence_transformer", return_value=stub),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_qdrant_client(request: pytest.FixtureRequest):
+    """Prevent external Qdrant network dependencies in fast test mode."""
+    if not _is_fast_mock_enabled(request):
+        yield
+        return
+
+    stub = _QdrantClientStub()
+    with patch("qdrant_client.QdrantClient", return_value=stub):
+        # Reset lazy singleton so tests never reuse a real client.
+        try:
+            import core.vector_store as _vs
+
+            _vs._client = None
+        except Exception:
+            pass
+        yield
+
+
+@pytest.fixture(autouse=True)
+def mock_manifest_signing(request: pytest.FixtureRequest):
+    """Bypass filesystem/signature coupling in unit tests."""
+    if not _is_fast_mock_enabled(request):
+        yield
+        return
+
+    with (
+        patch("manifest.signing.verify_manifest_signature", return_value=None),
+        patch("agents.judge_v1.verify_manifest_signature", return_value=None),
+    ):
+        yield

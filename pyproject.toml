@@ -90,6 +90,9 @@ manifest = ["*.json", "*.sig", "*.pub"]
 pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: tests that require real external/model dependencies",
+]
 
 [tool.mypy]
 python_version = "3.11"
