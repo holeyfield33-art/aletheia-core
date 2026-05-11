@@ -249,6 +249,41 @@ def evaluate_agent_trifecta(ctx: AgentTrifectaContext) -> AgentTrifectaDecision:
         except Exception as exc:
             _logger.warning("Sandbox check failed; skipping escalation rule: %s", exc)
 
+    # RULE 8 — LATERAL_MOVEMENT
+    # Shell access combined with private-data read access from untrusted input is
+    # the classic lateral-movement preparation pattern (read credentials via shell
+    # to pivot to another system). RULE 4 already fires for shell+untrusted alone;
+    # this rule escalates the threat level when read_private is also active.
+    if untrusted_or_mixed and ctx.can_execute_shell and ctx.can_read_private_data:
+        denied_reasons.append("LATERAL_MOVEMENT")
+        _bump("HIGH")
+
+    # RULE 9 — CREDENTIAL_STAGING
+    # Writing secrets to files is a pre-exfiltration staging step: an agent can
+    # dump API keys into /tmp and then have them fetched externally later.
+    # RULE 2 (SECRET_EXFIL_PATH) catches the send leg; this rule catches the
+    # write-staging leg independently.
+    if untrusted_or_mixed and ctx.can_access_secrets and ctx.can_write_files:
+        denied_reasons.append("CREDENTIAL_STAGING")
+        _bump("HIGH")
+
+    # RULE 10 — FULL_CAPABILITY_SATURATION
+    # An untrusted-input agent with four or more elevated capabilities active
+    # simultaneously represents near-maximal risk regardless of which specific
+    # combination is present. This catch-all covers novel multi-vector attacks
+    # not addressed by individual rules above.
+    elevated_cap_count = sum([
+        ctx.can_read_private_data,
+        ctx.can_access_secrets,
+        ctx.can_send_external_data,
+        ctx.can_write_files,
+        ctx.can_modify_config,
+        ctx.can_execute_shell,
+    ])
+    if untrusted_or_mixed and elevated_cap_count >= 4:
+        denied_reasons.append("FULL_CAPABILITY_SATURATION")
+        _bump("CRITICAL")
+
     if denied_reasons:
         reasons = denied_reasons + [
             r for r in review_reasons if r not in denied_reasons

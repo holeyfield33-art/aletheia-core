@@ -40,6 +40,59 @@ from manifest.signing import (  # noqa: E402
 class AletheiaJudge:
     """Policy enforcer with cryptographic manifest verification and semantic veto."""
 
+    # Category-level keyword anchors for the semantic veto.  The primary cosine-
+    # similarity check only fires when the payload contains at least one keyword
+    # that is genuinely relevant to the matched restricted-action category.  This
+    # prevents false positives caused by embedding-space bias (e.g. all vectors
+    # clustering in the positive orthant with a deterministic stub model) while
+    # preserving sensitivity for payloads that contain meaningful attack signals.
+    _CATEGORY_ANCHORS: dict[str, re.Pattern[str]] = {
+        "Transfer_Funds": re.compile(
+            r"\b(?:transfer|wire|send|relay|transmit|funds?|money|capital|payment|"
+            r"balance|assets?|offshore|external|ledger|wallet)\b",
+            re.IGNORECASE,
+        ),
+        "Approve_Loan_Disbursement": re.compile(
+            r"\b(?:loan|credit|disburs\w*|lend|borrow|approv\w*|authoriz\w*)\b",
+            re.IGNORECASE,
+        ),
+        "Modify_Auth_Registry": re.compile(
+            r"\b(?:admin|privilege|escalat\w*|elevat\w*|permission\w*|role|"
+            r"credential\w*|auth|superuser|grant)\b",
+            re.IGNORECASE,
+        ),
+        "Initiate_ACH": re.compile(
+            r"\b(?:ach|bank|wire|payment|transfer|settlement|routing|clearing)\b",
+            re.IGNORECASE,
+        ),
+        "Open_External_Socket": re.compile(
+            r"\b(?:exfiltrat\w*|relay|transmit|external|remote|forward|upload|egress|"
+            r"socket|endpoint|outside)\b",
+            re.IGNORECASE,
+        ),
+        "Bulk_Delete_Resource": re.compile(
+            r"\b(?:delete|destroy|wipe|remov\w*|drop|purge|truncat\w*|decommission|bulk)\b",
+            re.IGNORECASE,
+        ),
+        "Jailbreak_Override": re.compile(
+            r"\b(?:ignore|pretend|simulat\w*|jailbreak|roleplay|unrestricted|"
+            r"developer\s+mode|restrictions?|ethics|training|guidelines|safety|"
+            r"override|bypass)\b",
+            re.IGNORECASE,
+        ),
+        "Policy_Evasion": re.compile(
+            r"\b(?:bypass|override|disable|ignore|skip|suppress|evade|circumvent|"
+            r"audit|monitoring|compliance|logging|detection|policy|stealth|"
+            r"off.the.record)\b",
+            re.IGNORECASE,
+        ),
+        "Prompt_Injection": re.compile(
+            r"\b(?:system\s+prompt|inject|override|prompt|instructions?|execute|"
+            r"arbitrary|run|shell|code)\b",
+            re.IGNORECASE,
+        ),
+    }
+
     def __init__(self, policy_path: str = "manifest/security_policy.json") -> None:
         self.policy_path = policy_path
         self.signature_path = os.getenv(
@@ -345,9 +398,19 @@ class AletheiaJudge:
         max_idx = int(np.argmax(similarities))
         max_sim = float(similarities[max_idx])
 
-        # Primary veto — above threshold
+        # Primary veto — above threshold, with broad keyword anchor check.
+        # Requires at least one keyword from ANY restricted-action category before
+        # firing; prevents false positives from embedding-space bias (e.g. a
+        # positive-orthant stub model that maps every text to a high cosine score)
+        # while remaining sensitive to payloads that contain genuine attack signals
+        # across ANY category.
         if max_sim >= self.similarity_threshold:
-            return self._format_semantic_veto(max_idx, max_sim)
+            any_anchor_hit = any(
+                pat.search(payload) for pat in self._CATEGORY_ANCHORS.values()
+            )
+            if any_anchor_hit:
+                return self._format_semantic_veto(max_idx, max_sim)
+            # No category anchor matched — fall through to grey-zone heuristic
 
         # Grey-zone second-pass — keyword heuristic for the ambiguous band
         if max_sim >= self.grey_zone_lower:

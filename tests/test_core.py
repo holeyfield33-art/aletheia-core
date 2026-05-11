@@ -7,8 +7,11 @@ from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
 from bridge.utils import normalize_shadow_text
 
-_HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
-_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")
+_HAS_ML_DEPS = (
+    importlib.util.find_spec("huggingface_hub") is not None
+    and importlib.util.find_spec("fastembed") is not None
+)
+_needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub and fastembed")
 
 
 class TestBridgeNormalization(unittest.TestCase):

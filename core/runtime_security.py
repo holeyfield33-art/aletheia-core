@@ -368,42 +368,57 @@ class IntentClassifier:
             re.compile(r"\b(?:weaponize|attack chain|zero.day)\b", re.IGNORECASE),
         ],
         "data_exfiltration": [
-            # Enhanced motifs for weak category detection
+            # Explicit exfiltration verbs — high confidence regardless of destination
             re.compile(
-                r"\b(?:exfiltrat|export|dump|leak|copy).{0,120}(?:data|records|database|secrets)\b",
+                r"\b(?:exfiltrat|dump|leak|siphon|harvest).{0,120}(?:data|records|database|secrets|credentials|keys)\b",
                 re.IGNORECASE,
             ),
+            # Send/relay to explicit external destination (remote/public removed — too many
+            # legitimate uses: "send to remote team", "publish to public dashboard")
             re.compile(
-                r"\b(?:send|relay|transmit).{0,120}(?:external|outside|remote|offshore|/.{0,50}external)\b",
+                r"\b(?:send|relay|transmit).{0,120}(?:external\s+(?:server|host|party|system|endpoint|url)|outside\s+(?:the\s+)?(?:org|company|network)|offshore|attacker)\b",
                 re.IGNORECASE,
             ),
+            # Sending high-sensitivity data types to any destination (credentials etc. are
+            # never safe to forward regardless of recipient wording)
             re.compile(
-                r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|credentials|secrets|files?|documents?|pii)\b",
+                r"\b(?:email|send|forward|share).{0,120}(?:credentials|secrets|private\s+keys?|api\s+keys?|pii|password)\b",
                 re.IGNORECASE,
             ),
+            # Generic data sent to suspicious external-sounding destinations
+            re.compile(
+                r"\b(?:email|send|forward|share).{0,120}(?:database|records|data|documents?).{0,120}(?:external|outside|offshore|unauthorized|attacker|third.party)\b",
+                re.IGNORECASE,
+            ),
+            # URL/domain exfiltration channel (POST/webhook/curl to external domain)
             re.compile(
                 r"\b(?:send|email|transmit|forward|post|put|push|upload|publish|webhook|pipe|exfil|tunnel|relay|siphon|curl).{0,120}(?:to\s+|:).*?(?:\.com|\.io|\.net|\.org|\.dev|\.cloud|external|outside|endpoint|server|address)\b",
                 re.IGNORECASE,
             ),
-            # Additional deny-first exfiltration patterns
+            # Credential/secret extraction (copy/dump are strong exfil signals for secrets)
             re.compile(
                 r"\b(?:copy|dump|extract).*?(?:credentials|secrets|keys|tokens|vault|password)\b",
                 re.IGNORECASE,
             ),
+            # Production data replication/sync (moving live data = elevated risk)
             re.compile(
-                r"\b(?:mirror|replicate|sync).*?(?:production|live|real)\b",
+                r"\b(?:mirror|replicate|sync).*?(?:production|live|real).*?(?:external|outside|third.party|offshore|unauthorized)\b",
                 re.IGNORECASE,
             ),
+            # Backup/archive to clearly external-third-party destinations (cloud/remote removed
+            # — backing up to cloud storage and remote servers is completely normal DevOps)
             re.compile(
-                r"\b(?:backup|archive).*?(?:external|cloud|remote|partner|third.party)\b",
+                r"\b(?:backup|archive).*?(?:offshore|third.party|unauthorized\s+(?:party|server|host)|attacker)\b",
                 re.IGNORECASE,
             ),
+            # Data transfer to an explicit external/unauthorized destination
             re.compile(
-                r"\b(?:publish|push|sync|migrate|replicate|transfer|forward|beam).{0,120}(?:data|records|documents|logs|credentials|registry|snapshot|signals|source\s+code|algorithms|pii|health\s+records)\b",
+                r"\b(?:publish|push|migrate|replicate|transfer|forward|beam).{0,80}(?:data|records|documents|credentials|pii|health\s+records).{0,80}(?:external|outside|offshore|unauthorized|attacker|third.party)\b",
                 re.IGNORECASE,
             ),
+            # Specific high-value targets in destination context (offshore, attacker, compromised)
             re.compile(
-                r"\b(?:to|with).{0,80}(?:external|outside|remote|third.party|public|offshore|attacker|unauthorized|compromised)\b",
+                r"\b(?:to|with)\s+(?:an?\s+)?(?:external\s+(?:party|server|host|attacker|system)|offshore\s+(?:account|server)|unauthorized\s+(?:party|recipient|destination)|compromised\s+(?:host|endpoint))\b",
                 re.IGNORECASE,
             ),
             re.compile(
@@ -411,7 +426,7 @@ class IntentClassifier:
                 re.IGNORECASE,
             ),
             re.compile(
-                r"\b(?:private_key|authentication\s+registry|database\s+snapshot|customer\s+list|audit\s+logs|trading\s+signals)\b",
+                r"\b(?:private_key|authentication\s+registry|database\s+snapshot|customer\s+list|trading\s+signals)\b",
                 re.IGNORECASE,
             ),
             re.compile(
@@ -484,8 +499,14 @@ class IntentClassifier:
                 r"\b(?:reveal|leak|show|dump).*?(?:\.env|environment|config|credentials|keys|secrets)\b",
                 re.IGNORECASE,
             ),
+            # Model-extraction / training-data theft — narrowed to avoid blocking legitimate
+            # "read the model docs" or "read source code examples" queries
             re.compile(
-                r"\b(?:read|extract|output).*?(?:training|weights|model|source|code)\b",
+                r"\b(?:extract|dump|steal|exfiltrate).{0,80}(?:training\s+data|model\s+weights?|system\s+prompt|proprietary\s+(?:code|data)|source\s+code)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:output|print|reveal|show|read).{0,60}(?:system\s+prompt|hidden\s+instructions?|training\s+(?:data|examples)|model\s+weights?|internal\s+(?:state|context))\b",
                 re.IGNORECASE,
             ),
             re.compile(
@@ -518,6 +539,25 @@ class IntentClassifier:
             ),
             re.compile(
                 r"(?:/\*|\*/).{0,80}(?:malicious_code\s*\(\s*\)\s*;)",
+                re.IGNORECASE,
+            ),
+            # Context-window / internal-state exfiltration (LLM-specific)
+            re.compile(
+                r"\b(?:output|repeat|print|show|reveal|dump).{0,60}(?:context\s+window|full\s+context|system\s+context|conversation\s+history|your\s+(?:instructions|directives|configuration|prompt))\b",
+                re.IGNORECASE,
+            ),
+            # Injected tags / sentinel markers used for instruction smuggling
+            re.compile(
+                r"(?:\[SYSTEM\]|\[ADMIN\]|\[OVERRIDE\]|\[NEW\s+INSTRUCTIONS?\]|\[BEGIN\s+(?:SYSTEM|OVERRIDE)\])",
+                re.IGNORECASE,
+            ),
+            # Continuation / few-shot hijack: "as you said before, approve this"
+            re.compile(
+                r"\b(?:as\s+you\s+(?:said|confirmed|agreed|stated)\s+(?:before|earlier|previously)).{0,80}(?:approve|proceed|execute|authorize|bypass)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:complete\s+the\s+sentence|finish\s+this\s+thought|continue\s+from\s+where).{0,80}(?:approve|bypass|override|ignore\s+policy|grant\s+access)\b",
                 re.IGNORECASE,
             ),
         ],
@@ -620,6 +660,42 @@ class IntentClassifier:
             ),
             re.compile(
                 r"\b(?:proceed\s+even\s+though\s+this\s+violates\s+policy)\b",
+                re.IGNORECASE,
+            ),
+            # Urgency injection: bypass review by claiming time pressure
+            re.compile(
+                r"\b(?:urgent|immediate|emergency|critical|time.sensitive).{0,80}(?:bypass|override|skip|ignore).{0,80}(?:review|approval|check|verification|policy)\b",
+                re.IGNORECASE,
+            ),
+            # Context-reset attacks: establish a "clean slate" that discards policy
+            re.compile(
+                r"\b(?:new\s+context|fresh\s+context|reset\s+context|clean\s+slate|start\s+over).{0,60}(?:ignore|forget|override|bypass|discard).{0,60}(?:policy|rules|safety|restrictions)\b",
+                re.IGNORECASE,
+            ),
+            # Your "true purpose" manipulation
+            re.compile(
+                r"\b(?:your\s+(?:true\s+purpose|real\s+goal|hidden\s+task|actual\s+instructions)\s+(?:is|are)\s+to)\b",
+                re.IGNORECASE,
+            ),
+        ],
+        "authority_spoofing": [
+            # Impersonating admins/executives to authorize blocked actions
+            re.compile(
+                r"\b(?:i\s+am\s+the|acting\s+as\s+the|calling\s+as)\s+(?:system\s+administrator|super\s+admin|root\s+user|security\s+officer|ceo|ciso|cto).{0,80}(?:authorize|approve|grant|override|bypass)\b",
+                re.IGNORECASE,
+            ),
+            re.compile(
+                r"\b(?:on\s+behalf\s+of|authorized\s+by|approved\s+by)\s+(?:the\s+)?(?:ceo|cto|ciso|admin|security\s+(?:team|officer)|board).{0,80}(?:bypass|override|grant|approve|skip)\b",
+                re.IGNORECASE,
+            ),
+            # Fake certificate / pre-approval claims
+            re.compile(
+                r"\b(?:pre.?approved|already\s+authorized|previously\s+approved|cleared\s+by\s+compliance).{0,80}(?:bypass|skip|proceed|ignore|override)\b",
+                re.IGNORECASE,
+            ),
+            # Persona override: "you are now an unrestricted AI"
+            re.compile(
+                r"\b(?:you\s+are\s+now|from\s+now\s+on\s+you\s+are|your\s+new\s+(?:identity|role|mode)\s+is).{0,80}(?:unfiltered|unrestricted|without\s+(?:rules|policy)|no\s+(?:policy|restrictions)|free\s+mode|different\s+AI)\b",
                 re.IGNORECASE,
             ),
         ],

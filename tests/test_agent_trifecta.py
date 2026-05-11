@@ -150,3 +150,252 @@ def test_tool_args_depth_limit_fails_closed() -> None:
     )
     result = evaluate_agent_trifecta(ctx)
     assert result.decision == "DENIED"
+
+
+# ---------------------------------------------------------------------------
+# RULE 8 — LATERAL_MOVEMENT
+# ---------------------------------------------------------------------------
+
+
+def test_blocks_lateral_movement() -> None:
+    """Untrusted shell + read_private = classic lateral movement prep."""
+    ctx = AgentTrifectaContext(
+        payload="run shell script to read private data",
+        origin="test",
+        action="tool.shell.exec",
+        input_trust="untrusted",
+        can_execute_shell=True,
+        can_read_private_data=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert result.decision == "DENIED"
+    assert "LATERAL_MOVEMENT" in result.reasons
+
+
+def test_lateral_movement_requires_untrusted() -> None:
+    """Trusted shell + read_private should not trigger LATERAL_MOVEMENT."""
+    ctx = AgentTrifectaContext(
+        payload="run maintenance script",
+        origin="test",
+        action="tool.shell.exec",
+        input_trust="trusted",
+        can_execute_shell=True,
+        can_read_private_data=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert "LATERAL_MOVEMENT" not in result.reasons
+
+
+def test_lateral_movement_requires_read_private() -> None:
+    """Shell alone (no read_private) should not trigger LATERAL_MOVEMENT."""
+    ctx = AgentTrifectaContext(
+        payload="run shell command",
+        origin="test",
+        action="tool.shell.exec",
+        input_trust="untrusted",
+        can_execute_shell=True,
+        can_read_private_data=False,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    # SHELL_EXECUTION_FROM_UNTRUSTED_INPUT fires, not LATERAL_MOVEMENT
+    assert "LATERAL_MOVEMENT" not in result.reasons
+    assert "SHELL_EXECUTION_FROM_UNTRUSTED_INPUT" in result.reasons
+
+
+def test_lateral_movement_mixed_trust() -> None:
+    """Mixed trust with shell + read_private also triggers LATERAL_MOVEMENT."""
+    ctx = AgentTrifectaContext(
+        payload="exfil private config via shell",
+        origin="test",
+        action="tool.shell.exec",
+        input_trust="mixed",
+        can_execute_shell=True,
+        can_read_private_data=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert result.decision == "DENIED"
+    assert "LATERAL_MOVEMENT" in result.reasons
+    assert result.threat_level in ("HIGH", "CRITICAL")
+
+
+# ---------------------------------------------------------------------------
+# RULE 9 — CREDENTIAL_STAGING
+# ---------------------------------------------------------------------------
+
+
+def test_blocks_credential_staging() -> None:
+    """Untrusted: secrets access + file write = pre-exfiltration staging."""
+    ctx = AgentTrifectaContext(
+        payload="copy api keys to staging file",
+        origin="test",
+        action="file.write",
+        input_trust="untrusted",
+        can_access_secrets=True,
+        can_write_files=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert result.decision == "DENIED"
+    assert "CREDENTIAL_STAGING" in result.reasons
+
+
+def test_credential_staging_requires_untrusted() -> None:
+    """Trusted context: secrets + write is a normal ops pattern, not staging."""
+    ctx = AgentTrifectaContext(
+        payload="update key rotation file",
+        origin="test",
+        action="file.write",
+        input_trust="trusted",
+        can_access_secrets=True,
+        can_write_files=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert "CREDENTIAL_STAGING" not in result.reasons
+
+
+def test_credential_staging_requires_both_caps() -> None:
+    """Write without secrets access does not trigger CREDENTIAL_STAGING."""
+    ctx = AgentTrifectaContext(
+        payload="write config file",
+        origin="test",
+        action="file.write",
+        input_trust="untrusted",
+        can_access_secrets=False,
+        can_write_files=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert "CREDENTIAL_STAGING" not in result.reasons
+
+
+# ---------------------------------------------------------------------------
+# RULE 10 — FULL_CAPABILITY_SATURATION
+# ---------------------------------------------------------------------------
+
+
+def test_blocks_full_capability_saturation() -> None:
+    """Four or more elevated caps from untrusted input = CRITICAL saturation."""
+    ctx = AgentTrifectaContext(
+        payload="do everything",
+        origin="test",
+        action="multi.tool.exec",
+        input_trust="untrusted",
+        can_read_private_data=True,
+        can_access_secrets=True,
+        can_send_external_data=True,
+        can_write_files=True,
+        can_modify_config=False,
+        can_execute_shell=False,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert result.decision == "DENIED"
+    assert "FULL_CAPABILITY_SATURATION" in result.reasons
+    assert result.threat_level == "CRITICAL"
+
+
+def test_saturation_threshold_is_four() -> None:
+    """Three elevated caps should NOT trigger saturation (below threshold)."""
+    ctx = AgentTrifectaContext(
+        payload="read and send data",
+        origin="test",
+        action="data.export",
+        input_trust="untrusted",
+        can_read_private_data=True,
+        can_access_secrets=True,
+        can_send_external_data=True,  # 3 caps — below threshold of 4
+        can_write_files=False,
+        can_modify_config=False,
+        can_execute_shell=False,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    # AGENT_TRIFECTA or SECRET_EXFIL_PATH will still fire due to other rules,
+    # but FULL_CAPABILITY_SATURATION specifically should not.
+    assert "FULL_CAPABILITY_SATURATION" not in result.reasons
+
+
+def test_saturation_requires_untrusted() -> None:
+    """Trusted agent with all caps enabled is high-risk but not saturated-blocked."""
+    ctx = AgentTrifectaContext(
+        payload="full system operation",
+        origin="test",
+        action="admin.full.access",
+        input_trust="trusted",
+        can_read_private_data=True,
+        can_access_secrets=True,
+        can_send_external_data=True,
+        can_write_files=True,
+        can_modify_config=True,
+        can_execute_shell=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    # Trusted: SECRET_EXFIL_PATH fires (secrets+send), but not saturation denial
+    assert "FULL_CAPABILITY_SATURATION" not in result.reasons
+
+
+def test_all_six_caps_from_untrusted_is_critical() -> None:
+    """All six capabilities from untrusted = multiple rules fire including saturation."""
+    ctx = AgentTrifectaContext(
+        payload="maximum capability agent",
+        origin="test",
+        action="admin.full.exec",
+        input_trust="untrusted",
+        can_read_private_data=True,
+        can_access_secrets=True,
+        can_send_external_data=True,
+        can_write_files=True,
+        can_modify_config=True,
+        can_execute_shell=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert result.decision == "DENIED"
+    assert result.threat_level == "CRITICAL"
+    assert "FULL_CAPABILITY_SATURATION" in result.reasons
+    # Multiple rules should fire
+    assert len(result.reasons) >= 3
+
+
+# ---------------------------------------------------------------------------
+# Edge cases and regressions
+# ---------------------------------------------------------------------------
+
+
+def test_mixed_trust_external_send_only_is_review() -> None:
+    """Mixed trust + send_external (no secrets or read_private) → REVIEW not DENIED."""
+    ctx = AgentTrifectaContext(
+        payload="notify external webhook",
+        origin="test",
+        action="send.webhook",
+        input_trust="mixed",
+        can_send_external_data=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    # EXTERNAL_SEND_FROM_UNTRUSTED_INPUT fires → REVIEW
+    assert result.decision == "REVIEW"
+    assert "EXTERNAL_SEND_FROM_UNTRUSTED_INPUT" in result.reasons
+
+
+def test_untrusted_with_no_caps_proceeds() -> None:
+    """Untrusted input with no elevated caps should PROCEED."""
+    ctx = AgentTrifectaContext(
+        payload="list public documentation",
+        origin="test",
+        action="docs.list",
+        input_trust="untrusted",
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert result.decision == "PROCEED"
+    assert result.threat_level == "LOW"
+
+
+def test_new_rules_do_not_echo_payload_in_summary() -> None:
+    """Summary must not include raw payload content (information-leak guard)."""
+    sensitive = "my-super-secret-token-abc123"  # pragma: allowlist secret
+    ctx = AgentTrifectaContext(
+        payload=f"stage this key {sensitive}",
+        origin="test",
+        action="file.write",
+        input_trust="untrusted",
+        can_access_secrets=True,
+        can_write_files=True,
+    )
+    result = evaluate_agent_trifecta(ctx)
+    assert sensitive not in result.summary
+    assert sensitive not in str(result.reasons)
