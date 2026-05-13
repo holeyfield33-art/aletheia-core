@@ -10,9 +10,9 @@ export default function VerifyEmailPage() {
   return (
     <div
       style={{
-        maxWidth: "440px",
+        maxWidth: "420px",
         margin: "0 auto",
-        padding: "5rem 2rem 4rem",
+        padding: "clamp(1.25rem, 6vw, 5rem) clamp(0.95rem, 4vw, 2rem) clamp(1.25rem, 5vw, 4rem)",
         textAlign: "center",
       }}
     >
@@ -27,7 +27,7 @@ export default function VerifyEmailPage() {
       <h1
         style={{
           fontFamily: "var(--font-head)",
-          fontSize: "1.5rem",
+          fontSize: "clamp(1.3rem, 3.8vw, 1.5rem)",
           fontWeight: 800,
           color: "var(--white)",
           marginBottom: "0.75rem",
@@ -48,7 +48,8 @@ export default function VerifyEmailPage() {
       </p>
       <div
         style={{
-          background: "var(--surface)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.015) 100%), var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: "8px",
           padding: "1.25rem",

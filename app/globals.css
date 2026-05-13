@@ -160,6 +160,15 @@ pre {
   max-width: 100%;
 }
 
+img,
+video,
+svg,
+canvas,
+iframe {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Scrollable code blocks */
 .code-block {
   background: var(--surface-2);
@@ -647,6 +656,16 @@ label {
 @media (max-width: 640px) {
   body {
     font-size: 15px;
+  }
+
+  /* Prevent flex children from forcing horizontal overflow */
+  [style*="display: flex"] > * {
+    min-width: 0;
+  }
+
+  /* Prevent inline fixed-width cards from overflowing viewport */
+  [style*="max-width"] {
+    max-width: 100% !important;
   }
 
   .container {

@@ -24,23 +24,24 @@ function AuthErrorContent() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "2rem",
+        padding: "clamp(0.85rem, 4vw, 2rem)",
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "400px",
-          background: "var(--surface)",
+          maxWidth: "380px",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.015) 100%), var(--surface)",
           border: "1px solid var(--border)",
-          padding: "2.5rem 2rem",
+          padding: "clamp(1.1rem, 4.5vw, 2.5rem) clamp(0.95rem, 4vw, 2rem)",
           textAlign: "center",
         }}
       >
         <h1
           style={{
             fontFamily: "var(--font-head)",
-            fontSize: "1.5rem",
+            fontSize: "clamp(1.3rem, 3.8vw, 1.5rem)",
             fontWeight: 800,
             color: "#f87171",
             marginBottom: "1rem",

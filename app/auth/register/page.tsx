@@ -66,8 +66,8 @@ export default function RegisterPage() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "0.6rem 0.75rem",
-    background: "#09090b",
+    padding: "0.62rem 0.78rem",
+    background: "rgba(255,255,255,0.045)",
     border: "1px solid var(--border)",
     color: "var(--white)",
     fontFamily: "var(--font-mono)",
@@ -93,22 +93,23 @@ export default function RegisterPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "2rem",
+        padding: "clamp(0.85rem, 4vw, 2rem)",
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "400px",
-          background: "var(--surface)",
+          maxWidth: "380px",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.015) 100%), var(--surface)",
           border: "1px solid var(--border)",
-          padding: "2.5rem 2rem",
+          padding: "clamp(1.1rem, 4.5vw, 2.5rem) clamp(0.95rem, 4vw, 2rem)",
         }}
       >
         <h1
           style={{
             fontFamily: "var(--font-head)",
-            fontSize: "1.5rem",
+            fontSize: "clamp(1.3rem, 3.8vw, 1.5rem)",
             fontWeight: 800,
             color: "var(--white)",
             marginBottom: "0.5rem",
@@ -297,14 +298,19 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+            gap: "0.75rem",
+          }}
+        >
           <button
             type="button"
             onClick={() => handleOAuth("github")}
             style={{
-              flex: 1,
               padding: "0.6rem",
-              background: "#09090b",
+              background: "rgba(255,255,255,0.045)",
               border: "1px solid var(--border)",
               color: "var(--silver)",
               fontSize: "0.82rem",
@@ -317,9 +323,8 @@ export default function RegisterPage() {
             type="button"
             onClick={() => handleOAuth("google")}
             style={{
-              flex: 1,
               padding: "0.6rem",
-              background: "#09090b",
+              background: "rgba(255,255,255,0.045)",
               border: "1px solid var(--border)",
               color: "var(--silver)",
               fontSize: "0.82rem",
