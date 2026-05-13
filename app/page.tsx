@@ -4,7 +4,6 @@ import SocialProofBar from "@/app/components/landing/SocialProofBar";
 import RedTeamDemoSection from "@/app/components/landing/RedTeamDemoSection";
 import TraderAgentDemoSection from "@/app/components/landing/TraderAgentDemoSection";
 import LiveAletheiaDemoSection from "@/app/components/landing/LiveAletheiaDemoSection";
-import TestimonialsSection from "@/app/components/landing/TestimonialsSection";
 import ReceiptVerificationFlipCard from "@/app/components/landing/ReceiptVerificationFlipCard";
 import LandingPricingSection from "@/app/components/landing/LandingPricingSection";
 import FinalCTA from "@/app/components/landing/FinalCTA";
@@ -32,7 +31,6 @@ export default function HomePage() {
       <RedTeamDemoSection />
       <TraderAgentDemoSection videoUrl={process.env.NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL} />
       <LiveAletheiaDemoSection />
-      <TestimonialsSection />
       <ReceiptVerificationFlipCard />
       <LandingPricingSection />
       <section style={{ padding: "0 1.5rem 2.25rem" }}>
