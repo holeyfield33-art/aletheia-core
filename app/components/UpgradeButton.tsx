@@ -27,6 +27,13 @@ export default function UpgradeButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier: requestedTier }),
       });
+
+      if (res.status === 401) {
+        const callbackUrl = encodeURIComponent(`/pricing?tier=${requestedTier}`);
+        window.location.href = `/auth/login?callbackUrl=${callbackUrl}`;
+        return;
+      }
+
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;

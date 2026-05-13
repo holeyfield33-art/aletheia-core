@@ -32,6 +32,7 @@ function stripPort(host: string): string {
 function isAppRoute(pathname: string): boolean {
   return (
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/pricing") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/signin") ||
