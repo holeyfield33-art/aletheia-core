@@ -77,9 +77,17 @@ export default function HomePage() {
                 Tiered customer support workflow with approval gates and signed
                 decision receipts.
               </p>
-              <a className="btn-secondary" href="mailto:info@aletheia-core.com?subject=Protected Support Agent Request">
-                From $500+
-              </a>
+              <div>
+                <div style={{ fontFamily: "var(--font-head)", fontSize: "1.4rem", color: "var(--white)", marginBottom: "0.25rem" }}>
+                  $49.99/mo
+                </div>
+                <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginBottom: "0.75rem" }}>
+                  Custom manifest available on request
+                </p>
+                <a className="btn-secondary" href="mailto:info@aletheia-core.com?subject=Protected Support Agent Request" style={{ width: "100%", textAlign: "center" }}>
+                  Get Started
+                </a>
+              </div>
             </article>
 
             <article
@@ -99,9 +107,17 @@ export default function HomePage() {
                 Safer outbound prospecting flows with policy checks before each
                 send and signed evidence after each verdict.
               </p>
-              <a className="btn-secondary" href="mailto:info@aletheia-core.com?subject=Protected Outreach Agent Request">
-                From $300+
-              </a>
+              <div>
+                <div style={{ fontFamily: "var(--font-head)", fontSize: "1.4rem", color: "var(--white)", marginBottom: "0.25rem" }}>
+                  $49.99/mo
+                </div>
+                <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginBottom: "0.75rem" }}>
+                  Custom manifest available on request
+                </p>
+                <a className="btn-secondary" href="mailto:info@aletheia-core.com?subject=Protected Outreach Agent Request" style={{ width: "100%", textAlign: "center" }}>
+                  Get Started
+                </a>
+              </div>
             </article>
 
             <article
@@ -121,14 +137,23 @@ export default function HomePage() {
                 Paper-trading signal workflow with explicit review controls,
                 risk-gated decisions, and verifiable audit trails.
               </p>
-              <a
-                className="btn-secondary"
-                href="https://trader.aletheia-core.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                From $300+
-              </a>
+              <div>
+                <div style={{ fontFamily: "var(--font-head)", fontSize: "1.4rem", color: "var(--white)", marginBottom: "0.25rem" }}>
+                  $49.99/mo
+                </div>
+                <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginBottom: "0.75rem" }}>
+                  Custom manifest available on request
+                </p>
+                <a
+                  className="btn-secondary"
+                  href="https://trader.aletheia-core.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ width: "100%", textAlign: "center" }}
+                >
+                  Get Started
+                </a>
+              </div>
             </article>
           </div>
         </div>

@@ -34,6 +34,7 @@ export default function SocialProofBar() {
             flexWrap: "wrap",
           }}
         >
+          {starCount !== null && starCount > 0 && (
           <div style={{ textAlign: "center" }}>
             <div
               style={{
@@ -43,12 +44,13 @@ export default function SocialProofBar() {
                 fontWeight: 700,
               }}
             >
-              {starCount !== null ? starCount.toLocaleString() : "—"}
+              {starCount.toLocaleString()}
             </div>
             <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
               GitHub Stars
             </div>
           </div>
+          )}
         </div>
       </div>
     </section>

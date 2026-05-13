@@ -18,23 +18,12 @@ export default function VerifyEmailPage() {
     >
       <div
         style={{
-          width: "56px",
-          height: "56px",
+          width: "40px",
+          height: "3px",
+          background: "var(--crimson)",
           margin: "0 auto 1.5rem",
-          borderRadius: "50%",
-          background: "var(--crimson-glow)",
-          border: "1px solid var(--crimson)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "0.9rem",
-          color: "var(--white)",
-          fontFamily: "var(--font-mono)",
-          fontWeight: 600,
         }}
-      >
-        Email
-      </div>
+      />
       <h1
         style={{
           fontFamily: "var(--font-head)",

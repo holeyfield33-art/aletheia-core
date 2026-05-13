@@ -118,7 +118,7 @@ export default function HeroRuntimeFirewall() {
               { label: "MIT Licensed" },
               { label: "Red Team Tested" },
               { label: "Ed25519 Signed" },
-              { label: "1000+ Tests" },
+              { label: "1,000+ Tests" },
             ].map((item) => (
               <span
                 key={item.label}
