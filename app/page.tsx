@@ -33,7 +33,7 @@ export default function HomePage() {
       <LiveAletheiaDemoSection />
       <ReceiptVerificationFlipCard />
       <LandingPricingSection />
-      <section style={{ padding: "0 1.5rem 2.25rem" }}>
+      <section style={{ padding: "0 clamp(0.95rem, 4vw, 1.5rem) 2.25rem" }}>
         <div className="container" style={{ maxWidth: "1120px" }}>
           <div style={{ marginBottom: "1rem" }}>
             <h2
@@ -42,6 +42,7 @@ export default function HomePage() {
                 fontSize: "clamp(1.7rem, 4vw, 2.4rem)",
                 color: "var(--white)",
                 marginBottom: "0.65rem",
+                lineHeight: 1.2,
               }}
             >
               Protected Agent Templates
@@ -65,12 +66,19 @@ export default function HomePage() {
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: "14px",
-                padding: "1.25rem",
+                padding: "clamp(1rem, 3.2vw, 1.25rem)",
                 display: "grid",
                 gap: "0.75rem",
               }}
             >
-              <h3 style={{ fontFamily: "var(--font-head)", fontSize: "1.3rem", color: "var(--white)" }}>
+              <h3
+                style={{
+                  fontFamily: "var(--font-head)",
+                  fontSize: "clamp(1.08rem, 3.8vw, 1.3rem)",
+                  color: "var(--white)",
+                  lineHeight: 1.2,
+                }}
+              >
                 Protected Support Agent
               </h3>
               <p style={{ color: "var(--silver)", lineHeight: 1.65 }}>
@@ -95,12 +103,19 @@ export default function HomePage() {
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: "14px",
-                padding: "1.25rem",
+                padding: "clamp(1rem, 3.2vw, 1.25rem)",
                 display: "grid",
                 gap: "0.75rem",
               }}
             >
-              <h3 style={{ fontFamily: "var(--font-head)", fontSize: "1.3rem", color: "var(--white)" }}>
+              <h3
+                style={{
+                  fontFamily: "var(--font-head)",
+                  fontSize: "clamp(1.08rem, 3.8vw, 1.3rem)",
+                  color: "var(--white)",
+                  lineHeight: 1.2,
+                }}
+              >
                 Protected Outreach Agent
               </h3>
               <p style={{ color: "var(--silver)", lineHeight: 1.65 }}>
@@ -125,12 +140,19 @@ export default function HomePage() {
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
                 borderRadius: "14px",
-                padding: "1.25rem",
+                padding: "clamp(1rem, 3.2vw, 1.25rem)",
                 display: "grid",
                 gap: "0.75rem",
               }}
             >
-              <h3 style={{ fontFamily: "var(--font-head)", fontSize: "1.3rem", color: "var(--white)" }}>
+              <h3
+                style={{
+                  fontFamily: "var(--font-head)",
+                  fontSize: "clamp(1.08rem, 3.8vw, 1.3rem)",
+                  color: "var(--white)",
+                  lineHeight: 1.2,
+                }}
+              >
                 Protected Trading Signal Agent
               </h3>
               <p style={{ color: "var(--silver)", lineHeight: 1.65 }}>
@@ -159,7 +181,12 @@ export default function HomePage() {
         </div>
       </section>
       <FinalCTA />
-      <section style={{ padding: "0 1.5rem 4rem", textAlign: "center" }}>
+      <section
+        style={{
+          padding: "0 clamp(0.95rem, 4vw, 1.5rem) clamp(2.25rem, 7vw, 4rem)",
+          textAlign: "center",
+        }}
+      >
         <div
           style={{
             color: "var(--muted)",

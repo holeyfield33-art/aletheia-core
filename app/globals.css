@@ -754,6 +754,15 @@ label {
   .dashboard-content {
     padding: 1rem !important;
   }
+
+  .protected-agent-grid {
+    gap: 0.85rem !important;
+  }
+
+  .trust-section,
+  .payg-section {
+    margin-bottom: 1rem !important;
+  }
 }
 
 /* Tablet */

@@ -104,7 +104,8 @@ export default function PricingPage() {
       style={{
         maxWidth: "960px",
         margin: "0 auto",
-        padding: "4rem 2rem 5rem",
+        padding:
+          "clamp(2rem, 6vw, 4rem) clamp(0.95rem, 4vw, 2rem) clamp(2.5rem, 7vw, 5rem)",
       }}
     >
       <div style={{ textAlign: "center", marginBottom: "3rem" }}>
@@ -123,10 +124,11 @@ export default function PricingPage() {
         <h1
           style={{
             fontFamily: "var(--font-head)",
-            fontSize: "2rem",
+            fontSize: "clamp(1.5rem, 5vw, 2rem)",
             fontWeight: 800,
             color: "var(--white)",
             marginBottom: "0.75rem",
+            lineHeight: 1.2,
           }}
         >
           Sovereign Audit Receipts for every secured decision.
@@ -134,7 +136,7 @@ export default function PricingPage() {
         <p
           style={{
             color: "var(--silver)",
-            fontSize: "1.05rem",
+            fontSize: "clamp(0.95rem, 2.8vw, 1.05rem)",
             maxWidth: "540px",
             margin: "0 auto",
             lineHeight: 1.65,
@@ -152,7 +154,7 @@ export default function PricingPage() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
           gap: "1.25rem",
-          marginBottom: "4rem",
+          marginBottom: "clamp(2.25rem, 6vw, 4rem)",
         }}
       >
         {tiers.map((t) => (
@@ -164,7 +166,7 @@ export default function PricingPage() {
                 ? "1px solid var(--crimson)"
                 : "1px solid var(--border)",
               borderRadius: "10px",
-              padding: "1.75rem",
+              padding: "clamp(1.1rem, 3.5vw, 1.75rem)",
               display: "flex",
               flexDirection: "column",
               gap: "1rem",
@@ -301,7 +303,7 @@ export default function PricingPage() {
           background: "var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: "10px",
-          padding: "1.5rem",
+          padding: "clamp(1rem, 3.2vw, 1.5rem)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -330,7 +332,7 @@ export default function PricingPage() {
           background: "var(--crimson-glow)",
           border: "1px solid var(--crimson)",
           borderRadius: "10px",
-          padding: "1.5rem",
+          padding: "clamp(1rem, 3.2vw, 1.5rem)",
           marginBottom: "2rem",
         }}
       >
@@ -421,7 +423,7 @@ export default function PricingPage() {
           background: "var(--crimson-glow)",
           border: "1px solid var(--crimson)",
           borderRadius: "10px",
-          padding: "2rem",
+          padding: "clamp(1.2rem, 4vw, 2rem)",
           textAlign: "center",
         }}
       >

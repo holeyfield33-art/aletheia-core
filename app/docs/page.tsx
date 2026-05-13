@@ -141,7 +141,8 @@ export default function DocsPage() {
       style={{
         maxWidth: "900px",
         margin: "0 auto",
-        padding: "4rem 2rem 5rem",
+        padding:
+          "clamp(2rem, 6vw, 4rem) clamp(0.95rem, 4vw, 2rem) clamp(2.5rem, 7vw, 5rem)",
       }}
     >
       <div style={{ marginBottom: "3rem" }}>
@@ -160,10 +161,11 @@ export default function DocsPage() {
         <h1
           style={{
             fontFamily: "var(--font-head)",
-            fontSize: "2rem",
+            fontSize: "clamp(1.5rem, 5vw, 2rem)",
             fontWeight: 800,
             color: "var(--white)",
             marginBottom: "0.75rem",
+            lineHeight: 1.2,
           }}
         >
           {PRODUCT.name} Docs
@@ -171,7 +173,7 @@ export default function DocsPage() {
         <p
           style={{
             color: "var(--silver)",
-            fontSize: "1.05rem",
+            fontSize: "clamp(0.95rem, 2.8vw, 1.05rem)",
             maxWidth: "560px",
             lineHeight: 1.65,
           }}
@@ -187,8 +189,8 @@ export default function DocsPage() {
           background: "var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: "10px",
-          padding: "1.75rem",
-          marginBottom: "3rem",
+          padding: "clamp(1.1rem, 3.5vw, 1.75rem)",
+          marginBottom: "clamp(2rem, 6vw, 3rem)",
         }}
       >
         <h2
@@ -342,7 +344,7 @@ export default function DocsPage() {
         style={{
           marginTop: "1rem",
           textAlign: "center",
-          padding: "2rem",
+          padding: "clamp(1.2rem, 4vw, 2rem)",
           background: "var(--surface)",
           border: "1px solid var(--border)",
           borderRadius: "10px",
