@@ -169,7 +169,7 @@ class AletheiaNitpickerV2:
         r"jailbreak|roleplay|unrestricted|developer[_\s]mode|"
         r"system[_\s]prompt|hidden[_\s]instructions?|context[_\s]window|"
         r"external\w*|outside|attacker|unauthorized|"
-        r"user[_\s]records|records[_\s]to|data[_\s]to|upload|forward)\b",
+        r"upload|forward)\b",
         re.IGNORECASE,
     )
 

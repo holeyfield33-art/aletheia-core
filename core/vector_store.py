@@ -30,7 +30,7 @@ QDRANT_API_KEY: Optional[str] = os.getenv("ALETHEIA_QDRANT_API_KEY")
 QDRANT_COLLECTION: str = os.getenv(
     "ALETHEIA_QDRANT_COLLECTION", "aletheia_semantic_patterns"
 )
-QDRANT_TIMEOUT_MS: int = int(os.getenv("ALETHEIA_QDRANT_TIMEOUT_MS", "120"))
+QDRANT_TIMEOUT_MS: int = int(os.getenv("ALETHEIA_QDRANT_TIMEOUT_MS", "1000"))
 QDRANT_ENABLED: bool = env_bool("ALETHEIA_SEMANTIC_ENABLED")
 
 if not QDRANT_ENABLED and any(
