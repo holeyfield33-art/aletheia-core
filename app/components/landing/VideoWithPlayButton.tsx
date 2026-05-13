@@ -42,7 +42,10 @@ export default function VideoWithPlayButton({
             justifyContent: "center",
           }}
         >
-          <p style={{ color: "var(--muted)" }}>{fallbackText}</p>
+          <div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.5rem", letterSpacing: "0.1em" }}>VIDEO</div>
+            <p style={{ color: "var(--muted)" }}>{fallbackText}</p>
+          </div>
         </div>
       </div>
     );

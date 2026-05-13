@@ -4,21 +4,21 @@ const protectedAgentCards = [
   {
     title: "Protected Support Agent",
     body: "For customer support bots, internal copilots, and helpdesk workflows. Blocks prompt injection, unsafe refunds, and data exposure before execution.",
-    price: "From $500",
+    price: "$49.99/mo",
     ctaLabel: "Get This Agent",
     href: "mailto:info@aletheia-core.com?subject=Protected Support Agent",
   },
   {
     title: "Protected Outreach Agent",
     body: "For sales follow-up, lead qualification, and client operations. Generates messages but keeps every send human-approved.",
-    price: "From $300",
+    price: "$49.99/mo",
     ctaLabel: "Get This Agent",
     href: "mailto:info@aletheia-core.com?subject=Protected Outreach Agent",
   },
   {
     title: "Protected Trading Signal Agent",
     body: "For signal generation, paper trading, and decision journaling. Signal first, execute later. Every decision signed and auditable.",
-    price: "From $300",
+    price: "$49.99/mo",
     ctaLabel: "View Live Demo",
     href: "https://trader.aletheia-core.com",
   },
@@ -129,6 +129,15 @@ export default function HomepageExtensions() {
                   }}
                 >
                   {card.price}
+                </p>
+                <p
+                  style={{
+                    color: "var(--muted)",
+                    fontSize: "0.75rem",
+                    marginTop: "-0.5rem",
+                  }}
+                >
+                  Custom manifest available on request
                 </p>
                 {card.href.startsWith("/") ? (
                   <Link className="btn-secondary" href={card.href}>
