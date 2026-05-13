@@ -27,10 +27,13 @@ export default function VerifyEmailPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1.5rem",
+          fontSize: "0.9rem",
+          color: "var(--white)",
+          fontFamily: "var(--font-mono)",
+          fontWeight: 600,
         }}
       >
-        ✉
+        Email
       </div>
       <h1
         style={{

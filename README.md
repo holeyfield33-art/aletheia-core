@@ -110,7 +110,7 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 | Metric                         | Value                                       |
 | ------------------------------ | ------------------------------------------- |
 | Audit status                   | **PASS**                                    |
-| Tests passing                  | 1193 passed, 16 skipped (as of v1.9.3)      |
+| Tests passing                  | See live CI badge (main branch)             |
 | Blocked semantic patterns      | 24 (static) + Qdrant extended               |
 | Semantic alias phrases (Judge) | 60+ across 6 restricted categories          |
 | Core coverage                  | 89%                                         |
@@ -129,9 +129,22 @@ See [CHANGELOG.md](CHANGELOG.md) for full history.
 ### Install
 
 ```bash
-pip install aletheia-core
-# Current published package name:
 pip install aletheia-cyber-core
+```
+
+### Clone + install (3-5 minutes)
+
+```bash
+git clone https://github.com/holeyfield33-art/aletheia-core.git
+cd aletheia-core
+python -m venv .venv && source .venv/bin/activate
+pip install -U pip
+
+# Fast local/CI footprint (recommended for contributor workflow)
+pip install -r requirements-ci.txt
+
+# Full runtime parity (includes heavier ML/runtime deps)
+# pip install -r requirements.txt
 ```
 
 #### Optional Consciousness Proximity Module

@@ -43,46 +43,10 @@ export default function SocialProofBar() {
                 fontWeight: 700,
               }}
             >
-              {starCount !== null ? starCount.toLocaleString() : "1K+"}
+              {starCount !== null ? starCount.toLocaleString() : "—"}
             </div>
             <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
               GitHub Stars
-            </div>
-          </div>
-
-          <div style={{ width: "1px", height: "40px", background: "var(--border)" }} />
-
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-head)",
-                fontSize: "1.8rem",
-                color: "var(--green)",
-                fontWeight: 700,
-              }}
-            >
-              100+
-            </div>
-            <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-              Protected Agents
-            </div>
-          </div>
-
-          <div style={{ width: "1px", height: "40px", background: "var(--border)" }} />
-
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "var(--font-head)",
-                fontSize: "1.8rem",
-                color: "var(--green)",
-                fontWeight: 700,
-              }}
-            >
-              1M+
-            </div>
-            <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-              Decisions Secured
             </div>
           </div>
         </div>

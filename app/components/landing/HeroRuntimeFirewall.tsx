@@ -115,10 +115,10 @@ export default function HeroRuntimeFirewall() {
             }}
           >
             {[
-              { label: "MIT Licensed", icon: "📜" },
-              { label: "Red Team Tested", icon: "🔴" },
-              { label: "Ed25519 Signed", icon: "✓" },
-              { label: "1000+ Tests", icon: "✅" },
+              { label: "MIT Licensed" },
+              { label: "Red Team Tested" },
+              { label: "Ed25519 Signed" },
+              { label: "1000+ Tests" },
             ].map((item) => (
               <span
                 key={item.label}
@@ -130,13 +130,9 @@ export default function HeroRuntimeFirewall() {
                   padding: "0.35rem 0.85rem",
                   fontFamily: "var(--font-mono)",
                   fontSize: "0.74rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
                 }}
               >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
+                {item.label}
               </span>
             ))}
           </div>
