@@ -92,7 +92,7 @@ PYTHONPATH=. python simulations/neutral_anchor_audit.py
 ## 7) Run tests
 
 ```bash
-# Full test suite (1193 passed, 16 skipped in latest release validation; requires torch + sentence-transformers)
+# Full test suite (requires torch + sentence-transformers)
 pytest tests/ -v
 
 # CI-lightweight (skip embedding-dependent tests)
@@ -102,6 +102,10 @@ pytest tests/ -v --ignore=tests/test_api.py
 # Run only security hardening tests
 pytest tests/test_runtime_security_layer.py tests/test_distributed_security_integration.py tests/test_security_hardening_v2.py -v
 ```
+
+When running red-team burst harnesses, rapid sequential requests from one source
+can intentionally trigger Scout's rotation-probing detector. For semantic-only
+evaluation, pace requests or distribute source identity in the test harness.
 
 ---
 

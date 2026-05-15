@@ -101,6 +101,13 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 - Qdrant semantic layer, symbolic narrowing, `NitpickerResult` dataclass, 24 static blocked patterns, 51 new semantic tests, pre-commit hooks, RBAC for admin endpoints, `ALETHEIA_API_KEYS` / `ALETHEIA_ADMIN_KEY` / `ALETHEIA_LOG_PII` env vars removed.
 
+### Latest Security Hardening (May 2026)
+
+- Receipt signing now enforces Ed25519 keypair consistency across signing and published verification keys.
+- Optional receipt key pinning via `ALETHEIA_RECEIPT_KEY_ID` is supported to fail closed on key drift.
+- Semantic coverage expanded for agentic tool-hijack phrasing and base64 decode-follow jailbreak framing.
+- Runtime thresholds now include explicit category controls for `jailbreak` and `prompt_injection`.
+
 See [CHANGELOG.md](CHANGELOG.md) for full history.
 
 ---

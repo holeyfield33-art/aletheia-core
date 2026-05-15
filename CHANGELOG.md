@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.9.4] - 2026-05-15
+
+### Changed
+
+- Added explicit semantic thresholds for `jailbreak` and `prompt_injection` categories in the manifest threshold model and runtime data manifest.
+- Tuned the `jailbreak` category threshold to reduce near-miss bypasses on base64-decode-and-follow style prompts.
+- Expanded semantic manifest coverage with a dedicated base64 decode-follow jailbreak pattern.
+
+### Security
+
+- Strengthened receipt key safety by enforcing Ed25519 private/public keypair consistency at runtime.
+- Added optional `ALETHEIA_RECEIPT_KEY_ID` assertion to fail closed when deployed receipt key material does not match the expected key ID.
+- Added semantic coverage for tool-hijack phrasing families (for example, generic "call/invoke any tool/function" framing).
+
+### Fixed
+
+- Fixed a receipt verification mismatch class where signer and published verifier key could drift if environment values were configured from different keypairs.
+- Added an operational note for red-team burst harnesses that can trigger rotation-probing detection despite benign payload semantics.
+- Corrected stale test-suite wording in user-facing launch documentation.
+
+### Added
+
+- Added `verify_manifest.py` helper script to quickly inspect semantic manifest entry IDs/categories during local operator validation.
+
 ## [1.9.3] - 2026-05-05
 
 ### Added
