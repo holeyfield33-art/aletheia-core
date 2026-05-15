@@ -7,7 +7,7 @@ name = "aletheia-cyber-core"
 version = "1.9.3"
 description = "Runtime audit and pre-execution block layer for autonomous AI agents. Protects against instruction smuggling, semantic camouflage, and supply-chain attacks."
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
     {name = "Ashura Joseph Holeyfield", email = "holeyfield33art@users.noreply.github.com"},
@@ -28,7 +28,6 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

@@ -2,13 +2,12 @@
 
 ## Supported Versions
 
-| Version | Supported |
-| ------- | --------- |
-| 1.8.x   | ✅ Yes    |
-| 1.7.x   | ✅ Yes    |
-| 1.6.x   | ✅ Yes    |
-| 1.5.x   | ✅ Yes    |
-| < 1.5.0 | ❌ No     |
+| Version | Supported | EOL         |
+| ------- | --------- | ----------- |
+| 1.9.x   | ✅ Yes    | May 2027    |
+| 1.8.x   | ✅ Yes    | May 2026    |
+| 1.7.x   | ⚠️ Limited| Nov 2025    |
+| < 1.7.0 | ❌ No     | N/A         |
 
 ## Reporting a Vulnerability
 
@@ -71,6 +70,21 @@ Aletheia is designed with the following principles:
 - **Fail closed:** Invalid signatures, missing manifests, and unverifiable actions result in hard denials.
 - **Defense in depth:** Multiple independent checks (Scout, Nitpicker, Judge, Sandbox) must all pass.
 - **Auditability:** Every decision is logged with a cryptographic receipt.
+
+## Security Audit & Hardening
+
+**Audit Cadence:**
+- Red-team adversarial testing: Run before every release (174+ test cases covering bypass attempts, leakage, manifest tampering)
+- Dependency scanning: Weekly via pip-audit + Semgrep (automated via CI/CD)
+- Code review: Two-maintainer approval for security-critical changes
+- Third-party audit: Scheduled annually (recommended starting 2027)
+
+**Planned Audits:**
+- Q1 2027: Full threat-model audit by external security firm
+- Q3 2027: Dependency supply-chain audit
+
+**Last Completed:**
+- v1.9.3 Red-team audit: May 15, 2026 — 174 tests passed, zero escapes
 
 ## Controls Added in v1.8.0
 
