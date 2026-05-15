@@ -147,6 +147,7 @@ restarting the process.
 | --- | --- | --- |
 | Receipt signing (Ed25519) | `ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` | Signs all new audit receipts |
 | Receipt verify/disclosure key | `ALETHEIA_RECEIPT_PUBLIC_KEY` or `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` | Verifies/discloses receipt signatures |
+| Receipt key ID guard | `ALETHEIA_RECEIPT_KEY_ID` | Optional runtime assertion that resolved receipt keypair matches expected key_id |
 | Legacy receipt compatibility | `ALETHEIA_RECEIPT_SECRET` | Startup guard and verification of older HMAC receipts |
 | Alias salt | `ALETHEIA_ALIAS_SALT` | Daily alias bank rotation seed |
 | Rotation salt | `ALETHEIA_ROTATION_SALT` | Nitpicker mode rotation seed |
@@ -181,6 +182,7 @@ Use your deployment platform to apply the new env values first, then send the si
 | Secret                    | Impact When Rotated                                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `ALETHEIA_RECEIPT_PRIVATE_KEY*` | New receipts are signed by the new Ed25519 key pair; publish matching public key for verifiers. |
+| `ALETHEIA_RECEIPT_KEY_ID` | When set, mismatch between expected and resolved keypair raises an error (prevents silent key drift). |
 | `ALETHEIA_RECEIPT_SECRET` | Legacy HMAC receipt verification may fail for old receipts if old secret is removed too early. |
 | `ALETHEIA_ALIAS_SALT` | Daily alias bank shuffle changes. May alter veto behavior for grey-zone payloads. |
 | `ALETHEIA_ROTATION_SALT` | Nitpicker mode rotation sequence changes immediately after reload. |

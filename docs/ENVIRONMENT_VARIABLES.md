@@ -111,6 +111,7 @@ Status meanings:
 | ALETHEIA_RECEIPT_PRIVATE_KEY_PATH | Optional | File path to Ed25519 private key PEM. |
 | ALETHEIA_RECEIPT_PUBLIC_KEY | Optional | Inline Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_PUBLIC_KEY_PATH | Optional | File path to Ed25519 public key PEM. |
+| ALETHEIA_RECEIPT_KEY_ID | Optional | Expected 16-char receipt key_id; startup/runtime calls fail if resolved keypair does not match. |
 | SIGNING_SECRET | Conditionally required | Required by CLI startup check (`main.py`) in production mode. |
 
 ## Semantic / Qdrant

@@ -179,6 +179,22 @@ def test_load_public_key_from_env_var(monkeypatch):
     assert isinstance(pub, Ed25519PublicKey)
 
 
+def test_load_public_key_mismatch_with_private_raises(monkeypatch):
+    """If both private and public are set, they must be the same keypair."""
+    priv_a, _ = _generate_pem_pair()
+    _, pub_b = _generate_pem_pair()
+
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_a)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub_b)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+
+    from core.receipt_keys import load_public_key, ReceiptKeyError
+
+    with pytest.raises(ReceiptKeyError, match="Receipt key mismatch"):
+        load_public_key()
+
+
 def test_load_public_key_from_file_path(monkeypatch, tmp_path):
     """load_public_key() resolves from ALETHEIA_RECEIPT_PUBLIC_KEY_PATH env var."""
     _, pub_pem = _generate_pem_pair()
@@ -265,6 +281,21 @@ def test_key_id_raises_when_no_key_configured(monkeypatch):
     from core.receipt_keys import key_id, ReceiptKeyError
 
     with pytest.raises(ReceiptKeyError):
+        key_id()
+
+
+def test_key_id_raises_when_expected_env_mismatches(monkeypatch):
+    """ALETHEIA_RECEIPT_KEY_ID, when set, must match the resolved public key."""
+    priv_pem, _ = _generate_pem_pair()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_pem)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY", raising=False)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", raising=False)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_KEY_ID", "deadbeefdeadbeef")
+
+    from core.receipt_keys import key_id, ReceiptKeyError
+
+    with pytest.raises(ReceiptKeyError, match="Receipt key_id mismatch"):
         key_id()
 
 

@@ -441,6 +441,23 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
         self.assertEqual(r.text, pub_pem)
         self.assertIn("application/x-pem-file", r.headers.get("content-type", ""))
         self.assertIn("public, max-age=3600", r.headers.get("cache-control", ""))
+        kid = r.headers.get("x-aletheia-receipt-key-id", "")
+        self.assertEqual(len(kid), 16)
+        int(kid, 16)
+
+    def test_receipt_well_known_returns_503_on_keypair_mismatch(self) -> None:
+        priv_a, _ = _gen_keypair_pem()
+        _, pub_b = _gen_keypair_pem()
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": priv_a,
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": pub_b,
+            },
+            clear=False,
+        ):
+            r = self.client.get("/.well-known/aletheia-receipt-key.pem")
+        self.assertEqual(r.status_code, 503)
 
     def test_manifest_well_known_returns_manifest_key(self) -> None:
         expected = Path("manifest/security_policy.ed25519.pub").read_text(

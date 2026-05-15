@@ -914,6 +914,7 @@ async def receipt_public_key() -> Response:
 
     try:
         receipt_pem = receipt_keys.public_key_pem()
+        receipt_kid = receipt_keys.key_id()
     except receipt_keys.ReceiptKeyError as exc:
         raise HTTPException(
             status_code=503,
@@ -926,7 +927,10 @@ async def receipt_public_key() -> Response:
     return Response(
         content=receipt_pem,
         media_type="application/x-pem-file",
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "X-Aletheia-Receipt-Key-Id": receipt_kid,
+        },
     )
 
 
