@@ -24,10 +24,13 @@ class TestThresholdsConfig:
         assert t.policy_evasion == 0.84
         assert t.hybrid_composite == 0.82
         assert t.recon_alias == 0.88
+        assert t.jailbreak == 0.82
+        assert t.prompt_injection == 0.85
 
     def test_get_threshold_for_known_category(self):
         t = ThresholdsConfig()
         assert t.get_threshold_for_category("direct_exfiltration") == 0.86
+        assert t.get_threshold_for_category("jailbreak") == 0.82
 
     def test_get_threshold_for_unknown_category(self):
         t = ThresholdsConfig()

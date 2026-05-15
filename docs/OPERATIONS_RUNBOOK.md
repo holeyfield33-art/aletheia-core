@@ -311,6 +311,13 @@ When Upstash Redis is unavailable:
 - With Upstash Redis: replay defense is cross-worker. Without: local SQLite only (single-node protection).
 - Bundle drift detection: on first request, policy version and manifest hash are registered. Subsequent requests from workers with a different policy version or manifest hash are rejected with `partial_deployment_drift`.
 
+### Red-Team Burst Testing Note
+
+- The Scout behavioral detector can classify very rapid sequential probing from one source as rotation probing.
+- During automated red-team sweeps (for example many prompts in under one minute), benign queries can be denied as `Rapid Meta-Querying Detected (Rotation Probing)`.
+- This is expected for burst harnesses and is not representative of normal end-user traffic patterns.
+- For demo runs, pace requests or distribute them across distinct source identities when validating semantic-only behavior.
+
 ---
 
 ## Rollback Steps

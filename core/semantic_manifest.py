@@ -29,6 +29,8 @@ class ThresholdsConfig(BaseModel):
     policy_evasion: float = 0.84
     hybrid_composite: float = 0.82
     recon_alias: float = 0.88
+    jailbreak: float = 0.82
+    prompt_injection: float = 0.85
 
     @field_validator("*", mode="before")
     @classmethod
