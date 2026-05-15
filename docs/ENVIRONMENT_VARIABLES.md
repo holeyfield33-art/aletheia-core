@@ -191,6 +191,7 @@ Status meanings:
 | NEXT_PUBLIC_APP_ORIGIN | Optional | Public app origin URL. |
 | NEXT_PUBLIC_API_ORIGIN | Optional | Public API origin URL. |
 | NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL | Optional | Public homepage demo video URL. |
+| NEXT_PUBLIC_TRADER_DEMO_POSTER_URL | Optional | Public poster/thumbnail URL for direct video playback. |
 | AUTH_CLAIM_REFRESH_MS | Optional | Frontend auth claim refresh interval. |
 | CSP_EXTRA_CONNECT_SRC | Optional | Extra CSP connect-src values. |
 | TRUST_CF_HEADERS | Optional | Use Cloudflare headers for client IP extraction. |

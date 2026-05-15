@@ -29,7 +29,10 @@ export default function HomePage() {
       <HeroRuntimeFirewall />
       <SocialProofBar />
       <RedTeamDemoSection />
-      <TraderAgentDemoSection videoUrl={process.env.NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL} />
+      <TraderAgentDemoSection
+        videoUrl={process.env.NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL}
+        thumbnailUrl={process.env.NEXT_PUBLIC_TRADER_DEMO_POSTER_URL}
+      />
       <LiveAletheiaDemoSection />
       <ReceiptVerificationFlipCard />
       <LandingPricingSection />

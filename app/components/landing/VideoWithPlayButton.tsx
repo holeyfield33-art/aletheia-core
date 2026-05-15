@@ -5,7 +5,35 @@ type VideoWithPlayButtonProps = {
   thumbnailUrl?: string;
   aspectRatio?: "16/9" | "4/3";
   fallbackText?: string;
+  containerId?: string;
 };
+
+function extractYouTubeId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname.includes("youtube.com")) {
+      const id = parsed.searchParams.get("v");
+      return id && id.trim() ? id.trim() : null;
+    }
+    if (hostname.includes("youtu.be")) {
+      const id = parsed.pathname.split("/").filter(Boolean)[0];
+      return id && id.trim() ? id.trim() : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function isDirectVideoFile(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return /\.(mp4|webm|ogg|mov)$/i.test(parsed.pathname);
+  } catch {
+    return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url);
+  }
+}
 
 export default function VideoWithPlayButton({
   title,
@@ -14,9 +42,15 @@ export default function VideoWithPlayButton({
   thumbnailUrl,
   aspectRatio = "16/9",
   fallbackText = "Demo video coming soon",
+  containerId,
 }: VideoWithPlayButtonProps) {
   const hasVideo = Boolean(videoUrl);
   const aspectPaddingBottom = aspectRatio === "16/9" ? "56.25%" : "75%";
+  const youtubeId = videoUrl ? extractYouTubeId(videoUrl) : null;
+  const directVideo = videoUrl ? isDirectVideoFile(videoUrl) : false;
+  const embedUrl = youtubeId
+    ? `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=1&modestbranding=1&rel=0&playsinline=1`
+    : null;
 
   if (!hasVideo) {
     return (
@@ -53,6 +87,7 @@ export default function VideoWithPlayButton({
 
   return (
     <div
+      id={containerId}
       style={{
         background: "var(--surface)",
         border: "1px solid var(--border)",
@@ -70,19 +105,44 @@ export default function VideoWithPlayButton({
           background: "#000",
           borderRadius: "12px",
           overflow: "hidden",
-          cursor: "pointer",
-          transition: "transform 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          const el = e.currentTarget.querySelector("img");
-          if (el) el.style.transform = "scale(1.02)";
-        }}
-        onMouseLeave={(e) => {
-          const el = e.currentTarget.querySelector("img");
-          if (el) el.style.transform = "scale(1)";
         }}
       >
-        <a href={videoUrl} target="_blank" rel="noopener noreferrer">
+        {embedUrl ? (
+          <iframe
+            src={embedUrl}
+            title={title}
+            loading="lazy"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            referrerPolicy="strict-origin-when-cross-origin"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              border: 0,
+            }}
+          />
+        ) : directVideo ? (
+          <video
+            src={videoUrl}
+            poster={thumbnailUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            controls
+            preload="metadata"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
           <div
             style={{
               position: "absolute",
@@ -90,43 +150,27 @@ export default function VideoWithPlayButton({
               left: 0,
               width: "100%",
               height: "100%",
-              background: thumbnailUrl
-                ? `url(${thumbnailUrl}) center/cover no-repeat`
-                : "linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%)",
-              transition: "transform 0.2s ease",
+              background: "linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: "1rem",
             }}
           >
-            {/* Play button overlay */}
-            <div
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "80px",
-                height: "80px",
-                background: "rgba(176, 34, 54, 0.9)",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "3px solid rgba(255, 255, 255, 0.8)",
-                transition: "all 0.2s ease",
+                color: "var(--silver)",
+                textDecoration: "underline",
               }}
             >
-              <div
-                style={{
-                  width: 0,
-                  height: 0,
-                  borderLeft: "25px solid rgba(255, 255, 255, 0.95)",
-                  borderTop: "16px solid transparent",
-                  borderBottom: "16px solid transparent",
-                  marginLeft: "4px",
-                }}
-              />
-            </div>
+              Open demo video
+            </a>
           </div>
-        </a>
+        )}
       </div>
 
       <div>

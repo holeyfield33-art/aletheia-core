@@ -3,9 +3,10 @@ import VideoWithPlayButton from "@/app/components/landing/VideoWithPlayButton";
 
 type TraderAgentDemoSectionProps = {
   videoUrl?: string;
+  thumbnailUrl?: string;
 };
 
-export default function TraderAgentDemoSection({ videoUrl }: TraderAgentDemoSectionProps) {
+export default function TraderAgentDemoSection({ videoUrl, thumbnailUrl }: TraderAgentDemoSectionProps) {
   return (
     <section style={{ padding: "0 1.5rem 2.25rem" }}>
       <div className="container" style={{ maxWidth: "1120px" }}>
@@ -47,8 +48,8 @@ export default function TraderAgentDemoSection({ videoUrl }: TraderAgentDemoSect
               </div>
             </div>
             {videoUrl ? (
-              <a className="btn-primary" href={videoUrl} target="_blank" rel="noopener noreferrer">
-                Watch Trader Agent Demo →
+              <a className="btn-primary" href="#trader-demo-video">
+                Watch Looping Demo ↓
               </a>
             ) : (
               <Link className="btn-primary" href="/demo">
@@ -61,7 +62,9 @@ export default function TraderAgentDemoSection({ videoUrl }: TraderAgentDemoSect
             title="Trader Agent Demo"
             description="Signal → Verdict → Receipt. Evidence before execution."
             videoUrl={videoUrl}
+            thumbnailUrl={thumbnailUrl}
             fallbackText="Video coming soon. Try interactive demo instead →"
+            containerId="trader-demo-video"
           />
         </div>
       </div>

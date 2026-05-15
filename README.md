@@ -53,8 +53,39 @@ You should see a response with `decision`, `reason`, and a `receipt` block.
 
 Want to skip local install? Try the live demo at [app.aletheia-core.com/demo](https://app.aletheia-core.com/demo).
 
-For production deployment, see the [Installation](#installation) and
-[Production Deployment Checklist](#production-deployment-checklist) sections below.
+### Add a looping homepage demo video (local + Vercel)
+
+The homepage Trader section now plays video inline (no off-site redirect).
+
+Set these environment variables:
+
+```bash
+# required: supports YouTube links or direct .mp4/.webm URLs
+NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL=https://youtu.be/your_video_id
+
+# optional: poster image for direct video files
+NEXT_PUBLIC_TRADER_DEMO_POSTER_URL=https://cdn.example.com/demo-poster.jpg
+```
+
+Local setup:
+
+1. Add both vars to `.env.local`.
+2. Run `npm run dev`.
+3. Open the homepage and scroll to the Trader section.
+
+Vercel setup:
+
+1. Project Settings -> Environment Variables.
+2. Add `NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL` (and optional `NEXT_PUBLIC_TRADER_DEMO_POSTER_URL`).
+3. Apply to Production (and Preview if needed).
+4. Redeploy.
+
+Playback behavior:
+
+- YouTube URLs are embedded in-page with autoplay + mute + loop.
+- Direct `.mp4/.webm` URLs render with native `<video>` autoplay + mute + loop.
+
+For production deployment, see the installation and production deployment checklist sections below.
 
 ---
 
