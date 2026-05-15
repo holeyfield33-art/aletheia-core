@@ -206,7 +206,7 @@ export default async function middleware(request: NextRequest) {
     .join(" ");
   response.headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com; script-src-elem 'self' 'nonce-${nonce}' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src ${connectSrc}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
+    `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://va.vercel-scripts.com; script-src-elem 'self' 'nonce-${nonce}' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src ${connectSrc}; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
   );
 
   return response;

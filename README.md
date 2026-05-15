@@ -27,6 +27,25 @@
   <img src="https://codecov.io/gh/holeyfield33-art/aletheia-core/branch/main/graph/badge.svg" alt="Coverage" />
 </p>
 
+<!-- DEMO VIDEO
+     GitHub's <video> tag only works with direct .mp4/.webm URLs — not YouTube.
+     To enable autoplay/loop in the README, upload the recording as a GitHub
+     Release asset (any release → Assets → upload .mp4) and paste the URL as the src.
+     Until then, the thumbnail below links to the hosted live demo (no off-site exit).
+-->
+<p align="center">
+  <a href="https://app.aletheia-core.com/demo" title="Watch the Aletheia Core live demo">
+    <img
+      src="https://img.youtube.com/vi/wP_zboR_7Bw/maxresdefault.jpg"
+      alt="Aletheia Core live demo — click to run it"
+      width="900"
+      style="border-radius:12px"
+    />
+  </a>
+  <br/>
+  <sub><strong>▶ Live Demo</strong> — click to run it on the hosted site (no login required)</sub>
+</p>
+
 ## Aletheia Ecosystem
 
 - [aletheia-core](https://github.com/holeyfield33-art/aletheia-core): Runtime audit and pre-execution enforcement layer

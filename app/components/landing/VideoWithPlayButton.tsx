@@ -49,7 +49,7 @@ export default function VideoWithPlayButton({
   const youtubeId = videoUrl ? extractYouTubeId(videoUrl) : null;
   const directVideo = videoUrl ? isDirectVideoFile(videoUrl) : false;
   const embedUrl = youtubeId
-    ? `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=1&modestbranding=1&rel=0&playsinline=1`
+    ? `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=1&rel=0&playsinline=1&enablejsapi=1`
     : null;
 
   if (!hasVideo) {
@@ -112,7 +112,8 @@ export default function VideoWithPlayButton({
             src={embedUrl}
             title={title}
             loading="lazy"
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{
               position: "absolute",

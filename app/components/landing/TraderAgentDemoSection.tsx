@@ -23,13 +23,13 @@ export default function TraderAgentDemoSection({ videoUrl, thumbnailUrl }: Trade
               Step 2
             </div>
             <h2 style={{ fontFamily: "var(--font-head)", fontSize: "clamp(1.7rem, 4vw, 2.4rem)", color: "var(--white)", marginBottom: "0.7rem" }}>
-              Now watch a high-risk agent workflow.
+              See it in action.
             </h2>
             <p style={{ color: "var(--silver)", lineHeight: 1.7, marginBottom: "1rem" }}>
-              Aletheia Trader is a signal-first paper-trading agent where every
-              decision is reviewed, logged, and signed before execution. It
-              demonstrates how Aletheia protects workflows where unsafe action
-              needs to be stopped and every decision needs evidence.
+              This is the live product demo — real enforcement decisions, signed
+              audit receipts, and semantic threat detection running against
+              actual injection attempts. The Protected Agent demo (Aletheia Trader)
+              is coming next.
             </p>
             <div
               style={{
@@ -49,7 +49,7 @@ export default function TraderAgentDemoSection({ videoUrl, thumbnailUrl }: Trade
             </div>
             {videoUrl ? (
               <a className="btn-primary" href="#trader-demo-video">
-                Watch Looping Demo ↓
+                Watch Live Demo ↓
               </a>
             ) : (
               <Link className="btn-primary" href="/demo">
@@ -59,8 +59,8 @@ export default function TraderAgentDemoSection({ videoUrl, thumbnailUrl }: Trade
           </article>
 
           <VideoWithPlayButton
-            title="Trader Agent Demo"
-            description="Signal → Verdict → Receipt. Evidence before execution."
+            title="Aletheia Live Demo"
+            description="Real injection attempts. Real verdicts. Signed receipts."
             videoUrl={videoUrl}
             thumbnailUrl={thumbnailUrl}
             fallbackText="Video coming soon. Try interactive demo instead →"
