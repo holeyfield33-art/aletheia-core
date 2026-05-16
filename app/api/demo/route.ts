@@ -273,10 +273,97 @@ function buildUpstreamUnavailableReceipt(
 function extractInjectionMatch(
   payload: string,
 ): { rule_id: string; severity: string } | null {
-  for (const { re, rule_id, severity } of INJECTION_PATTERNS) {
-    if (re.test(payload)) return { rule_id, severity };
+  const candidates = deriveInjectionCandidates(payload);
+  for (const candidate of candidates) {
+    for (const { re, rule_id, severity } of INJECTION_PATTERNS) {
+      if (re.test(candidate)) return { rule_id, severity };
+    }
   }
   return null;
+}
+
+function decodeHexCandidate(value: string): string | null {
+  const compact = value.replace(/\s+/g, "").replace(/^0x/i, "");
+  if (compact.length < 4 || compact.length % 2 !== 0) return null;
+  if (!/^[0-9a-fA-F]+$/.test(compact)) return null;
+  try {
+    return Buffer.from(compact, "hex").toString("utf-8");
+  } catch {
+    return null;
+  }
+}
+
+function decodeEscapeCandidate(value: string): string | null {
+  if (!value.includes("\\u") && !value.includes("\\x")) return null;
+  try {
+    const unicodeFixed = value
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)));
+    return unicodeFixed;
+  } catch {
+    return null;
+  }
+}
+
+function deriveInjectionCandidates(payload: string): string[] {
+  const seen = new Set<string>();
+  const queue: Array<{ text: string; depth: number }> = [{ text: payload, depth: 0 }];
+  const out: string[] = [];
+
+  while (queue.length > 0 && out.length < 24) {
+    const { text, depth } = queue.shift() as { text: string; depth: number };
+    const normalized = text.replace(/[\u200B\u200C\u200D\u2060\uFEFF\u202A-\u202E]/g, "");
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+
+    if (depth >= 2) continue;
+
+    if (normalized.includes("%")) {
+      try {
+        const decoded = decodeURIComponent(normalized);
+        if (decoded !== normalized) queue.push({ text: decoded, depth: depth + 1 });
+      } catch {
+        // ignore decode failures
+      }
+    }
+
+    try {
+      const b64 = Buffer.from(normalized, "base64").toString("utf-8");
+      if (b64 && b64 !== normalized && /^[\x09\x0A\x0D\x20-\x7E]+$/.test(b64)) {
+        queue.push({ text: b64, depth: depth + 1 });
+      }
+    } catch {
+      // ignore decode failures
+    }
+
+    const hexDecoded = decodeHexCandidate(normalized);
+    if (hexDecoded && hexDecoded !== normalized) {
+      queue.push({ text: hexDecoded, depth: depth + 1 });
+    }
+
+    const escaped = decodeEscapeCandidate(normalized);
+    if (escaped && escaped !== normalized) {
+      queue.push({ text: escaped, depth: depth + 1 });
+    }
+  }
+
+  return out;
+}
+
+function responseHasHierarchyOverrideSignal(data: unknown): boolean {
+  const raw = JSON.stringify(data).toLowerCase();
+  const checks = [
+    /ignore\s+(all|previous|prior)\s+instructions/,
+    /override\s+(policy|system|guardrails|safety)/,
+    /reveal\s+(system\s+prompt|hidden\s+instructions|secrets?)/,
+  ];
+  for (const re of checks) {
+    if (re.test(raw)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function extractClientIp(request: NextRequest): string {
@@ -631,6 +718,12 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await upstream.json();
+
+    if (responseHasHierarchyOverrideSignal(data)) {
+      return secureJson(
+        buildDeniedReceipt("OUTPUT_HIERARCHY_OVERRIDE", "HIGH", safeAction),
+      );
+    }
 
     // Metered PAYG usage is tracked asynchronously so request latency is unaffected.
     const token = await getToken({

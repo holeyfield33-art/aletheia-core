@@ -1,10 +1,18 @@
 import hashlib
 import hmac
 
+import pytest
+
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from core.audit import Receipt, build_tmr_receipt, verify_receipt
+from core.audit import (
+    Receipt,
+    ReceiptVerificationError,
+    build_tmr_receipt,
+    verify_receipt,
+    verify_receipt_or_raise,
+)
 
 
 def _gen_keypair_pem() -> tuple[str, str]:
@@ -200,6 +208,104 @@ def test_wrong_key_tampering_fails(monkeypatch) -> None:
     monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_b)
     monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub_b)
     assert verify_receipt(receipt) is False
+
+
+def test_verify_receipt_or_raise_valid(monkeypatch) -> None:
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-strict-valid",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+
+    verify_receipt_or_raise(receipt)
+
+
+def test_verify_receipt_or_raise_tampered_payload(monkeypatch) -> None:
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-strict-tampered",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    receipt["action"] = "Transfer_Funds"
+
+    with pytest.raises(ReceiptVerificationError) as exc:
+        verify_receipt_or_raise(receipt)
+    assert exc.value.code == "signature_mismatch"
+
+
+def test_verify_receipt_or_raise_signature_stripped(monkeypatch) -> None:
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-strict-strip",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    receipt.pop("signature", None)
+
+    with pytest.raises(ReceiptVerificationError) as exc:
+        verify_receipt_or_raise(receipt)
+    assert exc.value.code == "missing_signature"
+
+
+def test_verify_receipt_or_raise_wrong_key(monkeypatch) -> None:
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv_a, pub_a = _gen_keypair_pem()
+    _priv_b, pub_b = _gen_keypair_pem()
+
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv_a)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub_a)
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-strict-wrong-key",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub_b)
+    with pytest.raises(ReceiptVerificationError) as exc:
+        verify_receipt_or_raise(receipt)
+    assert exc.value.code in {"signature_mismatch", "key_unavailable"}
 
 
 def test_unknown_algorithm_returns_false(monkeypatch) -> None:

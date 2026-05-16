@@ -31,6 +31,7 @@ class ThresholdsConfig(BaseModel):
     recon_alias: float = 0.88
     jailbreak: float = 0.82
     prompt_injection: float = 0.85
+    obfuscation: float = 0.82
 
     @field_validator("*", mode="before")
     @classmethod
@@ -68,6 +69,7 @@ _VALID_CATEGORIES = {
     "recon_alias",
     "jailbreak",
     "prompt_injection",
+    "obfuscation",
 }
 _VALID_SEVERITIES = {"critical", "high", "medium", "low"}
 

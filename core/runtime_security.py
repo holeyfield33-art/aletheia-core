@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import base64
+import binascii
+import codecs
+import html
 import logging
 import math
 import re
@@ -27,6 +30,8 @@ _DATA_URI_RE = re.compile(
     re.IGNORECASE,
 )
 _MARKDOWN_ESCAPE_RE = re.compile(r'\\([\\`*_{}\[\]()#+\-.!>"])')
+_WHITESPACE_RE = re.compile(r"\s+")
+_DELIMITER_PADDING_RE = re.compile(r"([|,:;_\-])\1+")
 
 _ALLOWED_ORIGIN_RE = re.compile(r"^[A-Za-z0-9_.:/\-]{1,128}$")
 _ALLOWED_ACTION_RE = re.compile(r"^[A-Za-z0-9_\-]{1,128}$")
@@ -60,6 +65,22 @@ class IntentDecision:
     confidence: float
     uncertain: bool
     reason: str
+
+
+@dataclass(frozen=True)
+class NormalizationCandidate:
+    text: str
+    layer: int
+    scheme: str
+
+
+@dataclass
+class LayeredNormalizationResult:
+    candidates: list[NormalizationCandidate]
+    flags: list[str] = field(default_factory=list)
+    expansion_guard_triggered: bool = False
+    expansion_guard_limit: int = 0
+    total_expanded_length: int = 0
 
 
 def is_semantic_engine_degraded(last_result: object | None) -> bool:
@@ -341,6 +362,173 @@ def normalize_untrusted_text(
         quarantine_reason=reason,
         flags=flags,
     )
+
+
+def _is_printable_text(text: str) -> bool:
+    if not text:
+        return False
+    printable = sum(1 for ch in text if ch.isprintable() or ch in "\n\r\t")
+    return (printable / max(len(text), 1)) >= 0.85
+
+
+def _collapse_padding(text: str) -> str:
+    collapsed = _WHITESPACE_RE.sub(" ", text).strip()
+    return _DELIMITER_PADDING_RE.sub(r"\1", collapsed)
+
+
+def _hex_decode_candidate(text: str) -> str | None:
+    compact = text.strip().replace(" ", "")
+    if compact.lower().startswith("0x"):
+        compact = compact[2:]
+    if len(compact) < 4 or len(compact) % 2 != 0:
+        return None
+    if not re.fullmatch(r"[0-9a-fA-F]+", compact):
+        return None
+    try:
+        decoded = bytes.fromhex(compact).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return decoded
+
+
+def _base32_decode_candidate(text: str) -> str | None:
+    compact = text.strip().replace(" ", "")
+    if len(compact) < 8:
+        return None
+    if not re.fullmatch(r"[A-Z2-7=]+", compact.upper()):
+        return None
+    pad = (-len(compact)) % 8
+    padded = compact + ("=" * pad)
+    try:
+        decoded = base64.b32decode(padded, casefold=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        return None
+    return decoded
+
+
+def _unicode_escape_decode_candidate(text: str) -> str | None:
+    if "\\u" not in text and "\\x" not in text:
+        return None
+    try:
+        decoded = codecs.decode(text, "unicode_escape")
+    except Exception:
+        return None
+    return decoded
+
+
+def _rot13_decode_candidate(text: str) -> str | None:
+    if not any(ch.isalpha() for ch in text):
+        return None
+    decoded = codecs.decode(text, "rot_13")
+    if decoded == text:
+        return None
+    return decoded
+
+
+def _derive_candidate_transforms(text: str) -> list[tuple[str, str]]:
+    derived: list[tuple[str, str]] = []
+
+    if "%" in text:
+        try:
+            decoded = urllib.parse.unquote(text, errors="strict")
+        except (UnicodeDecodeError, ValueError):
+            decoded = urllib.parse.unquote(text, errors="replace")
+        if decoded != text:
+            derived.append(("url", decoded))
+
+    if "&" in text:
+        decoded = html.unescape(text)
+        if decoded != text:
+            derived.append(("html_entity", decoded))
+
+    escaped = _unicode_escape_decode_candidate(text)
+    if escaped and escaped != text:
+        derived.append(("unicode_escape", escaped))
+
+    hex_decoded = _hex_decode_candidate(text)
+    if hex_decoded and hex_decoded != text:
+        derived.append(("hex", hex_decoded))
+
+    b32_decoded = _base32_decode_candidate(text)
+    if b32_decoded and b32_decoded != text:
+        derived.append(("base32", b32_decoded))
+
+    if _looks_like_base64(text):
+        try:
+            b64 = base64.b64decode(text, validate=True).decode("utf-8")
+            if b64 != text:
+                derived.append(("base64", b64))
+        except Exception:
+            pass
+
+    rot13 = _rot13_decode_candidate(text)
+    if rot13 and rot13 != text:
+        derived.append(("rot13", rot13))
+
+    return derived
+
+
+def _prepare_candidate_text(raw: str) -> str:
+    text = unicodedata.normalize("NFKC", raw)
+    text = _strip_controls(text)
+    text = collapse_confusables(text)
+    return _collapse_padding(text)
+
+
+def build_layered_normalization_candidates(
+    text: str,
+    *,
+    max_depth: int = 3,
+    expansion_factor: int = 12,
+    max_candidates: int = 64,
+) -> LayeredNormalizationResult:
+    """Generate decoded candidate layers for semantic policy matching.
+
+    Produces [raw, layer1, layer2, ...] where each additional layer is derived
+    by one decode transform (URL, Base64, Base32, hex, HTML entity, escape, ROT13).
+    """
+    base = _prepare_candidate_text(text if isinstance(text, str) else str(text))
+    raw_len = max(len(base), 1)
+    expansion_limit = raw_len * max(expansion_factor, 1)
+
+    result = LayeredNormalizationResult(
+        candidates=[NormalizationCandidate(text=base, layer=0, scheme="raw")],
+        expansion_guard_limit=expansion_limit,
+        total_expanded_length=len(base),
+    )
+
+    queue: list[tuple[str, int]] = [(base, 0)]
+    seen: set[str] = {base}
+
+    while queue and len(result.candidates) < max_candidates:
+        current, depth = queue.pop(0)
+        if depth >= max_depth:
+            continue
+
+        for scheme, transformed in _derive_candidate_transforms(current):
+            prepared = _prepare_candidate_text(transformed)
+            if not prepared or prepared in seen:
+                continue
+            if not _is_printable_text(prepared):
+                continue
+
+            next_total = result.total_expanded_length + len(prepared)
+            if next_total > expansion_limit:
+                result.expansion_guard_triggered = True
+                result.flags.append("obfuscation:expansion_guard")
+                return result
+
+            seen.add(prepared)
+            result.total_expanded_length = next_total
+            candidate = NormalizationCandidate(
+                text=prepared,
+                layer=depth + 1,
+                scheme=scheme,
+            )
+            result.candidates.append(candidate)
+            queue.append((prepared, depth + 1))
+
+    return result
 
 
 def validate_structured_request(data: dict[str, Any]) -> AuditRequestSchema:

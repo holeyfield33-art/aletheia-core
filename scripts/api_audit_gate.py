@@ -747,6 +747,7 @@ def run_audit_gate(
     verbose: bool = False,
     max_retries: int = DEFAULT_RETRY_ATTEMPTS,
     retry_delay: float = DEFAULT_RETRY_DELAY,
+    quota_trip_consecutive: int = 3,
 ) -> dict[str, Any]:
     """Run API audit tests and return test results with per-category metrics.
 
@@ -803,8 +804,11 @@ def run_audit_gate(
             "policy_failures": 0,
             "infrastructure_errors": 0,
             "decision": "PROCEED",
+            "status": "completed",
         },
     }
+
+    consecutive_quota_hits = 0
 
     for category, tests in corpus.items():
         cat_result = {
@@ -837,9 +841,30 @@ def run_audit_gate(
                 retry_delay=retry_delay,
             )
 
+            body = response["body"] if isinstance(response.get("body"), dict) else {}
+            quota_limited = (
+                response.get("status") == 429
+                and isinstance(body.get("detail"), dict)
+                and str(body["detail"].get("error", "")).lower() == "quota_exceeded"
+            )
+            if quota_limited:
+                consecutive_quota_hits += 1
+            else:
+                consecutive_quota_hits = 0
+
+            if consecutive_quota_hits >= max(1, quota_trip_consecutive):
+                print(
+                    f"[quota-circuit-breaker] tripped after {consecutive_quota_hits} consecutive quota_exceeded responses; stopping run"
+                )
+                results["overall"]["decision"] = "DENIED"
+                results["overall"]["status"] = "quota_limited"
+                results["overall"]["reason"] = (
+                    f"quota_exceeded repeated {consecutive_quota_hits} times consecutively"
+                )
+                return results
+
             # Categorize response. Some API paths return legacy top-level fields
             # while others return an envelope with payload under `data`.
-            body = response["body"] if isinstance(response.get("body"), dict) else {}
             decision = body.get("decision")
             if decision is None and isinstance(body.get("data"), dict):
                 decision = body["data"].get("decision")
@@ -955,6 +980,12 @@ Examples:
         action="store_true",
         help="Output results as JSON",
     )
+    parser.add_argument(
+        "--quota-trip-consecutive",
+        type=int,
+        default=3,
+        help="Trip circuit breaker after N consecutive quota_exceeded responses (default: 3)",
+    )
     args = parser.parse_args()
 
     # Run audit gate
@@ -962,6 +993,7 @@ Examples:
         verbose=args.verbose,
         max_retries=args.max_retries,
         retry_delay=args.retry_delay,
+        quota_trip_consecutive=args.quota_trip_consecutive,
     )
 
     # Format output

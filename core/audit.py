@@ -286,6 +286,8 @@ class Receipt(BaseModel):
     warning: Optional[str] = Field(default=None)
     signature_algorithm: str = "hmac-sha256"
     key_id: Optional[str] = Field(default=None)
+    obfuscation_tags: list[str] = Field(default_factory=list)
+    obfuscation_preview: Optional[str] = Field(default=None)
 
     @field_validator("prompt")
     @classmethod
@@ -322,7 +324,19 @@ class Receipt(BaseModel):
             canonical += f"|alg:{self.signature_algorithm}"
             if self.key_id:
                 canonical += f"|kid:{self.key_id}"
+        if self.obfuscation_tags:
+            canonical += f"|obf:{','.join(self.obfuscation_tags)}"
+        if self.obfuscation_preview:
+            canonical += f"|obf_preview:{self.obfuscation_preview}"
         return canonical
+
+
+class ReceiptVerificationError(ValueError):
+    """Hard-fail error for receipt verification failures."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def log_audit_event(
@@ -346,6 +360,8 @@ def log_audit_event(
     tenant_id: str = "default",
     user_id: str = "",
     auth_method: str = "",
+    obfuscation_tags: Optional[list[str]] = None,
+    obfuscation_preview: str = "",
 ) -> dict[str, Any]:
     """Write a structured JSON audit record and return a TMR receipt."""
     global _prev_record_hash, _audit_seq
@@ -455,6 +471,8 @@ def log_audit_event(
         timestamp=record["timestamp"],
         chain_index=receipt_chain_index,
         chain_hash=receipt_chain_hash,
+        obfuscation_tags=obfuscation_tags,
+        obfuscation_preview=obfuscation_preview,
     )
     record["receipt"] = receipt
     return record
@@ -476,6 +494,8 @@ def build_tmr_receipt(
     timestamp: str = "",
     chain_index: int = 0,
     chain_hash: str = "",
+    obfuscation_tags: Optional[list[str]] = None,
+    obfuscation_preview: str = "",
 ) -> dict[str, Any]:
     """Build a tamper-evident receipt.
 
@@ -509,7 +529,10 @@ def build_tmr_receipt(
         "timestamp": timestamp or issued_at,
         "chain_index": chain_index,
         "chain_hash": chain_hash,
+        "obfuscation_tags": list(obfuscation_tags or []),
     }
+    if obfuscation_preview:
+        receipt_payload["obfuscation_preview"] = obfuscation_preview
     if prompt is not None:
         receipt_payload["prompt"] = prompt
 
@@ -550,25 +573,35 @@ def build_tmr_receipt(
     return signed
 
 
-def verify_receipt(receipt: dict[str, Any]) -> bool:
-    """Verify a TMR receipt signature.
+def verify_receipt_or_raise(receipt: dict[str, Any]) -> None:
+    """Verify a TMR receipt signature and raise on any failure.
 
-    Algorithm dispatched by receipt['signature_algorithm']:
-      - "ed25519": verify with public key from receipt_keys
-      - "hmac-sha256" (default for legacy receipts): verify with
-        ALETHEIA_RECEIPT_SECRET
+    Failure modes are always hard failures with machine-readable ``code``:
+    ``malformed_receipt``, ``missing_signature``, ``unsigned_dev_mode``,
+    ``unknown_algorithm``, ``key_unavailable``, ``invalid_signature_format``,
+    ``signature_mismatch``.
     """
+    if not isinstance(receipt, dict) or not receipt:
+        raise ReceiptVerificationError(
+            "malformed_receipt", "Receipt payload is malformed"
+        )
 
     provided_sig = receipt.get("signature")
-    if not isinstance(provided_sig, str) or not provided_sig:
-        return False
+    if not isinstance(provided_sig, str) or not provided_sig.strip():
+        raise ReceiptVerificationError(
+            "missing_signature", "Receipt signature is required"
+        )
     if provided_sig == "UNSIGNED_DEV_MODE":
-        return False
+        raise ReceiptVerificationError(
+            "unsigned_dev_mode", "Unsigned development receipt is not verifiable"
+        )
 
     try:
         parsed = Receipt.model_validate(receipt)
-    except Exception:
-        return False
+    except Exception as exc:
+        raise ReceiptVerificationError(
+            "malformed_receipt", f"Invalid receipt schema: {exc}"
+        ) from exc
 
     algorithm = parsed.signature_algorithm
 
@@ -578,28 +611,58 @@ def verify_receipt(receipt: dict[str, Any]) -> bool:
 
         try:
             pub = receipt_keys.load_public_key()
-        except receipt_keys.ReceiptKeyError:
-            return False
+        except receipt_keys.ReceiptKeyError as exc:
+            raise ReceiptVerificationError("key_unavailable", str(exc)) from exc
         try:
             sig_bytes = bytes.fromhex(provided_sig)
-        except ValueError:
-            return False
+        except ValueError as exc:
+            raise ReceiptVerificationError(
+                "invalid_signature_format",
+                "Ed25519 receipt signature must be hex-encoded bytes",
+            ) from exc
         try:
             pub.verify(sig_bytes, parsed._canonical_string().encode("utf-8"))
-            return True
-        except InvalidSignature:
-            return False
+            return
+        except InvalidSignature as exc:
+            raise ReceiptVerificationError(
+                "signature_mismatch", "Receipt signature mismatch"
+            ) from exc
 
     if algorithm == "hmac-sha256":
         secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
         if not secret:
-            return False
+            raise ReceiptVerificationError(
+                "key_unavailable",
+                "ALETHEIA_RECEIPT_SECRET is required for legacy HMAC receipt verification",
+            )
 
         expected_sig = hmac.new(
             secret,
             parsed._canonical_string().encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
-        return hmac.compare_digest(provided_sig, expected_sig)
+        if not hmac.compare_digest(provided_sig, expected_sig):
+            raise ReceiptVerificationError(
+                "signature_mismatch", "Receipt signature mismatch"
+            )
+        return
 
-    return False
+    raise ReceiptVerificationError(
+        "unknown_algorithm", f"Unsupported signature algorithm: {algorithm}"
+    )
+
+
+def verify_receipt(receipt: dict[str, Any]) -> bool:
+    """Verify a TMR receipt signature.
+
+    Algorithm dispatched by receipt['signature_algorithm']:
+      - "ed25519": verify with public key from receipt_keys
+      - "hmac-sha256" (default for legacy receipts): verify with
+        ALETHEIA_RECEIPT_SECRET
+    """
+
+    try:
+        verify_receipt_or_raise(receipt)
+        return True
+    except ReceiptVerificationError:
+        return False

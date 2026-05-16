@@ -24,7 +24,11 @@ from agents.judge_v1 import AletheiaJudge
 from agents.nitpicker_v2 import AletheiaNitpickerV2
 from agents.scout_v2 import AletheiaScoutV2
 from bridge.utils import normalize_shadow_text
-from core.audit import log_audit_event
+from core.audit import (
+    ReceiptVerificationError,
+    log_audit_event,
+    verify_receipt_or_raise,
+)
 from core.config import settings, env_bool
 from core.auth import get_auth_provider
 from core.auth.models import AuthContext
@@ -33,7 +37,11 @@ from core.embeddings import warm_up
 from core.rate_limit import eval_rate_limiter, rate_limiter
 from core.sandbox import check_action_sandbox
 from core.decision_store import decision_store
-from core.runtime_security import classify_blocked_intent, is_semantic_engine_degraded
+from core.runtime_security import (
+    build_layered_normalization_candidates,
+    classify_blocked_intent,
+    is_semantic_engine_degraded,
+)
 from core.key_store import QuotaCheck, key_store
 from core.secret_rotation import rotate_secrets
 from core.runtime_bootstrap import (
@@ -1147,6 +1155,99 @@ class EvaluateRequest(BaseModel):
     action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
 
 
+class VerifyReceiptRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    receipt: dict[str, Any]
+
+
+def _evaluate_layers(
+    *,
+    action: str,
+    origin: str,
+    payload: str,
+    client_ip: str,
+    request_id: str,
+) -> tuple[float, str, bool, str, bool, str, list[str], str]:
+    layered = build_layered_normalization_candidates(payload, max_depth=3)
+    if layered.expansion_guard_triggered:
+        return (
+            10.0,
+            "obfuscation:expansion_guard",
+            True,
+            "obfuscation:expansion_guard",
+            False,
+            "obfuscation:expansion_guard",
+            ["obfuscation:expansion_guard"],
+            "",
+        )
+
+    max_score = -1.0
+    scout_reason = ""
+    nit_blocked = False
+    nit_reason = ""
+    judge_allowed = True
+    judge_reason = "Action Approved by the Judge."
+    tags: list[str] = []
+    preview = ""
+
+    for candidate in layered.candidates:
+        score, report = _run_scout(client_ip, candidate.text)
+        if score > max_score:
+            max_score = score
+            scout_reason = report
+            if candidate.scheme != "raw":
+                tags = [f"obfuscation:{candidate.scheme}"]
+                preview = candidate.text[:120]
+
+        blocked, reason, _ = _run_nitpicker(candidate.text, origin)
+        if blocked:
+            nit_blocked = True
+            nit_reason = reason or "Action denied: semantic policy violation."
+            if candidate.scheme != "raw":
+                tags = [f"obfuscation:{candidate.scheme}"]
+                preview = candidate.text[:120]
+            break
+
+        allowed, veto = _run_judge(action, candidate.text)
+        if not allowed:
+            judge_allowed = False
+            judge_reason = veto
+            if candidate.scheme != "raw":
+                tags = [f"obfuscation:{candidate.scheme}"]
+                preview = candidate.text[:120]
+            break
+
+    if max_score < 0:
+        max_score = 0.0
+    return (
+        max_score,
+        scout_reason,
+        nit_blocked,
+        nit_reason,
+        judge_allowed,
+        judge_reason,
+        tags,
+        preview,
+    )
+
+
+@app.post("/v1/verify", dependencies=[Depends(_check_api_key)])
+async def verify_receipt_endpoint(req: VerifyReceiptRequest) -> JSONResponse:
+    """Strict receipt verification endpoint (hard-fail on any verification error)."""
+    try:
+        verify_receipt_or_raise(req.receipt)
+        return JSONResponse(
+            status_code=200,
+            content={"verified": True, "status": "accepted"},
+        )
+    except ReceiptVerificationError as exc:
+        status = 422 if exc.code in {"malformed_receipt", "missing_signature"} else 400
+        return JSONResponse(
+            status_code=status,
+            content={"verified": False, "status": "rejected", "error": exc.code},
+        )
+
+
 def _is_read_only_action(action: str) -> bool:
     """Return True if the action appears to be read-only / safe."""
     safe_tokens = ("read", "list", "get", "view", "query", "status", "health", "fetch")
@@ -1200,12 +1301,22 @@ async def evaluate_policy(req: EvaluateRequest, request: Request) -> JSONRespons
         )
 
     # --- Pipeline ---
-    threat_score, report = _run_scout(client_ip, clean_input)
-    nitpicker_blocked, nitpicker_reason, _ = _run_nitpicker(
-        clean_input,
-        req.origin,
+    (
+        threat_score,
+        report,
+        nitpicker_blocked,
+        nitpicker_reason,
+        is_allowed,
+        veto_msg,
+        _obfuscation_tags,
+        _obfuscation_preview,
+    ) = _evaluate_layers(
+        action=req.action,
+        origin=req.origin,
+        payload=req.payload,
+        client_ip=client_ip,
+        request_id=request_id,
     )
-    is_allowed, veto_msg = _run_judge(req.action, clean_input)
 
     is_blocked = (
         (threat_score >= settings.policy_threshold)
@@ -1324,6 +1435,35 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Input hardening ---
     clean_input = normalize_shadow_text(req.payload)
 
+    layered_probe = build_layered_normalization_candidates(req.payload, max_depth=3)
+    if layered_probe.expansion_guard_triggered:
+        audit_record = await _log_audit_and_persist(
+            user_id=_user_id,
+            decision="DENIED",
+            threat_score=10.0,
+            payload=req.payload,
+            action=req.action,
+            source_ip=client_ip,
+            origin=req.origin,
+            reason="obfuscation:expansion_guard",
+            fallback_state=fallback_state,
+            request_id=request_id,
+            receipt_chain=True,
+            tenant_id=_tenant_id,
+            auth_method=_auth_method,
+            obfuscation_tags=["obfuscation:expansion_guard"],
+        )
+        return _build_audit_envelope(
+            decision="DENIED",
+            reason="obfuscation:expansion_guard",
+            request_id=request_id,
+            receipt=audit_record["receipt"],
+            threat_level="high",
+            latency_ms=(_time.time() - start_time) * 1000,
+            fallback_state=fallback_state,
+            status_code=403,
+        )
+
     # --- Semantic intent classification (pre-agent screen) ---
     intent_decision = classify_blocked_intent(clean_input)
     if intent_decision.blocked:
@@ -1384,10 +1524,26 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         )
 
     # 1. SCOUT PHASE
-    threat_score, report = _run_scout(client_ip, clean_input)
+    # 1..3. SCOUT + NITPICKER + JUDGE over decoded candidate layers
+    (
+        threat_score,
+        report,
+        nitpicker_blocked,
+        nitpicker_reason,
+        _layer_judge_allowed,
+        _layer_judge_reason,
+        obfuscation_tags,
+        obfuscation_preview,
+    ) = _evaluate_layers(
+        action=req.action,
+        origin=req.origin,
+        payload=req.payload,
+        client_ip=client_ip,
+        request_id=request_id,
+    )
 
-    # 2. NITPICKER PHASE — semantic block check feeds the decision
-    nitpicker_blocked, nitpicker_reason, clean_content = _run_nitpicker(  # noqa: F841
+    # Keep sanitize side-effects for logging parity without changing decision path.
+    _, _, clean_content = _run_nitpicker(  # noqa: F841
         clean_input,
         req.origin,
         request_id=request_id,
@@ -1428,7 +1584,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
             status_code=503,
         )
 
-    is_allowed, veto_msg = _run_judge(req.action, clean_input)
+    is_allowed = _layer_judge_allowed
+    veto_msg = _layer_judge_reason
 
     # DECISION: block if ANY agent denies (defense-in-depth)
     is_blocked = (
@@ -1486,6 +1643,8 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         receipt_chain=True,
         tenant_id=_tenant_id,
         auth_method=_auth_method,
+        obfuscation_tags=obfuscation_tags,
+        obfuscation_preview=obfuscation_preview,
     )
 
     response: dict = {
