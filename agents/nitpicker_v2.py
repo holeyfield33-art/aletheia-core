@@ -327,8 +327,11 @@ class AletheiaNitpickerV2:
                             self._thresholds = ThresholdsConfig.model_validate(
                                 raw_thresholds
                             )
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            _nitpicker_logger.warning(
+                                "Invalid threshold config in manifest, using default: %s",
+                                exc,
+                            )
                 self._manifest_entries = [e for e in entries if e.get("enabled", True)]
                 _nitpicker_logger.info(
                     "Static fallback manifest loaded: %d entries from %s",

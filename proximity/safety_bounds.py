@@ -9,10 +9,13 @@ Five invariants enforced at runtime:
 """
 
 from __future__ import annotations
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable
+
+_logger = logging.getLogger("aletheia.proximity.safety_bounds")
 
 
 class HaltReason(str, Enum):
@@ -211,6 +214,8 @@ class SafetyBounds:
         if self._notify_operator:
             try:
                 self._notify_operator(self._halt_event)
-            except Exception:
+            except Exception as exc:
                 # Notification failure NEVER prevents shutdown
-                pass
+                _logger.error(
+                    "Operator notification failed (not preventing halt): %s", exc
+                )

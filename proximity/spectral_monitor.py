@@ -6,12 +6,15 @@ Detects degradation via r_ratio trending below threshold.
 
 from __future__ import annotations
 import asyncio
+import logging
 import os
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import httpx
+
+_logger = logging.getLogger("aletheia.proximity.spectral_monitor")
 
 
 # Configuration (all overridable via env)
@@ -154,9 +157,11 @@ class SpectralMonitor:
                     await self.poll_once()
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except Exception as exc:
                 # Continue on error
-                pass
+                _logger.warning(
+                    "Spectral polling iteration failed (continuing): %s", exc
+                )
 
     @staticmethod
     def _compute_coherence_index(

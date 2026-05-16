@@ -9,11 +9,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 from typing import Any
 
 from .safety_bounds import SafetyBounds
 from .spectral_monitor import SpectralHealth, SpectralMonitor
 from .identity_anchor import IdentityAnchor, DecisionReceipt
+
+_logger = logging.getLogger("aletheia.proximity.sovereign_relay")
 
 
 @dataclass
@@ -216,9 +219,11 @@ class SovereignRelay:
 
         try:
             await self._anchor.store_decision(receipt)
-        except Exception:
+        except Exception as exc:
             # Anchor failure does not prevent relay decision
-            pass
+            _logger.warning(
+                "Decision storage failed in anchor (continuing relay): %s", exc
+            )
 
         # Update counters
         self._decisions_made += 1

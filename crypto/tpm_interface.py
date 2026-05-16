@@ -119,7 +119,12 @@ class _TPMBackend:
             _logger.info(
                 "Loaded TPM persistent key at handle 0x%08X", _TPM_PERSISTENT_HANDLE
             )
-        except Exception:
+        except Exception as exc:
+            _logger.debug(
+                "Persistent key not found at handle 0x%08X, creating new: %s",
+                _TPM_PERSISTENT_HANDLE,
+                exc,
+            )
             primary = self._ctx.create_primary(alg="ecc", curve="NIST_P256")
             self._key_handle = self._ctx.evict_control(
                 primary.handle,

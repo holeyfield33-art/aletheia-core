@@ -7,6 +7,7 @@ Integrates with Mneme MCP (best-effort).
 from __future__ import annotations
 import hashlib
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -15,6 +16,8 @@ from pathlib import Path
 import httpx
 
 from .spectral_monitor import SpectralHealth
+
+_logger = logging.getLogger("aletheia.proximity.identity_anchor")
 
 
 # Configuration
@@ -108,8 +111,11 @@ class IdentityAnchor:
                 return
             self._chain_hashes = list(data.get("chain_hashes", []))
             self._seen_tokens = set(data.get("seen_tokens", []))
-        except Exception:
+        except Exception as exc:
             # Fail closed during replay checks only; state loading remains best-effort.
+            _logger.warning(
+                "Failed to load identity anchor state, resetting (non-fatal): %s", exc
+            )
             self._chain_hashes = []
             self._seen_tokens = set()
 
