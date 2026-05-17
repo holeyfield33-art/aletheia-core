@@ -7,7 +7,7 @@ import time
 import pytest
 import redis
 
-from economics.distributed_state import (
+from guards.distributed_state import (
     DistributedBreakerState,
     DistributedStateManager,
 )

@@ -153,6 +153,6 @@ def mock_manifest_signing(request: pytest.FixtureRequest):
 
     with (
         patch("manifest.signing.verify_manifest_signature", return_value=None),
-        patch("agents.judge_v1.verify_manifest_signature", return_value=None),
+        patch("agents.judge.verify_manifest_signature", return_value=None),
     ):
         yield

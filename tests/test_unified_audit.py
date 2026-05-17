@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 
 from core.unified_audit import SovereignDecision, UnifiedSovereignRuntime
-from economics.circuit_breaker import BreakerState
+from guards.circuit_breaker import BreakerState
 
 
 class TestUnifiedSovereignRuntime(unittest.TestCase):

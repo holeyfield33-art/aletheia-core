@@ -54,7 +54,7 @@ jobs:
       - name: Compile check
         run: |
           python -m py_compile core/audit.py core/config.py core/embeddings.py \
-            core/rate_limit.py core/sandbox.py bridge/fastapi_wrapper.py main.py
+            core/rate_limit.py core/sandbox.py server/app.py main.py
 
       - name: Run core tests
         run: |
@@ -109,7 +109,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          python -m pytest tests/ --cov=core --cov=bridge --cov=agents --cov-report=xml \
+          python -m pytest tests/ --cov=core --cov=server --cov=agents --cov-report=xml \
             --ignore=tests/test_proximity \
             --ignore=tests/test_api.py \
             --ignore=tests/test_redteam_adversarial.py \

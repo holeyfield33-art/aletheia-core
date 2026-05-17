@@ -1,4 +1,4 @@
-"""Enterprise-grade edge-case tests for agents/scout_v2.py — AletheiaScoutV2.
+"""Enterprise-grade edge-case tests for agents/scout.py — AletheiaScoutV2.
 
 Covers:
 - All exfiltration patterns ("merger clause", "hedge fund strategy", "private_key")
@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 import unittest
 
-from agents.scout_v2 import AletheiaScoutV2
+from agents.scout import AletheiaScoutV2
 
 
 class TestSmugglingPrefixDetection(unittest.TestCase):

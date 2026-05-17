@@ -5,7 +5,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from bridge.utils import normalize_shadow_text
+from server.utils import normalize_shadow_text
 from core.audit import build_tmr_receipt, log_audit_event, verify_receipt
 from core.rate_limit import InMemoryRateLimiter
 

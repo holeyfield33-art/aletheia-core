@@ -96,7 +96,7 @@ def is_semantic_engine_degraded(last_result: object | None) -> bool:
     return degraded_flag and source in {"qdrant", "both"}
 
 
-# DEPRECATED: Use AuditRequest from bridge.fastapi_wrapper.
+# DEPRECATED: Use AuditRequest from server.app.
 # This schema remains only for validate_structured_request()
 # backward compatibility. Do not add new usages.
 class AuditRequestSchema(BaseModel):

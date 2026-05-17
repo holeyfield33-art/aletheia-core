@@ -149,7 +149,7 @@ class TestXForwardedForRotation:
 
     def test_rotation_probing_detected(self):
         """Many rapid requests from a single source = rotation probing."""
-        from agents.scout_v2 import AletheiaScoutV2 as Scout
+        from agents.scout import AletheiaScoutV2 as Scout
 
         scout = Scout()
         scores = []
@@ -167,7 +167,7 @@ class TestXForwardedForRotation:
 
     def test_single_ip_few_requests_clean(self):
         """A few requests from the same IP should not trigger rotation detection."""
-        from agents.scout_v2 import AletheiaScoutV2 as Scout
+        from agents.scout import AletheiaScoutV2 as Scout
 
         scout = Scout()
         scores = []

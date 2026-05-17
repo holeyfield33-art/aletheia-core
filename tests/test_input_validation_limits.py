@@ -21,7 +21,7 @@ def _build_test_client(monkeypatch) -> TestClient:
     monkeypatch.setattr(emb, "_model", None)
     monkeypatch.setenv("ALETHEIA_AUTH_DISABLED", "true")
 
-    module = importlib.import_module("bridge.fastapi_wrapper")
+    module = importlib.import_module("server.app")
     module = importlib.reload(module)
     return TestClient(module.app, raise_server_exceptions=False)
 

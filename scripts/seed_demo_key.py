@@ -9,7 +9,7 @@ that header against its KeyStore (env-var keys were removed in v1.7).
 
 On Render's free tier the filesystem is ephemeral, so a SQLite-backed
 KeyStore loses every key on restart. The lifespan startup hook in
-``bridge.fastapi_wrapper._seed_demo_key`` already re-imports the configured
+``server.app._seed_demo_key`` already re-imports the configured
 demo key on boot — this script is the manual operator equivalent for one-off
 re-seeds, dry runs, and Postgres-backed deployments where the key was lost.
 

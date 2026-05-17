@@ -56,7 +56,7 @@ docker run \
 pip install aletheia-core
 
 # Start server
-python -m aletheia.bridge.fastapi_wrapper
+python -m aletheia.server.app
 ```
 
 ### Option 3: Source (Hacking)

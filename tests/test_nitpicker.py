@@ -3,7 +3,7 @@
 import importlib.util
 import unittest
 
-from agents.nitpicker_v2 import AletheiaNitpickerV2
+from agents.nitpicker import AletheiaNitpickerV2
 
 _HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
 _needs_real_model = unittest.skipUnless(_HAS_ML_DEPS, "requires huggingface_hub")

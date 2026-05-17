@@ -7,7 +7,7 @@ import unittest
 
 import numpy as np
 
-from economics.duplicate_detector import (
+from guards.duplicate_detector import (
     DuplicateDetectorConfig,
     NearDuplicateDetector,
 )

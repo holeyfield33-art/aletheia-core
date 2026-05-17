@@ -26,9 +26,9 @@ import numpy as np
 
 from crypto.chain_signer import ChainSigner, ChainSignatureError
 from crypto.tpm_interface import TPMAnchor
-from economics.circuit_breaker import BreakerState, ResourceCircuitBreaker
-from economics.token_velocity import TokenVelocityTracker
-from economics.zero_standing_privileges import (
+from guards.circuit_breaker import BreakerState, ResourceCircuitBreaker
+from guards.token_velocity import TokenVelocityTracker
+from guards.zero_standing_privileges import (
     RequestPrivileges,
     ZSPEnforcer,
 )

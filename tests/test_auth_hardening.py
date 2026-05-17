@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 def _get_client():
     """Create a fresh TestClient for the FastAPI app."""
     # Re-import to pick up env changes at module scope
-    from bridge.fastapi_wrapper import app
+    from server.app import app
 
     return TestClient(app, raise_server_exceptions=False)
 
@@ -109,7 +109,7 @@ class TestNitpickerRotation:
     def test_rotation_with_salt_is_unpredictable(self):
         """With ALETHEIA_ROTATION_SALT, rotation should use HMAC."""
         with patch.dict(os.environ, {"ALETHEIA_ROTATION_SALT": "test-salt-123"}):
-            from agents.nitpicker_v2 import AletheiaNitpickerV2
+            from agents.nitpicker import AletheiaNitpickerV2
 
             n = AletheiaNitpickerV2()
             assert n._rotation_salt == "test-salt-123"
@@ -118,7 +118,7 @@ class TestNitpickerRotation:
         """Without salt, rotation falls back to counter (logged warning)."""
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("ALETHEIA_ROTATION_SALT", None)
-            from agents.nitpicker_v2 import AletheiaNitpickerV2
+            from agents.nitpicker import AletheiaNitpickerV2
 
             n = AletheiaNitpickerV2()
             assert n._rotation_salt == ""

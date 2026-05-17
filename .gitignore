@@ -41,3 +41,9 @@ tsconfig.tsbuildinfo
 # Generated receipt keypair output
 .secrets/
 .vercel
+
+# Runtime receipts — generated at runtime, not version-controlled
+receipts/*.json
+
+# Supabase CLI state — linked project refs, pooler URLs, version pins
+supabase/.temp/

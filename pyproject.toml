@@ -62,7 +62,7 @@ Changelog = "https://github.com/holeyfield33-art/aletheia-core/releases"
 aletheia-audit = "main:run_aletheia_audit"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "bridge*", "simulations*", "manifest*", "core*", "proximity*", "crypto*", "monitoring*", "economics*"]
+include = ["agents*", "server*", "simulations*", "manifest*", "core*", "proximity*", "crypto*", "monitoring*", "guards*"]
 
 [project.optional-dependencies]
 proximity = [
@@ -107,7 +107,7 @@ no_implicit_reexport = true
 module = [
     "core.semantic_manifest",
     "core.runtime_security",
-    "bridge.fastapi_wrapper",
+    "server.app",
 ]
 # Pydantic v2 validators use untyped decorators; FastAPI routes are decorated
 # by the router object which mypy sees as Any.

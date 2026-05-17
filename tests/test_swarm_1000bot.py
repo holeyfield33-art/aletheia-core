@@ -25,7 +25,7 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from bridge.fastapi_wrapper import app, scout, nitpicker, judge
+from server.app import app, scout, nitpicker, judge
 from core.rate_limit import rate_limiter
 from core.sandbox import check_action_sandbox
 from core.runtime_security import normalize_untrusted_text
