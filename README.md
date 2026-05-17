@@ -72,40 +72,6 @@ You should see a response with `decision`, `reason`, and a `receipt` block.
 
 Want to skip local install? Try the live demo at [app.aletheia-core.com/demo](https://app.aletheia-core.com/demo).
 
-### Add a looping homepage demo video (local + Vercel)
-
-The homepage Trader section now plays video inline (no off-site redirect).
-
-Set these environment variables:
-
-```bash
-# required: supports YouTube links or direct .mp4/.webm URLs
-NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL=https://youtu.be/your_video_id
-
-# optional: poster image for direct video files
-NEXT_PUBLIC_TRADER_DEMO_POSTER_URL=https://cdn.example.com/demo-poster.jpg
-```
-
-Local setup:
-
-1. Add both vars to `.env.local`.
-2. Run `npm run dev`.
-3. Open the homepage and scroll to the Trader section.
-
-Vercel setup:
-
-1. Project Settings -> Environment Variables.
-2. Add `NEXT_PUBLIC_TRADER_DEMO_VIDEO_URL` (and optional `NEXT_PUBLIC_TRADER_DEMO_POSTER_URL`).
-3. Apply to Production (and Preview if needed).
-4. Redeploy.
-
-Playback behavior:
-
-- YouTube URLs are embedded in-page with autoplay + mute + loop.
-- Direct `.mp4/.webm` URLs render with native `<video>` autoplay + mute + loop.
-
-For production deployment, see the installation and production deployment checklist sections below.
-
 ---
 
 ## Why Aletheia Core
@@ -130,35 +96,7 @@ tamper-evident audit receipt — before it is allowed to execute.
 
 ---
 
-## What's New in v1.9.3
-
-### Deployment Fixes
-
-- **`asyncpg` added as core dependency**: Resolves `ModuleNotFoundError` on Python 3.14 / Render deployments with Postgres backends.
-- **`ALETHEIA_MODE` parsing hardened**: Normalized whitespace and slash-delimited placeholder values (e.g. `active / shadow / monitor`) are rejected at startup; only `active`, `shadow`, or `monitor` are accepted.
-- **`ALETHEIA_MANIFEST_KEY_VERSION` documented**: Startup failure (`ManifestTamperedError: key version mismatch`) resolved by ensuring env var matches the `key_version` field in `manifest/security_policy.json.sig` (`v1`).
-- **Frontend API route fix** (`app/api`): Corrected TypeScript route handler for Next.js 14 app directory.
-- **Dependency hash pinning**: `asyncpg` hash added to `requirements.txt` lock.
-
-### Launch Transition
-
-- **Hosted API status set to live**: construction banner now auto-hides in production state.
-- **Pricing terminology updated**: public copy now uses Sovereign Audit Receipts / verified decisions.
-- **Tier model update**: hosted tiers are now Free, Scale, Pro, and PAYG (Stripe-backed).
-- **Checkout/webhook tier mapping**: checkout supports `tier=scale|pro|payg`; webhook fulfillment maps tiers to internal hosted plans.
-
-### What was new in v1.9.0
-
-- Qdrant semantic layer, symbolic narrowing, `NitpickerResult` dataclass, 24 static blocked patterns, 51 new semantic tests, pre-commit hooks, RBAC for admin endpoints, `ALETHEIA_API_KEYS` / `ALETHEIA_ADMIN_KEY` / `ALETHEIA_LOG_PII` env vars removed.
-
-### Latest Security Hardening (May 2026)
-
-- Receipt signing now enforces Ed25519 keypair consistency across signing and published verification keys.
-- Optional receipt key pinning via `ALETHEIA_RECEIPT_KEY_ID` is supported to fail closed on key drift.
-- Semantic coverage expanded for agentic tool-hijack phrasing and base64 decode-follow jailbreak framing.
-- Runtime thresholds now include explicit category controls for `jailbreak` and `prompt_injection`.
-
-See [CHANGELOG.md](CHANGELOG.md) for full history.
+See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ---
 
@@ -204,16 +142,14 @@ pip install -r requirements-ci.txt
 # pip install -r requirements.txt
 ```
 
-#### Optional Consciousness Proximity Module
+#### Optional detectors module
 
-To enable the optional proximity feature set:
+The spectral monitor and sovereign relay subsystems require `httpx` and are gated behind an environment flag:
 
 ```bash
 pip install -r requirements-detectors.txt
 export CONSCIOUSNESS_PROXIMITY_ENABLED=true
 ```
-
-The proximity module is gated behind `CONSCIOUSNESS_PROXIMITY_ENABLED=true` and includes optional runtime dependencies for governance monitoring and relay scoring.
 
 ### Sign the manifest (required before first run)
 
@@ -273,6 +209,68 @@ Incoming Request
          │
          ▼
    Audit Log + TMR Receipt
+```
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B[Input Hardening\nNFKC · Base64 · URL decode · homoglyph strip]
+    B --> C{Scout}
+    C -->|threat score| D{Nitpicker}
+    D -->|intent clean?| E{Judge}
+    E -->|manifest + semantic veto| F{Decision}
+    F -->|PROCEED| G[Action executes]
+    F -->|DENIED| H[Block + signed receipt]
+    G --> I[Audit log + signed receipt]
+
+    style C fill:#1a1a2e,color:#e0e0e0
+    style D fill:#1a1a2e,color:#e0e0e0
+    style E fill:#1a1a2e,color:#e0e0e0
+    style H fill:#8b0000,color:#fff
+    style G fill:#1a3a1a,color:#e0e0e0
+```
+
+### How signed receipts work
+
+Every audit decision — allow or deny — produces a tamper-evident signed receipt:
+
+```bash
+# Submit an action for audit
+curl -sX POST https://api.aletheia-core.com/v1/audit \
+  -H "X-API-Key: $ALETHEIA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": "Summarize quarterly controls delta",
+    "origin":  "trusted_admin",
+    "action":  "Read_Report"
+  }' | python -m json.tool
+```
+
+```json
+{
+  "decision": "PROCEED",
+  "metadata": {
+    "threat_level": "LOW",
+    "latency_ms": 14.2,
+    "request_id": "a1b2c3d4e5f6g7h8"
+  },
+  "receipt": {
+    "decision": "PROCEED",
+    "policy_hash": "sha256:3f2a...",
+    "payload_sha256": "sha256:9c1d...",
+    "action": "Read_Report",
+    "origin": "trusted_admin",
+    "issued_at": "2026-05-17T20:00:00Z",
+    "signature": "ed25519:4a2f..."
+  }
+}
+```
+
+Verify any receipt offline against the published public key:
+
+```bash
+python -m aletheia.audit verify --receipt receipt.json \
+  --pubkey manifest/security_policy.ed25519.pub
+# Receipt verified ✓  decision=PROCEED  policy_hash matches manifest
 ```
 
 ### Deployment Architecture
@@ -421,14 +419,17 @@ curl -X POST http://localhost:8000/v1/rotate \
 ## Project Structure
 
 ```
-aletheia-cyber-core/
+aletheia-core/
 ├── agents/
-│   ├── scout_v2.py            # Threat intelligence + swarm detection
-│   ├── nitpicker_v2.py        # Polymorphic intent sanitization + Qdrant semantic layer
-│   ├── judge_v1.py            # Policy enforcement + semantic veto
+│   ├── scout.py               # Threat intelligence + swarm detection
+│   ├── nitpicker.py           # Polymorphic intent sanitization + Qdrant semantic layer
+│   ├── judge.py               # Policy enforcement + semantic veto
 │   └── sovereignty_proof.py   # Sovereignty attestation
-├── bridge/
-│   ├── fastapi_wrapper.py     # Production REST API (rate-limited, audited)
+├── server/
+│   ├── app.py                 # FastAPI application factory (routes, lifespan, auth)
+│   ├── middleware.py          # HTTP middleware (security headers, auth, internal guard)
+│   ├── websocket.py           # WebSocket live audit stream
+│   ├── models.py              # Pydantic request/response models
 │   └── utils.py               # Input hardening (homoglyphs, Base64, URL)
 ├── core/
 │   ├── config.py              # Centralized settings (env / yaml / defaults)
@@ -441,12 +442,21 @@ aletheia-cyber-core/
 │   ├── decision_store.py      # Decision replay defense store
 │   ├── metrics.py             # Prometheus metrics definitions
 │   ├── secret_rotation.py     # Hot secret rotation (SIGUSR1 + /v1/rotate)
-│   ├── symbolic_narrowing.py  # Intent bucket pre-filter for vector search
 │   ├── vector_store.py        # Thread-safe Qdrant client wrapper (fail-open)
 │   └── semantic_manifest.py   # Pydantic schema for semantic pattern manifest
-├── economics/
-│   ├── circuit_breaker.py     # Economic circuit breaker
+├── detectors/
+│   ├── spectral_rigidity.py   # GUE spectral analysis (manifold drift detection)
+│   ├── spectral_monitor.py    # Remote spectral health polling
+│   ├── swarm_detector.py      # Coordinated-attack (swarm) detection
+│   ├── escalation_probe.py    # Privilege escalation detection
+│   ├── identity_anchor.py     # Identity context anchoring
+│   ├── safety_bounds.py       # Behavioral safety constraints
+│   └── sovereign_relay.py     # Sovereign relay decision logic
+├── guards/
+│   ├── circuit_breaker.py     # Circuit breaker (fail-open / fail-closed)
 │   ├── token_velocity.py      # Token velocity monitoring
+│   ├── duplicate_detector.py  # Request deduplication
+│   ├── distributed_state.py   # Distributed state consensus
 │   └── zero_standing_privileges.py  # ZSP enforcement
 ├── crypto/
 │   ├── chain_signer.py        # Chain-of-custody signing
@@ -454,22 +464,15 @@ aletheia-cyber-core/
 ├── manifest/
 │   ├── security_policy.json        # Ground truth veto rules
 │   ├── security_policy.json.sig    # Ed25519 detached signature
-│   ├── security_policy.ed25519.pub # Public verification key
-│   └── signing.py             # Manifest signing and verification
-├── deploy/
-│   └── logrotate.conf         # Log rotation config for container deployments
-├── scripts/
-│   ├── backup_sqlite.sh       # SQLite backup with 7-day retention
-│   ├── smoke_test_live.py     # Post-deploy smoke tests
-│   ├── build_semantic_index.py  # Qdrant index builder + signed receipt
-│   └── check_version_sync.py # Pre-commit version consistency check
-├── tests/                     # Backend and hosted surface tests
-├── simulations/               # Adversarial simulation scripts
-├── main.py                    # CLI entry point
-├── AGENTS.md                  # Agent communication protocol
+│   └── security_policy.ed25519.pub # Public verification key
+├── tests/
+│   ├── test_redteam_adversarial.py  # 1,296-line adversarial test suite
+│   └── test_detectors/              # Spectral monitor + identity anchor tests
+├── scripts/                   # Maintenance, calibration, smoke-test utilities
+├── deploy/                    # Dockerfile, docker-compose, Helm chart, render.yaml
+├── main.py                    # CLI entry point (audit, sign-manifest)
 ├── Dockerfile                 # Production container with HEALTHCHECK, non-root user
-├── .pre-commit-config.yaml    # Pre-commit hooks (ruff, version-sync, etc.)
-└── requirements.txt           # Hash-pinned dependencies
+└── requirements.in            # 17 direct dependencies (requirements.txt is compiled)
 ```
 
 ---
