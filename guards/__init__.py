@@ -1,4 +1,5 @@
-"""Aletheia Core — Economic Anchor.
+"""Aletheia Core — Guards Package.
 
-Zero Standing Privileges + Token Velocity Circuit Breaker.
+Runtime protection subsystems: Zero Standing Privileges, token velocity
+circuit breaker, distributed rate state, and duplicate detection.
 """

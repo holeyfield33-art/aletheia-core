@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.9.3-blue" alt="Version"/>
+  <img src="https://img.shields.io/badge/version-2.0.0-blue" alt="Version"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License"/>
   <img src="https://img.shields.io/github/stars/holeyfield33-art/aletheia-core?style=social" alt="GitHub stars"/>
@@ -144,12 +144,16 @@ pip install -r requirements-ci.txt
 
 #### Optional detectors module
 
-The spectral monitor and sovereign relay subsystems require `httpx` and are gated behind an environment flag:
+The spectral monitor and sovereign relay subsystems are **experimental** and disabled by default.
+They require `httpx` and an active Geometric Brain MCP endpoint:
 
 ```bash
-pip install -r requirements-detectors.txt
+pip install "aletheia-cyber-core[detectors]"
+# or from source: pip install -r requirements-detectors.txt
 export CONSCIOUSNESS_PROXIMITY_ENABLED=true
 ```
+
+Core detectors (swarm detection, spectral rigidity, escalation probing) are always enabled with no extra dependencies.
 
 ### Sign the manifest (required before first run)
 

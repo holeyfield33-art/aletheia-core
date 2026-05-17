@@ -1,7 +1,10 @@
-"""Aletheia Core — Sovereign Relay Module.
+"""Aletheia Core — Sovereign Relay Module.  [EXPERIMENTAL / OPTIONAL]
 
 Layer 3: Governor only — can PREVENT actions, cannot GENERATE them.
 READ-ONLY observer that enforces policies and red-line safety.
+
+Depends on spectral_monitor, which requires `httpx` and a Geometric Brain
+MCP endpoint. Enable via: CONSCIOUSNESS_PROXIMITY_ENABLED=true
 """
 
 from __future__ import annotations

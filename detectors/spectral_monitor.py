@@ -1,7 +1,13 @@
-"""Aletheia Core — Spectral Monitor Module.
+"""Aletheia Core — Spectral Monitor Module.  [EXPERIMENTAL / OPTIONAL]
 
 Layer 1: READ-ONLY observer. Calls Geometric Brain MCP to monitor spectral health.
 Detects degradation via r_ratio trending below threshold.
+
+This module is OPTIONAL and disabled by default. It requires `httpx` and an
+active Geometric Brain MCP endpoint (GEOMETRIC_BRAIN_URL). Enable with:
+
+    pip install aletheia-cyber-core[detectors]
+    export CONSCIOUSNESS_PROXIMITY_ENABLED=true
 """
 
 from __future__ import annotations

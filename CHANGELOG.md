@@ -5,6 +5,65 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.0.0] - 2026-05-17
+
+### Summary
+
+Professional refactoring — technical debt cleared, module structure normalised,
+AI-session artifacts removed. No runtime logic was changed; the Scout → Nitpicker
+→ Judge pipeline, signed receipts, and all security invariants are untouched.
+
+### Breaking Changes
+
+- Package modules renamed: `bridge` → `server`, `economics` → `guards`,
+  `proximity` + `monitoring` → `detectors` (merged).
+- Agent filenames normalised: `scout_v2.py` → `scout.py`,
+  `nitpicker_v2.py` → `nitpicker.py`, `judge_v1.py` → `judge.py`.
+- `server.app` is now a clean factory; route logic moved to `server/routes/`.
+  All previously importable names remain re-exported from `server.app` for
+  backward compatibility.
+- Minimum Python unchanged: **3.10**.
+
+### Added
+
+- `aletheia_core/` top-level package: `from aletheia_core import Scout, Nitpicker, Judge`.
+- `server/routes/` — modular APIRouter files: `health.py`, `audit.py`, `keys.py`.
+- `server/_app_state.py`, `server/_state.py`, `server/_bridge.py`,
+  `server/_helpers.py`, `server/_deps.py` — extracted from the god-file.
+- Version badge and Mermaid architecture diagram in README.
+
+### Changed
+
+- `server/app.py` reduced from 1 961 lines → **265 lines** (clean factory only).
+- `detectors/__init__.py` now clearly documents core vs experimental detectors.
+- `spectral_monitor.py` and `sovereign_relay.py` marked `[EXPERIMENTAL / OPTIONAL]`
+  with setup instructions in module docstrings.
+- `guards/__init__.py` docstring updated (stale "Economic Anchor" wording removed).
+- `server/__init__.py` docstring updated (stale "Bridge Package" wording removed).
+- Makefile expanded with `install`, `dev`, `run`, `lint`, `clean` targets.
+
+### Removed
+
+- `PHASE_2_COMPLETION_REPORT.md` — AI session artifact.
+- `GROWTH_METRICS.md` — product KPI dashboard (belongs in private notes, not git).
+- `RED_TEAM_ANALYSIS.md` — analysis committed to the repo it analysed.
+- `AGENTS.md` — AI session instructions.
+- `receipts/index_receipt.json` — runtime data committed to source control;
+  `receipts/*.json` added to `.gitignore`.
+- `supabase/.temp/` — contained a live Postgres connection string (credentials rotated).
+- `simulations/` root directory — moved to `tests/simulations/` where it belongs.
+- `traders/`, `consciousness_proximity/` — unused stubs.
+- `legal/SOVEREIGNTY.md` — moved to `docs/SOVEREIGNTY.md`.
+- `v1`/`v2` version suffixes from agent filenames.
+
+### Security
+
+- Confirmed no hardcoded secrets remain after Supabase credential rotation.
+- `receipts/*.json` now gitignored to prevent runtime receipt data leaking into VCS.
+- `supabase/` directory removed and gitignored.
+
+---
+
 ## [1.9.4] - 2026-05-15
 
 ### Changed
