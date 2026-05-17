@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable
 
-_logger = logging.getLogger("aletheia.proximity.safety_bounds")
+_logger = logging.getLogger("aletheia.detectors.safety_bounds")
 
 
 class HaltReason(str, Enum):

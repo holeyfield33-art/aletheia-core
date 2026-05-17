@@ -17,7 +17,7 @@ import httpx
 
 from .spectral_monitor import SpectralHealth
 
-_logger = logging.getLogger("aletheia.proximity.identity_anchor")
+_logger = logging.getLogger("aletheia.detectors.identity_anchor")
 
 
 # Configuration

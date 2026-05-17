@@ -4,13 +4,13 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
-from proximity.sovereign_relay import (
+from detectors.sovereign_relay import (
     SovereignRelay,
     PolicyConfig,
     Action,
 )
-from proximity.spectral_monitor import SpectralMonitor, SpectralHealth
-from proximity.identity_anchor import IdentityAnchor
+from detectors.spectral_monitor import SpectralMonitor, SpectralHealth
+from detectors.identity_anchor import IdentityAnchor
 
 
 class TestBasicEvaluation:

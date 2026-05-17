@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock
 import httpx
 
-from proximity.spectral_monitor import (
+from detectors.spectral_monitor import (
     SpectralMonitor,
     DEGRADATION_THRESHOLD,
     DEGRADATION_CONSECUTIVE,

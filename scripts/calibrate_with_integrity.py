@@ -32,7 +32,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 sys.path.insert(0, ".")
 
 from crypto.calibration_manifest import CalibrationIntegrity
-from monitoring.spectral_rigidity import compute_drift_score, theta_bk
+from detectors.spectral_rigidity import compute_drift_score, theta_bk
 
 
 def _load_or_generate_key(key_file: str) -> Ed25519PrivateKey:

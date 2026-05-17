@@ -23,7 +23,7 @@ import numpy as np
 # Allow running from repo root
 sys.path.insert(0, ".")
 
-from monitoring.spectral_rigidity import compute_drift_score
+from detectors.spectral_rigidity import compute_drift_score
 
 
 @click.command()

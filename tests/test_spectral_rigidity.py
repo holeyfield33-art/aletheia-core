@@ -6,7 +6,7 @@ import unittest
 
 import numpy as np
 
-from monitoring.spectral_rigidity import (
+from detectors.spectral_rigidity import (
     INCONCLUSIVE,
     compute_delta3,
     compute_drift_score,
@@ -14,7 +14,7 @@ from monitoring.spectral_rigidity import (
     set_theta_bk_override,
     theta_bk,
 )
-from monitoring.escalation_probe import (
+from detectors.escalation_probe import (
     cross_layer_covariance_probe,
     temporal_cross_covariance,
 )

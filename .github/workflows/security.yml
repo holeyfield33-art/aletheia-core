@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Bandit
         run: |
-          bandit -r agents/ server/ core/ manifest/ proximity/ simulations/ \
+          bandit -r agents/ server/ core/ manifest/ detectors/ simulations/ \
             -ll -ii -f json -o bandit_report.json \
             --configfile pyproject.toml || true
 
@@ -42,7 +42,7 @@ jobs:
 
       - name: Fail on high-severity findings
         run: |
-          bandit -r agents/ server/ core/ manifest/ proximity/ simulations/ \
+          bandit -r agents/ server/ core/ manifest/ detectors/ simulations/ \
             -ll -ii --configfile pyproject.toml -f txt
 
   semgrep:

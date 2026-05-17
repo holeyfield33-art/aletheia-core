@@ -32,13 +32,13 @@ from guards.zero_standing_privileges import (
     RequestPrivileges,
     ZSPEnforcer,
 )
-from monitoring.escalation_probe import temporal_cross_covariance
-from monitoring.spectral_rigidity import (
+from detectors.escalation_probe import temporal_cross_covariance
+from detectors.spectral_rigidity import (
     INCONCLUSIVE,
     compute_drift_score,
     theta_bk,
 )
-from monitoring.swarm_detector import SwarmDetector, SwarmDetectorConfig
+from detectors.swarm_detector import SwarmDetector, SwarmDetectorConfig
 
 _logger = logging.getLogger("aletheia.unified_audit")
 

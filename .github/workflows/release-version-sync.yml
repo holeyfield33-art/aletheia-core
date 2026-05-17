@@ -60,26 +60,26 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'requirements-proximity.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'requirements-detectors.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install -r requirements-proximity.txt
+          pip install -r requirements-detectors.txt
           pip install -e .
 
       - name: Run core tests
         run: |
           python -m pytest tests/ -v --tb=short \
-            --ignore=tests/test_proximity \
+            --ignore=tests/test_detectors \
             --ignore=tests/test_api.py
         env:
           ALETHEIA_LOG_LEVEL: WARNING
 
       - name: Run proximity tests
-        run: python -m pytest tests/test_proximity/ -v --tb=short
+        run: python -m pytest tests/test_detectors/ -v --tb=short
 
   publish:
     name: Publish to PyPI

@@ -5,12 +5,12 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 import httpx
 
-from proximity.identity_anchor import (
+from detectors.identity_anchor import (
     IdentityAnchor,
     DecisionReceipt,
     _helios_hash,
 )
-from proximity.spectral_monitor import SpectralHealth
+from detectors.spectral_monitor import SpectralHealth
 
 
 class TestHeliosHash:

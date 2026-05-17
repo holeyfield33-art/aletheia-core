@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from monitoring.spectral_rigidity import compute_drift_score
+from detectors.spectral_rigidity import compute_drift_score
 
 
 def cross_layer_covariance_probe(activations: list[np.ndarray]) -> float:

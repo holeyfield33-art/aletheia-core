@@ -16,7 +16,7 @@ from .safety_bounds import SafetyBounds
 from .spectral_monitor import SpectralHealth, SpectralMonitor
 from .identity_anchor import IdentityAnchor, DecisionReceipt
 
-_logger = logging.getLogger("aletheia.proximity.sovereign_relay")
+_logger = logging.getLogger("aletheia.detectors.sovereign_relay")
 
 
 @dataclass

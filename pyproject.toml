@@ -62,10 +62,10 @@ Changelog = "https://github.com/holeyfield33-art/aletheia-core/releases"
 aletheia-audit = "main:run_aletheia_audit"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "server*", "simulations*", "manifest*", "core*", "proximity*", "crypto*", "monitoring*", "guards*"]
+include = ["agents*", "server*", "manifest*", "core*", "detectors*", "crypto*", "guards*"]
 
 [project.optional-dependencies]
-proximity = [
+detectors = [
     "httpx>=0.24.0",
 ]
 tpm = [
@@ -86,7 +86,7 @@ dev = [
 manifest = ["*.json", "*.sig", "*.pub"]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = [".", "tests"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [

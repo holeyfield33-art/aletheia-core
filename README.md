@@ -209,7 +209,7 @@ pip install -r requirements-ci.txt
 To enable the optional proximity feature set:
 
 ```bash
-pip install -r requirements-proximity.txt
+pip install -r requirements-detectors.txt
 export CONSCIOUSNESS_PROXIMITY_ENABLED=true
 ```
 

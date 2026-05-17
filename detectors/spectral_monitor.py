@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 import httpx
 
-_logger = logging.getLogger("aletheia.proximity.spectral_monitor")
+_logger = logging.getLogger("aletheia.detectors.spectral_monitor")
 
 
 # Configuration (all overridable via env)

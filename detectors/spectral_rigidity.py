@@ -20,7 +20,7 @@ import logging
 import numpy as np
 from scipy.linalg import eigvalsh
 
-_logger = logging.getLogger("aletheia.monitoring.spectral")
+_logger = logging.getLogger("aletheia.detectors.spectral")
 
 # Sentinel: drift score is inconclusive; caller should escalate via TMRP.
 INCONCLUSIVE: float = -1.0

@@ -35,13 +35,13 @@ contribute effectively.
    pytest tests/ -v --ignore=tests/test_api.py
    ```
 
-### Proximity module tests (optional)
+### Detectors module tests (optional)
 
-The consciousness proximity module has separate dependencies:
+The detectors module (spectral monitor, identity anchor) has optional dependencies:
 
 ```bash
-pip install -r requirements-proximity.txt
-pytest tests/test_proximity/ -v
+pip install -r requirements-detectors.txt
+pytest tests/test_detectors/ -v
 ```
 
 ## Development Workflow
@@ -68,7 +68,7 @@ git commit -m "deps: add <package> for <reason>"
 ```
 
 The same pattern applies to `requirements-ci.txt` (compiled from itself; minimal CI extras)
-and `requirements-proximity.txt` (compiled from itself; proximity module extras).
+and `requirements-detectors.txt` (compiled from itself; proximity module extras).
 Use exact pins (`==`) only -- the `requirements.in` file documents this rule explicitly.
 
 **CI will fail if `requirements.txt` is out of sync with `requirements.in`.** This is intentional.

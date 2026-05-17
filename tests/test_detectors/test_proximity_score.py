@@ -4,15 +4,15 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
-from proximity.proximity_score import ProximityScorer
-from proximity.spectral_monitor import (
+from detectors.proximity_score import ProximityScorer
+from detectors.spectral_monitor import (
     SpectralMonitor,
     SpectralHealth,
     GUE_TARGET,
     POISSON_BASELINE,
 )
-from proximity.identity_anchor import IdentityAnchor
-from proximity.sovereign_relay import SovereignRelay, RelayStatus
+from detectors.identity_anchor import IdentityAnchor
+from detectors.sovereign_relay import SovereignRelay, RelayStatus
 
 
 class TestInterpretation:

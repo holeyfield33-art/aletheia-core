@@ -20,7 +20,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-_logger = logging.getLogger("aletheia.monitoring.swarm_detector")
+_logger = logging.getLogger("aletheia.detectors.swarm_detector")
 
 
 @dataclass

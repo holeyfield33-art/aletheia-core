@@ -6,7 +6,7 @@ import math
 import unittest
 
 
-from monitoring.swarm_detector import SwarmDetector, SwarmDetectorConfig
+from detectors.swarm_detector import SwarmDetector, SwarmDetectorConfig
 from core.unified_audit import UnifiedSovereignRuntime
 from guards.circuit_breaker import BreakerState
 

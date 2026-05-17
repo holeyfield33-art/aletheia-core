@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock
 
-from proximity.safety_bounds import (
+from detectors.safety_bounds import (
     SafetyBounds,
     HaltReason,
     SPECTRAL_RED_LINE_THRESHOLD,

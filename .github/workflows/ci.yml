@@ -59,7 +59,7 @@ jobs:
       - name: Run core tests
         run: |
           python -m pytest tests/ -v --tb=short \
-            --ignore=tests/test_proximity \
+            --ignore=tests/test_detectors \
             --ignore=tests/test_api.py \
             --ignore=tests/test_redteam_adversarial.py \
             --ignore=tests/test_swarm_1000bot.py \
@@ -77,7 +77,7 @@ jobs:
           ALETHEIA_LOG_LEVEL: WARNING
 
       - name: Run proximity tests
-        run: python -m pytest tests/test_proximity/ -v --tb=short
+        run: python -m pytest tests/test_detectors/ -v --tb=short
 
   test-coverage:
     runs-on: ubuntu-latest
@@ -110,7 +110,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           python -m pytest tests/ --cov=core --cov=server --cov=agents --cov-report=xml \
-            --ignore=tests/test_proximity \
+            --ignore=tests/test_detectors \
             --ignore=tests/test_api.py \
             --ignore=tests/test_redteam_adversarial.py \
             --ignore=tests/test_swarm_1000bot.py \
