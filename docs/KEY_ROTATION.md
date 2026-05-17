@@ -164,7 +164,7 @@ secrets, Docker Compose `.env`, etc.).
 **POSIX signal (supported):**
 
 ```bash
-kill -SIGUSR1 $(pgrep -f "uvicorn bridge.fastapi_wrapper")
+kill -SIGUSR1 $(pgrep -f "uvicorn server.app")
 ```
 
 Use your deployment platform to apply the new env values first, then send the signal.

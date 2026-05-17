@@ -8,7 +8,7 @@ import unittest
 
 from monitoring.swarm_detector import SwarmDetector, SwarmDetectorConfig
 from core.unified_audit import UnifiedSovereignRuntime
-from economics.circuit_breaker import BreakerState
+from guards.circuit_breaker import BreakerState
 
 
 # ---------------------------------------------------------------------------

@@ -61,7 +61,7 @@ Try a hosted-mode block decision against your local engine in three commands:
 
     pip install aletheia-cyber-core
     export ALETHEIA_AUTH_DISABLED=true ALETHEIA_MODE=shadow
-    uvicorn bridge.fastapi_wrapper:app --port 8000 &
+    uvicorn server.app:app --port 8000 &
 
     curl -sX POST http://localhost:8000/v1/audit \
       -H 'Content-Type: application/json' \
@@ -230,7 +230,7 @@ python main.py
 ### Start the API server
 
 ```bash
-uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
 ### Run the test suite
@@ -677,7 +677,7 @@ curl -X POST http://localhost:8000/v1/audit \
 ### 4. Confirm shadow mode does not leak verdicts
 
 ```bash
-ALETHEIA_MODE=shadow uvicorn bridge.fastapi_wrapper:app --port 8000 &
+ALETHEIA_MODE=shadow uvicorn server.app:app --port 8000 &
 sleep 2
 
 curl -X POST http://localhost:8000/v1/audit \
@@ -697,7 +697,7 @@ ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
 ALETHEIA_MODE=active \
 ALETHEIA_RECEIPT_SECRET=$(openssl rand -hex 32) \
 ALETHEIA_ALIAS_SALT="$ALETHEIA_ALIAS_SALT" \
-uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
 ---

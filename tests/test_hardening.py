@@ -3,7 +3,7 @@
 import importlib.util
 import unittest
 
-from agents.judge_v1 import AletheiaJudge
+from agents.judge import AletheiaJudge
 from core.sandbox import check_action_sandbox, check_payload_sandbox
 
 _HAS_ML_DEPS = importlib.util.find_spec("huggingface_hub") is not None
@@ -201,13 +201,13 @@ class TestClientIPExtraction(unittest.TestCase):
     # TestXFFIPExtraction — kept here are AuditRequest schema validation tests.
 
     def test_audit_request_has_no_ip_field(self):
-        from bridge.fastapi_wrapper import AuditRequest
+        from server.app import AuditRequest
 
         fields = AuditRequest.model_fields
         assert "ip" not in fields, "ip field must be removed from AuditRequest"
 
     def test_audit_request_accepts_client_ip_claim(self):
-        from bridge.fastapi_wrapper import AuditRequest
+        from server.app import AuditRequest
 
         req = AuditRequest(
             payload="test",
@@ -218,26 +218,26 @@ class TestClientIPExtraction(unittest.TestCase):
         assert req.client_ip_claim == "1.2.3.4"
 
     def test_audit_request_action_pattern_rejects_invalid(self):
-        from bridge.fastapi_wrapper import AuditRequest
+        from server.app import AuditRequest
         from pydantic import ValidationError
 
         with self.assertRaises(ValidationError):
             AuditRequest(payload="x", origin="o", action="bad action with spaces")
 
     def test_audit_request_action_pattern_accepts_valid(self):
-        from bridge.fastapi_wrapper import AuditRequest
+        from server.app import AuditRequest
 
         req = AuditRequest(payload="x", origin="o", action="summarize_doc-v2")
         assert req.action == "summarize_doc-v2"
 
     def test_audit_request_action_pattern_rejects_colon(self):
-        from bridge.fastapi_wrapper import AuditRequest
+        from server.app import AuditRequest
 
         with self.assertRaises(Exception):
             AuditRequest(payload="x", origin="o", action="ns:action")
 
     def test_audit_request_action_pattern_rejects_dot(self):
-        from bridge.fastapi_wrapper import AuditRequest
+        from server.app import AuditRequest
 
         with self.assertRaises(Exception):
             AuditRequest(payload="x", origin="o", action="summarize_doc.v2")
@@ -392,27 +392,27 @@ class TestThreatLevelDiscretisation(unittest.TestCase):
     """Raw threat scores must never be returned to clients."""
 
     def test_low_score_returns_band(self):
-        from bridge.fastapi_wrapper import _discretise_threat
+        from server.app import _discretise_threat
 
         assert _discretise_threat(1.0) == "LOW"
 
     def test_medium_score_returns_band(self):
-        from bridge.fastapi_wrapper import _discretise_threat
+        from server.app import _discretise_threat
 
         assert _discretise_threat(4.5) == "MEDIUM"
 
     def test_high_score_returns_band(self):
-        from bridge.fastapi_wrapper import _discretise_threat
+        from server.app import _discretise_threat
 
         assert _discretise_threat(7.0) == "HIGH"
 
     def test_critical_score_returns_band(self):
-        from bridge.fastapi_wrapper import _discretise_threat
+        from server.app import _discretise_threat
 
         assert _discretise_threat(9.5) == "CRITICAL"
 
     def test_returns_string_not_float(self):
-        from bridge.fastapi_wrapper import _discretise_threat
+        from server.app import _discretise_threat
 
         result = _discretise_threat(5.0)
         assert isinstance(result, str)
@@ -428,7 +428,7 @@ class TestShadowModeOracle(unittest.TestCase):
         import inspect
 
         try:
-            from bridge import fastapi_wrapper
+            from server import app
 
             source = inspect.getsource(fastapi_wrapper.secure_audit)
             # shadow_verdict should not be added to the response dict
@@ -444,7 +444,7 @@ class TestUtilsNoStdoutLeakage(unittest.TestCase):
 
     def test_homoglyph_detection_uses_logger_not_print(self):
         import inspect
-        from bridge import utils
+        from server import utils
 
         source = inspect.getsource(utils.normalize_shadow_text)
         assert "print(" not in source, (
@@ -457,7 +457,7 @@ class TestBase64SizeLimit(unittest.TestCase):
 
     def test_normal_base64_decodes(self):
         import base64
-        from bridge.utils import normalize_shadow_text
+        from server.utils import normalize_shadow_text
 
         payload = "hello world"
         encoded = base64.b64encode(payload.encode()).decode()
@@ -467,7 +467,7 @@ class TestBase64SizeLimit(unittest.TestCase):
     def test_oversized_decode_rejected(self):
         """A payload that decodes to 10x+ its size should not be processed."""
         import base64
-        from bridge.utils import normalize_shadow_text
+        from server.utils import normalize_shadow_text
 
         # Create a string that when base64 decoded would be much larger
         # We test that the function doesn't crash and returns something safe
@@ -482,7 +482,7 @@ class TestScoutHistoryCap(unittest.TestCase):
     """Scout query_history must not grow without bound."""
 
     def test_query_history_has_size_cap(self):
-        from agents.scout_v2 import AletheiaScoutV2
+        from agents.scout import AletheiaScoutV2
 
         scout = AletheiaScoutV2()
         assert hasattr(scout, "_query_history_max"), (

@@ -28,10 +28,10 @@ from unittest.mock import patch, MagicMock
 
 from fastapi.testclient import TestClient
 
-from agents.judge_v1 import AletheiaJudge
-from agents.nitpicker_v2 import AletheiaNitpickerV2
-from agents.scout_v2 import AletheiaScoutV2
-from bridge.fastapi_wrapper import (
+from agents.judge import AletheiaJudge
+from agents.nitpicker import AletheiaNitpickerV2
+from agents.scout import AletheiaScoutV2
+from server.app import (
     app,
     scout,
     _sanitise_reason,
@@ -993,9 +993,9 @@ class TestAPIRedTeam(unittest.TestCase):
 
     def test_global_exception_handler_hides_stack(self):
         """Unhandled exceptions should not leak stack traces."""
-        # Patch the exact object used by secure_audit in bridge.fastapi_wrapper.
+        # Patch the exact object used by secure_audit in server.app.
         with patch(
-            "bridge.fastapi_wrapper.judge.verify_action",
+            "server.app.judge.verify_action",
             side_effect=RuntimeError("secret internal error"),
         ):
             status, body = _post(
@@ -1069,7 +1069,7 @@ class TestManifestTampering(unittest.TestCase):
         from manifest.signing import ManifestTamperedError
 
         with patch(
-            "agents.judge_v1.verify_manifest_signature",
+            "agents.judge.verify_manifest_signature",
             side_effect=ManifestTamperedError("TAMPERED"),
         ):
             with self.assertRaises(ManifestTamperedError):
@@ -1169,7 +1169,7 @@ class TestDegradedMode(unittest.TestCase):
 
     def test_degraded_mode_blocks_privileged_actions(self):
         """In degraded mode, non-read-only actions should be denied."""
-        with patch("bridge.fastapi_wrapper.decision_store") as mock_store:
+        with patch("server.app.decision_store") as mock_store:
             mock_store.degraded = True
             mock_store.verify_policy_bundle = MagicMock()
             mock_store.verify_policy_bundle.return_value = MagicMock(accepted=True)

@@ -31,7 +31,7 @@ jobs:
 
           API_VERSION=$(python -c "
           import re, pathlib
-          text = pathlib.Path('bridge/fastapi_wrapper.py').read_text()
+          text = pathlib.Path('server/app.py').read_text()
           m = re.search(r'version\s*=\s*\"([^\"]+)\"', text)
           print(m.group(1))
           ")

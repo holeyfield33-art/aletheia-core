@@ -2,10 +2,10 @@ import base64
 import importlib.util
 import unittest
 
-from agents.judge_v1 import AletheiaJudge
-from agents.nitpicker_v2 import AletheiaNitpickerV2
-from agents.scout_v2 import AletheiaScoutV2
-from bridge.utils import normalize_shadow_text
+from agents.judge import AletheiaJudge
+from agents.nitpicker import AletheiaNitpickerV2
+from agents.scout import AletheiaScoutV2
+from server.utils import normalize_shadow_text
 
 _HAS_ML_DEPS = (
     importlib.util.find_spec("huggingface_hub") is not None

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from bridge.fastapi_wrapper import app
+from server.app import app
 from core.agent_trifecta import AgentTrifectaContext, evaluate_agent_trifecta
 
 

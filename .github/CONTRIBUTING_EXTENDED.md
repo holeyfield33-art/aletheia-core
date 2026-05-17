@@ -69,7 +69,7 @@ Before submitting a PR, ensure:
 
 1. Edit `data/semantic_manifest.json`
 2. Add entry with unique `id`, `text`, `category`, `severity`
-3. Add corresponding test in `tests/test_judge_v1.py`
+3. Add corresponding test in `tests/test_judge.py`
 4. Run: `python scripts/index_qdrant_manifest.py` (if Qdrant enabled)
 5. Commit with rationale: "feat: add pattern for 'override consensus'"
 
@@ -78,7 +78,7 @@ Before submitting a PR, ensure:
 1. Create issue with example payload + false positive reason
 2. Find the problematic entry in `data/semantic_manifest.json`
 3. Remove or narrow the entry; add new tests
-4. Verify with: `pytest tests/test_nitpicker_v2.py -v -k "false_positive"`
+4. Verify with: `pytest tests/test_nitpicker.py -v -k "false_positive"`
 5. Document the fix in PR
 
 ### Performance Improvement

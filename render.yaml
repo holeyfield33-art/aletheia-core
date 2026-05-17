@@ -3,7 +3,7 @@ services:
     name: aletheia-core
     runtime: python
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn server.app:app --host 0.0.0.0 --port $PORT
     disks:
       - name: aletheia-data
         mountPath: /var/data

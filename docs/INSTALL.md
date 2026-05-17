@@ -76,7 +76,7 @@ docker compose up -d postgres redis qdrant
 Backend:
 
 ```bash
-uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
 Frontend:

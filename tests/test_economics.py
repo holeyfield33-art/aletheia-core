@@ -6,9 +6,9 @@ import threading
 import time
 
 
-from economics.circuit_breaker import BreakerState, ResourceCircuitBreaker
-from economics.token_velocity import TokenVelocityTracker
-from economics.zero_standing_privileges import RequestPrivileges, ZSPEnforcer
+from guards.circuit_breaker import BreakerState, ResourceCircuitBreaker
+from guards.token_velocity import TokenVelocityTracker
+from guards.zero_standing_privileges import RequestPrivileges, ZSPEnforcer
 
 
 # ---------------------------------------------------------------------------

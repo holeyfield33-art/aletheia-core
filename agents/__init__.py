@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
 # Aletheia Core — Agents Package
-from agents.scout_v2 import AletheiaScoutV2 as AletheiaScoutV2
-from agents.nitpicker_v2 import AletheiaNitpickerV2 as AletheiaNitpickerV2
-from agents.judge_v1 import AletheiaJudge as AletheiaJudge
+from agents.scout import AletheiaScoutV2 as AletheiaScoutV2
+from agents.nitpicker import AletheiaNitpickerV2 as AletheiaNitpickerV2
+from agents.judge import AletheiaJudge as AletheiaJudge

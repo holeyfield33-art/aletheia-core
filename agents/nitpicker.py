@@ -264,7 +264,7 @@ class AletheiaNitpickerV2:
         self._manifest_embeddings: Optional[np.ndarray] = None
         self._manifest_embeddings_lock = threading.Lock()
 
-        # Startup-cached embeddings and model (injected from bridge lifespan)
+        # Startup-cached embeddings and model (injected from server lifespan)
         self._cached_manifest_cache: Optional[object] = None  # ManifestCache instance
         self._cached_embedding_model: Optional[object] = (
             None  # SentenceTransformer instance
@@ -349,7 +349,7 @@ class AletheiaNitpickerV2:
             )
 
     # ------------------------------------------------------------------
-    # Cache injection (called from bridge lifespan after manifest_cache init)
+    # Cache injection (called from server lifespan after manifest_cache init)
     # ------------------------------------------------------------------
 
     def set_manifest_cache(self, cache: object, embedding_model: object) -> None:

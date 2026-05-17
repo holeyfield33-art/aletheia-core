@@ -55,7 +55,7 @@ export ALETHEIA_RECEIPT_PUBLIC_KEY_PATH=.secrets/receipt/receipt_ed25519.pub
 export ALETHEIA_ALIAS_SALT=$(openssl rand -hex 32)
 
 # Start the server
-uvicorn bridge.fastapi_wrapper:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
 Then call it:
@@ -170,7 +170,7 @@ Two recommended options:
 
 1. **Auto-seed at startup** (works on SQLite too): set
    `ALETHEIA_DEMO_API_KEY` on **both** Vercel _and_ Render. The backend's
-   lifespan hook (`bridge.fastapi_wrapper._seed_demo_key`) will register the
+   lifespan hook (`server.app._seed_demo_key`) will register the
    key in the local KeyStore on every boot. This is idempotent.
 
 To re-seed manually after a database loss:

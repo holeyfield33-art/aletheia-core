@@ -4,7 +4,7 @@ import logging
 
 from core.runtime_security import normalize_untrusted_text
 
-_utils_logger = logging.getLogger("aletheia.bridge.utils")
+_utils_logger = logging.getLogger("aletheia.server.utils")
 
 
 def normalize_shadow_text(text: str, _depth: int = 0) -> str:

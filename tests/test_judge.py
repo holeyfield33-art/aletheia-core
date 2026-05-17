@@ -3,7 +3,7 @@
 import importlib.util
 import unittest
 
-from agents.judge_v1 import AletheiaJudge
+from agents.judge import AletheiaJudge
 
 _HAS_ML_DEPS = (
     importlib.util.find_spec("huggingface_hub") is not None

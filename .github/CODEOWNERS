@@ -4,5 +4,5 @@
 # Security-critical paths
 /core/auth/        @holeyfield33-art
 /core/runtime_security.py @holeyfield33-art
-/bridge/fastapi_wrapper.py @holeyfield33-art
+/server/app.py @holeyfield33-art
 /manifest/         @holeyfield33-art

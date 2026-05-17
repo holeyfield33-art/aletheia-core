@@ -22,7 +22,7 @@ import base64
 import unittest
 import urllib.parse
 
-from bridge.utils import normalize_shadow_text
+from server.utils import normalize_shadow_text
 
 
 class TestPassThrough(unittest.TestCase):

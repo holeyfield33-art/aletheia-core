@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Ashura Joseph Holeyfield - Aletheia Sovereign Systems
-# bridge/fastapi_wrapper.py
+# server/app.py
 from __future__ import annotations
 
 import logging
@@ -14,16 +14,25 @@ import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
+from server.models import (
+    AuditRequest,
+    AgentTrifectaAuditRequest,
+    AgentTrifectaMetadata,
+    AgentTrifectaAuditResponse,
+    CreateKeyRequest,
+    EvaluateRequest,
+    VerifyReceiptRequest,
+)
 
-from agents.judge_v1 import AletheiaJudge
-from agents.nitpicker_v2 import AletheiaNitpickerV2
-from agents.scout_v2 import AletheiaScoutV2
-from bridge.utils import normalize_shadow_text
+from agents.judge import AletheiaJudge
+from agents.nitpicker import AletheiaNitpickerV2
+from agents.scout import AletheiaScoutV2
+from server.utils import normalize_shadow_text
 from core.audit import (
     ReceiptVerificationError,
     log_audit_event,
@@ -472,16 +481,8 @@ async def internal_secret_guard(request: Request, call_next):
 
 
 # ---------------------------------------------------------------------------
-# Key management request models
+# Key management request models — see server/models.py
 # ---------------------------------------------------------------------------
-
-
-class CreateKeyRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    name: str = Field(..., min_length=1, max_length=64)
-    plan: str = Field(default="trial", pattern=r"^(trial|pro|max)$")
-    role: str = Field(default="operator", pattern=r"^(viewer|auditor|operator|admin)$")
-
 
 # Singleton agent instances
 scout = AletheiaScoutV2()
@@ -540,49 +541,6 @@ async def _startup_checks() -> None:
 async def _on_startup() -> None:
     """Backward-compatible startup hook for tests and legacy imports."""
     await _startup_checks()
-
-
-class AuditRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    payload: str = Field(..., max_length=2048)
-    origin: str = Field(..., max_length=128)
-    action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
-    client_ip_claim: str | None = Field(default=None, max_length=64)
-
-
-class AgentTrifectaAuditRequest(BaseModel):
-    payload: str = Field(..., max_length=10_000)
-    origin: str = Field(..., max_length=128)
-    action: str = Field(
-        ...,
-        max_length=128,
-        pattern=r"^[A-Za-z0-9_\-:.]+$",
-    )
-    input_trust: Literal["trusted", "untrusted", "mixed"]
-    can_read_private_data: bool = False
-    can_access_secrets: bool = False
-    can_send_external_data: bool = False
-    can_write_files: bool = False
-    can_modify_config: bool = False
-    can_execute_shell: bool = False
-    tool_name: str | None = Field(default=None, max_length=128)
-    tool_args: dict[str, Any] = Field(default_factory=dict)
-
-    model_config = ConfigDict(extra="forbid", strict=True)
-
-
-class AgentTrifectaMetadata(BaseModel):
-    threat_level: str
-    request_id: str
-    client_id: str
-
-
-class AgentTrifectaAuditResponse(BaseModel):
-    decision: str
-    metadata: AgentTrifectaMetadata
-    reasons: list[str]
-    summary: str
-    receipt: dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -1147,17 +1105,6 @@ async def _check_eval_rate_limit(request: Request) -> None:
             headers={"Retry-After": str(retry_after)},
         )
 
-
-class EvaluateRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    payload: str = Field(..., max_length=2048)
-    origin: str = Field(..., max_length=128)
-    action: str = Field(..., max_length=128, pattern=r"^[A-Za-z0-9_\-]+$")
-
-
-class VerifyReceiptRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    receipt: dict[str, Any]
 
 
 def _evaluate_layers(

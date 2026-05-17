@@ -378,21 +378,21 @@ class TestAdversarialWarnings(unittest.TestCase):
     """Agent methods include adversarial ML limitation warnings."""
 
     def test_scout_evaluate_threat_context_docstring(self):
-        from agents.scout_v2 import AletheiaScoutV2
+        from agents.scout import AletheiaScoutV2
 
         doc = AletheiaScoutV2.evaluate_threat_context.__doc__
         self.assertIn("Adversarial", doc)
         self.assertIn("human-in-the-loop", doc)
 
     def test_nitpicker_check_semantic_block_docstring(self):
-        from agents.nitpicker_v2 import AletheiaNitpickerV2
+        from agents.nitpicker import AletheiaNitpickerV2
 
         doc = AletheiaNitpickerV2.check_semantic_block.__doc__
         self.assertIn("Adversarial", doc)
         self.assertIn("adversarial rephrasing", doc)
 
     def test_judge_verify_action_docstring(self):
-        from agents.judge_v1 import AletheiaJudge
+        from agents.judge import AletheiaJudge
 
         doc = AletheiaJudge.verify_action.__doc__
         self.assertIn("Adversarial", doc)

@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
 
-from bridge.fastapi_wrapper import app, scout
+from server.app import app, scout
 from core.rate_limit import rate_limiter
 
 # ---------------------------------------------------------------------------
@@ -246,7 +246,7 @@ class TestAuditEndpointRateLimit(unittest.TestCase):
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_rate_limit_returns_429(self) -> None:
-        from bridge.fastapi_wrapper import rate_limiter as api_limiter
+        from server.app import rate_limiter as api_limiter
 
         limited_body = _safe_body(f"{_IP_RATE}1")
         with patch.object(api_limiter, "allow", return_value=False):
@@ -255,7 +255,7 @@ class TestAuditEndpointRateLimit(unittest.TestCase):
         self.assertEqual(resp["decision"], "RATE_LIMITED")
 
     def test_rate_limited_response_has_reason(self) -> None:
-        from bridge.fastapi_wrapper import rate_limiter as api_limiter
+        from server.app import rate_limiter as api_limiter
 
         limited_body = _safe_body(f"{_IP_RATE}2")
         with patch.object(api_limiter, "allow", return_value=False):
@@ -272,13 +272,13 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_shadow_mode_overrides_deny_to_proceed(self) -> None:
-        import bridge.fastapi_wrapper as wrapper_mod
+        import server.app as wrapper_mod
 
         original = wrapper_mod.settings.shadow_mode
         try:
             wrapper_mod.settings.shadow_mode = True
             body = _blocked_body(f"{_IP_SHADOW}1")
-            with patch("bridge.fastapi_wrapper.classify_blocked_intent") as mock_intent:
+            with patch("server.app.classify_blocked_intent") as mock_intent:
                 mock_intent.return_value.blocked = False
                 mock_intent.return_value.category = "none"
                 mock_intent.return_value.matched_policy = "none"
@@ -335,7 +335,7 @@ class TestAuditEndpointGlobalExceptionHandler(unittest.TestCase):
         self.client = TestClient(app, raise_server_exceptions=False)
 
     def test_internal_error_returns_500(self) -> None:
-        from bridge.fastapi_wrapper import scout
+        from server.app import scout
 
         with patch.object(
             scout, "evaluate_threat_context", side_effect=RuntimeError("boom")
@@ -394,7 +394,7 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
                 break
 
         with unittest.mock.patch(
-            "bridge.fastapi_wrapper.get_auth_provider"
+            "server.app.get_auth_provider"
         ) as mock_provider:
             mock_prov_inst = AsyncMock()
             mock_prov_inst.authenticate.return_value = admin_user
@@ -634,7 +634,7 @@ class TestAuditEnvelopeContract(unittest.TestCase):
     def test_audit_envelope_shape_rate_limited(self) -> None:
         body = _safe_body(f"{_IP_RATE}65")
         with patch(
-            "bridge.fastapi_wrapper.rate_limiter.allow",
+            "server.app.rate_limiter.allow",
             new=AsyncMock(side_effect=[True] * 64 + [False]),
         ):
             for _ in range(64):
@@ -665,7 +665,7 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn = AsyncMock()
         conn.execute = AsyncMock(return_value="INSERT 0 1")
 
-        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+        with patch("server.app._bridge_pool", _FakeAsyncPool(conn)):
             status, body = _post(self.client, _safe_body(self._ip))
 
         self.assertEqual(status, 200)
@@ -680,15 +680,15 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn.execute = AsyncMock(return_value="INSERT 0 1")
 
         with (
-            patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)),
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._bridge_pool", _FakeAsyncPool(conn)),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch("server.app._run_judge", return_value=(True, "allow")),
             patch(
-                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                "server.app._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
@@ -711,7 +711,7 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
             "_ip": self._ip,
         }
 
-        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+        with patch("server.app._bridge_pool", _FakeAsyncPool(conn)):
             status, resp = _post(self.client, body)
 
         self.assertEqual(status, 403)
@@ -725,15 +725,15 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn.execute = AsyncMock(side_effect=RuntimeError("db unavailable"))
 
         with (
-            patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)),
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._bridge_pool", _FakeAsyncPool(conn)),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch("server.app._run_judge", return_value=(True, "allow")),
             patch(
-                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                "server.app._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
@@ -746,17 +746,17 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
     def test_audit_log_persist_failure_does_not_break_response(self) -> None:
         with (
             patch(
-                "bridge.fastapi_wrapper._persist_audit_log",
+                "server.app._persist_audit_log",
                 new=AsyncMock(side_effect=RuntimeError("db unavailable")),
             ),
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch("server.app._run_judge", return_value=(True, "allow")),
             patch(
-                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                "server.app._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
@@ -769,7 +769,7 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn = AsyncMock()
         conn.execute = AsyncMock(return_value="INSERT 0 1")
 
-        with patch("bridge.fastapi_wrapper._bridge_pool", _FakeAsyncPool(conn)):
+        with patch("server.app._bridge_pool", _FakeAsyncPool(conn)):
             status, body = _post(self.client, _safe_body(self._ip))
 
         self.assertEqual(status, 200)
@@ -896,13 +896,13 @@ class TestObfuscationLayerBlocking(unittest.TestCase):
             return (blocked, "semantic_block", None)
 
         with (
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 side_effect=nitpicker_side_effect,
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
-            patch("bridge.fastapi_wrapper.classify_blocked_intent") as mock_intent,
+            patch("server.app._run_judge", return_value=(True, "allow")),
+            patch("server.app.classify_blocked_intent") as mock_intent,
         ):
             mock_intent.return_value.blocked = False
             mock_intent.return_value.category = "none"
@@ -927,13 +927,13 @@ class TestObfuscationLayerBlocking(unittest.TestCase):
             return (blocked, "semantic_block", None)
 
         with (
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 side_effect=nitpicker_side_effect,
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
-            patch("bridge.fastapi_wrapper.classify_blocked_intent") as mock_intent,
+            patch("server.app._run_judge", return_value=(True, "allow")),
+            patch("server.app.classify_blocked_intent") as mock_intent,
         ):
             mock_intent.return_value.blocked = False
             mock_intent.return_value.category = "none"
@@ -953,15 +953,15 @@ class TestObfuscationLayerBlocking(unittest.TestCase):
             return (blocked, "semantic_block", None)
 
         with (
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 side_effect=nitpicker_side_effect,
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
-            patch("bridge.fastapi_wrapper.classify_blocked_intent") as mock_intent,
+            patch("server.app._run_judge", return_value=(True, "allow")),
+            patch("server.app.classify_blocked_intent") as mock_intent,
             patch(
-                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                "server.app._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):

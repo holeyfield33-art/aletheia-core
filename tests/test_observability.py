@@ -432,7 +432,7 @@ class TestWSEndpointRegistered(unittest.TestCase):
     """The /ws/audit WebSocket route must be registered on the FastAPI app."""
 
     def test_ws_audit_route_exists(self):
-        from bridge.fastapi_wrapper import app
+        from server.app import app
 
         ws_routes = [
             r for r in app.routes if hasattr(r, "path") and r.path == "/ws/audit"

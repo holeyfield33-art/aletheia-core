@@ -5,12 +5,12 @@ from __future__ import annotations
 import time
 import unittest
 
-from economics.zero_standing_privileges import (
+from guards.zero_standing_privileges import (
     RequestPrivileges,
     ZSPEnforcer,
 )
-from economics.token_velocity import TokenVelocityTracker
-from economics.circuit_breaker import (
+from guards.token_velocity import TokenVelocityTracker
+from guards.circuit_breaker import (
     BreakerState,
     ResourceCircuitBreaker,
 )

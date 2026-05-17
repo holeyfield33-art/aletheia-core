@@ -112,18 +112,18 @@ class TestXFFIPExtraction:
         return request
 
     def test_single_proxy_uses_penultimate_xff_entry(self) -> None:
-        from bridge.fastapi_wrapper import _get_client_ip
+        from server.app import _get_client_ip
 
-        with patch("bridge.fastapi_wrapper._TRUSTED_PROXY_DEPTH", 1):
+        with patch("server.app._TRUSTED_PROXY_DEPTH", 1):
             request = self._make_request(xff="1.2.3.4, 10.0.0.1")
             result = _get_client_ip(request)
         assert result == "1.2.3.4"
 
     def test_no_proxy_uses_first_xff_entry(self) -> None:
         """When depth=0 (no proxy), XFF is completely ignored — use network IP."""
-        from bridge.fastapi_wrapper import _get_client_ip
+        from server.app import _get_client_ip
 
-        with patch("bridge.fastapi_wrapper._TRUSTED_PROXY_DEPTH", 0):
+        with patch("server.app._TRUSTED_PROXY_DEPTH", 0):
             request = self._make_request(xff="1.2.3.4", client_host="10.10.10.10")
             result = _get_client_ip(request)
         # XFF is attacker-controlled; depth=0 means no trusted proxy,
@@ -131,22 +131,22 @@ class TestXFFIPExtraction:
         assert result == "10.10.10.10"
 
     def test_spoofed_xff_with_correct_depth(self) -> None:
-        from bridge.fastapi_wrapper import _get_client_ip
+        from server.app import _get_client_ip
 
-        with patch("bridge.fastapi_wrapper._TRUSTED_PROXY_DEPTH", 1):
+        with patch("server.app._TRUSTED_PROXY_DEPTH", 1):
             request = self._make_request(xff="evil.ip, real.client, proxy.render")
             result = _get_client_ip(request)
         assert result == "real.client"
 
     def test_no_xff_falls_back_to_client_host(self) -> None:
-        from bridge.fastapi_wrapper import _get_client_ip
+        from server.app import _get_client_ip
 
         request = self._make_request(client_host="5.6.7.8")
         result = _get_client_ip(request)
         assert result == "5.6.7.8"
 
     def test_missing_client_returns_unknown(self) -> None:
-        from bridge.fastapi_wrapper import _get_client_ip
+        from server.app import _get_client_ip
 
         request = self._make_request()
         result = _get_client_ip(request)
@@ -163,13 +163,13 @@ class TestActiveModeMustRejectEnvKeys:
 
     def test_startup_fails_with_env_keys_in_production(self) -> None:
         """Setting ALETHEIA_API_KEYS in production causes startup failure."""
-        from bridge.fastapi_wrapper import _on_startup
+        from server.app import _on_startup
 
         mock_settings = MagicMock()
         mock_settings.mode = "active"
 
         with (
-            patch("bridge.fastapi_wrapper.settings", mock_settings),
+            patch("server.app.settings", mock_settings),
             patch.dict(
                 "os.environ",
                 {
@@ -179,7 +179,7 @@ class TestActiveModeMustRejectEnvKeys:
                     "ENVIRONMENT": "production",
                 },
             ),
-            patch("bridge.fastapi_wrapper.warm_up"),
+            patch("server.app.warm_up"),
         ):
             with pytest.raises(SystemExit) as exc_info:
                 loop = asyncio.new_event_loop()
@@ -236,7 +236,7 @@ class TestSanitisedVetoReasons:
     """Verify _sanitise_reason strips internal diagnostic detail."""
 
     def test_semantic_veto_reason_sanitised(self) -> None:
-        from bridge.fastapi_wrapper import _sanitise_reason
+        from server.app import _sanitise_reason
 
         raw = (
             "SEMANTIC VETO: Payload is 87% similar to known alias "
@@ -246,24 +246,24 @@ class TestSanitisedVetoReasons:
         assert _sanitise_reason(raw) == "Action denied: semantic policy violation."
 
     def test_veto_triggered_sanitised(self) -> None:
-        from bridge.fastapi_wrapper import _sanitise_reason
+        from server.app import _sanitise_reason
 
         raw = "VETO TRIGGERED: VETO_01_IDENTITY_ESCALATION\nRationale: ..."
         assert _sanitise_reason(raw) == "Action denied by policy manifest."
 
     def test_sandbox_block_sanitised(self) -> None:
-        from bridge.fastapi_wrapper import _sanitise_reason
+        from server.app import _sanitise_reason
 
         raw = "[SANDBOX_BLOCK] Dangerous pattern 'SUBPROCESS_EXEC' detected"
         assert _sanitise_reason(raw) == "Action denied: dangerous pattern detected."
 
     def test_empty_reason_passthrough(self) -> None:
-        from bridge.fastapi_wrapper import _sanitise_reason
+        from server.app import _sanitise_reason
 
         assert _sanitise_reason("") == ""
 
     def test_reason_contains_no_percentages_after_sanitise(self) -> None:
-        from bridge.fastapi_wrapper import _sanitise_reason
+        from server.app import _sanitise_reason
 
         reasons = [
             "SEMANTIC VETO: Payload is 87% similar to X.\nLine2",
@@ -274,7 +274,7 @@ class TestSanitisedVetoReasons:
             assert "%" not in _sanitise_reason(r)
 
     def test_reason_contains_no_alias_phrases_after_sanitise(self) -> None:
-        from bridge.fastapi_wrapper import _sanitise_reason
+        from server.app import _sanitise_reason
 
         reasons = [
             "SEMANTIC VETO: Payload is 87% similar to known alias 'transfer capital reserves'.\n...",
@@ -296,7 +296,7 @@ class TestUnauthenticatedAccessBlocked:
     @patch.dict(os.environ, {"ALETHEIA_AUTH_DISABLED": "false"})
     def test_audit_endpoint_returns_401_without_credentials(self) -> None:
         from fastapi.testclient import TestClient
-        from bridge.fastapi_wrapper import app
+        from server.app import app
 
         client = TestClient(app, raise_server_exceptions=False)
         resp = client.post(
@@ -321,8 +321,8 @@ class TestUnauthenticatedAccessBlocked:
         store = KeyStore(db_path=tmp.name)
         raw_key, _ = store.create_key("test")
 
-        with patch("bridge.fastapi_wrapper.key_store", store):
-            from bridge.fastapi_wrapper import app
+        with patch("server.app.key_store", store):
+            from server.app import app
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(
@@ -339,7 +339,7 @@ class TestUnauthenticatedAccessBlocked:
 
     def test_health_endpoint_always_unauthenticated(self) -> None:
         from fastapi.testclient import TestClient
-        from bridge.fastapi_wrapper import app
+        from server.app import app
 
         with TestClient(app, raise_server_exceptions=False) as client:
             resp = client.get("/health")
@@ -369,7 +369,7 @@ class TestSemanticDegradedFailClosed:
     def test_qdrant_degraded_blocks_privileged_action(self) -> None:
         """Privileged action must receive 503 when Nitpicker Qdrant layer is degraded."""
         from fastapi.testclient import TestClient
-        from agents.nitpicker_v2 import NitpickerResult
+        from agents.nitpicker import NitpickerResult
 
         degraded_result = NitpickerResult(
             is_blocked=False,
@@ -383,25 +383,25 @@ class TestSemanticDegradedFailClosed:
 
         with (
             patch(
-                "bridge.fastapi_wrapper.get_auth_provider",
+                "server.app.get_auth_provider",
                 return_value=self._make_auth_mock(),
             ),
             patch(
-                "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
+                "server.app.decision_store.verify_policy_bundle",
                 new=AsyncMock(
                     return_value=type("R", (), {"accepted": True, "reason": "ok"})()
                 ),
             ),
             patch(
-                "bridge.fastapi_wrapper.rate_limiter.allow",
+                "server.app.rate_limiter.allow",
                 new=AsyncMock(return_value=True),
             ),
             patch(
-                "bridge.fastapi_wrapper.nitpicker._last_result",
+                "server.app.nitpicker._last_result",
                 degraded_result,
             ),
         ):
-            from bridge.fastapi_wrapper import app
+            from server.app import app
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(
@@ -442,19 +442,19 @@ class TestDegradedModeFailClosed:
 
         with (
             patch(
-                "bridge.fastapi_wrapper.get_auth_provider",
+                "server.app.get_auth_provider",
                 return_value=self._make_auth_mock(),
             ),
-            patch("bridge.fastapi_wrapper.rate_limiter.degraded", True),
-            patch("bridge.fastapi_wrapper.decision_store._degraded", True),
+            patch("server.app.rate_limiter.degraded", True),
+            patch("server.app.decision_store._degraded", True),
             patch(
-                "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
+                "server.app.decision_store.verify_policy_bundle",
                 new=AsyncMock(
                     return_value=type("R", (), {"accepted": True, "reason": "ok"})()
                 ),
             ),
         ):
-            from bridge.fastapi_wrapper import app
+            from server.app import app
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(
@@ -474,19 +474,19 @@ class TestDegradedModeFailClosed:
 
         with (
             patch(
-                "bridge.fastapi_wrapper.get_auth_provider",
+                "server.app.get_auth_provider",
                 return_value=self._make_auth_mock(),
             ),
-            patch("bridge.fastapi_wrapper.rate_limiter.degraded", True),
-            patch("bridge.fastapi_wrapper.decision_store._degraded", True),
+            patch("server.app.rate_limiter.degraded", True),
+            patch("server.app.decision_store._degraded", True),
             patch(
-                "bridge.fastapi_wrapper.decision_store.verify_policy_bundle",
+                "server.app.decision_store.verify_policy_bundle",
                 new=AsyncMock(
                     return_value=type("R", (), {"accepted": True, "reason": "ok"})()
                 ),
             ),
             patch(
-                "bridge.fastapi_wrapper.decision_store.claim_decision",
+                "server.app.decision_store.claim_decision",
                 new=AsyncMock(
                     return_value=type(
                         "R", (), {"accepted": True, "reason": "accepted"}
@@ -494,26 +494,26 @@ class TestDegradedModeFailClosed:
                 ),
             ),
             patch(
-                "bridge.fastapi_wrapper.rate_limiter.allow",
+                "server.app.rate_limiter.allow",
                 new=AsyncMock(return_value=True),
             ),
             patch(
-                "bridge.fastapi_wrapper.scout.evaluate_threat_context",
+                "server.app.scout.evaluate_threat_context",
                 return_value=(0.0, "ok"),
             ),
             patch(
-                "bridge.fastapi_wrapper.nitpicker.sanitize_intent", return_value="safe"
+                "server.app.nitpicker.sanitize_intent", return_value="safe"
             ),
             patch(
-                "bridge.fastapi_wrapper.judge.verify_action",
+                "server.app.judge.verify_action",
                 return_value=(True, "Action Approved by the Judge."),
             ),
             patch(
-                "bridge.fastapi_wrapper.log_audit_event",
+                "server.app.log_audit_event",
                 return_value={"receipt": {"id": "r"}},
             ),
         ):
-            from bridge.fastapi_wrapper import app
+            from server.app import app
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(

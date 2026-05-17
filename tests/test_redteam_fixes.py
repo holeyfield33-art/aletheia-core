@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from bridge.fastapi_wrapper import app, scout
+from server.app import app, scout
 from core.audit import verify_receipt
 from core.rate_limit import rate_limiter
 
@@ -337,7 +337,7 @@ class TestEarlyExitReceiptCoverage(unittest.TestCase):
         self.assertTrue(verify_receipt(body["receipt"]))
 
     def test_rate_limit_returns_signed_receipt(self) -> None:
-        with patch("bridge.fastapi_wrapper.rate_limiter.allow", return_value=False):
+        with patch("server.app.rate_limiter.allow", return_value=False):
             status, body = self._post(
                 "generate quarterly report",
                 "trusted_admin",
@@ -352,14 +352,14 @@ class TestEarlyExitReceiptCoverage(unittest.TestCase):
     def test_chain_continuity_across_early_exits(self) -> None:
         # Keep full-pipeline path deterministic without external semantic engine deps.
         with (
-            patch("bridge.fastapi_wrapper._run_scout", return_value=(0.1, "ok")),
+            patch("server.app._run_scout", return_value=(0.1, "ok")),
             patch(
-                "bridge.fastapi_wrapper._run_nitpicker",
+                "server.app._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("bridge.fastapi_wrapper._run_judge", return_value=(True, "allow")),
+            patch("server.app._run_judge", return_value=(True, "allow")),
             patch(
-                "bridge.fastapi_wrapper._get_sovereign_runtime",
+                "server.app._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):

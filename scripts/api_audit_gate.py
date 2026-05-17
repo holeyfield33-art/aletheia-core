@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi.testclient import TestClient
 
-from bridge.fastapi_wrapper import app
+from server.app import app
 
 # ---------------------------------------------------------------------------
 # Configuration and threat categories

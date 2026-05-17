@@ -50,7 +50,7 @@ class TestSandboxReasonLeakage(unittest.TestCase):
     ]
 
     def setUp(self) -> None:
-        from bridge.fastapi_wrapper import app, scout
+        from server.app import app, scout
         from core.rate_limit import rate_limiter
 
         rate_limiter.reset()
@@ -122,7 +122,7 @@ class TestRotationProbingBypass(unittest.TestCase):
     """Scout must detect distributed probing across many IPs."""
 
     def setUp(self) -> None:
-        from agents.scout_v2 import AletheiaScoutV2
+        from agents.scout import AletheiaScoutV2
 
         self.scout = AletheiaScoutV2()
 
@@ -208,7 +208,7 @@ class TestNitpickerRotationRace(unittest.TestCase):
     """Concurrent sanitize_intent calls must not corrupt _rotation_index."""
 
     def test_concurrent_rotation_index_consistency(self) -> None:
-        from agents.nitpicker_v2 import AletheiaNitpickerV2
+        from agents.nitpicker import AletheiaNitpickerV2
 
         n = AletheiaNitpickerV2()
         n._rotation_index = 0
@@ -281,7 +281,7 @@ class TestShadowModeSafety(unittest.TestCase):
     """Shadow mode must not override deny decisions when ENVIRONMENT=production."""
 
     def setUp(self) -> None:
-        from bridge.fastapi_wrapper import app, scout
+        from server.app import app, scout
         from core.rate_limit import rate_limiter
 
         rate_limiter.reset()
@@ -291,7 +291,7 @@ class TestShadowModeSafety(unittest.TestCase):
 
     def test_shadow_mode_blocked_in_production_env(self) -> None:
         """When ENVIRONMENT=production, shadow_mode=True must NOT flip DENIED to PROCEED."""
-        import bridge.fastapi_wrapper as wrapper_mod
+        import server.app as wrapper_mod
 
         original_mode = wrapper_mod.settings.shadow_mode
         try:

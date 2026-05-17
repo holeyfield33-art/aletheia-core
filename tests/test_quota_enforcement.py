@@ -72,13 +72,13 @@ class TestApiKeyAuth(unittest.TestCase):
 
         # Patch key store into the wrapper module (no env keys)
         # Also disable the global auth-disabled flag so key auth is enforced
-        p1 = patch("bridge.fastapi_wrapper.key_store", cls._store)
+        p1 = patch("server.app.key_store", cls._store)
         p2 = patch.dict(os.environ, {"ALETHEIA_AUTH_DISABLED": "false"})
         cls._patches = [p1, p2]
         for p in cls._patches:
             p.start()
 
-        from bridge.fastapi_wrapper import app
+        from server.app import app
 
         cls.client = TestClient(app, raise_server_exceptions=False)
 
@@ -94,7 +94,7 @@ class TestApiKeyAuth(unittest.TestCase):
 
     def setUp(self) -> None:
         from core.rate_limit import rate_limiter
-        from bridge.fastapi_wrapper import scout
+        from server.app import scout
 
         rate_limiter.reset()
         scout._query_history.clear()
@@ -153,12 +153,12 @@ class TestApiKeyAuth(unittest.TestCase):
         self.assertIn("monthly request limit", detail.get("message", "").lower())
 
     def test_hosted_prisma_fallback_allows_valid_site_key(self) -> None:
-        from bridge.fastapi_wrapper import _check_api_key
+        from server.app import _check_api_key
 
         request = SimpleNamespace(state=SimpleNamespace(auth_context=None))
         with (
             patch(
-                "bridge.fastapi_wrapper.key_store.check_and_increment",
+                "server.app.key_store.check_and_increment",
                 return_value=QuotaCheck(
                     allowed=False,
                     reason="Invalid API key.",
@@ -167,7 +167,7 @@ class TestApiKeyAuth(unittest.TestCase):
                 ),
             ),
             patch(
-                "bridge.fastapi_wrapper._check_hosted_prisma_api_key",
+                "server.app._check_hosted_prisma_api_key",
                 new=AsyncMock(
                     return_value=QuotaCheck(
                         allowed=True,
@@ -186,12 +186,12 @@ class TestApiKeyAuth(unittest.TestCase):
             )
 
     def test_hosted_prisma_fallback_enforces_quota(self) -> None:
-        from bridge.fastapi_wrapper import _check_api_key
+        from server.app import _check_api_key
 
         request = SimpleNamespace(state=SimpleNamespace(auth_context=None))
         with (
             patch(
-                "bridge.fastapi_wrapper.key_store.check_and_increment",
+                "server.app.key_store.check_and_increment",
                 return_value=QuotaCheck(
                     allowed=False,
                     reason="Invalid API key.",
@@ -200,7 +200,7 @@ class TestApiKeyAuth(unittest.TestCase):
                 ),
             ),
             patch(
-                "bridge.fastapi_wrapper._check_hosted_prisma_api_key",
+                "server.app._check_hosted_prisma_api_key",
                 new=AsyncMock(
                     return_value=QuotaCheck(
                         allowed=False,
@@ -223,7 +223,7 @@ class TestApiKeyAuth(unittest.TestCase):
         self.assertEqual(exc.exception.detail.get("error"), "quota_exceeded")
 
     def test_authorization_bearer_header_accepted_as_api_key(self) -> None:
-        from bridge.fastapi_wrapper import _check_api_key
+        from server.app import _check_api_key
 
         request = SimpleNamespace(
             state=SimpleNamespace(auth_context=None),
@@ -231,7 +231,7 @@ class TestApiKeyAuth(unittest.TestCase):
         )
 
         with patch(
-            "bridge.fastapi_wrapper.key_store.check_and_increment",
+            "server.app.key_store.check_and_increment",
             return_value=QuotaCheck(
                 allowed=True,
                 reason="OK",
@@ -259,12 +259,12 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         cls._store = KeyStore(db_path=cls._tmp.name)
 
         cls._patches = [
-            patch("bridge.fastapi_wrapper.key_store", cls._store),
+            patch("server.app.key_store", cls._store),
         ]
         for p in cls._patches:
             p.start()
 
-        from bridge.fastapi_wrapper import app
+        from server.app import app
 
         cls.client = TestClient(app, raise_server_exceptions=False)
 
@@ -284,7 +284,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_create_key_with_admin_auth(self) -> None:
         with patch(
-            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+            "server.app.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
@@ -299,7 +299,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_create_max_key_with_admin_auth(self) -> None:
         with patch(
-            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+            "server.app.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
@@ -318,7 +318,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_list_keys_with_admin_auth(self) -> None:
         with patch(
-            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+            "server.app.get_auth_provider", return_value=_admin_auth_mock()
         ):
             # Create a key first
             self.client.post(
@@ -337,7 +337,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_revoke_key_with_admin_auth(self) -> None:
         with patch(
-            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+            "server.app.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
@@ -354,7 +354,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_revoke_nonexistent_key_returns_404(self) -> None:
         with patch(
-            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+            "server.app.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.delete(
                 "/v1/keys/nonexistent_id",
@@ -364,7 +364,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_get_key_usage(self) -> None:
         with patch(
-            "bridge.fastapi_wrapper.get_auth_provider", return_value=_admin_auth_mock()
+            "server.app.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
