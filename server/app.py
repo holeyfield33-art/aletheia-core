@@ -8,7 +8,6 @@ import json
 import secrets
 import time as _time
 import asyncio
-
 import hashlib
 import os
 import sys
@@ -19,6 +18,12 @@ from typing import Any
 from fastapi import Depends, Header, HTTPException, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from server.middleware import (
+    add_security_and_rate_limit_headers,
+    enterprise_auth_middleware,
+    internal_secret_guard,
+)
+from server.websocket import ws_audit_endpoint
 from pydantic import BaseModel, ConfigDict, Field
 from server.models import (
     AuditRequest,
@@ -356,125 +361,12 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Security + rate limit headers middleware
+# Middleware registration — implementations live in server/middleware.py.
+# FastAPI applies middleware LIFO: internal_secret_guard runs first.
 # ---------------------------------------------------------------------------
-@app.middleware("http")
-async def add_security_and_rate_limit_headers(request: Request, call_next):
-    response = await call_next(request)
-    # Security headers
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    if "Cache-Control" not in response.headers:
-        response.headers["Cache-Control"] = "no-store"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'none'; frame-ancestors 'none'"
-    )
-    response.headers["Permissions-Policy"] = (
-        "geolocation=(), microphone=(), camera=(), payment=()"
-    )
-    # Rate limit headers
-    if hasattr(request.state, "rate_limit_remaining"):
-        response.headers["X-RateLimit-Remaining"] = str(
-            request.state.rate_limit_remaining
-        )
-    if hasattr(request.state, "retry_after"):
-        response.headers["Retry-After"] = str(request.state.retry_after)
-    return response
-
-
-# ---------------------------------------------------------------------------
-# Unified auth middleware (enterprise auth layer)
-# ---------------------------------------------------------------------------
-
-
-@app.middleware("http")
-async def enterprise_auth_middleware(request: Request, call_next):
-    """Populate ``request.state.auth_context`` from the active auth provider.
-
-    This middleware runs on every request.  Endpoints that need auth use
-    ``require_permission()`` or ``require_role()`` dependencies which
-    read ``request.state.auth_context``.  Unauthenticated requests get
-    ``auth_context = None`` — the dependencies decide whether to reject.
-
-    When ``ALETHEIA_AUTH_PROVIDER=api_key`` (the default), behaviour is
-    identical to the original ``_check_api_key`` flow — this middleware
-    just pre-populates the context for RBAC checks.
-    """
-    # Skip auth for fully unauthenticated endpoints (no optional auth either).
-    unauthenticated_paths = {"/health", "/ready", "/docs", "/redoc", "/openapi.json"}
-    if request.url.path in unauthenticated_paths:
-        return await call_next(request)
-
-    credential = request.headers.get("authorization", "") or request.headers.get(
-        "x-api-key", ""
-    )
-    if credential:
-        try:
-            provider = get_auth_provider()
-            user = await provider.authenticate(credential)
-            if user:
-                request.state.auth_context = AuthContext(user=user, token=credential)
-        except Exception as exc:
-            _logger.debug("Auth middleware error: %s", exc)
-
-    # Always continue — individual endpoints decide if auth is required.
-    return await call_next(request)
-
-
-# ---------------------------------------------------------------------------
-# Internal-secret guard — outermost middleware (defined last = runs first)
-# ---------------------------------------------------------------------------
-
-_INTERNAL_SECRET: str = os.getenv("ALETHEIA_INTERNAL_SECRET", "").strip()
-
-# Paths exempt from the guard so health/readiness probes and public key
-# endpoints remain reachable without the Vercel proxy.
-_INTERNAL_SECRET_EXEMPT = frozenset(
-    [
-        "/health",
-        "/ready",
-        "/docs",
-        "/openapi.json",
-        "/metrics",
-        "/.well-known/aletheia-receipt-key.pem",
-        "/.well-known/aletheia-manifest-key.pem",
-        "/v1/public-key",
-        "/v1/audit",
-    ]
-)
-
-
-@app.middleware("http")
-async def internal_secret_guard(request: Request, call_next):
-    """Reject /v1/* requests that did not arrive via the Vercel proxy.
-
-    When ALETHEIA_INTERNAL_SECRET is set, every request to a guarded path
-    must carry the matching ``x-aletheia-internal`` header.  The Vercel
-    /api/v1/* proxy injects this header automatically (ALETHEIA_INTERNAL_SECRET
-    env var on Vercel).  Direct callers hitting the Render URL receive 403.
-
-    If the env var is unset the guard is a no-op so existing deployments
-    continue to work until the operator explicitly enables it.
-    """
-    if not _INTERNAL_SECRET:
-        return await call_next(request)
-
-    path = request.url.path
-    guarded = path.startswith("/v1/") or path == "/v1"
-    if not guarded or path in _INTERNAL_SECRET_EXEMPT:
-        return await call_next(request)
-
-    provided = request.headers.get("x-aletheia-internal", "")
-    # Use secrets.compare_digest to prevent timing attacks on the secret value.
-    if not provided or not secrets.compare_digest(provided, _INTERNAL_SECRET):
-        _logger.warning(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
-            "internal_secret_guard: rejected request path=%s xff=%s",
-            path,
-            request.headers.get("x-forwarded-for", "unknown"),
-        )
-        return JSONResponse(status_code=403, content={"error": "forbidden"})
-
-    return await call_next(request)
+app.middleware("http")(add_security_and_rate_limit_headers)
+app.middleware("http")(enterprise_auth_middleware)
+app.middleware("http")(internal_secret_guard)
 
 
 # ---------------------------------------------------------------------------
@@ -1940,15 +1832,6 @@ async def rotate_secrets_endpoint() -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# WebSocket audit stream (Task 4 — Live Observability)
+# WebSocket audit stream — implementation in server/websocket.py
 # ---------------------------------------------------------------------------
-
-from starlette.websockets import WebSocket as _StarletteWS  # noqa: E402
-
-
-@app.websocket("/ws/audit")
-async def ws_audit_endpoint(ws: _StarletteWS) -> None:
-    """Authenticated, tenant-scoped, PII-redacted live audit stream."""
-    from core.ws_audit import ws_audit_handler
-
-    await ws_audit_handler(ws)
+app.websocket("/ws/audit")(ws_audit_endpoint)
