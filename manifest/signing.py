@@ -95,14 +95,23 @@ def _load_manifest_metadata(payload: bytes) -> tuple[str, str]:
 
 def _load_private_key(private_key_path: Path) -> Ed25519PrivateKey:
     key_bytes = _read_bytes(private_key_path)
-    return serialization.load_pem_private_key(key_bytes, password=None)
+    private_key = serialization.load_pem_private_key(key_bytes, password=None)
+    if not isinstance(private_key, Ed25519PrivateKey):
+        raise ManifestTamperedError(
+            f"Manifest private key at {private_key_path} must be Ed25519, "
+            f"got {type(private_key).__name__}"
+        )
+    return private_key
 
 
 def _load_public_key(public_key_path: Path) -> Ed25519PublicKey:
     key_bytes = _read_bytes(public_key_path)
     pub_key = serialization.load_pem_public_key(key_bytes)
     if not isinstance(pub_key, Ed25519PublicKey):
-        raise ManifestTamperedError("Public key is not Ed25519.")
+        raise ManifestTamperedError(
+            f"Manifest public key at {public_key_path} must be Ed25519, "
+            f"got {type(pub_key).__name__}"
+        )
     return pub_key
 
 
