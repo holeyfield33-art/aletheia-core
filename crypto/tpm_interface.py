@@ -18,7 +18,7 @@ import os
 import time
 
 from core.config import env_bool
-from typing import Protocol
+from typing import Protocol, TextIO
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -52,13 +52,19 @@ class _SoftwareBackend:
     ``ALETHEIA_CHAIN_KEY_PATH`` (PEM, no passphrase — protect with FS perms).
     """
 
+    _private: Ed25519PrivateKey
+
     def __init__(self) -> None:
         key_path = os.getenv("ALETHEIA_CHAIN_KEY_PATH", "").strip()
         if key_path and os.path.isfile(key_path):
             with open(key_path, "rb") as fh:
-                self._private = serialization.load_pem_private_key(
-                    fh.read(), password=None
-                )  # type: ignore[assignment]
+                loaded = serialization.load_pem_private_key(fh.read(), password=None)
+            if not isinstance(loaded, Ed25519PrivateKey):
+                raise ValueError(
+                    f"Chain key at {key_path} is not Ed25519 "
+                    f"(got {type(loaded).__name__}); refusing to use a non-Ed25519 chain key."
+                )
+            self._private = loaded
             _logger.info("Loaded chain signing key from %s", key_path)
         else:
             self._private = Ed25519PrivateKey.generate()
@@ -87,7 +93,7 @@ class _SoftwareBackend:
         return self._private.sign(digest)
 
     def public_key_bytes(self) -> bytes:
-        pub: Ed25519PublicKey = self._private.public_key()  # type: ignore[assignment]
+        pub = self._private.public_key()
         return pub.public_bytes(
             serialization.Encoding.Raw,
             serialization.PublicFormat.Raw,
@@ -287,7 +293,7 @@ class TPMAnchor:
             os.umask(old_umask)
         return True
 
-    def _read_verified_counter(self, fh) -> int:
+    def _read_verified_counter(self, fh: TextIO) -> int:
         """Parse and verify counter entries from an open file handle."""
         highest = 0
         pub = self._backend.public_key_bytes()
