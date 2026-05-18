@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import secrets
 import time as _time
 import asyncio
@@ -38,6 +39,7 @@ from core.audit import (
     log_audit_event,
     verify_receipt_or_raise,
 )
+from core.canonicalization import canonicalize_untrusted_text
 from core.config import settings, env_bool
 from core.auth import get_auth_provider
 from core.auth.models import AuthContext
@@ -1382,7 +1384,33 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     # --- Input hardening ---
     clean_input = normalize_shadow_text(req.payload)
 
-    layered_probe = build_layered_normalization_candidates(req.payload, max_depth=3)
+    # --- Phase 1.1: Canonicalization gate (before all agents) ---
+    canonical_result = canonicalize_untrusted_text(req.payload)
+    canonical_payload = canonical_result.canonical_text
+    canonicalization_metadata = {
+        "total_transformations": canonical_result.total_transformations,
+        "unicode_normalized": canonical_result.unicode_normalized,
+        "zero_width_removed": canonical_result.zero_width_removed,
+        "bidi_removed": canonical_result.bidi_removed,
+        "confusables_collapsed": canonical_result.confusables_collapsed,
+        "url_decoded": canonical_result.url_decoded,
+        "base64_decoded": canonical_result.base64_decoded,
+        "html_entity_decoded": canonical_result.html_entity_decoded,
+        "unicode_escape_decoded": canonical_result.unicode_escape_decoded,
+        "hex_decoded": canonical_result.hex_decoded,
+        "data_uri_decoded": canonical_result.data_uri_decoded,
+        "entropy_flag": canonical_result.entropy_flag,
+        "entropy_value": round(canonical_result.entropy_value, 2),
+        "expansion_guard_triggered": canonical_result.expansion_guard_triggered,
+        "decode_budget_exhausted": canonical_result.decode_budget_exhausted,
+        "recursion_depth_exhausted": canonical_result.recursion_depth_exhausted,
+        "decode_depth": canonical_result.decode_depth,
+        "decode_steps": canonical_result.decode_steps,
+    }
+
+    layered_probe = build_layered_normalization_candidates(
+        canonical_payload, max_depth=3
+    )
     if layered_probe.expansion_guard_triggered:
         audit_record = await _log_audit_and_persist(
             user_id=_user_id,
@@ -1471,7 +1499,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         )
 
     # 1. SCOUT PHASE
-    # 1..3. SCOUT + NITPICKER + JUDGE over decoded candidate layers
+    # 1..3. SCOUT + NITPICKER + JUDGE over decoded candidate layers (using canonical payload)
     (
         threat_score,
         report,
@@ -1484,7 +1512,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     ) = _evaluate_layers(
         action=req.action,
         origin=req.origin,
-        payload=req.payload,
+        payload=canonical_payload,
         client_ip=client_ip,
         request_id=request_id,
     )
@@ -1592,6 +1620,7 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         auth_method=_auth_method,
         obfuscation_tags=obfuscation_tags,
         obfuscation_preview=obfuscation_preview,
+        canonicalization_metadata=canonicalization_metadata,
     )
 
     response: dict = {
@@ -1712,6 +1741,20 @@ async def agent_trifecta_audit(
             )
 
         clean_payload = normalize_shadow_text(body.payload)
+
+        # --- Phase 1.1: Canonicalize tool_args ---
+        tool_args_str = json.dumps(body.tool_args) if body.tool_args else ""
+        tool_args_canonical = canonicalize_untrusted_text(tool_args_str)
+        tool_args_canon_metadata = (
+            {
+                "total_transformations": tool_args_canonical.total_transformations,
+                "entropy_flag": tool_args_canonical.entropy_flag,
+                "exceeded_budget": tool_args_canonical.decode_budget_exhausted,
+            }
+            if tool_args_str
+            else {}
+        )
+
         ctx = AgentTrifectaContext(
             payload=clean_payload,
             origin=body.origin,
@@ -1750,6 +1793,9 @@ async def agent_trifecta_audit(
                 tenant_id=tenant_id,
                 user_id=user_id,
                 auth_method=auth_method,
+                canonicalization_metadata=tool_args_canon_metadata
+                if tool_args_canon_metadata
+                else None,
             )
         except Exception as exc:
             _logger.error("Agent trifecta audit logging failed: %s", exc)

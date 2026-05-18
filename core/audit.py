@@ -288,6 +288,13 @@ class Receipt(BaseModel):
     key_id: Optional[str] = Field(default=None)
     obfuscation_tags: list[str] = Field(default_factory=list)
     obfuscation_preview: Optional[str] = Field(default=None)
+    # Canonicalization metadata (Phase 1.1)
+    canonicalization_applied: bool = Field(
+        default=False, description="Whether input canonicalization was performed"
+    )
+    canonicalization_metadata: Optional[dict[str, Any]] = Field(
+        default=None, description="Transformation metadata from CanonicalResult"
+    )
 
     @field_validator("prompt")
     @classmethod
@@ -328,6 +335,15 @@ class Receipt(BaseModel):
             canonical += f"|obf:{','.join(self.obfuscation_tags)}"
         if self.obfuscation_preview:
             canonical += f"|obf_preview:{self.obfuscation_preview}"
+        # Phase 1.1: Include canonicalization metadata in signature
+        if self.canonicalization_applied and self.canonicalization_metadata:
+            # Serialize metadata deterministically for signing
+            canon_str = json.dumps(
+                self.canonicalization_metadata, sort_keys=True, separators=(",", ":")
+            )
+            canonical += f"|canon:{canon_str}"
+        elif self.canonicalization_applied:
+            canonical += "|canon:true"
         return canonical
 
 
@@ -362,6 +378,7 @@ def log_audit_event(
     auth_method: str = "",
     obfuscation_tags: Optional[list[str]] = None,
     obfuscation_preview: str = "",
+    canonicalization_metadata: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Write a structured JSON audit record and return a TMR receipt."""
     global _prev_record_hash, _audit_seq
@@ -473,6 +490,7 @@ def log_audit_event(
         chain_hash=receipt_chain_hash,
         obfuscation_tags=obfuscation_tags,
         obfuscation_preview=obfuscation_preview,
+        canonicalization_metadata=canonicalization_metadata,
     )
     record["receipt"] = receipt
     return record
@@ -496,6 +514,7 @@ def build_tmr_receipt(
     chain_hash: str = "",
     obfuscation_tags: Optional[list[str]] = None,
     obfuscation_preview: str = "",
+    canonicalization_metadata: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Build a tamper-evident receipt.
 
@@ -535,6 +554,10 @@ def build_tmr_receipt(
         receipt_payload["obfuscation_preview"] = obfuscation_preview
     if prompt is not None:
         receipt_payload["prompt"] = prompt
+    # Phase 1.1: Include canonicalization metadata in receipt
+    if canonicalization_metadata:
+        receipt_payload["canonicalization_applied"] = True
+        receipt_payload["canonicalization_metadata"] = canonicalization_metadata
 
     if receipt_keys.is_configured():
         receipt_payload["signature_algorithm"] = "ed25519"
