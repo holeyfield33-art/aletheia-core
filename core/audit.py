@@ -652,6 +652,19 @@ def verify_receipt_or_raise(receipt: dict[str, Any]) -> None:
             ) from exc
 
     if algorithm == "hmac-sha256":
+        # Closes the HMAC algorithm-downgrade path: an attacker who can mint
+        # or modify a receipt could otherwise submit signature_algorithm
+        # "hmac-sha256" and have it accepted whenever ALETHEIA_RECEIPT_SECRET
+        # is set (common during Ed25519 migration). Operators opt out of
+        # legacy verification by setting ALETHEIA_REQUIRE_ED25519_RECEIPTS=true.
+        from core.config import settings as _settings
+
+        if _settings.require_ed25519_receipts:
+            raise ReceiptVerificationError(
+                "hmac_downgrade_blocked",
+                "HMAC-SHA256 receipts are not accepted when "
+                "ALETHEIA_REQUIRE_ED25519_RECEIPTS=true",
+            )
         secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "").encode("utf-8")
         if not secret:
             raise ReceiptVerificationError(

@@ -147,6 +147,17 @@ class AletheiaSettings:
     # --- FIPS-140 mode (Task 5) ---
     fips_mode: bool = False  # Restrict to FIPS-approved crypto
 
+    # --- Receipt verification policy ---
+    # When True, verify_receipt_or_raise() refuses HMAC-SHA256 receipts and
+    # only accepts Ed25519. Closes the algorithm-downgrade path on deployments
+    # that still have ALETHEIA_RECEIPT_SECRET set during migration.
+    require_ed25519_receipts: bool = False
+
+    # --- Embedding model integrity ---
+    # Optional Hugging Face revision (commit SHA or tag) to pin the
+    # SentenceTransformer download. Empty = unpinned (latest "main").
+    embedding_model_revision: str = ""
+
     def __post_init__(self) -> None:
         self.shadow_mode = self.mode == "shadow"
         # --- Enterprise threshold validation ---
@@ -256,6 +267,8 @@ class AletheiaSettings:
         defaults.database_backend = "sqlite"
         defaults.database_url = ""
         defaults.fips_mode = False
+        defaults.require_ed25519_receipts = False
+        defaults.embedding_model_revision = ""
         return cls(
             embedding_model=_get("embedding_model", defaults.embedding_model),
             intent_threshold=_get("intent_threshold", defaults.intent_threshold),
@@ -284,6 +297,12 @@ class AletheiaSettings:
             database_backend=_get("database_backend", defaults.database_backend),
             database_url=_get("database_url", defaults.database_url),
             fips_mode=_get("fips_mode", defaults.fips_mode),
+            require_ed25519_receipts=_get(
+                "require_ed25519_receipts", defaults.require_ed25519_receipts
+            ),
+            embedding_model_revision=_get(
+                "embedding_model_revision", defaults.embedding_model_revision
+            ),
         )
 
 
@@ -414,5 +433,12 @@ def validate_production_config() -> list[str]:
             "Production should use a secrets manager (vault/aws/azure/gcp) "
             "instead of secret_backend=env. Set ALETHEIA_ALLOW_ENV_SECRETS=true "
             "to acknowledge this risk."
+        )
+    # Auth bypass is a dev-only escape hatch. Fail-closed at startup if
+    # the operator left it on in production.
+    if env_bool("ALETHEIA_AUTH_DISABLED"):
+        issues.append(
+            "ALETHEIA_AUTH_DISABLED=true is not permitted in production. "
+            "Unset it or move the workload to a development/test environment."
         )
     return issues

@@ -29,34 +29,58 @@ class TestAuthDisabledControl:
     """Verify ALETHEIA_AUTH_DISABLED behavior."""
 
     def test_auth_disabled_blocks_in_production(self):
-        """ALETHEIA_AUTH_DISABLED=true in production should be blocked at startup."""
-        env = {
-            "ENVIRONMENT": "production",
-            "ALETHEIA_AUTH_DISABLED": "true",
-        }
-        with patch.dict(os.environ, env):
-            is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
-            is_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in (
-                "true",
-                "1",
-                "yes",
-            )
-            assert is_production and is_disabled
+        """validate_production_config must reject ALETHEIA_AUTH_DISABLED=true in prod."""
+        from core.config import validate_production_config
 
-    def test_auth_disabled_allowed_in_dev(self):
-        """ALETHEIA_AUTH_DISABLED=true in development should work."""
-        env = {
-            "ENVIRONMENT": "development",
-            "ALETHEIA_AUTH_DISABLED": "true",
-        }
-        with patch.dict(os.environ, env):
-            is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
-            is_disabled = os.getenv("ALETHEIA_AUTH_DISABLED", "").lower() in (
-                "true",
-                "1",
-                "yes",
-            )
-            assert not is_production and is_disabled
+        with patch.dict(
+            os.environ,
+            {"ALETHEIA_AUTH_DISABLED": "true"},
+            clear=False,
+        ):
+            issues = validate_production_config()
+        assert any(
+            "ALETHEIA_AUTH_DISABLED" in issue for issue in issues
+        ), f"expected AUTH_DISABLED issue, got: {issues}"
+
+    def test_auth_bypass_runtime_requires_dev_environment(self):
+        """_auth_bypass_allowed must return False unless ENVIRONMENT is a known dev value."""
+        from server._deps import _auth_bypass_allowed
+
+        for unsafe in ("production", "prod", "PRODUCTION", "", "stage", "unknown"):
+            with patch.dict(
+                os.environ,
+                {"ENVIRONMENT": unsafe},
+                clear=False,
+            ):
+                os.environ.pop("PYTEST_CURRENT_TEST", None)
+                assert _auth_bypass_allowed() is False, (
+                    f"bypass must be denied for ENVIRONMENT={unsafe!r}"
+                )
+
+    def test_auth_bypass_runtime_allows_dev_environments(self):
+        """Explicit dev/test ENVIRONMENT values must enable the bypass."""
+        from server._deps import _auth_bypass_allowed
+
+        for safe in ("development", "dev", "test", "testing", "local"):
+            with patch.dict(
+                os.environ,
+                {"ENVIRONMENT": safe},
+                clear=False,
+            ):
+                assert _auth_bypass_allowed() is True, (
+                    f"bypass must be allowed for ENVIRONMENT={safe!r}"
+                )
+
+    def test_auth_bypass_runtime_allows_pytest(self):
+        """Pytest-driven runs must always be eligible for the bypass (safety net for conftest)."""
+        from server._deps import _auth_bypass_allowed
+
+        with patch.dict(
+            os.environ,
+            {"ENVIRONMENT": "", "PYTEST_CURRENT_TEST": "some_test::case"},
+            clear=False,
+        ):
+            assert _auth_bypass_allowed() is True
 
 
 class TestCORSWildcardBlock:

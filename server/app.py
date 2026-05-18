@@ -129,10 +129,19 @@ async def _lifespan(application: FastAPI):
             from core.manifest_cache import load_and_embed_manifest
             from sentence_transformers import SentenceTransformer
 
+            revision = settings.embedding_model_revision or None
+            if revision is None and os.getenv("ENVIRONMENT", "").lower() == "production":
+                _logger.warning(
+                    "Embedding model %s is not pinned (ALETHEIA_EMBEDDING_MODEL_REVISION "
+                    "unset). Hugging Face will serve the current 'main' ref; a "
+                    "compromised upstream could silently change semantic detection.",
+                    settings.embedding_model,
+                )
             embedding_model = SentenceTransformer(
                 settings.embedding_model,
                 device="cpu",
                 cache_folder=None,
+                revision=revision,
             )
             manifest_path = Path("data/semantic_manifest.json")
             if manifest_path.is_file():
