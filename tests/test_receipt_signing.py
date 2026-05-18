@@ -520,3 +520,60 @@ def test_ed25519_receipt_fails_hmac_verification(monkeypatch) -> None:
         "ALETHEIA_RECEIPT_SECRET", "any-secret"
     )  # pragma: allowlist secret
     assert verify_receipt(forged) is False
+
+
+def test_require_ed25519_blocks_valid_hmac_receipt(monkeypatch) -> None:
+    """When require_ed25519_receipts is True, even a validly-signed HMAC
+    receipt must be rejected with code 'hmac_downgrade_blocked'.
+    """
+    from core.config import settings as _settings
+
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.setenv(
+        "ALETHEIA_RECEIPT_SECRET", "legacy-secret-32-chars-aaaaaaaaaa"
+    )  # pragma: allowlist secret
+    monkeypatch.setattr(_settings, "require_ed25519_receipts", True)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-downgrade-1",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    assert receipt["signature_algorithm"] == "hmac-sha256"
+
+    with pytest.raises(ReceiptVerificationError) as excinfo:
+        verify_receipt_or_raise(receipt)
+    assert excinfo.value.code == "hmac_downgrade_blocked"
+    assert verify_receipt(receipt) is False
+
+
+def test_require_ed25519_still_allows_ed25519_receipt(monkeypatch) -> None:
+    """Flipping require_ed25519_receipts must not break the Ed25519 happy path."""
+    from core.config import settings as _settings
+
+    _clear_ed25519_env(monkeypatch)
+    monkeypatch.delenv("ALETHEIA_RECEIPT_SECRET", raising=False)
+    priv, pub = _gen_keypair_pem()
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PRIVATE_KEY", priv)
+    monkeypatch.setenv("ALETHEIA_RECEIPT_PUBLIC_KEY", pub)
+    monkeypatch.setattr(_settings, "require_ed25519_receipts", True)
+
+    receipt = build_tmr_receipt(
+        decision="PROCEED",
+        policy_hash="abc123",
+        policy_version="1.0",
+        payload_sha256="deadbeef",
+        action="Read_Report",
+        origin="trusted_admin",
+        request_id="req-strict-ed-1",
+        fallback_state="normal",
+        issued_at="2026-05-03T00:00:00+00:00",
+    )
+    assert receipt["signature_algorithm"] == "ed25519"
+    assert verify_receipt(receipt) is True

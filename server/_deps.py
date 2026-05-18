@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from fastapi import Header, HTTPException, Request
 
@@ -18,6 +19,21 @@ from server._bridge import _check_hosted_prisma_api_key, _lookup_hosted_api_key_
 from server._helpers import _get_client_ip
 
 _logger = logging.getLogger("aletheia.api")
+
+# ALETHEIA_AUTH_DISABLED only takes effect when the runtime explicitly
+# identifies itself as a dev/test environment. An unset or misspelled
+# ENVIRONMENT now fails closed (auth required) instead of silently
+# bypassing on the assumption "not production = safe".
+_DEV_ENVIRONMENTS = {"development", "dev", "test", "testing", "local"}
+
+
+def _auth_bypass_allowed() -> bool:
+    env = os.getenv("ENVIRONMENT", "").strip().lower()
+    if env in _DEV_ENVIRONMENTS:
+        return True
+    # Pytest-driven runs are always dev — covers conftest setups that
+    # rely on ALETHEIA_AUTH_DISABLED without setting ENVIRONMENT.
+    return bool(os.getenv("PYTEST_CURRENT_TEST"))
 
 
 async def _check_api_key(
@@ -39,8 +55,7 @@ async def _check_api_key(
     if ctx is not None and has_permission(ctx.user.roles, Permission.AUDIT_SUBMIT):
         return
 
-    _auth_disabled = env_bool("ALETHEIA_AUTH_DISABLED")
-    if _auth_disabled:
+    if env_bool("ALETHEIA_AUTH_DISABLED") and _auth_bypass_allowed():
         return
 
     headers = getattr(request, "headers", {})

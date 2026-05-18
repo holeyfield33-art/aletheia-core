@@ -21,6 +21,7 @@ import asyncio
 import logging
 import os
 import random
+import secrets
 import time
 from collections import OrderedDict
 from typing import Any, Generator
@@ -117,7 +118,9 @@ class UpstashRateLimiter:
         if self._circuit_open_until > _t.monotonic():
             # Allow ~10% of requests through to probe for recovery
             # and prevent complete self-DoS during Redis outages.
-            if random.random() < 0.10:
+            # secrets.randbelow keeps the probe slot unpredictable so an
+            # attacker cannot time requests to land in the open window.
+            if secrets.randbelow(10) == 0:
                 _logger.info(
                     "Redis circuit open — allowing probe request for key: %s", key
                 )
