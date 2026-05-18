@@ -33,6 +33,10 @@ def shadow_mode_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _is_fast_mock_enabled(request: pytest.FixtureRequest) -> bool:
     """Enable fast mocks unless a test is explicitly marked as integration."""
+    # Adversarial / release-gate runs disable stubs globally so the suite
+    # exercises real code paths instead of deterministic test doubles.
+    if os.environ.get("ALETHEIA_DISABLE_TEST_STUBS", "").lower() in {"1", "true", "yes"}:
+        return False
     if request.node.get_closest_marker("integration") is not None:
         return False
     # Some modules already encode "real model required" intent via a helper.

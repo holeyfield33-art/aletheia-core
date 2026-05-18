@@ -71,9 +71,11 @@ jobs:
           pip install -e .
 
       - name: Run core tests
-        # Exclusions tracked under BUG-01 (shadow mode forces PROCEED in conftest)
-        # and the distributed-setup gap. See:
-        # docs/audit-findings/FINAL_AUDIT_REPORT_2026-04-30.md
+        # Excluded suites run in dedicated jobs:
+        #   - tests/test_detectors / test_api / test_redteam_adversarial ->
+        #     "adversarial-tests" job in ci.yml (real-model, active-mode)
+        #   - tests/test_swarm_1000bot.py     -> performance suite (pre-release)
+        #   - tests/test_distributed_state.py -> requires live Redis
         run: |
           python -m pytest tests/ -v --tb=short \
             --ignore=tests/test_detectors \

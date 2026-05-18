@@ -23,8 +23,10 @@
   <img src="https://img.shields.io/github/stars/holeyfield33-art/aletheia-core?style=social" alt="GitHub stars"/>
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/ci.yml/badge.svg" alt="CI" />
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/security.yml/badge.svg" alt="Security Scan" />
+  <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/codeql.yml/badge.svg" alt="CodeQL" />
   <img src="https://github.com/holeyfield33-art/aletheia-core/actions/workflows/verify-routes.yml/badge.svg" alt="Verify Routes" />
   <img src="https://codecov.io/gh/holeyfield33-art/aletheia-core/branch/main/graph/badge.svg" alt="Coverage" />
+  <a href="https://securityscorecards.dev/viewer/?uri=github.com/holeyfield33-art/aletheia-core"><img src="https://api.securityscorecards.dev/projects/github.com/holeyfield33-art/aletheia-core/badge" alt="OpenSSF Scorecard" /></a>
 </p>
 
 <!-- DEMO VIDEO
