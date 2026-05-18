@@ -171,7 +171,7 @@ model, perf-only). Every entry on that list must:
    weren't re-checked against `--ignore=`'d test files; we now run those tests
    in a dedicated CI job and require this policy to prevent recurrence.
 
-PRs that add a new `--ignore=` without satisfying #1–#3 will be requested-for-changes.
+PRs that add a new `--ignore=` without satisfying #1–#3 will have changes requested.
 
 ## Security Policy
 

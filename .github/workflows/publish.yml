@@ -137,14 +137,27 @@ jobs:
       - name: Sign with Sigstore
         uses: sigstore/gh-action-sigstore-python@v3.0.0
         with:
-          inputs: ./dist/*.tar.gz ./dist/*.whl
+          # Action treats `inputs` as newline-delimited glob patterns;
+          # passing them as one space-joined string can be parsed as a
+          # single pattern and find no files.
+          inputs: |
+            ./dist/*.tar.gz
+            ./dist/*.whl
 
       - name: Attach signatures to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # sigstore/gh-action-sigstore-python writes bundle files with the
+        # *.sigstore.json suffix (see the action's signing path); the older
+        # *.sigstore extension is not produced. Match both forms defensively.
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          gh release upload "$TAG" dist/*.sigstore --clobber --repo "$GITHUB_REPOSITORY"
+          shopt -s nullglob
+          BUNDLES=(dist/*.sigstore.json dist/*.sigstore)
+          if [ ${#BUNDLES[@]} -eq 0 ]; then
+            echo "ERROR: no Sigstore bundles found under dist/"; exit 1
+          fi
+          gh release upload "$TAG" "${BUNDLES[@]}" --clobber --repo "$GITHUB_REPOSITORY"
 
   publish-pypi:
     name: Publish to PyPI

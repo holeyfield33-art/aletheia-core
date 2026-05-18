@@ -165,9 +165,13 @@ jobs:
           EOF
 
       - name: Run tests with coverage
-        # Exclusions mirror the "test" job above; full suite (incl. adversarial)
-        # runs in the "adversarial-tests" job — coverage on that lane is tracked
-        # separately to avoid double-counting and keep this lane's signal clean.
+        # Excluded suites and where they actually run (per CONTRIBUTING.md
+        # "CI Exclusions Policy"):
+        #   - tests/test_detectors     -> "Run detectors tests" step in `test` job
+        #   - tests/test_api.py        -> "adversarial-tests" job (real-model mode)
+        #   - tests/test_redteam_adversarial.py -> "adversarial-tests" job
+        #   - tests/test_swarm_1000bot.py       -> performance suite (run pre-release)
+        #   - tests/test_distributed_state.py   -> requires live Redis (run via integration job)
         run: |
           python -m pytest tests/ --cov=core --cov=server --cov=agents --cov-report=xml \
             --ignore=tests/test_detectors \
@@ -255,6 +259,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Cache pip
+        # The wheel install pulls torch + sentence-transformers + their CUDA
+        # deps from PyPI; without this cache cold runners spend 5-8 minutes
+        # just downloading, occasionally hitting the 15-minute timeout.
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py3.12-smoke-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-py3.12-smoke-
+            ${{ runner.os }}-py3.12-
 
       - name: Build distribution
         run: |
