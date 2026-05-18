@@ -72,7 +72,7 @@ class TestApiKeyAuth(unittest.TestCase):
 
         # Patch key store into the wrapper module (no env keys)
         # Also disable the global auth-disabled flag so key auth is enforced
-        p1 = patch("server.app.key_store", cls._store)
+        p1 = patch("server._deps.key_store", cls._store)
         p2 = patch.dict(os.environ, {"ALETHEIA_AUTH_DISABLED": "false"})
         cls._patches = [p1, p2]
         for p in cls._patches:
@@ -158,7 +158,7 @@ class TestApiKeyAuth(unittest.TestCase):
         request = SimpleNamespace(state=SimpleNamespace(auth_context=None))
         with (
             patch(
-                "server.app.key_store.check_and_increment",
+                "server._deps.key_store.check_and_increment",
                 return_value=QuotaCheck(
                     allowed=False,
                     reason="Invalid API key.",
@@ -167,7 +167,7 @@ class TestApiKeyAuth(unittest.TestCase):
                 ),
             ),
             patch(
-                "server.app._check_hosted_prisma_api_key",
+                "server._deps._check_hosted_prisma_api_key",
                 new=AsyncMock(
                     return_value=QuotaCheck(
                         allowed=True,
@@ -191,7 +191,7 @@ class TestApiKeyAuth(unittest.TestCase):
         request = SimpleNamespace(state=SimpleNamespace(auth_context=None))
         with (
             patch(
-                "server.app.key_store.check_and_increment",
+                "server._deps.key_store.check_and_increment",
                 return_value=QuotaCheck(
                     allowed=False,
                     reason="Invalid API key.",
@@ -200,7 +200,7 @@ class TestApiKeyAuth(unittest.TestCase):
                 ),
             ),
             patch(
-                "server.app._check_hosted_prisma_api_key",
+                "server._deps._check_hosted_prisma_api_key",
                 new=AsyncMock(
                     return_value=QuotaCheck(
                         allowed=False,
@@ -231,7 +231,7 @@ class TestApiKeyAuth(unittest.TestCase):
         )
 
         with patch(
-            "server.app.key_store.check_and_increment",
+            "server._deps.key_store.check_and_increment",
             return_value=QuotaCheck(
                 allowed=True,
                 reason="OK",
@@ -259,7 +259,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
         cls._store = KeyStore(db_path=cls._tmp.name)
 
         cls._patches = [
-            patch("server.app.key_store", cls._store),
+            patch("server._deps.key_store", cls._store),
         ]
         for p in cls._patches:
             p.start()
@@ -284,7 +284,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_create_key_with_admin_auth(self) -> None:
         with patch(
-            "server.app.get_auth_provider", return_value=_admin_auth_mock()
+            "server.middleware.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
@@ -299,7 +299,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_create_max_key_with_admin_auth(self) -> None:
         with patch(
-            "server.app.get_auth_provider", return_value=_admin_auth_mock()
+            "server.middleware.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
@@ -318,7 +318,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_list_keys_with_admin_auth(self) -> None:
         with patch(
-            "server.app.get_auth_provider", return_value=_admin_auth_mock()
+            "server.middleware.get_auth_provider", return_value=_admin_auth_mock()
         ):
             # Create a key first
             self.client.post(
@@ -337,7 +337,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_revoke_key_with_admin_auth(self) -> None:
         with patch(
-            "server.app.get_auth_provider", return_value=_admin_auth_mock()
+            "server.middleware.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",
@@ -354,7 +354,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_revoke_nonexistent_key_returns_404(self) -> None:
         with patch(
-            "server.app.get_auth_provider", return_value=_admin_auth_mock()
+            "server.middleware.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.delete(
                 "/v1/keys/nonexistent_id",
@@ -364,7 +364,7 @@ class TestKeyManagementEndpoints(unittest.TestCase):
 
     def test_get_key_usage(self) -> None:
         with patch(
-            "server.app.get_auth_provider", return_value=_admin_auth_mock()
+            "server.middleware.get_auth_provider", return_value=_admin_auth_mock()
         ):
             r = self.client.post(
                 "/v1/keys",

@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 
 def test_seed_demo_key_prefers_demo_env(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     key_store.lookup_by_hash.return_value = None
@@ -20,7 +20,7 @@ def test_seed_demo_key_prefers_demo_env(monkeypatch) -> None:
 
 
 def test_seed_demo_key_uses_api_key_fallback(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     key_store.lookup_by_hash.return_value = None
@@ -38,7 +38,7 @@ def test_seed_demo_key_uses_api_key_fallback(monkeypatch) -> None:
 
 
 def test_seed_demo_key_no_env_noop(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     monkeypatch.setattr(wrapper, "key_store", key_store)
@@ -52,7 +52,7 @@ def test_seed_demo_key_no_env_noop(monkeypatch) -> None:
 
 
 def test_seed_demo_key_skips_import_when_record_exists(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     key_store.lookup_by_hash.return_value = object()
@@ -66,7 +66,7 @@ def test_seed_demo_key_skips_import_when_record_exists(monkeypatch) -> None:
 
 
 def test_seed_demo_key_lookup_failure_is_fail_safe(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     key_store.lookup_by_hash.side_effect = RuntimeError("db down")
@@ -80,7 +80,7 @@ def test_seed_demo_key_lookup_failure_is_fail_safe(monkeypatch) -> None:
 
 
 def test_demo_key_health_signal_not_configured(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     monkeypatch.delenv("ALETHEIA_DEMO_API_KEY", raising=False)
     monkeypatch.delenv("ALETHEIA_API_KEY", raising=False)
@@ -93,7 +93,7 @@ def test_demo_key_health_signal_not_configured(monkeypatch) -> None:
 
 
 def test_demo_key_health_signal_registered(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     key_store.lookup_by_hash.return_value = object()
@@ -109,7 +109,7 @@ def test_demo_key_health_signal_registered(monkeypatch) -> None:
 
 
 def test_demo_key_health_signal_missing(monkeypatch) -> None:
-    import server.app as wrapper
+    import server._helpers as wrapper
 
     key_store = Mock()
     key_store.lookup_by_hash.return_value = None

@@ -428,15 +428,15 @@ class TestShadowModeOracle(unittest.TestCase):
         import inspect
 
         try:
-            from server import app
+            from server.routes import audit as audit_route
 
-            source = inspect.getsource(fastapi_wrapper.secure_audit)
+            source = inspect.getsource(audit_route.secure_audit)
             # shadow_verdict should not be added to the response dict
             assert 'response["shadow_verdict"]' not in source, (
                 "shadow_verdict must not be returned to client"
             )
         except ImportError:
-            self.skipTest("fastapi_wrapper not importable without model")
+            self.skipTest("server.routes.audit not importable without model")
 
 
 class TestUtilsNoStdoutLeakage(unittest.TestCase):

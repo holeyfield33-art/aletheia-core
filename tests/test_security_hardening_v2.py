@@ -114,7 +114,7 @@ class TestXFFIPExtraction:
     def test_single_proxy_uses_penultimate_xff_entry(self) -> None:
         from server.app import _get_client_ip
 
-        with patch("server.app._TRUSTED_PROXY_DEPTH", 1):
+        with patch("server._helpers._TRUSTED_PROXY_DEPTH", 1):
             request = self._make_request(xff="1.2.3.4, 10.0.0.1")
             result = _get_client_ip(request)
         assert result == "1.2.3.4"
@@ -123,7 +123,7 @@ class TestXFFIPExtraction:
         """When depth=0 (no proxy), XFF is completely ignored — use network IP."""
         from server.app import _get_client_ip
 
-        with patch("server.app._TRUSTED_PROXY_DEPTH", 0):
+        with patch("server._helpers._TRUSTED_PROXY_DEPTH", 0):
             request = self._make_request(xff="1.2.3.4", client_host="10.10.10.10")
             result = _get_client_ip(request)
         # XFF is attacker-controlled; depth=0 means no trusted proxy,
@@ -133,7 +133,7 @@ class TestXFFIPExtraction:
     def test_spoofed_xff_with_correct_depth(self) -> None:
         from server.app import _get_client_ip
 
-        with patch("server.app._TRUSTED_PROXY_DEPTH", 1):
+        with patch("server._helpers._TRUSTED_PROXY_DEPTH", 1):
             request = self._make_request(xff="evil.ip, real.client, proxy.render")
             result = _get_client_ip(request)
         assert result == "real.client"
@@ -169,7 +169,7 @@ class TestActiveModeMustRejectEnvKeys:
         mock_settings.mode = "active"
 
         with (
-            patch("server.app.settings", mock_settings),
+            patch("server._helpers.settings", mock_settings),
             patch.dict(
                 "os.environ",
                 {
@@ -179,7 +179,7 @@ class TestActiveModeMustRejectEnvKeys:
                     "ENVIRONMENT": "production",
                 },
             ),
-            patch("server.app.warm_up"),
+            patch("core.embeddings.warm_up"),
         ):
             with pytest.raises(SystemExit) as exc_info:
                 loop = asyncio.new_event_loop()
@@ -321,7 +321,7 @@ class TestUnauthenticatedAccessBlocked:
         store = KeyStore(db_path=tmp.name)
         raw_key, _ = store.create_key("test")
 
-        with patch("server.app.key_store", store):
+        with patch("server._deps.key_store", store):
             from server.app import app
 
             client = TestClient(app, raise_server_exceptions=False)
@@ -383,17 +383,17 @@ class TestSemanticDegradedFailClosed:
 
         with (
             patch(
-                "server.app.get_auth_provider",
+                "server.middleware.get_auth_provider",
                 return_value=self._make_auth_mock(),
             ),
             patch(
-                "server.app.decision_store.verify_policy_bundle",
+                "server.routes.audit.decision_store.verify_policy_bundle",
                 new=AsyncMock(
                     return_value=type("R", (), {"accepted": True, "reason": "ok"})()
                 ),
             ),
             patch(
-                "server.app.rate_limiter.allow",
+                "server.routes.audit.rate_limiter.allow",
                 new=AsyncMock(return_value=True),
             ),
             patch(
@@ -442,13 +442,13 @@ class TestDegradedModeFailClosed:
 
         with (
             patch(
-                "server.app.get_auth_provider",
+                "server.middleware.get_auth_provider",
                 return_value=self._make_auth_mock(),
             ),
-            patch("server.app.rate_limiter.degraded", True),
-            patch("server.app.decision_store._degraded", True),
+            patch("server.routes.audit.rate_limiter.degraded", True),
+            patch("server.routes.audit.decision_store._degraded", True),
             patch(
-                "server.app.decision_store.verify_policy_bundle",
+                "server.routes.audit.decision_store.verify_policy_bundle",
                 new=AsyncMock(
                     return_value=type("R", (), {"accepted": True, "reason": "ok"})()
                 ),
@@ -474,19 +474,19 @@ class TestDegradedModeFailClosed:
 
         with (
             patch(
-                "server.app.get_auth_provider",
+                "server.middleware.get_auth_provider",
                 return_value=self._make_auth_mock(),
             ),
-            patch("server.app.rate_limiter.degraded", True),
-            patch("server.app.decision_store._degraded", True),
+            patch("server.routes.audit.rate_limiter.degraded", True),
+            patch("server.routes.audit.decision_store._degraded", True),
             patch(
-                "server.app.decision_store.verify_policy_bundle",
+                "server.routes.audit.decision_store.verify_policy_bundle",
                 new=AsyncMock(
                     return_value=type("R", (), {"accepted": True, "reason": "ok"})()
                 ),
             ),
             patch(
-                "server.app.decision_store.claim_decision",
+                "server.routes.audit.decision_store.claim_decision",
                 new=AsyncMock(
                     return_value=type(
                         "R", (), {"accepted": True, "reason": "accepted"}
@@ -494,7 +494,7 @@ class TestDegradedModeFailClosed:
                 ),
             ),
             patch(
-                "server.app.rate_limiter.allow",
+                "server.routes.audit.rate_limiter.allow",
                 new=AsyncMock(return_value=True),
             ),
             patch(
@@ -509,7 +509,7 @@ class TestDegradedModeFailClosed:
                 return_value=(True, "Action Approved by the Judge."),
             ),
             patch(
-                "server.app.log_audit_event",
+                "server.routes.audit.log_audit_event",
                 return_value={"receipt": {"id": "r"}},
             ),
         ):

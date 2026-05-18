@@ -118,11 +118,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          gh release upload "$TAG" sbom-python.cdx.json sbom-node.cdx.json --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG" sbom-python.cdx.json sbom-node.cdx.json --clobber --repo "$GITHUB_REPOSITORY"
 
   publish-pypi:
     name: Publish to PyPI
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
