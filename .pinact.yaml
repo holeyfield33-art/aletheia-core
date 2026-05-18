@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/suzuki-shunsuke/pinact/refs/heads/main/json-schema/pinact.json
+# pinact - https://github.com/suzuki-shunsuke/pinact
+version: 3
+# files:
+#   - pattern: action.yaml
+#   - pattern: */action.yaml
+
+ignore_actions:
+  # PyPA's official PyPI publish action is, by design, distributed via the
+  # release/v1 branch ref (Trusted Publishing OIDC) — they do not recommend
+  # tag-pinning. Industry-standard exception, retained explicitly so that
+  # `pinact run --check` exits clean in CI.
+  - name: pypa/gh-action-pypi-publish
+    ref: release/v1

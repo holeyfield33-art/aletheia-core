@@ -1,0 +1,33 @@
+name: Pinned-Actions check
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+
+permissions:
+  contents: read
+
+jobs:
+  pinact:
+    name: pinact run --check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Enforce SHA-pinned actions
+        # Fails the job if any `uses: <action>@<tag>` is not pinned to a full
+        # 40-char commit SHA. Lifts OpenSSF Scorecard's Pinned-Dependencies
+        # check from 1/10 toward 10/10. Note that `pypa/gh-action-pypi-publish`
+        # is intentionally excluded — PyPA's canonical action publishes via a
+        # `release/v1` branch ref by design (Trusted Publishing OIDC).
+        uses: suzuki-shunsuke/pinact-action@49cbd6acd0dbab6a6be2585d1dbdaa43b4410133 # v1.0.0
+        with:
+          version: v3.0.0
