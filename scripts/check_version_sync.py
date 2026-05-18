@@ -15,7 +15,7 @@ def main() -> int:
 
     v_fastapi = re.search(
         r'version\s*=\s*"([^"]+)"',
-        pathlib.Path("bridge/fastapi_wrapper.py").read_text(),
+        pathlib.Path("server/app.py").read_text(),
     ).group(1)
 
     v_main = re.search(
@@ -27,7 +27,7 @@ def main() -> int:
 
     versions = {
         "pyproject.toml": v_pyproject,
-        "fastapi_wrapper.py": v_fastapi,
+        "server/app.py": v_fastapi,
         "main.py": v_main,
         "package.json": v_pkg,
     }

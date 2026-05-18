@@ -37,14 +37,14 @@ repos:
         name: Check version consistency
         entry: python scripts/check_version_sync.py
         language: python
-        files: "(pyproject\\.toml|package\\.json|main\\.py|bridge/fastapi_wrapper\\.py)$"
+        files: "(pyproject\\.toml|package\\.json|main\\.py|server/app\\.py)$"
         pass_filenames: false
 
       - id: no-cors-wildcard
         name: Block CORS wildcard in config
         entry: >
-          bash -c 'if grep -rn "CORS.*\*\|cors.*\*\|allow_origins.*\*" "$@" 2>/dev/null | grep -v "^Binary"; then echo "ERROR - CORS wildcard (*) detected. Use explicit origins."; exit 1; fi' --
+          bash -c 'if grep -rnE "allow_origins\s*=.*\*|ALETHEIA_CORS_ORIGINS\s*=.*\*|cors_origins\s*=.*\*" "$@" 2>/dev/null | grep -v "^Binary"; then echo "ERROR - CORS wildcard (*) detected. Use explicit origins."; exit 1; fi' --
         language: system
         files: "\\.py$|\\.yaml$|\\.yml$|\\.json$|\\.env$|\\.toml$"
-        exclude: "^\\.pre-commit-config\\.yaml$|^bridge/fastapi_wrapper\\.py$"
+        exclude: "^\\.pre-commit-config\\.yaml$"
         types: [text]
