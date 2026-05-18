@@ -28,6 +28,16 @@ grep-based pattern matching, schema inspection, and manual code review.
 
 ### BUG-01 — CRITICAL: Shadow mode overrides DENIED in tests
 
+> **RESOLVED in v2.0.0:** `tests/conftest.py` now defaults `ALETHEIA_MODE=active`
+> (see [conftest.py L18](../../tests/conftest.py#L18)), and the full 174-test
+> red-team suite runs on every PR via the dedicated `adversarial-tests` job in
+> [`ci.yml`](../../.github/workflows/ci.yml) with `ALETHEIA_DISABLE_TEST_STUBS=true`,
+> exercising the real semantic layer rather than fast-path test doubles.
+> Stale `mock.patch("server.app.X")` calls from the pre-refactor era were
+> retargeted to the modules where each symbol now lives
+> (`server._helpers`, `server._deps`, `server.routes.audit`, `server._bridge`).
+> Original finding preserved below for historical traceability.
+
 **File:** `tests/conftest.py` line 13 / `bridge/fastapi_wrapper.py` line 1147
 **Description:** `ALETHEIA_MODE=shadow` is set globally in the test fixture environment.
 In shadow mode the pipeline executes the full agent chain but always returns PROCEED,
@@ -333,7 +343,7 @@ helpers would improve readability and simplify unit testing for individual pipel
 
 | ID        | Severity    | Category                   | Title                                              |
 | --------- | ----------- | -------------------------- | -------------------------------------------------- |
-| BUG-01    | 🔴 CRITICAL | Bug / Test-Coverage        | Shadow mode disables enforcement in all tests      |
+| BUG-01    | ✅ RESOLVED  | Bug / Test-Coverage        | Shadow mode disables enforcement in all tests (fixed in v2.0.0 — conftest defaults to active; adversarial-tests CI gate added) |
 | BUG-02    | 🟠 HIGH     | Bug / OWASP A05            | `hashKey()` crashes on missing `ALETHEIA_KEY_SALT` |
 | BUG-03    | 🟠 HIGH     | Bug / OWASP A07            | Timing oracle on unverified-email login branch     |
 | BUG-04    | 🟠 HIGH     | Bug / OWASP A02            | `receipt.prompt` exposes unredacted PII            |

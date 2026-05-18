@@ -57,9 +57,12 @@ jobs:
             core/rate_limit.py core/sandbox.py server/app.py main.py
 
       - name: Run core tests
-        # Exclusions tracked under BUG-01 (shadow mode forces PROCEED in conftest)
-        # and the distributed-setup gap. See:
-        # docs/audit-findings/FINAL_AUDIT_REPORT_2026-04-30.md
+        # Excluded suites run in dedicated jobs to keep this lane fast:
+        #   - tests/test_detectors     -> "Run detectors tests" step below
+        #   - tests/test_api.py        -> "adversarial-tests" job (real-model mode)
+        #   - tests/test_redteam_adversarial.py -> "adversarial-tests" job
+        #   - tests/test_swarm_1000bot.py       -> performance suite (run pre-release)
+        #   - tests/test_distributed_state.py   -> requires live Redis (run via integration job)
         run: |
           python -m pytest tests/ -v --tb=short \
             --ignore=tests/test_detectors \
@@ -78,6 +81,58 @@ jobs:
 
       - name: Run detectors tests
         run: python -m pytest tests/test_detectors/ -v --tb=short
+
+  adversarial-tests:
+    name: Red-team adversarial suite (174 cases, real-model mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py3.12-${{ hashFiles('requirements.txt', 'requirements-ci.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-ci.txt
+
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/aletheia/models
+          key: aletheia-model-sentence-transformers-all-MiniLM-L6-v2-v1
+
+      - name: Download embedding model
+        run: |
+          python - <<'EOF'
+          from core.model_loader import load_cached_sentence_transformer
+          load_cached_sentence_transformer("sentence-transformers/all-MiniLM-L6-v2")
+          print("Model ready.")
+          EOF
+
+      - name: Run full red-team suite (stubs disabled, real model in active mode)
+        env:
+          ALETHEIA_MODE: active
+          ALETHEIA_AUTH_DISABLED: "true"
+          ALETHEIA_RECEIPT_SECRET: ci-adversarial-receipt-secret-32c
+          ALETHEIA_DISABLE_TEST_STUBS: "true"
+          ALETHEIA_LOG_LEVEL: WARNING
+        run: |
+          python -m pytest \
+            tests/test_redteam_adversarial.py \
+            tests/test_redteam_fixes.py \
+            tests/test_redteam_hardening.py \
+            tests/test_api.py \
+            -v --tb=short --strict-markers
 
   test-coverage:
     runs-on: ubuntu-latest
@@ -108,9 +163,9 @@ jobs:
           EOF
 
       - name: Run tests with coverage
-        # Exclusions tracked under BUG-01 (shadow mode forces PROCEED in conftest)
-        # and the distributed-setup gap. See:
-        # docs/audit-findings/FINAL_AUDIT_REPORT_2026-04-30.md
+        # Exclusions mirror the "test" job above; full suite (incl. adversarial)
+        # runs in the "adversarial-tests" job — coverage on that lane is tracked
+        # separately to avoid double-counting and keep this lane's signal clean.
         run: |
           python -m pytest tests/ --cov=core --cov=server --cov=agents --cov-report=xml \
             --ignore=tests/test_detectors \

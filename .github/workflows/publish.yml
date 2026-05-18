@@ -41,6 +41,10 @@ jobs:
     name: Build distribution
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
 
@@ -69,15 +73,56 @@ jobs:
       - name: Validate distributions
         run: twine check dist/*
 
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/*"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
 
+  sbom:
+    name: Generate SBOM (CycloneDX)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Generate Python SBOM
+        run: |
+          pip install cyclonedx-bom
+          cyclonedx-py requirements requirements.txt -o sbom-python.cdx.json
+
+      - name: Generate Node SBOM
+        run: |
+          npm ci --no-audit --no-fund
+          npx --yes @cyclonedx/cyclonedx-npm --output-file sbom-node.cdx.json
+
+      - name: Attach SBOMs to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release upload "$TAG" sbom-python.cdx.json sbom-node.cdx.json --clobber --repo "$GITHUB_REPOSITORY"
+
   publish-pypi:
     name: Publish to PyPI
-    needs: build
+    needs: [build, sbom]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

@@ -278,7 +278,7 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
         try:
             wrapper_mod.settings.shadow_mode = True
             body = _blocked_body(f"{_IP_SHADOW}1")
-            with patch("server.app.classify_blocked_intent") as mock_intent:
+            with patch("server.routes.audit.classify_blocked_intent") as mock_intent:
                 mock_intent.return_value.blocked = False
                 mock_intent.return_value.category = "none"
                 mock_intent.return_value.matched_policy = "none"
@@ -394,7 +394,7 @@ class TestHealthReadinessEndpoints(unittest.TestCase):
                 break
 
         with unittest.mock.patch(
-            "server.app.get_auth_provider"
+            "server.routes.health.get_auth_provider"
         ) as mock_provider:
             mock_prov_inst = AsyncMock()
             mock_prov_inst.authenticate.return_value = admin_user
@@ -634,7 +634,7 @@ class TestAuditEnvelopeContract(unittest.TestCase):
     def test_audit_envelope_shape_rate_limited(self) -> None:
         body = _safe_body(f"{_IP_RATE}65")
         with patch(
-            "server.app.rate_limiter.allow",
+            "server.routes.audit.rate_limiter.allow",
             new=AsyncMock(side_effect=[True] * 64 + [False]),
         ):
             for _ in range(64):
@@ -665,7 +665,7 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn = AsyncMock()
         conn.execute = AsyncMock(return_value="INSERT 0 1")
 
-        with patch("server.app._bridge_pool", _FakeAsyncPool(conn)):
+        with patch("server._bridge._bridge_pool", _FakeAsyncPool(conn)):
             status, body = _post(self.client, _safe_body(self._ip))
 
         self.assertEqual(status, 200)
@@ -680,15 +680,15 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn.execute = AsyncMock(return_value="INSERT 0 1")
 
         with (
-            patch("server.app._bridge_pool", _FakeAsyncPool(conn)),
-            patch("server.app._run_scout", return_value=(0.1, "ok")),
+            patch("server._bridge._bridge_pool", _FakeAsyncPool(conn)),
+            patch("server._helpers._run_scout", return_value=(0.1, "ok")),
             patch(
-                "server.app._run_nitpicker",
+                "server._helpers._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("server.app._run_judge", return_value=(True, "allow")),
+            patch("server._helpers._run_judge", return_value=(True, "allow")),
             patch(
-                "server.app._get_sovereign_runtime",
+                "server.routes.audit._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
@@ -711,7 +711,7 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
             "_ip": self._ip,
         }
 
-        with patch("server.app._bridge_pool", _FakeAsyncPool(conn)):
+        with patch("server._bridge._bridge_pool", _FakeAsyncPool(conn)):
             status, resp = _post(self.client, body)
 
         self.assertEqual(status, 403)
@@ -725,15 +725,15 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn.execute = AsyncMock(side_effect=RuntimeError("db unavailable"))
 
         with (
-            patch("server.app._bridge_pool", _FakeAsyncPool(conn)),
-            patch("server.app._run_scout", return_value=(0.1, "ok")),
+            patch("server._bridge._bridge_pool", _FakeAsyncPool(conn)),
+            patch("server._helpers._run_scout", return_value=(0.1, "ok")),
             patch(
-                "server.app._run_nitpicker",
+                "server._helpers._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("server.app._run_judge", return_value=(True, "allow")),
+            patch("server._helpers._run_judge", return_value=(True, "allow")),
             patch(
-                "server.app._get_sovereign_runtime",
+                "server.routes.audit._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
@@ -746,17 +746,17 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
     def test_audit_log_persist_failure_does_not_break_response(self) -> None:
         with (
             patch(
-                "server.app._persist_audit_log",
+                "server._bridge._persist_audit_log",
                 new=AsyncMock(side_effect=RuntimeError("db unavailable")),
             ),
-            patch("server.app._run_scout", return_value=(0.1, "ok")),
+            patch("server._helpers._run_scout", return_value=(0.1, "ok")),
             patch(
-                "server.app._run_nitpicker",
+                "server._helpers._run_nitpicker",
                 return_value=(False, "", None),
             ),
-            patch("server.app._run_judge", return_value=(True, "allow")),
+            patch("server._helpers._run_judge", return_value=(True, "allow")),
             patch(
-                "server.app._get_sovereign_runtime",
+                "server.routes.audit._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
@@ -769,7 +769,7 @@ class TestHostedAuditLogPersistence(unittest.TestCase):
         conn = AsyncMock()
         conn.execute = AsyncMock(return_value="INSERT 0 1")
 
-        with patch("server.app._bridge_pool", _FakeAsyncPool(conn)):
+        with patch("server._bridge._bridge_pool", _FakeAsyncPool(conn)):
             status, body = _post(self.client, _safe_body(self._ip))
 
         self.assertEqual(status, 200)
@@ -896,13 +896,13 @@ class TestObfuscationLayerBlocking(unittest.TestCase):
             return (blocked, "semantic_block", None)
 
         with (
-            patch("server.app._run_scout", return_value=(0.1, "ok")),
+            patch("server._helpers._run_scout", return_value=(0.1, "ok")),
             patch(
-                "server.app._run_nitpicker",
+                "server._helpers._run_nitpicker",
                 side_effect=nitpicker_side_effect,
             ),
-            patch("server.app._run_judge", return_value=(True, "allow")),
-            patch("server.app.classify_blocked_intent") as mock_intent,
+            patch("server._helpers._run_judge", return_value=(True, "allow")),
+            patch("server.routes.audit.classify_blocked_intent") as mock_intent,
         ):
             mock_intent.return_value.blocked = False
             mock_intent.return_value.category = "none"
@@ -927,13 +927,13 @@ class TestObfuscationLayerBlocking(unittest.TestCase):
             return (blocked, "semantic_block", None)
 
         with (
-            patch("server.app._run_scout", return_value=(0.1, "ok")),
+            patch("server._helpers._run_scout", return_value=(0.1, "ok")),
             patch(
-                "server.app._run_nitpicker",
+                "server._helpers._run_nitpicker",
                 side_effect=nitpicker_side_effect,
             ),
-            patch("server.app._run_judge", return_value=(True, "allow")),
-            patch("server.app.classify_blocked_intent") as mock_intent,
+            patch("server._helpers._run_judge", return_value=(True, "allow")),
+            patch("server.routes.audit.classify_blocked_intent") as mock_intent,
         ):
             mock_intent.return_value.blocked = False
             mock_intent.return_value.category = "none"
@@ -953,15 +953,15 @@ class TestObfuscationLayerBlocking(unittest.TestCase):
             return (blocked, "semantic_block", None)
 
         with (
-            patch("server.app._run_scout", return_value=(0.1, "ok")),
+            patch("server._helpers._run_scout", return_value=(0.1, "ok")),
             patch(
-                "server.app._run_nitpicker",
+                "server._helpers._run_nitpicker",
                 side_effect=nitpicker_side_effect,
             ),
-            patch("server.app._run_judge", return_value=(True, "allow")),
-            patch("server.app.classify_blocked_intent") as mock_intent,
+            patch("server._helpers._run_judge", return_value=(True, "allow")),
+            patch("server.routes.audit.classify_blocked_intent") as mock_intent,
             patch(
-                "server.app._get_sovereign_runtime",
+                "server.routes.audit._get_sovereign_runtime",
                 side_effect=RuntimeError("disabled-for-test"),
             ),
         ):
