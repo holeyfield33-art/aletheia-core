@@ -154,6 +154,25 @@ Use these labels on PRs for automatic release-drafter categorization:
 - Adversarial test cases are encouraged — include payloads that should be blocked and payloads that should pass.
 - Place tests in the appropriate file (`test_judge.py`, `test_nitpicker.py`, `test_enterprise.py`, `test_hardening.py`) or create a new file under `tests/` if the scope warrants it.
 
+### CI Exclusions Policy
+
+The `test` and `test-coverage` jobs in `.github/workflows/ci.yml` carry a small
+`--ignore=` list for suites that need dedicated environments (real Redis, real
+model, perf-only). Every entry on that list must:
+
+1. Have a one-line comment immediately above the ignore listing **where the
+   tests actually run** (e.g., `adversarial-tests` job, integration suite,
+   pre-release performance gate). A bare `--ignore=` with no pointer is not
+   acceptable — it lets regressions hide.
+2. Reference a tracking issue if the exclusion is a known-bad that should be
+   re-enabled later (use the GitHub issue URL in the comment).
+3. Be revisited any time the affected module is refactored. The v2.0 server
+   split introduced a 16-day undetected regression because moved attributes
+   weren't re-checked against `--ignore=`'d test files; we now run those tests
+   in a dedicated CI job and require this policy to prevent recurrence.
+
+PRs that add a new `--ignore=` without satisfying #1–#3 will be requested-for-changes.
+
 ## Security Policy
 
 If you discover a security vulnerability, **do not open a public issue**. Follow the

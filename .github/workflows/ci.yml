@@ -243,3 +243,44 @@ jobs:
           node-version: "22"
       - name: Ensure .env.example contains required variables
         run: node scripts/ci/check-env-consistency.mjs --check=env-example
+
+  install-smoke:
+    name: Public-API install smoke (wheel -> fresh venv)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build distribution
+        run: |
+          pip install --upgrade build
+          python -m build --wheel
+
+      - name: Install wheel into clean venv (outside source tree)
+        run: |
+          python -m venv /tmp/smoke-venv
+          /tmp/smoke-venv/bin/pip install --upgrade pip
+          /tmp/smoke-venv/bin/pip install dist/*.whl
+
+      - name: Import public API from a directory with no source on path
+        # cd to /tmp so Python can't pick up the in-tree packages — the wheel
+        # install is the only thing that can satisfy the imports.
+        run: |
+          cd /tmp
+          /tmp/smoke-venv/bin/python - <<'EOF'
+          import aletheia_core
+          from aletheia_core import (
+              Scout,
+              Nitpicker,
+              Judge,
+              AgentTrifectaContext,
+              evaluate_agent_trifecta,
+          )
+          assert aletheia_core.__version__, "version string missing"
+          print(f"aletheia_core {aletheia_core.__version__} — public API importable from wheel install")
+          EOF
