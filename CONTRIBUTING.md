@@ -68,7 +68,7 @@ git commit -m "deps: add <package> for <reason>"
 ```
 
 The same pattern applies to `requirements-ci.txt` (compiled from itself; minimal CI extras)
-and `requirements-detectors.txt` (compiled from itself; proximity module extras).
+and `requirements-detectors.txt` (compiled from itself; detectors module extras).
 Use exact pins (`==`) only -- the `requirements.in` file documents this rule explicitly.
 
 **CI will fail if `requirements.txt` is out of sync with `requirements.in`.** This is intentional.
@@ -78,14 +78,13 @@ Use exact pins (`==`) only -- the `requirements.in` file documents this rule exp
 1. Create a branch from `main` for your change.
 2. Make your changes. Follow the conventions below.
 3. Run the full test suite (`pytest tests/ -v --ignore=tests/test_api.py`) and ensure all tests pass.
-4. Run the full test suite (`pytest tests/ -v --ignore=tests/test_api.py`) and ensure all tests pass.
-5. Commit with a [conventional commit](https://www.conventionalcommits.org/) message:
+4. Commit with a [conventional commit](https://www.conventionalcommits.org/) message:
    - `feat:` for new features
    - `fix:` for bug fixes
    - `docs:` for documentation
    - `test:` for test additions or changes
    - `chore:` for maintenance tasks
-6. Open a pull request against `main`.
+5. Open a pull request against `main`.
 
 ### Developer Certificate of Origin (DCO)
 
@@ -106,7 +105,7 @@ Pre-commit hooks run automatically on `git commit`. They enforce:
 - Trailing whitespace and end-of-file fixes
 - YAML/JSON syntax validation
 - Private key detection
-- Version consistency across `pyproject.toml`, `main.py`, `bridge/fastapi_wrapper.py`, and `package.json`
+- Version consistency across `pyproject.toml`, `main.py`, `server/app.py`, and `package.json`
 
 If a hook modifies files (e.g. ruff auto-fix), re-stage and commit again.
 
