@@ -77,6 +77,8 @@ jobs:
         run: |
           python scripts/api_audit_gate.py --verbose
         env:
+          ENVIRONMENT: test
+          ALETHEIA_AUTH_DISABLED: "true"
           ALETHEIA_LOG_LEVEL: WARNING
 
       - name: Run detectors tests
@@ -123,7 +125,7 @@ jobs:
         env:
           ALETHEIA_MODE: active
           ALETHEIA_AUTH_DISABLED: "true"
-          ALETHEIA_RECEIPT_SECRET: ci-adversarial-receipt-secret-32c
+          ALETHEIA_RECEIPT_SECRET: ci-adversarial-receipt-secret-32c # pragma: allowlist secret
           ALETHEIA_DISABLE_TEST_STUBS: "true"
           ALETHEIA_LOG_LEVEL: WARNING
         run: |

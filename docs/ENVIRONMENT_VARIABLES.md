@@ -36,6 +36,7 @@ Status meanings:
 | Variable | Status | Purpose |
 | --- | --- | --- |
 | ALETHEIA_EMBEDDING_MODEL | Optional | Embedding model id. |
+| ALETHEIA_EMBEDDING_MODEL_REVISION | Optional | Pins embedding model revision/commit for deterministic model loading. |
 | ALETHEIA_INTENT_THRESHOLD | Optional | Judge semantic threshold. |
 | ALETHEIA_GREY_ZONE_LOWER | Optional | Grey-zone lower bound. |
 | ALETHEIA_NITPICKER_SIMILARITY_THRESHOLD | Optional | Nitpicker threshold. |
@@ -112,6 +113,7 @@ Status meanings:
 | ALETHEIA_RECEIPT_PUBLIC_KEY | Optional | Inline Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_PUBLIC_KEY_PATH | Optional | File path to Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_KEY_ID | Optional | Expected 16-char receipt key_id; startup/runtime calls fail if resolved keypair does not match. |
+| ALETHEIA_REQUIRE_ED25519_RECEIPTS | Optional | Enforces Ed25519-only receipt verification path (legacy HMAC receipts rejected). |
 | SIGNING_SECRET | Conditionally required | Required by CLI startup check (`main.py`) in production mode. |
 
 ## Semantic / Qdrant
@@ -261,6 +263,7 @@ These are present outside runtime app code (tests/workflows/scripts):
 - ALETHEIA_API_URL
 - ALETHEIA_AUTH_HEADER
 - ALETHEIA_DISABLE_TEST_STUBS
+- PYTEST_CURRENT_TEST
 - ALETHEIA_TRIFECTA_URL
 - ALETHEIA_SMOKE_TIMEOUT
 - ALETHEIA_TEST_SECRET
