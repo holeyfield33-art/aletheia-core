@@ -2,12 +2,12 @@
 
 ## Supported Versions
 
-| Version | Supported | EOL         |
-| ------- | --------- | ----------- |
-| 1.9.x   | ✅ Yes    | May 2027    |
-| 1.8.x   | ✅ Yes    | May 2026    |
-| 1.7.x   | ⚠️ Limited| Nov 2025    |
-| < 1.7.0 | ❌ No     | N/A         |
+| Version | Supported  | EOL         |
+| ------- | ---------- | ----------- |
+| 2.0.x   | ✅ Yes     | May 2028    |
+| 1.9.x   | ✅ Yes     | May 2027    |
+| 1.8.x   | ⚠️ Limited | May 2026    |
+| < 1.8.0 | ❌ No      | N/A         |
 
 ## Reporting a Vulnerability
 

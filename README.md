@@ -100,21 +100,6 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
 ---
 
-## Security Status
-
-| Metric                         | Value                                       |
-| ------------------------------ | ------------------------------------------- |
-| Audit status                   | **PASS**                                    |
-| Tests passing                  | See live CI badge (main branch)             |
-| Blocked semantic patterns      | 24 (static) + Qdrant extended               |
-| Semantic alias phrases (Judge) | 60+ across 6 restricted categories          |
-| Core coverage                  | 89%                                         |
-| SAST findings                  | 0                                           |
-| Hardcoded secrets              | 0                                           |
-| Dependency hash pinning        | Enforced (`--require-hashes` in Dockerfile) |
-
----
-
 ## Quick Start
 
 ### Try the live demo (no install)
@@ -577,11 +562,11 @@ The following controls are implemented and tested in the current codebase:
 | PII redaction                | `core/audit.py` — email, phone, SSN, and credit card patterns replaced with `[REDACTED:<type>:<hash>]` before writing to audit logs. Always enabled (cannot be disabled).                                      | `test_pii_redaction.py`              |
 | Config ownership enforcement | `core/config.py` — rejects config files writable by non-owners on shared hosts.                                                                                                                                | `test_config_ownership.py`           |
 | Secret rotation              | `core/secret_rotation.py` — hot-rotate secrets via `POST /v1/rotate` (admin-only, 10s cooldown) or `kill -SIGUSR1`.                                                                                            | `test_core.py`                       |
-| Input hardening              | `bridge/utils.py` — NFKC normalization, zero-width character strip, recursive Base64 decode (up to 5 layers with 10× size bomb protection), URL percent-encoding decode.                                       | `test_hardening.py`                  |
+| Input hardening              | `core/text_normalization.py`, `core/canonicalization.py` — NFKC normalization, zero-width character strip, recursive Base64 decode (up to 5 layers with 10× size bomb protection), URL percent-encoding decode.                                       | `test_hardening.py`                  |
 | Action sandbox               | `core/sandbox.py` — regex-based pattern scanner blocks subprocess, socket, eval, filesystem destruction, and privilege escalation patterns. Unicode whitespace normalized before matching.                     | `test_hardening.py`                  |
 | Rate limiting                | `core/rate_limit.py` — sliding-window per-IP rate limiting. Upstash Redis backend or in-memory fallback. 50,000 IP cap with LRU eviction. Circuit breaker with jitter on recovery.                             | `test_rate_limit_extended.py`        |
-| Timing-safe auth             | `bridge/fastapi_wrapper.py` — `secrets.compare_digest` for all key comparisons; all keys evaluated before returning.                                                                                           | `test_hardening.py`                  |
-| Proxy depth validation       | `bridge/fastapi_wrapper.py` — `ALETHEIA_TRUSTED_PROXY_DEPTH` validated to 0–5 range; XFF ignored when depth=0.                                                                                                 | `test_security_hardening_v2.py`      |
+| Timing-safe auth             | `server/middleware.py` — `secrets.compare_digest` for all key comparisons; all keys evaluated before returning.                                                                                                | `test_hardening.py`                  |
+| Proxy depth validation       | `server/_helpers.py` — `ALETHEIA_TRUSTED_PROXY_DEPTH` validated to 0–5 range; XFF ignored when depth=0.                                                                                                        | `test_security_hardening_v2.py`      |
 | Security headers             | FastAPI middleware and `vercel.json` — CSP, Permissions-Policy, X-Frame-Options, X-Content-Type-Options, Cache-Control.                                                                                        | `test_hardening.py`                  |
 | ReDoS protection             | Sandbox patterns use word boundaries and fixed anchors; regex input length bounded by Pydantic `max_length` validators.                                                                                        | `test_hardening.py`                  |
 | Container hardening          | `Dockerfile` — non-root user, `HEALTHCHECK`, `--timeout-keep-alive`, restrictive `/app/data` permissions, `--require-hashes` for dependency pinning.                                                           | Manual verification                  |
