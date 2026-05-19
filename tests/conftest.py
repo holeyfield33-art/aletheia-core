@@ -29,7 +29,19 @@ os.environ.setdefault("ALETHEIA_RECEIPT_SECRET", "test-receipt-secret-32-charact
 # receipts through the endpoint would otherwise get HMAC receipts that the
 # verifier refuses. Generating at module load (once per session) keeps test
 # startup fast and matches how a real deployment supplies these.
-if "ALETHEIA_RECEIPT_PRIVATE_KEY" not in os.environ:
+#
+# Guard against three skip conditions: (1) the env var was actually set by a
+# parent process; (2) a *_PATH variant points at an existing key file; (3)
+# the var is defined but empty (common in CI matrix configs) — that's the same
+# as unset for our purposes.
+def _has_test_ed25519_keys() -> bool:
+    if os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY", "").strip():
+        return True
+    path = os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", "").strip()
+    return bool(path) and os.path.isfile(path)
+
+
+if not _has_test_ed25519_keys():
     _test_priv = Ed25519PrivateKey.generate()
     _test_pub = _test_priv.public_key()
     os.environ["ALETHEIA_RECEIPT_PRIVATE_KEY"] = _test_priv.private_bytes(

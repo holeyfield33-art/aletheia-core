@@ -420,7 +420,16 @@ def test_tamper_key_id_fails_ed25519(monkeypatch) -> None:
 
 
 def test_hmac_wrong_secret_fails(monkeypatch) -> None:
-    """HMAC receipt built with one secret must fail when verified with a different secret."""
+    """HMAC receipt built with one secret must fail when verified with a different secret.
+
+    Force the legacy HMAC verification path — otherwise the production default
+    (require_ed25519_receipts=True) rejects the receipt at the algorithm-
+    downgrade check before the secret comparison ever runs, making the test
+    pass for the wrong reason.
+    """
+    from core.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "require_ed25519_receipts", False)
     _clear_ed25519_env(monkeypatch)
     monkeypatch.setenv(
         "ALETHEIA_RECEIPT_SECRET", "secret-a"

@@ -248,12 +248,23 @@ class TestProductionConfigValidation(unittest.TestCase):
     """validate_production_config() catches missing prod requirements."""
 
     def test_missing_receipt_secret(self):
+        # With no signing material at all (no HMAC secret and no Ed25519
+        # keys), validate_production_config() should flag the gap. Pop every
+        # form of signing material — including the Ed25519 keypair that
+        # tests/conftest.py provisions session-wide.
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("ALETHEIA_RECEIPT_SECRET", None)
+            os.environ.pop("ALETHEIA_RECEIPT_PRIVATE_KEY", None)
+            os.environ.pop("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", None)
+            os.environ.pop("ALETHEIA_RECEIPT_PUBLIC_KEY", None)
+            os.environ.pop("ALETHEIA_RECEIPT_PUBLIC_KEY_PATH", None)
             from core.config import validate_production_config
 
             issues = validate_production_config()
-            self.assertTrue(any("RECEIPT_SECRET" in i for i in issues))
+            self.assertTrue(
+                any("signing material" in i.lower() for i in issues),
+                f"expected signing-material issue, got: {issues}",
+            )
 
     @patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": "valid-secret-here"})
     def test_missing_redis_flagged(self):

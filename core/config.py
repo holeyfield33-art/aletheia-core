@@ -402,10 +402,26 @@ def validate_production_config() -> list[str]:
     when ``ENVIRONMENT=production`` and refuses to start if non-empty.
     """
     issues: list[str] = []
-    if not os.getenv("ALETHEIA_RECEIPT_SECRET"):
+    has_ed25519_priv = bool(
+        os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY", "").strip()
+        or os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", "").strip()
+    )
+    has_hmac_secret = bool(os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip())
+    if not has_ed25519_priv and not has_hmac_secret:
         issues.append(
-            "ALETHEIA_RECEIPT_SECRET is required in production "
-            "(unsigned receipts break audit trail integrity)"
+            "Receipt signing material is required in production. Configure "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY (PEM, Ed25519, preferred) or "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY_PATH, or set ALETHEIA_RECEIPT_SECRET "
+            "(legacy HMAC) — unsigned receipts break audit trail integrity."
+        )
+    # Use module-level settings (not a fresh .load()) so monkeypatched
+    # overrides flow through correctly under test.
+    if settings.require_ed25519_receipts and not has_ed25519_priv:
+        issues.append(
+            "require_ed25519_receipts=True but no Ed25519 signing key is "
+            "configured. Verifier would reject every minted receipt. "
+            "Configure ALETHEIA_RECEIPT_PRIVATE_KEY/_PATH or set "
+            "ALETHEIA_REQUIRE_ED25519_RECEIPTS=false during HMAC migration."
         )
     # Require durable rate-limiting backend
     has_redis = bool(os.getenv("REDIS_URL") or os.getenv("ALETHEIA_REDIS_URL"))
