@@ -9,6 +9,9 @@ from typing import Any, Literal
 
 _logger = logging.getLogger("aletheia.agent_trifecta")
 
+Decision = Literal["PROCEED", "REVIEW", "DENIED"]
+ThreatLevel = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+
 PROTECTED_PATHS = frozenset(
     [
         ".env",
@@ -47,8 +50,8 @@ class AgentTrifectaContext:
 
 @dataclass
 class AgentTrifectaDecision:
-    decision: Literal["PROCEED", "REVIEW", "DENIED"]
-    threat_level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    decision: Decision
+    threat_level: ThreatLevel
     reasons: list[str]
     summary: str
 
@@ -182,11 +185,11 @@ def evaluate_agent_trifecta(ctx: AgentTrifectaContext) -> AgentTrifectaDecision:
 
     denied_reasons: list[str] = []
     review_reasons: list[str] = []
-    severity = "LOW"
+    severity: ThreatLevel = "LOW"
 
-    def _bump(level: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]) -> None:
+    def _bump(level: ThreatLevel) -> None:
         nonlocal severity
-        order = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+        order: dict[ThreatLevel, int] = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
         if order[level] > order[severity]:
             severity = level
 
@@ -284,6 +287,7 @@ def evaluate_agent_trifecta(ctx: AgentTrifectaContext) -> AgentTrifectaDecision:
         denied_reasons.append("FULL_CAPABILITY_SATURATION")
         _bump("CRITICAL")
 
+    decision: Decision
     if denied_reasons:
         reasons = denied_reasons + [
             r for r in review_reasons if r not in denied_reasons

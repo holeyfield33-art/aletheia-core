@@ -17,7 +17,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from server.app import app, scout
+from server.app import app
+from server._state import scout
 from core.audit import verify_receipt
 from core.rate_limit import rate_limiter
 

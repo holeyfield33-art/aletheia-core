@@ -27,12 +27,18 @@ from core.embeddings import warm_up
 from core.logging import configure_logging
 from core.rate_limit import rate_limiter as _rate_limiter
 from server._bridge import _close_bridge_pool, _init_bridge_pool
+from server._deps import _check_api_key
 from server._helpers import (
     _demo_key_health_signal,
+    _discretise_threat,
+    _get_client_ip,
+    _on_startup,
+    _sanitise_reason,
     _seed_demo_key,
     _startup_checks,
 )
-from server._state import nitpicker
+from server.models import AuditRequest
+from server._state import judge, nitpicker, scout
 from server.middleware import (
     add_security_and_rate_limit_headers,
     enterprise_auth_middleware,
