@@ -46,7 +46,7 @@ async def check_redis_health() -> bool:
 
         pool = await get_redis_pool()
         if pool is not None:
-            await pool.ping()  # type: ignore[union-attr]
+            await pool.ping()  # type: ignore[attr-defined]
         return True
     except Exception:
         return False

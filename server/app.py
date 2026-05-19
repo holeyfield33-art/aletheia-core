@@ -8,6 +8,7 @@ Bridge pool management lives in server/_bridge.py.
 Helper functions live in server/_helpers.py.
 FastAPI Depends() live in server/_deps.py.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -24,25 +25,19 @@ from fastapi.responses import JSONResponse
 from core.config import settings
 from core.embeddings import warm_up
 from core.logging import configure_logging
+from core.rate_limit import rate_limiter as _rate_limiter
 from server._bridge import _close_bridge_pool, _init_bridge_pool
 from server._helpers import (
     _demo_key_health_signal,
-    _on_startup,
-    _resolve_demo_api_key,
-    _sanitise_reason,
     _seed_demo_key,
     _startup_checks,
-    _get_client_ip,
-    _discretise_threat,
 )
-from server._state import nitpicker, scout, judge
-from server._deps import _check_api_key
+from server._state import nitpicker
 from server.middleware import (
     add_security_and_rate_limit_headers,
     enterprise_auth_middleware,
     internal_secret_guard,
 )
-from server.models import AuditRequest
 from server.routes.audit import router as audit_router
 from server.routes.health import router as health_router
 from server.routes.keys import router as keys_router
@@ -53,8 +48,7 @@ import server._app_state as _app_state
 configure_logging()
 _logger = logging.getLogger("aletheia.api")
 
-# Re-export for backward compatibility with tests and external callers.
-from core.rate_limit import rate_limiter  # noqa: E402
+rate_limiter = _rate_limiter
 
 
 @asynccontextmanager
@@ -100,7 +94,7 @@ async def _lifespan(application: FastAPI):
         pool = await get_redis_pool()
         if pool is not None:
             try:
-                await pool.ping()  # type: ignore[union-attr]
+                await pool.ping()  # type: ignore[attr-defined]
                 _logger.info("Redis pool: connected and healthy")
             except Exception as exc:
                 _logger.error("Redis pool: ping failed — %s", exc)
@@ -130,7 +124,10 @@ async def _lifespan(application: FastAPI):
             from sentence_transformers import SentenceTransformer
 
             revision = settings.embedding_model_revision or None
-            if revision is None and os.getenv("ENVIRONMENT", "").lower() == "production":
+            if (
+                revision is None
+                and os.getenv("ENVIRONMENT", "").lower() == "production"
+            ):
                 _logger.warning(
                     "Embedding model %s is not pinned (ALETHEIA_EMBEDDING_MODEL_REVISION "
                     "unset). Hugging Face will serve the current 'main' ref; a "
