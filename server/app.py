@@ -27,12 +27,18 @@ from core.embeddings import warm_up
 from core.logging import configure_logging
 from core.rate_limit import rate_limiter as _rate_limiter
 from server._bridge import _close_bridge_pool, _init_bridge_pool
+from server._deps import _check_api_key as _check_api_key_dep
 from server._helpers import (
+    _discretise_threat as _discretise_threat_helper,
     _demo_key_health_signal,
+    _get_client_ip as _get_client_ip_helper,
+    _on_startup as _on_startup_helper,
+    _resolve_demo_api_key as _resolve_demo_api_key_helper,
+    _sanitise_reason as _sanitise_reason_helper,
     _seed_demo_key,
     _startup_checks,
 )
-from server._state import nitpicker
+from server._state import judge as _judge, nitpicker, scout as _scout
 from server.middleware import (
     add_security_and_rate_limit_headers,
     enterprise_auth_middleware,
@@ -48,7 +54,16 @@ import server._app_state as _app_state
 configure_logging()
 _logger = logging.getLogger("aletheia.api")
 
+# Backward-compatible symbol exports used by tests and callers.
 rate_limiter = _rate_limiter
+scout = _scout
+judge = _judge
+_check_api_key = _check_api_key_dep
+_get_client_ip = _get_client_ip_helper
+_discretise_threat = _discretise_threat_helper
+_sanitise_reason = _sanitise_reason_helper
+_resolve_demo_api_key = _resolve_demo_api_key_helper
+_on_startup = _on_startup_helper
 
 
 @asynccontextmanager

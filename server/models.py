@@ -1,9 +1,12 @@
 """Pydantic request and response models for the Aletheia API server."""
+
 from __future__ import annotations
 
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from core.agent_trifecta import Decision, ThreatLevel
 
 
 class CreateKeyRequest(BaseModel):
@@ -43,13 +46,21 @@ class AgentTrifectaAuditRequest(BaseModel):
 
 
 class AgentTrifectaMetadata(BaseModel):
-    threat_level: str
+    threat_level: ThreatLevel
     request_id: str
     client_id: str
 
 
+# The HTTP audit endpoint can emit verdicts beyond the trifecta algorithm's
+# own three — the route runs the rate limiter, sandbox, and exception handler
+# in front of the trifecta, each of which short-circuits with its own
+# response code. Keep the trifecta Literal tight; widen here at the API
+# boundary.
+ApiDecision = Decision | Literal["ERROR", "RATE_LIMITED", "SANDBOX_BLOCKED"]
+
+
 class AgentTrifectaAuditResponse(BaseModel):
-    decision: str
+    decision: ApiDecision
     metadata: AgentTrifectaMetadata
     reasons: list[str]
     summary: str
