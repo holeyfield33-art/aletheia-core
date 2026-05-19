@@ -9,6 +9,8 @@ from unittest.mock import patch
 import numpy as np
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 # Auth is disabled for tests by default — existing tests don't supply API keys.
 # Individual test classes can override this via patch.dict.
@@ -17,8 +19,40 @@ os.environ.setdefault("ALETHEIA_AUTH_DISABLED", "true")
 # Run tests in active mode by default so DENIED behavior is actually enforced.
 os.environ.setdefault("ALETHEIA_MODE", "active")
 
-# Active mode requires a receipt secret for startup checks.
+# Active mode requires a receipt secret for startup checks; the secret is
+# also retained for tests that explicitly opt back into the legacy HMAC path
+# via `monkeypatch.setattr(settings, "require_ed25519_receipts", False)`.
 os.environ.setdefault("ALETHEIA_RECEIPT_SECRET", "test-receipt-secret-32-characters")
+
+# Provision an Ed25519 keypair for the test session. Required because the
+# production default is now `require_ed25519_receipts=True` — tests that build
+# receipts through the endpoint would otherwise get HMAC receipts that the
+# verifier refuses. Generating at module load (once per session) keeps test
+# startup fast and matches how a real deployment supplies these.
+#
+# Guard against three skip conditions: (1) the env var was actually set by a
+# parent process; (2) a *_PATH variant points at an existing key file; (3)
+# the var is defined but empty (common in CI matrix configs) — that's the same
+# as unset for our purposes.
+def _has_test_ed25519_keys() -> bool:
+    if os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY", "").strip():
+        return True
+    path = os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", "").strip()
+    return bool(path) and os.path.isfile(path)
+
+
+if not _has_test_ed25519_keys():
+    _test_priv = Ed25519PrivateKey.generate()
+    _test_pub = _test_priv.public_key()
+    os.environ["ALETHEIA_RECEIPT_PRIVATE_KEY"] = _test_priv.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
+    os.environ["ALETHEIA_RECEIPT_PUBLIC_KEY"] = _test_pub.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
 
 
 @pytest.fixture()

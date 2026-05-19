@@ -148,10 +148,12 @@ class AletheiaSettings:
     fips_mode: bool = False  # Restrict to FIPS-approved crypto
 
     # --- Receipt verification policy ---
-    # When True, verify_receipt_or_raise() refuses HMAC-SHA256 receipts and
-    # only accepts Ed25519. Closes the algorithm-downgrade path on deployments
-    # that still have ALETHEIA_RECEIPT_SECRET set during migration.
-    require_ed25519_receipts: bool = False
+    # When True (the secure default), verify_receipt_or_raise() refuses
+    # HMAC-SHA256 receipts and only accepts Ed25519. Closes the algorithm-
+    # downgrade path on deployments that still have ALETHEIA_RECEIPT_SECRET
+    # set during migration. Operators mid-cutover can opt back into legacy
+    # HMAC verification by setting ALETHEIA_REQUIRE_ED25519_RECEIPTS=false.
+    require_ed25519_receipts: bool = True
 
     # --- Embedding model integrity ---
     # Optional Hugging Face revision (commit SHA or tag) to pin the
@@ -267,7 +269,7 @@ class AletheiaSettings:
         defaults.database_backend = "sqlite"
         defaults.database_url = ""
         defaults.fips_mode = False
-        defaults.require_ed25519_receipts = False
+        defaults.require_ed25519_receipts = True
         defaults.embedding_model_revision = ""
         return cls(
             embedding_model=_get("embedding_model", defaults.embedding_model),
@@ -400,10 +402,26 @@ def validate_production_config() -> list[str]:
     when ``ENVIRONMENT=production`` and refuses to start if non-empty.
     """
     issues: list[str] = []
-    if not os.getenv("ALETHEIA_RECEIPT_SECRET"):
+    has_ed25519_priv = bool(
+        os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY", "").strip()
+        or os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", "").strip()
+    )
+    has_hmac_secret = bool(os.getenv("ALETHEIA_RECEIPT_SECRET", "").strip())
+    if not has_ed25519_priv and not has_hmac_secret:
         issues.append(
-            "ALETHEIA_RECEIPT_SECRET is required in production "
-            "(unsigned receipts break audit trail integrity)"
+            "Receipt signing material is required in production. Configure "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY (PEM, Ed25519, preferred) or "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY_PATH, or set ALETHEIA_RECEIPT_SECRET "
+            "(legacy HMAC) — unsigned receipts break audit trail integrity."
+        )
+    # Use module-level settings (not a fresh .load()) so monkeypatched
+    # overrides flow through correctly under test.
+    if settings.require_ed25519_receipts and not has_ed25519_priv:
+        issues.append(
+            "require_ed25519_receipts=True but no Ed25519 signing key is "
+            "configured. Verifier would reject every minted receipt. "
+            "Configure ALETHEIA_RECEIPT_PRIVATE_KEY/_PATH or set "
+            "ALETHEIA_REQUIRE_ED25519_RECEIPTS=false during HMAC migration."
         )
     # Require durable rate-limiting backend
     has_redis = bool(os.getenv("REDIS_URL") or os.getenv("ALETHEIA_REDIS_URL"))

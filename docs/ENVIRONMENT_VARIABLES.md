@@ -113,7 +113,7 @@ Status meanings:
 | ALETHEIA_RECEIPT_PUBLIC_KEY | Optional | Inline Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_PUBLIC_KEY_PATH | Optional | File path to Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_KEY_ID | Optional | Expected 16-char receipt key_id; startup/runtime calls fail if resolved keypair does not match. |
-| ALETHEIA_REQUIRE_ED25519_RECEIPTS | Optional | Enforces Ed25519-only receipt verification path (legacy HMAC receipts rejected). |
+| ALETHEIA_REQUIRE_ED25519_RECEIPTS | Optional (default `true` since v2.0.0) | Enforces Ed25519-only receipt verification path (legacy HMAC receipts rejected). Set to `false` only during HMAC→Ed25519 migration to accept in-flight legacy receipts; plan to remove after the cutover. |
 | SIGNING_SECRET | Conditionally required | Required by CLI startup check (`main.py`) in production mode. |
 
 ## Semantic / Qdrant

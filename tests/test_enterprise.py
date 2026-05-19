@@ -30,11 +30,25 @@ class TestAuditLogging(unittest.TestCase):
         self.assertIn("policy_hash", record["receipt"])
 
     def test_tmr_receipt_signature_stable(self) -> None:
-        """Same inputs produce the same HMAC signature."""
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
+        """Dev-mode receipts share the literal UNSIGNED_DEV_MODE marker.
+
+        With keys present (HMAC or Ed25519), receipt-internal nonces and
+        timestamps make signatures vary per invocation by design; the
+        equality-of-signatures property only holds in unsigned dev mode.
+        """
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_SECRET": "",
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": "",
+            },
+            clear=False,
+        ):
             r1 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
             r2 = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
             self.assertEqual(r1["signature"], r2["signature"])
+            self.assertEqual(r1["signature"], "UNSIGNED_DEV_MODE")
 
     def test_tmr_receipt_changes_with_different_decision(self) -> None:
         old_env = os.environ.get("ALETHEIA_RECEIPT_SECRET")

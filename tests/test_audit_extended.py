@@ -399,7 +399,17 @@ class TestTMRReceiptEdgeCases(unittest.TestCase):
         self.assertIn("issued_at", receipt)
 
     def test_dev_mode_receipt_contains_warning(self) -> None:
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
+        # Dev mode = no signing material. Clear both HMAC and Ed25519 env
+        # vars (conftest provisions Ed25519 by default).
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_SECRET": "",
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": "",
+            },
+            clear=False,
+        ):
             from core.audit import build_tmr_receipt
 
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc")
@@ -407,8 +417,16 @@ class TestTMRReceiptEdgeCases(unittest.TestCase):
         self.assertEqual(receipt["signature"], "UNSIGNED_DEV_MODE")
 
     def test_signed_receipt_has_64_char_hex_signature(self) -> None:
+        # Force legacy HMAC path by clearing the Ed25519 keys conftest sets.
+        # The 64-char hex assertion is HMAC-SHA256-specific (Ed25519 sigs are 128 hex).
         with patch.dict(
-            os.environ, {"ALETHEIA_RECEIPT_SECRET": "my-secret-key"}, clear=False
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_SECRET": "my-secret-key",
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": "",
+            },
+            clear=False,
         ):
             from core.audit import build_tmr_receipt
 

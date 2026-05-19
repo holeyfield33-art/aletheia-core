@@ -44,6 +44,7 @@ from server.middleware import (
     enterprise_auth_middleware,
     internal_secret_guard,
 )
+from server.models import AuditRequest
 from server.routes.audit import router as audit_router
 from server.routes.health import router as health_router
 from server.routes.keys import router as keys_router
