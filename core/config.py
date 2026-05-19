@@ -148,10 +148,12 @@ class AletheiaSettings:
     fips_mode: bool = False  # Restrict to FIPS-approved crypto
 
     # --- Receipt verification policy ---
-    # When True, verify_receipt_or_raise() refuses HMAC-SHA256 receipts and
-    # only accepts Ed25519. Closes the algorithm-downgrade path on deployments
-    # that still have ALETHEIA_RECEIPT_SECRET set during migration.
-    require_ed25519_receipts: bool = False
+    # When True (the secure default), verify_receipt_or_raise() refuses
+    # HMAC-SHA256 receipts and only accepts Ed25519. Closes the algorithm-
+    # downgrade path on deployments that still have ALETHEIA_RECEIPT_SECRET
+    # set during migration. Operators mid-cutover can opt back into legacy
+    # HMAC verification by setting ALETHEIA_REQUIRE_ED25519_RECEIPTS=false.
+    require_ed25519_receipts: bool = True
 
     # --- Embedding model integrity ---
     # Optional Hugging Face revision (commit SHA or tag) to pin the
@@ -267,7 +269,7 @@ class AletheiaSettings:
         defaults.database_backend = "sqlite"
         defaults.database_url = ""
         defaults.fips_mode = False
-        defaults.require_ed25519_receipts = False
+        defaults.require_ed25519_receipts = True
         defaults.embedding_model_revision = ""
         return cls(
             embedding_model=_get("embedding_model", defaults.embedding_model),

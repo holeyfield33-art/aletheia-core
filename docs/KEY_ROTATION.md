@@ -148,7 +148,7 @@ restarting the process.
 | Receipt signing (Ed25519) | `ALETHEIA_RECEIPT_PRIVATE_KEY` or `ALETHEIA_RECEIPT_PRIVATE_KEY_PATH` | Signs all new audit receipts |
 | Receipt verify/disclosure key | `ALETHEIA_RECEIPT_PUBLIC_KEY` or `ALETHEIA_RECEIPT_PUBLIC_KEY_PATH` | Verifies/discloses receipt signatures |
 | Receipt key ID guard | `ALETHEIA_RECEIPT_KEY_ID` | Optional runtime assertion that resolved receipt keypair matches expected key_id |
-| Legacy receipt compatibility | `ALETHEIA_RECEIPT_SECRET` | Startup guard and verification of older HMAC receipts |
+| Legacy receipt compatibility | `ALETHEIA_RECEIPT_SECRET` (+ `ALETHEIA_REQUIRE_ED25519_RECEIPTS=false` opt-out) | Startup guard and verification of older HMAC receipts. **Since v2.0.0, HMAC receipts are rejected by default**; set `ALETHEIA_REQUIRE_ED25519_RECEIPTS=false` during the migration window to accept in-flight legacy receipts. Remove both env vars once all pre-migration receipts have aged out. |
 | Alias salt | `ALETHEIA_ALIAS_SALT` | Daily alias bank rotation seed |
 | Rotation salt | `ALETHEIA_ROTATION_SALT` | Nitpicker mode rotation seed |
 | API key salt | `ALETHEIA_KEY_SALT` | API key hashing salt |

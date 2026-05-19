@@ -104,6 +104,12 @@ def test_ed25519_tamper_detection(monkeypatch) -> None:
 
 
 def test_hmac_backward_compat_path(monkeypatch) -> None:
+    # Explicitly exercise the legacy HMAC verification path: the production
+    # default rejects HMAC receipts, so opt back in for this backward-compat
+    # test only.
+    from core.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "require_ed25519_receipts", False)
     _clear_ed25519_env(monkeypatch)
     monkeypatch.setenv("ALETHEIA_RECEIPT_SECRET", "legacy-secret")
 
@@ -125,6 +131,12 @@ def test_hmac_backward_compat_path(monkeypatch) -> None:
 
 
 def test_pre_migration_receipt_still_verifies(monkeypatch) -> None:
+    # Explicitly exercise the legacy HMAC verification path under the v2.0.0
+    # opt-out (require_ed25519_receipts=False). The production default
+    # rejects HMAC receipts; this test confirms the opt-out still works.
+    from core.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "require_ed25519_receipts", False)
     _clear_ed25519_env(monkeypatch)
     secret = "legacy-secret"  # pragma: allowlist secret
     monkeypatch.setenv("ALETHEIA_RECEIPT_SECRET", secret)

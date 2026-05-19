@@ -250,7 +250,17 @@ class TestReceiptSigning(unittest.TestCase):
     """Receipt must use real secret, not public key."""
 
     def test_dev_mode_when_no_secret(self):
-        with patch.dict(os.environ, {"ALETHEIA_RECEIPT_SECRET": ""}, clear=False):
+        # Dev mode = no signing material available. Clear both HMAC and
+        # Ed25519 env vars (conftest provisions Ed25519 keys by default).
+        with patch.dict(
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_SECRET": "",
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": "",
+            },
+            clear=False,
+        ):
             from core.audit import build_tmr_receipt
 
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
@@ -258,14 +268,23 @@ class TestReceiptSigning(unittest.TestCase):
             assert "warning" in receipt
 
     def test_signed_when_secret_set(self):
+        # Force the legacy HMAC code path by clearing the Ed25519 keys that
+        # conftest now provides — keeps the test's original intent of
+        # exercising the HMAC sign-when-secret-set branch.
         with patch.dict(
-            os.environ, {"ALETHEIA_RECEIPT_SECRET": "test-secret-key"}, clear=False
+            os.environ,
+            {
+                "ALETHEIA_RECEIPT_SECRET": "test-secret-key",
+                "ALETHEIA_RECEIPT_PRIVATE_KEY": "",
+                "ALETHEIA_RECEIPT_PUBLIC_KEY": "",
+            },
+            clear=False,
         ):
             from core.audit import build_tmr_receipt
 
             receipt = build_tmr_receipt(decision="PROCEED", policy_hash="abc123")
             assert receipt["signature"] != "UNSIGNED_DEV_MODE"
-            assert len(receipt["signature"]) == 64  # SHA-256 hex
+            assert len(receipt["signature"]) == 64  # SHA-256 hex (HMAC path)
 
     def test_different_decisions_different_signatures(self):
         with patch.dict(
