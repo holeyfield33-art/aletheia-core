@@ -41,14 +41,17 @@ dependencies = [
     "pydantic>=2.0.0",
     "python-dotenv>=1.2.2",
     "cryptography>=46.0.7",
-    "sentence-transformers>=3.0.0",
     "confusable-homoglyphs>=3.0.0",
-    "torch>=2.0.0",
     "pyyaml>=6.0",
     "numpy>=1.24",
     "scipy>=1.10",
     "click>=8.0",
     "asyncpg>=0.30.0",
+    # fastembed is the ONNX-runtime embedding backend used by core/model_loader.py
+    # — keeps base install lean (no torch/CUDA) while still providing semantic
+    # similarity scoring. The optional [ml] extra adds torch + sentence-transformers
+    # for users who want the original SentenceTransformer path.
+    "fastembed>=0.8.0",
 ]
 
 [project.urls]
@@ -65,6 +68,15 @@ aletheia-audit = "main:run_aletheia_audit"
 include = ["aletheia_core*", "agents*", "server*", "manifest*", "core*", "detectors*", "crypto*", "guards*"]
 
 [project.optional-dependencies]
+# Heavy semantic-detection stack. Base install no longer pulls torch +
+# sentence-transformers (~multi-GB of CUDA wheels); install [ml] for the
+# real embedding model used by Nitpicker's semantic similarity layer.
+# Without [ml], the lifespan logs a warning and the server runs in
+# semantic-degraded mode (Scout + Judge + static patterns still work).
+ml = [
+    "torch>=2.0.0",
+    "sentence-transformers>=3.0.0",
+]
 detectors = [
     "httpx>=0.24.0",
 ]

@@ -261,9 +261,9 @@ jobs:
           python-version: "3.12"
 
       - name: Cache pip
-        # The wheel install pulls torch + sentence-transformers + their CUDA
-        # deps from PyPI; without this cache cold runners spend 5-8 minutes
-        # just downloading, occasionally hitting the 15-minute timeout.
+        # Base wheel deps are lean (~50 MB) since torch + sentence-transformers
+        # moved to the [ml] extra. Cache pip anyway — fastembed/onnxruntime are
+        # still ~100 MB and worth caching.
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/pip
@@ -283,6 +283,18 @@ jobs:
           /tmp/smoke-venv/bin/pip install --upgrade pip
           /tmp/smoke-venv/bin/pip install dist/*.whl
 
+      - name: Assert lean install — torch/sentence-transformers NOT pulled
+        # Guard against accidental re-promotion of the [ml] extras back into
+        # base deps. If this fails the new install footprint regressed.
+        run: |
+          if /tmp/smoke-venv/bin/pip show torch >/dev/null 2>&1; then
+            echo "REGRESSION: torch was installed in base wheel install"; exit 1
+          fi
+          if /tmp/smoke-venv/bin/pip show sentence-transformers >/dev/null 2>&1; then
+            echo "REGRESSION: sentence-transformers was installed in base wheel install"; exit 1
+          fi
+          echo "lean install OK — neither torch nor sentence-transformers in base"
+
       - name: Import public API from a directory with no source on path
         # cd to /tmp so Python can't pick up the in-tree packages — the wheel
         # install is the only thing that can satisfy the imports.
@@ -298,5 +310,19 @@ jobs:
               evaluate_agent_trifecta,
           )
           assert aletheia_core.__version__, "version string missing"
-          print(f"aletheia_core {aletheia_core.__version__} — public API importable from wheel install")
+          print(f"aletheia_core {aletheia_core.__version__} — public API importable from base (no-ml) wheel install")
           EOF
+
+      - name: Install [ml] extra and confirm semantic stack is reachable
+        # Separate venv so we don't pollute the lean smoke above. Verifies
+        # `pip install '...[ml]'` actually pulls torch + sentence-transformers
+        # so users who follow the README quickstart for semantic detection
+        # don't hit a broken install path.
+        run: |
+          python -m venv /tmp/smoke-ml-venv
+          /tmp/smoke-ml-venv/bin/pip install --upgrade pip
+          WHEEL="$(ls dist/*.whl | head -n1)"
+          /tmp/smoke-ml-venv/bin/pip install "${WHEEL}[ml]"
+          /tmp/smoke-ml-venv/bin/pip show torch >/dev/null
+          /tmp/smoke-ml-venv/bin/pip show sentence-transformers >/dev/null
+          echo "[ml] install OK — torch + sentence-transformers present"

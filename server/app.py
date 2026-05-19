@@ -44,6 +44,7 @@ from server.middleware import (
     enterprise_auth_middleware,
     internal_secret_guard,
 )
+from server.models import AuditRequest
 from server.routes.audit import router as audit_router
 from server.routes.health import router as health_router
 from server.routes.keys import router as keys_router
@@ -132,56 +133,74 @@ async def _lifespan(application: FastAPI):
 
         asyncio.create_task(asyncio.to_thread(warm_up))
 
+        # Semantic-detection layer lives in the optional [ml] extra (torch +
+        # sentence-transformers). Without it, Scout / Judge / static-pattern
+        # Nitpicker still block — only the embedding-similarity step is
+        # offline. Skip the manifest-embedding block entirely when the extra
+        # is missing so we don't fall through to the generic exception
+        # handler with a misleading "Failed to initialize" log line.
         try:
-            from pathlib import Path
-
-            from core.manifest_cache import load_and_embed_manifest
             from sentence_transformers import SentenceTransformer
-
-            revision = settings.embedding_model_revision or None
-            if (
-                revision is None
-                and os.getenv("ENVIRONMENT", "").lower() == "production"
-            ):
-                _logger.warning(
-                    "Embedding model %s is not pinned (ALETHEIA_EMBEDDING_MODEL_REVISION "
-                    "unset). Hugging Face will serve the current 'main' ref; a "
-                    "compromised upstream could silently change semantic detection.",
-                    settings.embedding_model,
-                )
-            embedding_model = SentenceTransformer(
-                settings.embedding_model,
-                device="cpu",
-                cache_folder=None,
-                revision=revision,
-            )
-            manifest_path = Path("data/semantic_manifest.json")
-            if manifest_path.is_file():
-                t_start = _time.time()
-                cache = load_and_embed_manifest(str(manifest_path), embedding_model)
-                elapsed_ms = (_time.time() - t_start) * 1000
-                application.state.manifest_cache = cache
-                application.state.embedding_model = embedding_model
-                nitpicker.set_manifest_cache(cache, embedding_model)
-                _logger.info(
-                    "Manifest cache ready: %d entries embedded in %.1f ms",
-                    len(cache.entries),
-                    elapsed_ms,
-                )
-            else:
-                _logger.warning(
-                    "Manifest not found at %s; semantic pattern matching degraded",
-                    manifest_path,
-                )
-                application.state.manifest_cache = None
-                application.state.embedding_model = None
-        except Exception as exc:
+        except ImportError:
             _logger.warning(
-                "Failed to initialize manifest cache: %s; semantic pattern matching degraded",
-                exc,
+                "sentence-transformers not installed; semantic pattern "
+                "matching disabled. Install with: "
+                "pip install 'aletheia-cyber-core[ml]'"
             )
             application.state.manifest_cache = None
             application.state.embedding_model = None
+        else:
+            try:
+                from pathlib import Path
+
+                from core.manifest_cache import load_and_embed_manifest
+
+                revision = settings.embedding_model_revision or None
+                if (
+                    revision is None
+                    and os.getenv("ENVIRONMENT", "").lower() == "production"
+                ):
+                    _logger.warning(
+                        "Embedding model %s is not pinned (ALETHEIA_EMBEDDING_MODEL_REVISION "
+                        "unset). Hugging Face will serve the current 'main' ref; a "
+                        "compromised upstream could silently change semantic detection.",
+                        settings.embedding_model,
+                    )
+                embedding_model = SentenceTransformer(
+                    settings.embedding_model,
+                    device="cpu",
+                    cache_folder=None,
+                    revision=revision,
+                )
+                manifest_path = Path("data/semantic_manifest.json")
+                if manifest_path.is_file():
+                    t_start = _time.time()
+                    cache = load_and_embed_manifest(
+                        str(manifest_path), embedding_model
+                    )
+                    elapsed_ms = (_time.time() - t_start) * 1000
+                    application.state.manifest_cache = cache
+                    application.state.embedding_model = embedding_model
+                    nitpicker.set_manifest_cache(cache, embedding_model)
+                    _logger.info(
+                        "Manifest cache ready: %d entries embedded in %.1f ms",
+                        len(cache.entries),
+                        elapsed_ms,
+                    )
+                else:
+                    _logger.warning(
+                        "Manifest not found at %s; semantic pattern matching degraded",
+                        manifest_path,
+                    )
+                    application.state.manifest_cache = None
+                    application.state.embedding_model = None
+            except Exception as exc:
+                _logger.warning(
+                    "Failed to initialize manifest cache: %s; semantic pattern matching degraded",
+                    exc,
+                )
+                application.state.manifest_cache = None
+                application.state.embedding_model = None
 
         _seed_demo_key()
         demo_key = _demo_key_health_signal()

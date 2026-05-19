@@ -111,8 +111,19 @@ See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 ### Install
 
 ```bash
+# Lean install (~50 MB): FastAPI + crypto + ONNX-backed embedding (fastembed)
 pip install aletheia-cyber-core
+
+# Full semantic stack (adds torch + sentence-transformers, ~multi-GB):
+pip install "aletheia-cyber-core[ml]"
 ```
+
+The base install pulls a lean ONNX-runtime embedding backend (`fastembed`)
+so semantic similarity scoring still works. The `[ml]` extra adds the
+original PyTorch / sentence-transformers path for users who need it.
+Without `[ml]`, the lifespan logs a one-line warning and runs in semantic-
+degraded mode — Scout, Judge, and the static-pattern Nitpicker still block;
+only the embedding-similarity layer is offline.
 
 ### Clone + install (3-5 minutes)
 

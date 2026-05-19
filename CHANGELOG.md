@@ -22,6 +22,17 @@ AI-session artifacts removed. No runtime logic was changed; the Scout → Nitpic
 - `server.app` is now a clean factory; route logic moved to `server/routes/`.
   All previously importable names remain re-exported from `server.app` for
   backward compatibility.
+- **Heavy ML deps moved to `[ml]` extra.** `torch` and
+  `sentence-transformers` are no longer pulled by `pip install
+  aletheia-cyber-core` — base install is now ~50 MB instead of multi-GB.
+  The semantic-similarity layer falls back to the ONNX-runtime backend
+  (`fastembed`, already a base dep), so Nitpicker still scores semantic
+  similarity out of the box. Users who want the original PyTorch path
+  install with `pip install 'aletheia-cyber-core[ml]'`. If `[ml]` is
+  missing and the original `sentence_transformers` import is attempted
+  in the FastAPI lifespan, the service logs a one-line warning and runs
+  in semantic-degraded mode (Scout / Judge / static-pattern Nitpicker
+  all still enforce).
 - Minimum Python unchanged: **3.10**.
 
 ### Added
