@@ -19,7 +19,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "3.0.3",
     "next": "16.2.6",
-    "next-auth": "4.24.13",
+    "next-auth": "4.24.14",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "resend": "^6.11.0",
