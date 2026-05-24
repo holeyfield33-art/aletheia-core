@@ -12,17 +12,29 @@ Configuration (via env or ``AletheiaSettings``):
 
 The ``authenticate()`` method expects a **Base64-encoded SAML Response**
 (the POST binding value) as the *credential* parameter.
+
+Security considerations:
+    - ``strict=True`` enforces timestamp and destination checks.
+    - ``wantAssertionsSigned`` and ``wantMessagesSigned`` are both required.
+    - Responses exceeding ``_MAX_SAML_RESPONSE_BYTES`` are rejected before parsing
+      to prevent XML expansion attacks.
+    - ``http_host`` is derived from ``acs_url`` so the library can validate
+      that the response destination matches the registered ACS endpoint.
 """
 
 from __future__ import annotations
 
 import logging
+import urllib.parse
 from typing import Any, Optional
 
 from core.auth.base import AuthProvider
 from core.auth.models import VALID_ROLES, AuthenticatedUser
 
 _logger = logging.getLogger("aletheia.auth.saml")
+
+# Reject SAML responses larger than this to guard against XML expansion attacks.
+_MAX_SAML_RESPONSE_BYTES = 50_000
 
 
 class SAMLAuthProvider(AuthProvider):
@@ -74,6 +86,10 @@ class SAMLAuthProvider(AuthProvider):
             },
             "security": {
                 "authnRequestsSigned": False,
+                # Both the outer message AND the inner assertion must be signed.
+                # Requiring only assertion signatures leaves the envelope unsigned,
+                # allowing wrapping attacks against IdPs that sign assertions alone.
+                "wantMessagesSigned": True,
                 "wantAssertionsSigned": True,
                 "wantNameIdEncrypted": False,
             },
@@ -91,13 +107,27 @@ class SAMLAuthProvider(AuthProvider):
         if not credential:
             return None
 
+        # Reject oversized responses before any XML parsing.
+        if len(credential.encode()) > _MAX_SAML_RESPONSE_BYTES:
+            _logger.warning(
+                "SAML: response exceeds size limit (%d bytes), rejecting",
+                len(credential.encode()),
+            )
+            return None
+
         try:
             from onelogin.saml2.auth import OneLogin_Saml2_Auth  # type: ignore[import-untyped]
+
+            # Derive http_host from the registered ACS URL so the library can
+            # confirm the response Destination attribute matches this SP.
+            # An empty http_host skips that check entirely.
+            _parsed = urllib.parse.urlparse(self._acs_url)
+            http_host = _parsed.netloc or _parsed.hostname or ""
 
             # Build the request dict expected by python3-saml.
             request_data = {
                 "https": "on",
-                "http_host": "",
+                "http_host": http_host,
                 "script_name": self._acs_url,
                 "post_data": {"SAMLResponse": credential},
             }
