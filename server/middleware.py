@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import secrets
+import uuid as _uuid
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -25,8 +26,19 @@ _logger = logging.getLogger("aletheia.api.middleware")
 
 _INTERNAL_SECRET: str = os.getenv("ALETHEIA_INTERNAL_SECRET", "").strip()
 
-# Paths exempt from the guard so health/readiness probes and public key
-# endpoints remain reachable without the Vercel proxy.
+# Paths exempt from the Vercel-proxy guard.
+#
+# The guard is only meaningful when traffic is expected to arrive exclusively
+# through the Vercel edge (which injects the x-aletheia-internal header).
+# Some paths must remain reachable without the proxy:
+#
+#  - Infra probes (/health, /ready) — called by Render, Kubernetes, etc.
+#  - Public-key endpoints — downloaded by receipt verifiers and clients.
+#  - OpenAPI docs — developer tooling.
+#  - /v1/audit — API-SDK clients authenticate with API keys and call Render
+#    directly.  Forcing them through the Vercel proxy would break the SDK.
+#    Auth on /v1/audit is enforced by the _check_api_key dependency, so
+#    the proxy guard provides no additional protection here.
 _INTERNAL_SECRET_EXEMPT = frozenset(
     [
         "/health",
@@ -48,9 +60,20 @@ _INTERNAL_SECRET_EXEMPT = frozenset(
 
 
 async def add_security_and_rate_limit_headers(request: Request, call_next):
+    # Propagate or generate a request ID so callers can correlate log entries.
+    request_id = request.headers.get("x-request-id") or str(_uuid.uuid4())
+    request.state.request_id = request_id
+
     response = await call_next(request)
+
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Request-ID"] = request_id
+    # HSTS: two-year max-age, covers subdomains, eligible for preload.
+    # Only meaningful over TLS, but safe to send on HTTP (browsers ignore it).
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=63072000; includeSubDomains; preload"
+    )
     if "Cache-Control" not in response.headers:
         response.headers["Cache-Control"] = "no-store"
     response.headers["Content-Security-Policy"] = (
