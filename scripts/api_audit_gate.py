@@ -780,7 +780,7 @@ def run_audit_gate(
     import os
 
     os.environ.setdefault("ALETHEIA_AUTH_DISABLED", "true")
-    os.environ.setdefault("ALETHEIA_MODE", "shadow")  # Shadow mode for audit
+    os.environ.setdefault("ALETHEIA_MODE", "active")  # Active mode required to enforce blocking
 
     client = TestClient(app, raise_server_exceptions=False)
 
