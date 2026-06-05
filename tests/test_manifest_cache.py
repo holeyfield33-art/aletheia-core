@@ -15,9 +15,7 @@ from core.manifest_cache import (
     match_payload,
 )
 
-_HAS_SENTENCE_TRANSFORMERS = (
-    importlib.util.find_spec("sentence_transformers") is not None
-)
+_HAS_FASTEMBED = importlib.util.find_spec("fastembed") is not None
 
 
 class TestManifestCache(unittest.TestCase):
@@ -51,8 +49,8 @@ class TestManifestCache(unittest.TestCase):
 
 
 @unittest.skipUnless(
-    _HAS_SENTENCE_TRANSFORMERS,
-    "requires sentence_transformers",
+    _HAS_FASTEMBED,
+    "requires fastembed",
 )
 class TestLoadAndEmbedManifest(unittest.TestCase):
     """Test manifest loading and embedding."""
@@ -89,9 +87,9 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
 
     def test_load_and_embed_manifest_success(self):
         """load_and_embed_manifest creates valid cache."""
-        from sentence_transformers import SentenceTransformer
+        from core.model_loader import load_cached_sentence_transformer
 
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+        model = load_cached_sentence_transformer("sentence-transformers/all-MiniLM-L6-v2")
         cache = load_and_embed_manifest(str(self.manifest_path), model)
 
         self.assertEqual(len(cache.entries), 2)
@@ -102,9 +100,9 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
 
     def test_load_and_embed_manifest_file_not_found(self):
         """load_and_embed_manifest raises FileNotFoundError for missing file."""
-        from sentence_transformers import SentenceTransformer
+        from core.model_loader import load_cached_sentence_transformer
 
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+        model = load_cached_sentence_transformer("sentence-transformers/all-MiniLM-L6-v2")
         with self.assertRaises(FileNotFoundError):
             load_and_embed_manifest("/nonexistent/path.json", model)
 
@@ -113,9 +111,9 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
         bad_path = Path(self.temp_dir.name) / "bad.json"
         bad_path.write_text("not valid json {")
 
-        from sentence_transformers import SentenceTransformer
+        from core.model_loader import load_cached_sentence_transformer
 
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+        model = load_cached_sentence_transformer("sentence-transformers/all-MiniLM-L6-v2")
         with self.assertRaises(json.JSONDecodeError):
             load_and_embed_manifest(str(bad_path), model)
 
@@ -129,9 +127,9 @@ class TestLoadAndEmbedManifest(unittest.TestCase):
         with open(bad_path, "w") as f:
             json.dump(bad_manifest, f)
 
-        from sentence_transformers import SentenceTransformer
+        from core.model_loader import load_cached_sentence_transformer
 
-        model = SentenceTransformer("all-MiniLM-L6-v2")
+        model = load_cached_sentence_transformer("sentence-transformers/all-MiniLM-L6-v2")
         with self.assertRaises(ValueError):
             load_and_embed_manifest(str(bad_path), model)
 

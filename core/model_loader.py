@@ -44,6 +44,7 @@ class _SentenceTransformerCompat:
         texts: list[str],
         normalize_embeddings: bool = True,  # fastembed always normalizes; param kept for API compat
         show_progress_bar: bool = False,  # ignored; fastembed doesn't show progress bars
+        **_kwargs: object,  # absorb sentence-transformers-only kwargs (convert_to_numpy, batch_size, …)
     ):
         import numpy as np
 
