@@ -79,6 +79,7 @@ jobs:
         env:
           ENVIRONMENT: test
           ALETHEIA_AUTH_DISABLED: "true"
+          ALETHEIA_MODE: active
           ALETHEIA_LOG_LEVEL: WARNING
 
       - name: Run detectors tests
