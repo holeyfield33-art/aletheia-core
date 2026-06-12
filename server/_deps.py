@@ -12,7 +12,7 @@ from core.auth.api_key_flow import authenticate_api_key
 from core.auth.api_key_validation import raise_for_quota_failure, resolve_api_key
 from core.auth.models import AuthContext
 from core.auth.rbac import Permission, has_permission
-from core.config import env_bool
+from core.config import DEV_ENVIRONMENTS, env_bool
 from core.key_store import key_store
 from core.rate_limit import eval_rate_limiter
 from server._bridge import _check_hosted_prisma_api_key, _lookup_hosted_api_key_user_id
@@ -23,8 +23,9 @@ _logger = logging.getLogger("aletheia.api")
 # ALETHEIA_AUTH_DISABLED only takes effect when the runtime explicitly
 # identifies itself as a dev/test environment. An unset or misspelled
 # ENVIRONMENT now fails closed (auth required) instead of silently
-# bypassing on the assumption "not production = safe".
-_DEV_ENVIRONMENTS = {"development", "dev", "test", "testing", "local"}
+# bypassing on the assumption "not production = safe". The canonical dev set
+# lives in core.config so auth-bypass and shadow-mode share identical semantics.
+_DEV_ENVIRONMENTS = DEV_ENVIRONMENTS
 
 
 def _auth_bypass_allowed() -> bool:

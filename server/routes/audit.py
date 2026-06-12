@@ -18,7 +18,11 @@ from core.audit import (
     verify_receipt_or_raise,
 )
 from core.auth.models import AuthContext
-from core.config import settings
+from core.config import (
+    is_production_environment,
+    opaque_decisions_enabled,
+    settings,
+)
 from core.decision_store import decision_store
 from core.metrics import (
     AUDIT_DECISIONS_TOTAL,
@@ -417,13 +421,18 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
     AUDIT_EVALUATION_DURATION_SECONDS.observe(latency / 1000)
 
     shadow_verdict = None
-    _env_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+    # Fail-closed: only honour the shadow-mode downgrade (DENIED -> PROCEED) when
+    # ENVIRONMENT is an explicit, recognised dev/test value. An unset or
+    # misspelled ENVIRONMENT is treated as production, so a misconfiguration can
+    # never silently convert blocks into allows.
     if is_blocked and settings.shadow_mode:
-        if _env_is_production:
+        if is_production_environment():
             _logger.error(
-                "SHADOW_MODE_BLOCKED: shadow_mode=true but ENVIRONMENT=production. "
-                "Refusing to override DENIED decision for action=%s origin=%s. "
+                "SHADOW_MODE_BLOCKED: shadow_mode=true but ENVIRONMENT is not an "
+                "explicit dev/test value (got %r). Refusing to override DENIED "
+                "decision for action=%s origin=%s. "
                 "Fix configuration: set ALETHEIA_MODE=active for production.",
+                os.getenv("ENVIRONMENT", ""),
                 req.action,
                 req.origin,
             )
@@ -476,18 +485,33 @@ async def secure_audit(req: AuditRequest, request: Request) -> Any:
         "top_match": None,
         "error": None,
     }
+    _opaque = opaque_decisions_enabled()
     if nit_result is not None:
         semantic_engine["enabled"] = True
         semantic_engine["degraded"] = nit_result.degraded
         semantic_engine["manifest_version"] = nit_result.manifest_version
         semantic_engine["categories_checked"] = nit_result.categories
         if nit_result.top_match_id:
-            semantic_engine["top_match"] = {
-                "id": nit_result.top_match_id,
-                "score": round(nit_result.top_match_score, 4),
-                "threshold": round(nit_result.top_match_threshold, 4),
-                "category": nit_result.top_match_category,
-            }
+            if _opaque:
+                # Opaque mode: never expose the numeric similarity score or
+                # threshold (a precise boundary oracle an attacker could probe).
+                # Emit only a coarse band derived from the decision.
+                semantic_engine["top_match"] = {
+                    "band": (
+                        "at_or_above_threshold"
+                        if nit_result.top_match_score
+                        >= nit_result.top_match_threshold
+                        else "below_threshold"
+                    ),
+                    "category": nit_result.top_match_category,
+                }
+            else:
+                semantic_engine["top_match"] = {
+                    "id": nit_result.top_match_id,
+                    "score": round(nit_result.top_match_score, 4),
+                    "threshold": round(nit_result.top_match_threshold, 4),
+                    "category": nit_result.top_match_category,
+                }
         if nit_result.error:
             semantic_engine["error"] = nit_result.error
 
