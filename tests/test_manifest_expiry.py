@@ -9,10 +9,12 @@ Verifies that signing.py correctly handles:
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 from manifest.signing import (
     generate_keypair,
@@ -64,8 +66,9 @@ class TestManifestExpiry(unittest.TestCase):
                 paths["manifest"], paths["signature"], paths["public_key"]
             )
 
+    @mock.patch.dict(os.environ, {"ALETHEIA_MANIFEST_GRACE_DAYS": "7"})
     def test_recently_expired_within_grace_accepted(self):
-        """Manifest expired 3 days ago (within 7-day grace) is accepted with warning."""
+        """Manifest expired 3 days ago (within an explicit 7-day grace) is accepted."""
         expired = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
         with tempfile.TemporaryDirectory() as tmp:
             paths = _create_manifest(tmp, expired)
@@ -73,6 +76,20 @@ class TestManifestExpiry(unittest.TestCase):
             verify_manifest_signature(
                 paths["manifest"], paths["signature"], paths["public_key"]
             )
+
+    @mock.patch.dict(os.environ, {"ENVIRONMENT": "production"}, clear=False)
+    def test_production_default_rejects_recently_expired(self):
+        """Fail-closed: in production the grace defaults to 0, so a manifest
+        expired even 1 day ago is hard-rejected without an explicit override."""
+        os.environ.pop("ALETHEIA_MANIFEST_GRACE_DAYS", None)
+        expired = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = _create_manifest(tmp, expired)
+            with self.assertRaises(ManifestTamperedError) as ctx:
+                verify_manifest_signature(
+                    paths["manifest"], paths["signature"], paths["public_key"]
+                )
+            self.assertIn("grace period", str(ctx.exception).lower())
 
     def test_expired_beyond_grace_rejected(self):
         """Manifest expired > 7 days ago is hard-rejected."""
@@ -90,8 +107,9 @@ class TestManifestExpiry(unittest.TestCase):
     def test_grace_period_is_seven_days(self):
         self.assertEqual(_GRACE_PERIOD_DAYS, 7)
 
+    @mock.patch.dict(os.environ, {"ALETHEIA_MANIFEST_GRACE_DAYS": "7"})
     def test_expired_exactly_at_grace_boundary(self):
-        """Manifest expired 6 days ago — safely within 7-day grace."""
+        """Manifest expired 6 days ago — safely within an explicit 7-day grace."""
         expired = (
             datetime.now(timezone.utc) - timedelta(days=_GRACE_PERIOD_DAYS - 1)
         ).isoformat()

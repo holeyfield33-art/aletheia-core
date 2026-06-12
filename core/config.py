@@ -326,6 +326,38 @@ def env_bool(key: str, default: bool = False) -> bool:
     return val.lower() in ("true", "1", "yes")
 
 
+# Canonical set of environments treated as non-production. Anything outside this
+# set (including an unset or misspelled ENVIRONMENT) is treated as production so
+# that security downgrades fail *closed* rather than open.
+DEV_ENVIRONMENTS: frozenset[str] = frozenset(
+    {"development", "dev", "test", "testing", "local"}
+)
+
+
+def is_production_environment() -> bool:
+    """True unless ENVIRONMENT is an explicit, recognised dev/test value.
+
+    Fail-closed: an unset or unrecognised ENVIRONMENT is considered production.
+    Use this for any security control whose *safe* default is the production
+    behaviour (e.g. refusing to downgrade a DENIED verdict in shadow mode).
+    """
+    return os.getenv("ENVIRONMENT", "").strip().lower() not in DEV_ENVIRONMENTS
+
+
+def opaque_decisions_enabled() -> bool:
+    """True when audit responses must not leak the detector's decision boundary.
+
+    Controlled by ``ALETHEIA_OPAQUE_DECISIONS``. When unset, opaque mode is
+    ON in production and OFF elsewhere, so similarity scores/thresholds are
+    hidden by default on real deployments but remain visible for local
+    debugging and tests.
+    """
+    raw = os.getenv("ALETHEIA_OPAQUE_DECISIONS", "").strip().lower()
+    if raw:
+        return raw in ("true", "1", "yes", "on", "y", "t")
+    return is_production_environment()
+
+
 def compute_daily_rotation_seed(
     secret: str,
     date_str: str | None = None,
@@ -440,5 +472,37 @@ def validate_production_config() -> list[str]:
         issues.append(
             "ALETHEIA_AUTH_DISABLED=true is not permitted in production. "
             "Unset it or move the workload to a development/test environment."
+        )
+    # Receipts must be asymmetrically signed (Ed25519) so a leaked verifier
+    # secret cannot mint forgeries. Flag HMAC-only signing unless the operator
+    # explicitly acknowledges the weaker, symmetric guarantee.
+    has_receipt_priv = bool(
+        os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY")
+        or os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH")
+    )
+    has_receipt_secret = bool(os.getenv("ALETHEIA_RECEIPT_SECRET"))
+    if (
+        not has_receipt_priv
+        and has_receipt_secret
+        and not settings.require_ed25519_receipts
+        and not env_bool("ALETHEIA_ALLOW_HMAC_RECEIPTS")
+    ):
+        issues.append(
+            "Production receipts would be HMAC-SHA256 only (symmetric): set "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY for Ed25519 signing, or "
+            "ALETHEIA_REQUIRE_ED25519_RECEIPTS=true. Set "
+            "ALETHEIA_ALLOW_HMAC_RECEIPTS=true to acknowledge this risk."
+        )
+    # The manifest trust root should be pinned out-of-band so an attacker who
+    # can write the deploy directory cannot swap manifest + signature + public
+    # key as a set. Recommend a pinned key fingerprint in production.
+    if not os.getenv("ALETHEIA_MANIFEST_EXPECTED_KEY_ID") and not env_bool(
+        "ALETHEIA_ALLOW_UNPINNED_MANIFEST_KEY"
+    ):
+        issues.append(
+            "Production should pin the manifest signing key via "
+            "ALETHEIA_MANIFEST_EXPECTED_KEY_ID (sha256 of the raw Ed25519 public "
+            "key) so the on-disk public key cannot be silently swapped. Set "
+            "ALETHEIA_ALLOW_UNPINNED_MANIFEST_KEY=true to acknowledge this risk."
         )
     return issues

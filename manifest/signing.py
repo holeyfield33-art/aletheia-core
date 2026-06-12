@@ -20,8 +20,37 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 _signing_logger = _logging.getLogger("aletheia.signing")
 
 # Grace period: manifests within this window of expiry produce a warning
-# but are still accepted. Beyond this, they are hard-rejected.
+# but are still accepted. Beyond this, they are hard-rejected. This is the
+# default for non-production environments; production fails closed (0 days)
+# unless ALETHEIA_MANIFEST_GRACE_DAYS overrides it. See _grace_period_days().
 _GRACE_PERIOD_DAYS = 7
+
+
+def _grace_period_days() -> int:
+    """Resolve the expiry grace window.
+
+    Order of precedence:
+      1. ALETHEIA_MANIFEST_GRACE_DAYS (explicit operator override, >= 0)
+      2. 0 in production (fail-closed: an expired manifest is rejected)
+      3. _GRACE_PERIOD_DAYS otherwise (developer convenience)
+    """
+    raw = os.getenv("ALETHEIA_MANIFEST_GRACE_DAYS", "").strip()
+    if raw:
+        try:
+            return max(0, int(raw))
+        except ValueError:
+            _signing_logger.warning(
+                "Invalid ALETHEIA_MANIFEST_GRACE_DAYS=%r; using default.", raw
+            )
+    if os.getenv("ENVIRONMENT", "").strip().lower() not in {
+        "development",
+        "dev",
+        "test",
+        "testing",
+        "local",
+    }:
+        return 0
+    return _GRACE_PERIOD_DAYS
 
 
 class ManifestTamperedError(RuntimeError):
@@ -193,6 +222,18 @@ def verify_manifest_signature(
     public_key = _load_public_key(public_path)
     expected_key_id = _public_key_id(public_key)
 
+    # Out-of-band trust anchor: when an expected key fingerprint is pinned via
+    # ALETHEIA_MANIFEST_EXPECTED_KEY_ID, reject any on-disk public key that does
+    # not match it. Without this, an attacker who can write the deploy directory
+    # could replace manifest + signature + public key as a set and still pass
+    # verification — the signature alone only proves self-consistency.
+    pinned_key_id = os.getenv("ALETHEIA_MANIFEST_EXPECTED_KEY_ID", "").strip()
+    if pinned_key_id and pinned_key_id.lower() != expected_key_id.lower():
+        raise ManifestTamperedError(
+            "Manifest public key fingerprint does not match the pinned "
+            "ALETHEIA_MANIFEST_EXPECTED_KEY_ID."
+        )
+
     try:
         signature_data = json.loads(_read_bytes(signature).decode("utf-8"))
     except json.JSONDecodeError as exc:
@@ -239,12 +280,13 @@ def verify_manifest_signature(
     now = datetime.now(timezone.utc)
     from datetime import timedelta
 
-    grace_deadline = expiry + timedelta(days=_GRACE_PERIOD_DAYS)
+    grace_days = _grace_period_days()
+    grace_deadline = expiry + timedelta(days=grace_days)
 
     if now > grace_deadline:
         raise ManifestTamperedError(
             f"Manifest expired on {expiry.isoformat()} and the "
-            f"{_GRACE_PERIOD_DAYS}-day grace period has elapsed."
+            f"{grace_days}-day grace period has elapsed."
         )
     if now > expiry:
         days_past = (now - expiry).days
@@ -254,8 +296,8 @@ def verify_manifest_signature(
             "Re-sign the manifest before the grace period ends.",
             days_past,
             expiry.isoformat(),
-            _GRACE_PERIOD_DAYS - days_past,
-            _GRACE_PERIOD_DAYS,
+            grace_days - days_past,
+            grace_days,
         )
 
     if signature_data["payload_sha256"] != payload_hash:
