@@ -1,4 +1,4 @@
 {
   "python_source_roots": ["."],
-  "external_modules": []
+  "external_modules": ["asyncpg","authlib","azure","boto3","click","confusable_homoglyphs","cryptography","fastapi","fastembed","google","httpx","hvac","hypothesis","numpy","onelogin","opentelemetry","prometheus_client","pydantic","pytest","qdrant_client","redis","requests","scipy","sentence_transformers","simulations","starlette","testcontainers","tpm2_pytss","yaml"]
 }
