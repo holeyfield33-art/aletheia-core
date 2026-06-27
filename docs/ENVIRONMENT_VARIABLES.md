@@ -67,6 +67,7 @@ Status meanings:
 | ALETHEIA_MANIFEST_SIGNATURE_PATH | Optional | Custom manifest signature file path. |
 | ALETHEIA_MANIFEST_PUBLIC_KEY_PATH | Optional | Custom manifest public key file path. |
 | ALETHEIA_ROTATION_SALT | Optional | HMAC salt used for daily rotation seed fallback logic. |
+| ALETHEIA_OPAQUE_DECISIONS | Optional | Hides similarity scores/thresholds in audit responses; defaults ON in production, OFF elsewhere. |
 | ALETHEIA_TRUSTED_PROXY_DEPTH | Optional | Trusted reverse-proxy hop depth. |
 | ALETHEIA_CORS_ORIGINS | Optional | Backend CORS allowlist. |
 | ALETHEIA_CORS_ORIGIN | Optional | Legacy single-origin CORS value (demo route). |
@@ -114,6 +115,10 @@ Status meanings:
 | ALETHEIA_RECEIPT_PUBLIC_KEY_PATH | Optional | File path to Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_KEY_ID | Optional | Expected 16-char receipt key_id; startup/runtime calls fail if resolved keypair does not match. |
 | ALETHEIA_REQUIRE_ED25519_RECEIPTS | Optional | Enforces Ed25519-only receipt verification path (legacy HMAC receipts rejected). |
+| ALETHEIA_ALLOW_HMAC_RECEIPTS | Optional | Acknowledges the risk of HMAC-only receipts in production when no Ed25519 key is configured; suppresses the corresponding production-config warning. |
+| ALETHEIA_MANIFEST_EXPECTED_KEY_ID | Optional | Pins the expected manifest signing public-key fingerprint (sha256); verification rejects an on-disk key that does not match. |
+| ALETHEIA_ALLOW_UNPINNED_MANIFEST_KEY | Optional | Acknowledges running without a pinned manifest key fingerprint in production; suppresses the corresponding production-config warning. |
+| ALETHEIA_MANIFEST_GRACE_DAYS | Optional | Operator override (>= 0) for the manifest-expiry grace window; production fails closed (0 days) unless set. |
 | SIGNING_SECRET | Conditionally required | Required by CLI startup check (`main.py`) in production mode. |
 
 ## Semantic / Qdrant
