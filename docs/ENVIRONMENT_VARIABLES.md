@@ -114,7 +114,7 @@ Status meanings:
 | ALETHEIA_RECEIPT_PUBLIC_KEY | Optional | Inline Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_PUBLIC_KEY_PATH | Optional | File path to Ed25519 public key PEM. |
 | ALETHEIA_RECEIPT_KEY_ID | Optional | Expected 16-char receipt key_id; startup/runtime calls fail if resolved keypair does not match. |
-| ALETHEIA_REQUIRE_ED25519_RECEIPTS | Optional | Enforces Ed25519-only receipt verification path (legacy HMAC receipts rejected). |
+| ALETHEIA_REQUIRE_ED25519_RECEIPTS | Optional (default `true` since v2.0.0) | Enforces Ed25519-only receipt verification path (legacy HMAC receipts rejected). Set to `false` only during HMAC→Ed25519 migration to accept in-flight legacy receipts; plan to remove after the cutover. |
 | ALETHEIA_ALLOW_HMAC_RECEIPTS | Optional | Acknowledges the risk of HMAC-only receipts in production when no Ed25519 key is configured; suppresses the corresponding production-config warning. |
 | ALETHEIA_MANIFEST_EXPECTED_KEY_ID | Optional | Pins the expected manifest signing public-key fingerprint (sha256); verification rejects an on-disk key that does not match. |
 | ALETHEIA_ALLOW_UNPINNED_MANIFEST_KEY | Optional | Acknowledges running without a pinned manifest key fingerprint in production; suppresses the corresponding production-config warning. |

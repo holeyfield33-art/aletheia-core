@@ -33,6 +33,13 @@ AI-session artifacts removed. No runtime logic was changed; the Scout → Nitpic
   in the FastAPI lifespan, the service logs a one-line warning and runs
   in semantic-degraded mode (Scout / Judge / static-pattern Nitpicker
   all still enforce).
+- **Ed25519 receipts required by default.** `require_ed25519_receipts` now
+  defaults to `True`; legacy HMAC-SHA256 receipts are rejected on verify
+  with `ReceiptVerificationError("hmac_downgrade_blocked")`. Deployments
+  mid-migration must set `ALETHEIA_REQUIRE_ED25519_RECEIPTS=false` during
+  the cutover window. Remove both `ALETHEIA_RECEIPT_SECRET` and the env
+  override once all pre-migration receipts have aged out. See
+  `docs/KEY_ROTATION.md` for the migration playbook.
 - Minimum Python unchanged: **3.10**.
 
 ### Added

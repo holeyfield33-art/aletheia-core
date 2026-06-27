@@ -104,12 +104,40 @@ async def startup_checks(*, judge_load_policy: Callable[[], None], logger: Any) 
         sys.exit(1)
 
     receipt_secret = os.getenv("ALETHEIA_RECEIPT_SECRET", "")
-    if settings.mode == "active" and not receipt_secret:
+    has_ed25519_priv = bool(
+        os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY", "").strip()
+        or os.getenv("ALETHEIA_RECEIPT_PRIVATE_KEY_PATH", "").strip()
+    )
+
+    # Active mode needs SOME signing material — either Ed25519 (preferred) or
+    # legacy HMAC secret (still accepted during migration cutover).
+    if settings.mode == "active" and not has_ed25519_priv and not receipt_secret:
         logger.critical(
-            "FATAL: ALETHEIA_RECEIPT_SECRET is not set and mode=active. "
+            "FATAL: no receipt signing material configured and mode=active. "
             "Audit receipts would be unsigned (UNSIGNED_DEV_MODE). "
-            "Set ALETHEIA_RECEIPT_SECRET or switch to mode=shadow for development. "
-            "Refusing to start."
+            "Configure ALETHEIA_RECEIPT_PRIVATE_KEY (PEM, Ed25519, preferred) "
+            "or ALETHEIA_RECEIPT_PRIVATE_KEY_PATH, or set ALETHEIA_RECEIPT_SECRET "
+            "(legacy HMAC) for the migration cutover window, "
+            "or switch to mode=shadow for development. Refusing to start."
+        )
+        sys.exit(1)
+
+    # Strict mode (the v2.0.0 default) requires Ed25519 specifically — without
+    # it, build_tmr_receipt() would mint HMAC receipts that verify_receipt_or_raise()
+    # then rejects, leaving the service producing receipts it cannot verify.
+    if (
+        settings.mode == "active"
+        and settings.require_ed25519_receipts
+        and not has_ed25519_priv
+    ):
+        logger.critical(
+            "FATAL: require_ed25519_receipts=True (the secure default) but no "
+            "Ed25519 signing key is configured. The service would mint HMAC "
+            "receipts that its own verifier rejects. Configure "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY (PEM) or "
+            "ALETHEIA_RECEIPT_PRIVATE_KEY_PATH, or set "
+            "ALETHEIA_REQUIRE_ED25519_RECEIPTS=false for the migration "
+            "cutover window. Refusing to start."
         )
         sys.exit(1)
 
