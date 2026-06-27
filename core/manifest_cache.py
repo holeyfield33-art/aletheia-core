@@ -32,7 +32,7 @@ _logger = logging.getLogger("aletheia.manifest_cache")
 
 
 def _encode_with_compatible_kwargs(
-    model: SentenceTransformer,
+    model: Any,
     texts: str | list[str],
     **kwargs: Any,
 ) -> np.ndarray:
