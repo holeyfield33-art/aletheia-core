@@ -117,5 +117,7 @@ class VaultSecretManager(SecretManager):
             return False
 
     async def close(self) -> None:
-        # hvac client doesn't hold persistent connections in default mode.
-        pass
+        """No-op: the hvac client holds no persistent connections in default mode.
+
+        Defined for interface parity with backends that do.
+        """
