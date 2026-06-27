@@ -67,6 +67,9 @@ class _StubModel:
         *,
         normalize_embeddings: bool = True,
         show_progress_bar: bool = False,
+        convert_to_numpy: bool = True,
+        batch_size: int = 32,
+        **kwargs,
     ):
         if isinstance(texts, str):
             items = [texts]

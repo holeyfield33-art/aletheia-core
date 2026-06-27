@@ -278,7 +278,10 @@ class TestAuditEndpointShadowMode(unittest.TestCase):
         try:
             wrapper_mod.settings.shadow_mode = True
             body = _blocked_body(f"{_IP_SHADOW}1")
-            with patch("server.routes.audit.classify_blocked_intent") as mock_intent:
+            # Must declare an explicit dev/test ENVIRONMENT so the production
+            # fail-closed guard does not block the shadow-mode downgrade.
+            with patch.dict(os.environ, {"ENVIRONMENT": "test"}), \
+                 patch("server.routes.audit.classify_blocked_intent") as mock_intent:
                 mock_intent.return_value.blocked = False
                 mock_intent.return_value.category = "none"
                 mock_intent.return_value.matched_policy = "none"

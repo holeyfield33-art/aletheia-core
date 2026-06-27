@@ -129,6 +129,7 @@ jobs:
           ALETHEIA_RECEIPT_SECRET: ci-adversarial-receipt-secret-32c # pragma: allowlist secret
           ALETHEIA_DISABLE_TEST_STUBS: "true"
           ALETHEIA_LOG_LEVEL: WARNING
+          ENVIRONMENT: test
         run: |
           python -m pytest \
             tests/test_redteam_adversarial.py \
