@@ -409,10 +409,17 @@ class EvalUpstashRateLimiter:
     Uses two sorted-set keys per IP:
     - ``aletheia:eval_rl:min:{ip}``   — 60-second sliding window
     - ``aletheia:eval_rl:burst:{ip}`` — 3-second burst window
+
+    Circuit breaker: after ``_FAILURE_THRESHOLD`` consecutive Redis failures the
+    circuit opens and requests are delegated to an in-memory fallback limiter
+    rather than being silently allowed.  This preserves rate-limiting semantics
+    during Redis outages while avoiding a complete self-DoS.
     """
 
     _MIN_PREFIX = "aletheia:eval_rl:min:"
     _BURST_PREFIX = "aletheia:eval_rl:burst:"
+    _FAILURE_THRESHOLD: int = 5
+    _CIRCUIT_RESET_SECONDS: float = 30.0
 
     def __init__(self) -> None:
         self._max_per_minute: int = int(os.getenv("EVAL_RATE_LIMIT_PER_MINUTE", "20"))
@@ -423,6 +430,11 @@ class EvalUpstashRateLimiter:
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
         }
+        self._failure_count: int = 0
+        self._circuit_open_until: float = 0.0
+        self.degraded: bool = False
+        # In-memory fallback used while the Redis circuit is open.
+        self._fallback = EvalInMemoryRateLimiter()
         _logger.info(
             "Eval rate limiter (Upstash): %d req/min, burst=%d",
             self._max_per_minute,
@@ -441,6 +453,13 @@ class EvalUpstashRateLimiter:
 
     async def allow(self, key: str) -> tuple[bool, int]:
         import time as _t
+
+        # Circuit open: delegate to in-memory fallback.
+        if self._circuit_open_until > _t.monotonic():
+            _logger.debug(
+                "Eval Redis circuit open — using in-memory fallback for key: %s", key
+            )
+            return await self._fallback.allow(key)
 
         now = _t.time()
         min_key = f"{self._MIN_PREFIX}{key}"
@@ -473,23 +492,47 @@ class EvalUpstashRateLimiter:
             min_count = int(results[1])
             burst_count = int(results[3])
 
+            # Successful call — reset failure counter and close circuit if it was open.
+            if self._failure_count > 0:
+                self._failure_count = 0
+                self.degraded = False
+                self._circuit_open_until = 0.0
+                _logger.info("Eval Redis rate limiter recovered — circuit closed")
+
             if min_count >= self._max_per_minute:
                 return False, 60
             if burst_count >= self._burst:
                 return False, max(1, int(_EVAL_BURST_WINDOW) + 1)
             return True, 0
+
         except Exception as exc:
-            _logger.warning(
-                "Eval Upstash rate limiter error — allowing request: %s", exc
-            )
-            # Fail-open: don't block legitimate traffic on Redis errors
-            return True, 0
+            self._failure_count += 1
+            self.degraded = True
+            if self._failure_count >= self._FAILURE_THRESHOLD:
+                jitter = random.uniform(0, 10)
+                self._circuit_open_until = (
+                    _t.monotonic() + self._CIRCUIT_RESET_SECONDS + jitter
+                )
+                _logger.error(
+                    "Eval Redis rate limiter circuit opened after %d failures — "
+                    "switching to in-memory fallback for %.0f seconds. "
+                    "Check UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+                    self._failure_count,
+                    self._CIRCUIT_RESET_SECONDS + jitter,
+                )
+            else:
+                _logger.warning(
+                    "Eval Upstash rate limiter error (failure %d/%d): %s",
+                    self._failure_count,
+                    self._FAILURE_THRESHOLD,
+                    exc,
+                )
+            # Delegate to in-memory fallback rather than failing open.
+            return await self._fallback.allow(key)
 
     async def reset(self, key: str | None = None) -> None:
-        """No-op: Upstash keys carry TTLs and expire automatically.
-
-        Defined for interface parity with the in-memory limiter.
-        """
+        await self._fallback.reset(key)
+        # Redis keys expire automatically; nothing else to do here.
 
 
 def create_eval_rate_limiter() -> EvalUpstashRateLimiter | EvalInMemoryRateLimiter:
