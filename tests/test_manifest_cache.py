@@ -71,6 +71,33 @@ class TestManifestCache(unittest.TestCase):
 
         self.assertEqual(cache.vectors.shape, (2, 384))
 
+    def test_load_and_embed_manifest_filters_unsupported_encode_kwargs(self):
+        """load_and_embed_manifest keeps supported kwargs and drops unsupported ones."""
+
+        class PartialModel:
+            def encode(self, texts, batch_size=1):
+                self.batch_size = batch_size
+                return np.ones((len(texts), 384), dtype=np.float32)
+
+        model = PartialModel()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest_path = Path(temp_dir) / "manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "entries": [
+                            {"id": "test_1", "text": "bypass authentication"},
+                            {"id": "test_2", "text": "exfiltrate data externally"},
+                        ]
+                    }
+                )
+            )
+
+            cache = load_and_embed_manifest(str(manifest_path), model)
+
+        self.assertEqual(cache.vectors.shape, (2, 384))
+        self.assertEqual(model.batch_size, 32)
+
 
 @unittest.skipUnless(
     _HAS_FASTEMBED,
