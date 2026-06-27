@@ -96,6 +96,7 @@ class TestProductionConfigChecks(unittest.TestCase):
         issues = self._run(
             {
                 "ALETHEIA_RECEIPT_SECRET": "x" * 40,
+                "ALETHEIA_REQUIRE_ED25519_RECEIPTS": "false",
                 "ALETHEIA_ALLOW_SQLITE_PRODUCTION": "true",
                 "ALETHEIA_ALLOW_ENV_SECRETS": "true",
                 "REDIS_URL": "rediss://localhost:6379",
