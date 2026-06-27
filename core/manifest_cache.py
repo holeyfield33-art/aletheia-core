@@ -11,6 +11,7 @@ This eliminates per-request embedding computation (~24s → <100ms latency).
 from __future__ import annotations
 
 import json
+import inspect
 import logging
 import time
 from dataclasses import dataclass
@@ -28,6 +29,30 @@ else:
 
 
 _logger = logging.getLogger("aletheia.manifest_cache")
+
+
+def _encode_with_compatible_kwargs(
+    model: SentenceTransformer,
+    texts: str | list[str],
+    **kwargs: Any,
+) -> np.ndarray:
+    """Call model.encode while tolerating narrower test-double signatures."""
+    encode = model.encode
+    try:
+        signature = inspect.signature(encode)
+    except (TypeError, ValueError):
+        filtered_kwargs = kwargs
+    else:
+        if any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        ):
+            filtered_kwargs = kwargs
+        else:
+            filtered_kwargs = {
+                key: value for key, value in kwargs.items() if key in signature.parameters
+            }
+    return np.asarray(encode(texts, **filtered_kwargs))
 
 
 @dataclass
@@ -100,7 +125,12 @@ def load_and_embed_manifest(
 
     # Encode all texts at once (vectorized)
     t0 = time.time()
-    embeddings = model.encode(texts, convert_to_numpy=True, batch_size=32)
+    embeddings = _encode_with_compatible_kwargs(
+        model,
+        texts,
+        convert_to_numpy=True,
+        batch_size=32,
+    )
     elapsed_ms = (time.time() - t0) * 1000
 
     if embeddings.shape[0] != len(entries):
@@ -163,7 +193,11 @@ def match_payload(
         raise ValueError(f"Threshold must be in [0, 1], got {threshold}")
 
     # Encode text once, normalize
-    text_vec = model.encode(text, convert_to_numpy=True)
+    text_vec = _encode_with_compatible_kwargs(
+        model,
+        text,
+        convert_to_numpy=True,
+    )
     if text_vec.shape[0] != 384:
         raise ValueError(f"Expected text embedding dim=384, got {text_vec.shape[0]}")
     text_vec = text_vec / (np.linalg.norm(text_vec) + 1e-8)

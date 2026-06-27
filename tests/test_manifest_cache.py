@@ -47,6 +47,30 @@ class TestManifestCache(unittest.TestCase):
         with self.assertRaises(ValueError):
             ManifestCache(entries=entries, vectors=vectors)
 
+    def test_load_and_embed_manifest_accepts_minimal_encode_signature(self):
+        """load_and_embed_manifest tolerates stubs without sentence-transformers kwargs."""
+
+        class MinimalModel:
+            def encode(self, texts):
+                return np.ones((len(texts), 384), dtype=np.float32)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest_path = Path(temp_dir) / "manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "entries": [
+                            {"id": "test_1", "text": "bypass authentication"},
+                            {"id": "test_2", "text": "exfiltrate data externally"},
+                        ]
+                    }
+                )
+            )
+
+            cache = load_and_embed_manifest(str(manifest_path), MinimalModel())
+
+        self.assertEqual(cache.vectors.shape, (2, 384))
+
 
 @unittest.skipUnless(
     _HAS_FASTEMBED,
