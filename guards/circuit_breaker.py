@@ -26,10 +26,6 @@ class BreakerState(Enum):
     HALF_OPEN = "HALF_OPEN"
 
 
-class CircuitBreakerOpen(Exception):
-    """Raised when the breaker is open and calls are rejected."""
-
-
 class ResourceCircuitBreaker:
     """Circuit breaker for resource exhaustion protection."""
 

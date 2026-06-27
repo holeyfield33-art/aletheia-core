@@ -486,7 +486,10 @@ class EvalUpstashRateLimiter:
             return True, 0
 
     async def reset(self, key: str | None = None) -> None:
-        pass  # Best-effort; keys expire automatically
+        """No-op: Upstash keys carry TTLs and expire automatically.
+
+        Defined for interface parity with the in-memory limiter.
+        """
 
 
 def create_eval_rate_limiter() -> EvalUpstashRateLimiter | EvalInMemoryRateLimiter:

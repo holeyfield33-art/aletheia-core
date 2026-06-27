@@ -45,25 +45,6 @@ def _log_if_slow(query: str, elapsed_ms: float) -> None:
         )
 
 
-async def execute_postgres_query(query: str, *args: Any) -> Any:
-    """Execute one Postgres query and optionally log slow queries."""
-    import asyncpg
-
-    database_url = settings.database_url or os.getenv("DATABASE_URL", "")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL is not configured")
-
-    started = time.perf_counter()
-    conn = await asyncpg.connect(database_url)
-    try:
-        result = await conn.fetch(query, *args)
-    finally:
-        await conn.close()
-
-    _log_if_slow(query, (time.perf_counter() - started) * 1000)
-    return result
-
-
 def sanitize_asyncpg_url(database_url: str) -> str:
     """Strip Prisma/pgBouncer query params that asyncpg rejects."""
     strip_params = {"pgbouncer", "connection_limit", "pool_timeout", "schema"}

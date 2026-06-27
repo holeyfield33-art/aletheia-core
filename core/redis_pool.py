@@ -30,11 +30,6 @@ def redis_url() -> str:
     return os.getenv("REDIS_URL", "").strip()
 
 
-def redis_configured() -> bool:
-    """True when a standard Redis URL is available."""
-    return bool(redis_url())
-
-
 async def get_redis_pool() -> Optional[object]:
     """Return or create the global ``redis.asyncio`` connection pool.
 
@@ -87,9 +82,3 @@ async def close_redis_pool() -> None:
     if _pool is not None:
         await _pool.close()  # type: ignore[attr-defined]
         _pool = None
-
-
-def reset_redis_pool() -> None:
-    """Reset pool reference (testing only)."""
-    global _pool
-    _pool = None
