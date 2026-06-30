@@ -49,10 +49,14 @@ class TestRateLimiterFailClosed:
             for _ in range(5):
                 await limiter.allow("test_key")
 
-        # Circuit should now be open — next call should be False even without
-        # actually hitting pipeline
-        result = await limiter.allow("test_key")
-        assert result is False
+        # 1. Run the previously-flaky test 30 times — must pass every time
+for i in $(seq 1 30); do
+  python -m pytest "tests/test_security_hardening_v2.py::TestRateLimiterFailClosed::test_circuit_opens_after_threshold_failures" -q -p no:cacheprovider >/dev/null 2>&1 \
+    && echo "run $i: PASS" || echo "run $i: FAIL"
+done
+
+# 2. Run the whole class to be safe
+python -m pytest tests/test_security_hardening_v2.py::TestRateLimiterFailClosed -q
 
     @pytest.mark.asyncio
     async def test_circuit_resets_after_success(self) -> None:
